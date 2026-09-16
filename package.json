@@ -1,0 +1,5 @@
+{
+ "name":"lidollquest-server","version":"0.1.0","private":true,"type":"module",
+ "description":"Authoritative LiDollQuest hub arenas, presence, chat and reward delivery",
+ "engines":{"node":">=24"},"scripts":{"start":"node server/main.mjs","test":"node --test test/*.test.mjs"}
+}

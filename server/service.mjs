@@ -1,0 +1,48 @@
+import {DatabaseSync} from 'node:sqlite';
+import {createServer} from 'node:http';
+import {createQuestZones} from './zones.mjs';
+
+export function createQuestService({filename=':memory:',walletClient,now=Date.now,roll}={}){
+ const db=new DatabaseSync(filename);db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;');
+ db.exec(`CREATE TABLE IF NOT EXISTS wallet_cache(owner TEXT PRIMARY KEY,coins INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS reward_outbox(id TEXT PRIMARY KEY,owner TEXT NOT NULL,amount INTEGER NOT NULL,reason TEXT NOT NULL,delivered INTEGER NOT NULL DEFAULT 0);
+ CREATE INDEX IF NOT EXISTS reward_delivery ON reward_outbox(owner,delivered);`);
+ let identity=null; // The simulation below is synchronous; the HTTP layer never awaits while this identity is in use.
+ const zones=createQuestZones(db,{now,roll,grant:()=>{if(!identity)throw Error('Missing request identity');return identity;},wallet:owner=>({coins:db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(owner)?.coins??0}),adjust:(owner,asset,amount,id,reason)=>{
+  if(asset!=='coins'||!Number.isSafeInteger(amount)||amount<1||amount>250)throw Error('Invalid server award');
+  db.prepare('INSERT INTO reward_outbox(id,owner,amount,reason) VALUES (?,?,?,?)').run(id,owner,amount,reason);
+ }});
+ const deliveries=new Map();
+ async function flush(owner,token){
+  if(deliveries.has(owner))return deliveries.get(owner);
+  const task=(async()=>{
+   for(const row of db.prepare('SELECT * FROM reward_outbox WHERE owner=? AND delivered=0 LIMIT 8').all(owner)){
+    try{const receipt=await walletClient.credit(token,{request_id:'arena-'+row.id,kind:'credit',amount:row.amount});db.prepare('UPDATE reward_outbox SET delivered=1 WHERE id=?').run(row.id);db.prepare('UPDATE wallet_cache SET coins=? WHERE owner=?').run(receipt.balance,owner);}
+    catch{return;} // Retry the same entitlement on the next authenticated visit; a lost response cannot pay twice.
+   }
+  })();deliveries.set(owner,task);try{await task;}finally{deliveries.delete(owner);}
+ }
+ let active=0;const perToken=new Map();
+ const server=createServer((req,res)=>{void (async()=>{
+  if(!req.url?.startsWith('/')||req.url.startsWith('//')||req.url.includes('\\'))throw Object.assign(Error('Invalid request target.'),{status:400});
+  const url=new URL(req.url,'http://localhost');
+  if(url.pathname==='/health'&&req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});res.end('{"ok":true}');return;}
+  if(!['/zones','/zones/action'].includes(url.pathname)||(url.pathname==='/zones'?req.method!=='GET':req.method!=='POST'))throw Object.assign(Error('Endpoint not found.'),{status:404});
+  if(req.headers.origin)throw Object.assign(Error('Use the authenticated game gateway.'),{status:403});
+  const token=/^Bearer ([A-Za-z0-9_-]{20,100})$/.exec(req.headers.authorization??'')?.[1];if(!token)throw Object.assign(Error('A linked account is required.'),{status:401});
+  if(active>=32||(perToken.get(token)??0)>=2)throw Object.assign(Error('Online zones are busy.'),{status:429});active++;perToken.set(token,(perToken.get(token)??0)+1);
+  try{
+   let input;if(req.method==='POST'){
+    if(!String(req.headers['content-type']??'').startsWith('application/json'))throw Object.assign(Error('Send JSON.'),{status:415});
+    let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>4096)throw Object.assign(Error('Request too large.'),{status:413});chunks.push(chunk);}
+    try{input=JSON.parse(Buffer.concat(chunks));}catch{throw Object.assign(Error('Invalid JSON.'),{status:400});}
+   }
+   const verified=await walletClient.authenticate(token);db.prepare('INSERT INTO wallet_cache VALUES (?,?) ON CONFLICT(owner) DO UPDATE SET coins=excluded.coins').run(verified.owner,verified.coins);
+   let result;identity=verified;try{result=req.method==='GET'?zones.read(token,url.searchParams.get('character_id')):zones.act(token,input);}finally{identity=null;}
+   await flush(verified.owner,token);result.coins=db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(verified.owner).coins;
+   result.pendingCoins=db.prepare('SELECT COALESCE(SUM(amount),0) AS n FROM reward_outbox WHERE owner=? AND delivered=0').get(verified.owner).n;
+   res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));
+  }finally{active--;const count=perToken.get(token)-1;if(count)perToken.set(token,count);else perToken.delete(token);}
+ })().catch(error=>{if(res.destroyed)return;if(res.headersSent){res.destroy();return;}res.writeHead(error.status??503,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({error:error.code??'zone_request_failed',error_description:error.status?error.message:'Online zones are temporarily unavailable.'}));});});
+ server.requestTimeout=10000;server.headersTimeout=5000;server.on('close',()=>db.close());return {server,db};
+} // The standalone database owns characters, fights, chat, presence and durable payouts; the tracker owns only shared currency.

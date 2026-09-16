@@ -1,0 +1,23 @@
+[Unit]
+Description=LiDollQuest online arenas
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lidollquest-server
+Group=lidollquest-server
+WorkingDirectory=/opt/lidollquest-server/current
+ExecStart=/usr/bin/node-24 --env-file=/etc/lidollquest/server.env server/main.mjs
+Restart=on-failure
+RestartSec=5
+StateDirectory=lidollquest-server
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target
