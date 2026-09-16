@@ -12,6 +12,7 @@ ExecStart=/usr/bin/node-24 --env-file=/etc/lidollquest/server.env server/main.mj
 Restart=on-failure
 RestartSec=5
 StateDirectory=lidollquest-server
+StateDirectoryMode=0700
 UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true

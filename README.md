@@ -65,41 +65,93 @@ character IDs cannot select another account's identity.
 
 ## Fedora deployment
 
-The sample unit uses `/opt/lidollquest-server/current`, `/etc/lidollquest/server.env`,
-`/var/lib/lidollquest-server`, port **4191**, and `/usr/bin/node-24`. Adjust paths
-and bind addresses to the actual host. Create a dedicated system user and install
-the checkout and unit before starting it:
+Run these commands on the Fedora service host from a copy or checkout of this
+repository. The installer deploys that local copy; it does not fetch a remote
+repository. It requires Fedora with systemd and enabled repositories providing
+`nodejs24` (`/usr/bin/node-24`). No npm install is needed.
+
+### First install
+
+1. Prepare the service account, private configuration and Node prerequisites:
+
+   ```sh
+   cd /path/to/Lidollquest-server
+   sudo bash deploy/fedora-deploy.sh --init-only
+   sudoedit /etc/lidollquest/server.env
+   ```
+
+   Set `LIDOLLCOIN_API_URL` to the tracker's wallet API. The example assumes
+   both services share a host. The tracker may instead listen on its LAN address;
+   use that address if it does not listen on loopback. Keep the trailing slash.
+   Set `HOST` to the interface the tracker can reach and keep `PORT=4191`.
+   The installer requires `DATA_DIR=/var/lib/lidollquest-server`.
+
+2. On a shared host, provision the matching **server-only** reward key with the
+   updated tracker helper (adjust its checkout path if needed):
+
+   ```sh
+   sudo /usr/bin/node-24 /opt/lidoll/current/scripts/configure-reward-authority.mjs \
+     --tracker-env /etc/lidoll/tracker.env \
+     --bot-env /etc/lidollquest/server.env \
+     --client lidollquest
+   sudoedit /etc/lidoll/tracker.env
+   ```
+
+   Add `LIDOLLQUEST_API_URL=http://127.0.0.1:4191/` to the tracker environment
+   (use the actual private service address on separate hosts). The helper calls
+   its second destination `--bot-env`; it also works for this service. It
+   preserves other clients' keys and existing file ownership/mode, and prints
+   no keys. If reusing an older environment file with a blank
+   `LIDOLLCOIN_REWARD_KEY=` line, remove that blank line before provisioning;
+   older tracker helpers can mistake it for an existing key. On separate hosts,
+   securely configure the same key in the tracker's
+   `LIDOLLCOIN_REWARD_KEYS.lidollquest` entry and the quest service's
+   `LIDOLLCOIN_REWARD_KEY`; do not put it in the game or repository.
+
+3. Deploy matching tracker gateway/security code, then start the services:
+
+   ```sh
+   sudo systemctl restart lidoll-tracker
+   sudo bash deploy/fedora-deploy.sh
+   sudo systemctl status lidollquest-server --no-pager
+   sudo journalctl -u lidollquest-server -n 50 --no-pager
+   ```
+
+   The installer enables this standalone service at boot. Test a linked
+   character entering an arena and banking a reward afterward; `/health`
+   verifies the quest process, not wallet connectivity or key agreement.
+
+### Updates and recovery
+
+Update your source checkout (for example, `git pull --ff-only` if you have
+configured a remote), then run this **from that updated checkout**:
 
 ```sh
-sudo useradd --system --home-dir /var/lib/lidollquest-server --shell /usr/sbin/nologin lidollquest-server
-sudo install -d -m 0750 -o root -g lidollquest-server /etc/lidollquest
-sudo install -m 0640 -o root -g lidollquest-server deploy/server.env.example /etc/lidollquest/server.env
-sudo install -m 0644 deploy/lidollquest-server.service /etc/systemd/system/lidollquest-server.service
+sudo bash deploy/fedora-deploy.sh
 ```
 
-Edit the environment file with the correct wallet address. In the updated tracker
-checkout, provision a matching **server-only** key for client `lidollquest`:
+Each run tests a new immutable release under `/opt/lidollquest-server/releases`
+as `nobody`, then stops only the quest service, creates a private backup under
+`/var/backups/lidollquest-server`, and atomically switches `current`.
+Tests use separate temporary data; the optional tracker integration test skips
+when no adjacent test checkout is available. Running the installer from the
+installed `current` directory redeploys that same code; it does not download
+updates. Existing configuration and persistent data are preserved.
 
-```sh
-sudo /usr/bin/node-24 scripts/configure-reward-authority.mjs \
-  --tracker-env /etc/lidoll/tracker.env \
-  --bot-env /etc/lidollquest/server.env \
-  --client lidollquest
-```
+If startup or health verification fails, the installer restores the previous
+code pointer and running state. Backups and old releases remain for review.
+It does **not** automatically restore SQLite: doing so could discard live
+rewards already committed to the shared wallet. Schema-incompatible upgrades
+need a planned migration/recovery procedure. There is a brief service interruption
+while the stopped database (including WAL files) is backed up and code switches.
+Check `journalctl -u lidollquest-server` if recovery itself fails.
 
-The shared provisioning helper calls its second destination `--bot-env`; it also
-works for this service's `LIDOLLCOIN_REWARD_KEY`. It preserves the existing
-MommyBot key, ownership and mode, and prints no keys.
-
-Add `LIDOLLQUEST_API_URL=http://127.0.0.1:4191/` to the tracker environment, or the
-actual private service address. Deploy the matching tracker auth/security changes
-and gateway, restart the tracker, then enable this unit:
-
-```sh
-sudo systemctl daemon-reload
-sudo systemctl enable --now lidollquest-server
-sudo systemctl status lidollquest-server --no-pager
-```
+Paths are fixed to the sample service unit. An existing manually installed
+`current` directory or modified main unit is rejected before stopping the
+service; migrate that installation explicitly. Use `systemctl edit
+lidollquest-server` for compatible service overrides. Firewall and nginx
+configuration, tracker restarts, and tracker key provisioning are explicit
+operator steps; the installer does not change those services.
 
 Deploy the rebuilt GameMaker client after both services are configured. The
 existing `/tracker/` reverse-proxy location carries zone traffic; no WebSocket
