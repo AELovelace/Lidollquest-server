@@ -11,6 +11,36 @@ function fixture(){
  return {db,zones,act,command,advance:ms=>instant+=ms,as:(name,id=name)=>{owner=name;token=id;}};
 }
 
+test('campaign loadouts drive arena combat, persist items and never import currency',()=>{
+ const f=fixture();try{
+  const loadout={player_info:{name:'Hero',playerHealth:83,playerHealthMax:140,str:9,def:4,dex:6,int:8,cha:2,level:7,xp:22,equipped_weapon:'iron_dagger',gold:99999,companions:{friend:{hp:12}}},inventory:[{item_id:'potion',category:'food',hp_restore:30,name:'Potion'}],player_spells:['heal'],player_mp:17,player_mp_max:20,attack:18,gold:99999,coins:99999};
+  let c=f.act('create',null,{name:'Alice'}).character;
+  let a=f.act('enter',c,{zone:questZones[0].id,loadout});c=a.character;
+  assert.equal(a.coins,0);assert.equal(c.loadout.player_info.gold,undefined);assert.equal(c.loadout.gold,undefined);assert.equal(a.characters[0].loadout,undefined);
+  c=f.act('start',c).character;assert.equal(c.run.hp,83);assert.equal(c.run.maxHp,140);assert.equal(c.run.attack,18);assert.equal(c.run.defense,4);
+  c=f.act('attack',c).character;assert.equal(c.run.hp,81);assert.equal(c.loadout.player_info.playerHealth,81);
+  const used=structuredClone(c.loadout);used.inventory=[];used.player_info.playerHealth=111;
+  const input=f.command('use_item',c,{loadout:used});f.advance(500);a=f.zones.act('token-a',input);c=a.character;
+  assert.equal(c.loadout.inventory.length,0);assert.equal(c.run.hp,109);assert.equal(f.zones.act('token-a',input).character.run.hp,109);
+  const reordered=structuredClone(input);reordered.loadout=Object.fromEntries(Object.entries(reordered.loadout).reverse());reordered.loadout.player_info=Object.fromEntries(Object.entries(reordered.loadout.player_info).reverse());
+  assert.equal(f.zones.act('token-a',reordered).character.run.hp,109,'journal property order cannot consume another item or enemy turn');
+  assert.equal(c.loadout.player_mp,17);assert.equal(c.loadout.player_info.companions.friend.hp,12);
+  f.advance(31000);c=f.act('enter',c,{zone:questZones[0].id,loadout}).character;
+  assert.equal(c.run.hp,109);assert.equal(c.loadout.inventory.length,0,'reconnect must resume the saved run instead of reimporting consumed items');
+  c=f.act('attack',c).character;assert.equal(c.run.phase,'interval');a=f.act('cashout',c);assert.equal(a.coins,5);assert.equal(a.character.loadout.inventory.length,0);
+  assert.equal(a.character.loadout.player_info.equipped_weapon,'iron_dagger');
+  f.as('bob');assert.throws(()=>f.act('loadout',a.character,{loadout}),e=>e.status===404);
+ }finally{f.db.close();}
+});
+
+test('loadout validation bounds JSON and rejects malformed inventory without changing a character',()=>{
+ const f=fixture();try{
+  let c=f.act('create',null,{name:'Alice'}).character;c=f.act('enter',c,{zone:questZones[0].id}).character;
+  for(const loadout of [null,{}, {player_info:{},inventory:[null]}, {player_info:{},inventory:Array(513).fill({item_id:'potion'})}, {player_info:{note:'x'.repeat(200000)},inventory:[]}])assert.throws(()=>f.act('loadout',c,{loadout}),e=>e.status===400);
+  assert.equal(f.zones.read('token-a',c.id).character.revision,c.revision);
+ }finally{f.db.close();}
+});
+
 test('NPC appearances persist, synchronize, reject arbitrary assets and preserve gameplay on replay',()=>{
  const f=fixture();try{
   const selected=questAvatars.find(a=>a.id!=='player').id;

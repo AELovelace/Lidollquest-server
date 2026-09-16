@@ -8,16 +8,18 @@ A standalone Node 24 service for **two online zones**:
 | LittleBig City | Clockwork Coliseum | Every third enemy turn hits harder |
 
 Each zone has a shared lobby with synchronized avatars and chat. Arena runs are
-individual, eight-round progressive fights: attack, guard or heal; bank after a
+individual, eight-round progressive fights: attack, guard or use inventory; bank after a
 win or accept a random handicap and continue. Defeat/forfeit loses the unbanked
 pot. Round eight automatically banks it. Each cleared round adds `5 × round`
 coins to the pot. Banking is capped at **250 coins per account per UTC day** across
 all characters/zones; runs can still be played after the cap. New runs have a
 one-minute entry cooldown per character.
 
-The server owns arena HP, equipment strength, healing charges, enemies, randomness,
-rounds and rewards. All characters start an arena run with the same loadout; local
-campaign stats, items, saves and mods cannot affect a shared-currency award.
+The service imports client-trusted campaign HP, stats, equipment, inventory and MP.
+Local gear and mods can affect combat strength by design. The server runs arena
+turns, enemies, randomness, progression and shared-currency awards; imported
+gold or wallet balances never modify shared currency. Legacy clients without a
+loadout retain the old fixed template.
 Characters keep their arena history independently of the local campaign save.
 
 ## Service boundary
@@ -41,7 +43,8 @@ per-window `controller`, `character_id` and expected `revision`. Actions are
 `create`, `enter`, `heartbeat`, `move`, `chat`, `start`, `attack`, `guard`, `heal`,
 `continue`, `cashout`, `flee`, `leave`. Creation additionally takes `name`; entering
 takes `zone`; movement takes a cardinal `direction`; chat takes `text`. Unknown
-fields, including caller-selected rewards or stats, are rejected.
+fields and caller-selected rewards are rejected. Campaign stats are accepted only
+inside the bounded `loadout` payload.
 
 The tracker exposes these through both its existing `lidollcoin/v1/zones` bearer
 routes and `lidollcoin/browser/zones` cookie routes. The standalone API accepts
@@ -194,3 +197,12 @@ claim to distinguish a human player from a bot submitting legal actions.
 `GET /zones` includes the public `avatars` catalog. `create` accepts an optional `avatar` ID (default `player`); `appearance` changes an existing character using the usual character_id, revision, controller, and request_id while present in an arena. The server validates IDs against `server/avatars.json`, journals updates, and includes `avatar` in character and peer snapshots. Appearance changes do not affect combat or rewards. Existing state without an avatar defaults to `player`; no database migration is required.
 
 Regenerate the catalog from the game checkout with `python python/export_online_avatars.py --server-root C:/Scripts/Lidollquest-server` whenever NPC names or sprite assignments change. Ship this JSON with the service and deploy the matching game assets. No tracker gateway changes are required.
+
+
+## Campaign character imports
+
+`enter` and `start` accept `loadout: {player_info, inventory, player_spells, player_mp, player_mp_max, attack}`. `loadout` updates a lobby character; `use_item` commits client-evaluated inventory/equipment effects and takes an enemy turn during a fight. Existing command IDs, ownership, controller leases and revisions apply, including canonical hashing of nested payloads. Character data is explicitly client-trusted. JSON structure and size checks are operational bounds, not anti-cheat.
+
+Loads are capped at 192 KiB (512 inventory entries); HTTP bodies at 256 KiB. Currency keys are stripped recursively. Only the selected character snapshot includes its loadout, keeping roster lists small; peers never receive another player's inventory. HP and item consumption persist back into the game. Re-entry into an unfinished run resumes its stored loadout instead of restoring spent items from an older campaign snapshot. The arena action set remains attack/guard/items, with learned spells and companion metadata preserved for the campaign.
+
+Deploy the updated standalone service and game together; the existing tracker request limit already supports these imports. No schema migration or wallet changes are needed.

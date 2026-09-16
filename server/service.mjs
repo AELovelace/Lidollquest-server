@@ -34,7 +34,7 @@ export function createQuestService({filename=':memory:',walletClient,now=Date.no
   try{
    let input;if(req.method==='POST'){
     if(!String(req.headers['content-type']??'').startsWith('application/json'))throw Object.assign(Error('Send JSON.'),{status:415});
-    let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>4096)throw Object.assign(Error('Request too large.'),{status:413});chunks.push(chunk);}
+    let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>256*1024)throw Object.assign(Error('Request too large.'),{status:413});chunks.push(chunk);} // Bounded campaign inventory imports fit the existing tracker gateway limit.
     try{input=JSON.parse(Buffer.concat(chunks));}catch{throw Object.assign(Error('Invalid JSON.'),{status:400});}
    }
    const verified=await walletClient.authenticate(token);db.prepare('INSERT INTO wallet_cache VALUES (?,?) ON CONFLICT(owner) DO UPDATE SET coins=excluded.coins').run(verified.owner,verified.coins);
