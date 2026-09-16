@@ -15,7 +15,7 @@ export function importLoadout(input) { // Campaign data is intentionally client-
   if(object(value))return Object.fromEntries(Object.entries(value).filter(([key])=>!currencies.has(key.toLowerCase())&&!['__proto__','prototype','constructor'].includes(key)).map(([key,v])=>[key,copy(v,depth+1)]));
   fail('Unsupported character data.');
  }
- const result=copy({player_info:input.player_info,inventory:input.inventory,player_spells:input.player_spells??[],player_mp:input.player_mp??0,player_mp_max:input.player_mp_max??0,attack:input.attack??Math.max(1,number(input.player_info.str,0)*2)});
+ const result=copy({player_info:input.player_info,inventory:input.inventory,childish:number(input.childish,0,0,10),player_spells:input.player_spells??[],player_mp:input.player_mp??0,player_mp_max:input.player_mp_max??0,attack:input.attack??Math.max(1,number(input.player_info.str,0)*2)});
  const p=result.player_info;
  p.playerHealthMax=number(p.playerHealthMax,70,1);p.playerHealth=number(p.playerHealth,p.playerHealthMax,0,p.playerHealthMax);
  for(const key of ['str','def','dex','int','cha'])p[key]=number(p[key],0,-1000000); // Preserve campaign curse/equipment penalties as well as bonuses.

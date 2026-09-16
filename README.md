@@ -203,6 +203,17 @@ Regenerate the catalog from the game checkout with `python python/export_online_
 
 `enter` and `start` accept `loadout: {player_info, inventory, player_spells, player_mp, player_mp_max, attack}`. `loadout` updates a lobby character; `use_item` commits client-evaluated inventory/equipment effects and takes an enemy turn during a fight. Existing command IDs, ownership, controller leases and revisions apply, including canonical hashing of nested payloads. Character data is explicitly client-trusted. JSON structure and size checks are operational bounds, not anti-cheat.
 
-Loads are capped at 192 KiB (512 inventory entries); HTTP bodies at 256 KiB. Currency keys are stripped recursively. Only the selected character snapshot includes its loadout, keeping roster lists small; peers never receive another player's inventory. HP and item consumption persist back into the game. Re-entry into an unfinished run resumes its stored loadout instead of restoring spent items from an older campaign snapshot. The arena action set remains attack/guard/items, with learned spells and companion metadata preserved for the campaign.
+Loads are capped at 192 KiB (512 inventory entries); HTTP bodies at 256 KiB. Currency keys are stripped recursively. Only the selected character snapshot includes its loadout, keeping roster lists small; peers never receive another player's inventory. HP and item consumption persist back into the game. Re-entry into an unfinished run resumes its stored loadout instead of restoring spent items from an older campaign snapshot. Combat v2 supports the campaign class menus and spells, with companion metadata preserved but no companion actor.
 
 Deploy the updated standalone service and game together; the existing tracker request limit already supports these imports. No schema migration or wallet changes are needed.
+
+
+## Class combat v2
+
+Snapshots advertise `combatVersion: 2`. Updated clients send `combat_version: 2` on enter/start. New runs persist the full combat model; re-entry upgrades an older run without discarding its pot or opponent progress. Legacy clients keep their existing protocol. Deploy this service before the rebuilt game.
+
+A fight alternates a journaled `turn_ready` (`loadout`, boolean `forfeit`) and one class action: `attack`, `cast` (`spell` ID), `charm`, `allure`, or `use_item`. Run/Submit map to `flee`/`submit`. `allocate` takes a stat key (str/def/dex/int/cha) and spends one earned point between rounds or in the lobby. Every mutation uses the existing controller, revision and request ID. Replays cannot consume MP, repeat DOT ticks, grant XP or pay coins twice.
+
+Combat rules live in server/combat.mjs. Regenerate server/combat-data.json from the game with python/export_online_combat.py after changing spells, magic_tree.json or enemy charm profiles. The catalog is deployment data, never a client-supplied ruleset. Player data remains intentionally trusted; only the server determines enemy outcomes and bounded shared-currency rewards. `childish` joins the loadout for mage/charm formulas.
+
+The arena has one opponent per round, no companions, and its existing recovery/handicap rules. Later rounds can cast enemy spells. Physical damage, MP, magic scaling, status effects, charm pressure/backfire, XP and level rewards follow campaign rules. Enemy-specific campaign story/defeat scripts and world quest progress are not invoked. Run npm test before deployment, then use the full-game browser fixture from the game checkout.

@@ -1,6 +1,7 @@
 import {randomUUID,randomInt,createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
+import {beginRound,clearEffects,readyTurn,combatAction,awardExperience} from './combat.mjs';
 
 export const questAvatars=Object.freeze(JSON.parse(readFileSync(new URL('./avatars.json',import.meta.url),'utf8')).map(Object.freeze)); // Generated from the game's NPC registry and authored object sprites.
 const avatarIds=new Set(questAvatars.map(a=>a.id));
@@ -43,7 +44,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   const peers=p?db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT 64').all(p.zone,now()-30000).filter(r=>enabled(r.owner)).map(r=>({id:r.character_id,name:r.name,avatar:JSON.parse(r.state).avatar??'player',x:r.x,y:r.y,stage:JSON.parse(r.state).run?.stage??0,fighting:JSON.parse(r.state).run?.phase==='fight'})):[];
   const chat=p?db.prepare('SELECT seq,name,text,character_id AS characterId FROM quest_chat WHERE zone=? AND created>? ORDER BY seq DESC LIMIT 40').all(p.zone,now()-86400000).reverse():[];
   const spent=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,Math.floor(now()/86400000))?.coins??0;
-  return {serverTime:now(),loadoutSupport:true,avatars:questAvatars,zones:questZones.map(z=>({...z,walls:Array.from({length:12},(_,y)=>Array.from({length:20},(_,x)=>blocked(z,x,y)?1:0))})),characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers,chat,coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,250-spent)};
+  return {serverTime:now(),loadoutSupport:true,combatVersion:2,avatars:questAvatars,zones:questZones.map(z=>({...z,walls:Array.from({length:12},(_,y)=>Array.from({length:20},(_,x)=>blocked(z,x,y)?1:0))})),characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers,chat,coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,250-spent)};
  } // Snapshots expose only zone avatars and chat, never wallet credentials or account IDs.
  function read(secret,id){const i=identity(secret);limit(i.owner);return snapshot(i,id?character(i.owner,id):null);}
  function enemy(z,stage){return {name:z.enemies[Math.min(2,Math.floor((stage-1)/3))],hp:z.health+(stage-1)*5,maxHp:z.health+(stage-1)*5,turn:0};}
@@ -53,11 +54,21 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   if(paid){adjust(i.owner,'coins',paid,randomUUID(),'LiDollQuest arena: '+run.zone);db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=coins+excluded.coins').run(i.owner,day,paid);}
   syncRunHealth(state,run);state.lastResult={outcome:'banked',coins:paid,rounds:run.stage,zone:run.zone};state.wins+=run.stage;state.run=null;
  } // Reward amount comes only from committed combat state; the ledger and result commit in the same database transaction.
+ function combatResult(i,c,state,z,result){ // All class actions funnel through the same reward and loss rules.
+  const r=state.run;
+  if(result==='win'){
+   clearEffects(state);awardExperience(state,roll);r.pot+=r.stage*5;r.phase='interval';r.hp=Math.min(r.maxHp,r.hp+z.recovery);
+   r.log.push('Round cleared. Bank '+r.pot+' coins or continue with a handicap.');if(r.stage===8)settle(i,c,state,r);
+  }else if(['defeat','charm_backfire'].includes(result)){
+   clearEffects(state);r.hp=Math.max(1,Math.ceil(r.maxHp*0.25));syncRunHealth(state,r);
+   state.lastResult={outcome:result,coins:0,rounds:r.stage-1,zone:z.id,log:r.log};state.run=null;
+  }
+ }
  function act(secret,input){
   const i=identity(secret);limit(i.owner);
   grant(secret,'wallet:write');
   if(!input||!identifier(input.request_id)||!identifier(input.controller))fail(400,'Supply a stable request ID and controller.');
-  if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout'].includes(k)))fail(400,'Unsupported zone input.');
+  if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat'].includes(k)))fail(400,'Unsupported zone input.');
   return atomic(()=>{
    identity(secret);
    if(input.action==='create'){
@@ -81,18 +92,33 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
     if(active&&(active.controller!==input.controller||active.character_id!==c.id||active.grant_id!==i.id))fail(409,'This account is active in another game window.');
     if(state.run&&state.run.zone!==z.id)fail(409,'Finish or forfeit the current arena run before changing zones.');
     if(input.loadout!==undefined&&!state.run)state.loadout=importLoadout(input.loadout); // Re-entry during a fight resumes the saved combat inventory and HP.
+    if(input.combat_version===2&&state.run&&state.run.combatVersion!==2&&state.loadout)beginRound(state,z,roll); // Preserve the old opponent, HP and pot while upgrading an unfinished run.
     if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(z.id,now()-30000,i.owner).n>=64)fail(429,'This zone is full. Try again shortly.');
     db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,10,9,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=10,y=9,seen=excluded.seen,moved=0').run(i.owner,c.id,z.id,i.id,input.controller,now());
    }else{
     p=presence(i,c,input.controller);const z=zone(p.zone);
     if(input.action==='appearance'){state.avatar=avatar(input.avatar);} // Cosmetic changes use the same ownership, presence, revision and replay checks as other arena commands.
+    else if(input.action==='allocate'){
+     if(!state.loadout||state.run?.phase==='fight'||!['str','def','dex','int','cha'].includes(input.stat)||!(state.loadout.player_info.stat_points>0))fail(409,'Choose an available level-up stat point between rounds.');
+     state.loadout.player_info[input.stat]++;state.loadout.player_info.stat_points--;
+     if(input.stat==='int'){state.loadout.player_mp_max=Math.max(0,10+state.loadout.player_info.int*5);state.loadout.player_mp=Math.min(state.loadout.player_mp,state.loadout.player_mp_max);}
+     if(state.run){applyRunLoadout(state.run,state.loadout);state.run.log.push('+1 '+input.stat.toUpperCase()+'.');}
+    }
+    else if(input.action==='turn_ready'){
+     if(state.run?.combatVersion!==2||state.run.phase!=='fight'||state.run.turnReady)fail(409,'No unprepared combat turn.');
+     if(typeof input.forfeit!=='boolean')fail(400,'Supply the turn status.');
+     const next=importLoadout(input.loadout);next.player_info.companions=state.loadout.player_info.companions??{};state.loadout=next;
+     combatResult(i,c,state,z,readyTurn(state,input.forfeit,z,roll));
+    }
     else if(input.action==='loadout'||input.action==='use_item'){
      if(input.action==='loadout'&&state.run)fail(409,'Use Items during a run to change equipment or consume an item.');
+     if(state.run?.combatVersion===2&&state.run.phase==='fight'&&!state.run.turnReady)fail(409,'Wait for the next player turn.');
      const next=importLoadout(input.loadout);state.loadout=next;
      if(state.run){
       const r=state.run;if(now()-r.acted<300)fail(429,'Wait for the current turn.');r.acted=now();applyRunLoadout(r,next);
       r.log=['Used campaign inventory.'];
-      if(r.phase==='fight'){r.enemy.turn++;let hit=z.attack+r.stage+roll(3);if(z.theme==='clockwork'&&r.enemy.turn%3===0)hit+=5;hit=Math.max(1,hit-(r.defense??0));r.hp=Math.max(0,r.hp-hit);r.log.push(r.enemy.name+' dealt '+hit+' damage.');}
+      if(r.combatVersion===2){if(r.phase==='fight')combatResult(i,c,state,z,combatAction(state,input,z,roll));}
+      else if(r.phase==='fight'){r.enemy.turn++;let hit=z.attack+r.stage+roll(3);if(z.theme==='clockwork'&&r.enemy.turn%3===0)hit+=5;hit=Math.max(1,hit-(r.defense??0));r.hp=Math.max(0,r.hp-hit);r.log.push(r.enemy.name+' dealt '+hit+' damage.');}
       syncRunHealth(state,r);if(!r.hp){state.lastResult={outcome:'defeat',coins:0,rounds:r.stage-1,zone:z.id};state.run=null;}
      }
     }
@@ -113,8 +139,9 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
      if(state.loadout&&state.loadout.player_info.playerHealth<=0)fail(409,'Recover HP with an item before starting another run.');
      state.lastStart=now();state.lastResult=null;state.run={id:randomUUID(),zone:z.id,stage:1,phase:'fight',hp:70,maxHp:70,heals:3,pot:0,attack:11,handicaps:[],enemy:enemy(z,1),acted:0,log:['Round 1 begins.']};
      if(state.loadout){applyRunLoadout(state.run,state.loadout);state.run.heals=0;} // Imported characters heal with their own consumables.
-    }else if(input.action==='flee'){
-     if(!state.run)fail(409,'No active run.');syncRunHealth(state,state.run);state.lastResult={outcome:'forfeit',coins:0,rounds:state.run.stage-1,zone:z.id};state.run=null;
+     if(input.combat_version===2){if(!state.loadout)fail(400,'Import a campaign character first.');beginRound(state,z,roll);}
+    }else if(input.action==='flee'||input.action==='submit'){
+     if(!state.run)fail(409,'No active run.');if(state.run.combatVersion===2)clearEffects(state);syncRunHealth(state,state.run);state.lastResult={outcome:input.action==='submit'?'submitted':'forfeit',coins:0,rounds:state.run.stage-1,zone:z.id};state.run=null;
     }else{
      const r=state.run;if(!r||r.zone!==z.id)fail(409,'Start an arena run first.');
      if(input.action==='cashout'){if(r.phase!=='interval')fail(409,'Finish the round before banking.');settle(i,c,state,r);}
@@ -123,7 +150,10 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
       const handicap=roll(3);r.handicaps.push(['Weakened strikes','Reduced vitality',state.loadout?'Reduced armor':'Healing charge lost'][handicap]);
       if(handicap===0)r.attack=Math.max(state.loadout?1:5,r.attack-1);else if(handicap===1){r.maxHp=Math.max(state.loadout?1:25,r.maxHp-5);r.hp=Math.min(r.hp,r.maxHp);}else if(state.loadout)r.defense--;else r.heals=Math.max(0,r.heals-1);
       r.stage++;r.enemy=enemy(z,r.stage);r.phase='fight';r.log=['Round '+r.stage+'. '+r.handicaps.at(-1)+'.'];
-     }else if(['attack','guard','heal'].includes(input.action)){
+      if(r.combatVersion===2){syncRunHealth(state,r);beginRound(state,z,roll);}
+     }else if(r.combatVersion===2&&['attack','cast','charm','allure'].includes(input.action)){
+      if(now()-r.acted<300)fail(429,'Wait for the current turn.');r.acted=now();combatResult(i,c,state,z,combatAction(state,input,z,roll));
+     }else if(r.combatVersion!==2&&['attack','guard','heal'].includes(input.action)){
       if(r.phase!=='fight')fail(409,'Choose bank or continue.');if(now()-r.acted<300)fail(429,'Wait for the current turn.');r.acted=now();
       let guarded=input.action==='guard',damage=0;r.log=[];
       if(input.action==='heal'){if(r.heals<1)fail(409,'No healing charges remain.');r.heals--;r.hp=Math.min(r.maxHp,r.hp+24);r.log.push('Recovered 24 HP.');}

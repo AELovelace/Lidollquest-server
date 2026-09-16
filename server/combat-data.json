@@ -1,4 +1,37 @@
 {
+  "magic_tree": {
+    "version": 1,
+    "mage_starting_spell": "fireball",
+    "mage_unlock_every_levels": 3,
+    "upgrade_ladders": [
+      [
+        "heal_light",
+        "heal_medium",
+        "heal_full"
+      ],
+      [
+        "calm_bladder",
+        "settle_tummy",
+        "refresh"
+      ],
+      [
+        "fortify",
+        "empower",
+        "haste"
+      ],
+      [
+        "fireball",
+        "ice_shard",
+        "shadow_bolt",
+        "smite"
+      ],
+      [
+        "poison_cloud",
+        "weaken",
+        "corrode"
+      ]
+    ]
+  },
   "spells": {
     "heal_light": {
       "spell_id": "heal_light",
