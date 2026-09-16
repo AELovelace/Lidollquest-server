@@ -1,0 +1,1190 @@
+{
+  "spells": {
+    "heal_light": {
+      "spell_id": "heal_light",
+      "name": "Mend",
+      "description": "A gentle healing light restores a small amount of HP.",
+      "type": "heal",
+      "target": "ally",
+      "mp_cost": 5,
+      "power": 25,
+      "element": "holy",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "hp",
+      "stat_amount": 25
+    },
+    "heal_medium": {
+      "spell_id": "heal_medium",
+      "name": "Restore",
+      "description": "A warm pulse of energy mends wounds and soothes pain.",
+      "type": "heal",
+      "target": "ally",
+      "mp_cost": 12,
+      "power": 60,
+      "element": "holy",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "hp",
+      "stat_amount": 60
+    },
+    "heal_full": {
+      "spell_id": "heal_full",
+      "name": "Full Restore",
+      "description": "A brilliant flash of divine light fully restores your body.",
+      "type": "heal",
+      "target": "ally",
+      "mp_cost": 30,
+      "power": 999,
+      "element": "holy",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "hp",
+      "stat_amount": 999
+    },
+    "calm_bladder": {
+      "spell_id": "calm_bladder",
+      "name": "Calm Bladder",
+      "description": "Magically soothes urgency, reducing bladder pressure.",
+      "type": "cure",
+      "target": "self",
+      "mp_cost": 8,
+      "power": 30,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "wet",
+      "stat_amount": -30
+    },
+    "settle_tummy": {
+      "spell_id": "settle_tummy",
+      "name": "Settle Tummy",
+      "description": "A warm magical glow calms your tummy and eases cramps.",
+      "type": "cure",
+      "target": "self",
+      "mp_cost": 8,
+      "power": 30,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "tum",
+      "stat_amount": -30
+    },
+    "refresh": {
+      "spell_id": "refresh",
+      "name": "Refresh",
+      "description": "A burst of energy that restores stamina and clears your head.",
+      "type": "cure",
+      "target": "self",
+      "mp_cost": 10,
+      "power": 40,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "stamina",
+      "stat_amount": 40
+    },
+    "fortify": {
+      "spell_id": "fortify",
+      "name": "Fortify",
+      "description": "Hardens your skin with a magical barrier, raising DEF for 5 turns.",
+      "type": "buff",
+      "target": "self",
+      "mp_cost": 7,
+      "power": 3,
+      "element": "none",
+      "dot_turns": 5,
+      "dot_damage": 0,
+      "stat_effect": "def",
+      "stat_amount": 3
+    },
+    "empower": {
+      "spell_id": "empower",
+      "name": "Empower",
+      "description": "Channels arcane strength into your limbs, raising STR for 5 turns.",
+      "type": "buff",
+      "target": "self",
+      "mp_cost": 7,
+      "power": 3,
+      "element": "none",
+      "dot_turns": 5,
+      "dot_damage": 0,
+      "stat_effect": "str",
+      "stat_amount": 3
+    },
+    "haste": {
+      "spell_id": "haste",
+      "name": "Haste",
+      "description": "Quickens your reflexes with magical speed, raising DEX for 5 turns.",
+      "type": "buff",
+      "target": "self",
+      "mp_cost": 7,
+      "power": 3,
+      "element": "none",
+      "dot_turns": 5,
+      "dot_damage": 0,
+      "stat_effect": "dex",
+      "stat_amount": 3
+    },
+    "fireball": {
+      "spell_id": "fireball",
+      "name": "Fireball",
+      "description": "Hurls a blazing sphere of fire at the enemy!",
+      "type": "offense",
+      "target": "enemy",
+      "mp_cost": 10,
+      "power": 20,
+      "element": "fire",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0
+    },
+    "ice_shard": {
+      "spell_id": "ice_shard",
+      "name": "Ice Shard",
+      "description": "Launches jagged shards of ice at the enemy!",
+      "type": "offense",
+      "target": "enemy",
+      "mp_cost": 8,
+      "power": 15,
+      "element": "ice",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0
+    },
+    "poison_cloud": {
+      "spell_id": "poison_cloud",
+      "name": "Poison Cloud",
+      "description": "Envelops the enemy in a toxic miasma that eats away at them over time.",
+      "type": "offense",
+      "target": "enemy",
+      "mp_cost": 12,
+      "power": 5,
+      "element": "poison",
+      "dot_turns": 4,
+      "dot_damage": 8,
+      "stat_effect": "",
+      "stat_amount": 0
+    },
+    "shadow_bolt": {
+      "spell_id": "shadow_bolt",
+      "name": "Shadow Bolt",
+      "description": "A crackling bolt of dark energy slams into the enemy!",
+      "type": "offense",
+      "target": "enemy",
+      "mp_cost": 14,
+      "power": 28,
+      "element": "dark",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0
+    },
+    "smite": {
+      "spell_id": "smite",
+      "name": "Smite",
+      "description": "Calls down a pillar of divine light to punish the wicked!",
+      "type": "offense",
+      "target": "enemy",
+      "mp_cost": 18,
+      "power": 35,
+      "element": "holy",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0
+    },
+    "weaken": {
+      "spell_id": "weaken",
+      "name": "Weaken",
+      "description": "Curses the enemy, lowering their attack power for 4 turns.",
+      "type": "debuff",
+      "target": "enemy",
+      "mp_cost": 6,
+      "power": 0,
+      "element": "dark",
+      "dot_turns": 4,
+      "dot_damage": 0,
+      "stat_effect": "str",
+      "stat_amount": -3
+    },
+    "corrode": {
+      "spell_id": "corrode",
+      "name": "Corrode",
+      "description": "Acid eats away at the enemy's armor, lowering their DEF for 4 turns.",
+      "type": "debuff",
+      "target": "enemy",
+      "mp_cost": 6,
+      "power": 0,
+      "element": "poison",
+      "dot_turns": 4,
+      "dot_damage": 0,
+      "stat_effect": "def",
+      "stat_amount": -3
+    },
+    "curse_wet": {
+      "spell_id": "curse_wet",
+      "name": "Wetness Curse",
+      "description": "A hex that floods the bladder with supernatural urgency.",
+      "type": "enemy_stat",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "dark",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "wet",
+      "stat_amount": 30
+    },
+    "divine_urge": {
+      "spell_id": "divine_urge",
+      "name": "Divine Urge",
+      "description": "A prayer-channeled supernatural pressure builds in your bladder.",
+      "type": "enemy_stat",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "holy",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "wet",
+      "stat_amount": 40
+    },
+    "haunting_urge": {
+      "spell_id": "haunting_urge",
+      "name": "Haunting Urge",
+      "description": "A ghostly presence whispers urgency into your body.",
+      "type": "enemy_stat",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "dark",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "wet",
+      "stat_amount": 25
+    },
+    "sacred_cramp": {
+      "spell_id": "sacred_cramp",
+      "name": "Sacred Cramp",
+      "description": "A blessed ache radiates through your stomach. Your tummy protests.",
+      "type": "enemy_stat",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "holy",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "tum",
+      "stat_amount": 40
+    },
+    "mandatory_feeding": {
+      "spell_id": "mandatory_feeding",
+      "name": "Mandatory Feeding",
+      "description": "Something goes in whether you want it to or not. Your stomach fills uncomfortably.",
+      "type": "enemy_stat",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "tum",
+      "stat_amount": 30
+    },
+    "sparkle_shame": {
+      "spell_id": "sparkle_shame",
+      "name": "Sparkle of Shame",
+      "description": "Glittering dust settles on you and suddenly you feel very seen.",
+      "type": "enemy_stat",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "shame",
+      "stat_amount": 35
+    },
+    "shadow_shame": {
+      "spell_id": "shadow_shame",
+      "name": "Shadow of Shame",
+      "description": "A cold dark presence reminds you of every embarrassing moment at once.",
+      "type": "enemy_stat",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "dark",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "shame",
+      "stat_amount": 50
+    },
+    "public_shame": {
+      "spell_id": "public_shame",
+      "name": "Public Shaming",
+      "description": "An announcement rings out. Everyone is looking. The floor does not open up.",
+      "type": "enemy_stat",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "shame",
+      "stat_amount": 60
+    },
+    "social_documentation": {
+      "spell_id": "social_documentation",
+      "name": "Social Documentation",
+      "description": "Your condition is noted, catalogued, and shared with the class.",
+      "type": "enemy_stat",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "shame",
+      "stat_amount": 45
+    },
+    "assessment_scan": {
+      "spell_id": "assessment_scan",
+      "name": "Assessment Scan",
+      "description": "Your measurements are taken. Your level of need is logged.",
+      "type": "enemy_stat",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "shame",
+      "stat_amount": 20
+    },
+    "fear_pulse": {
+      "spell_id": "fear_pulse",
+      "name": "Fear Pulse",
+      "description": "A wave of wrongness passes through you. Your heart races.",
+      "type": "enemy_stat",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "dark",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "excitement",
+      "stat_amount": 30
+    },
+    "nerve_amplify": {
+      "spell_id": "nerve_amplify",
+      "name": "Nerve Amplify",
+      "description": "Every sensation is turned up. Your body betrays you in an entirely different way.",
+      "type": "enemy_stat",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "excitement",
+      "stat_amount": 50
+    },
+    "deep_hex": {
+      "spell_id": "deep_hex",
+      "name": "Deep Hex",
+      "description": "A layered curse sinks into you. Control slips just a little further away.",
+      "type": "enemy_stat",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "dark",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "incontinence",
+      "stat_amount": 15
+    },
+    "hypnotic_pulse": {
+      "spell_id": "hypnotic_pulse",
+      "name": "Hypnotic Pulse",
+      "description": "A wave of bioluminescent light washes over you. Your reflexes go soft.",
+      "type": "enemy_debuff",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "dark",
+      "dot_turns": 3,
+      "dot_damage": 0,
+      "stat_effect": "dex",
+      "stat_amount": -5
+    },
+    "detention_gaze": {
+      "spell_id": "detention_gaze",
+      "name": "Detention Gaze",
+      "description": "A withering look freezes you in place. Your movements become clumsy.",
+      "type": "enemy_debuff",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 3,
+      "dot_damage": 0,
+      "stat_effect": "dex",
+      "stat_amount": -3
+    },
+    "ensnare": {
+      "spell_id": "ensnare",
+      "name": "Ensnare",
+      "description": "Something catches your feet. You can barely move.",
+      "type": "enemy_debuff",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 3,
+      "dot_damage": 0,
+      "stat_effect": "dex",
+      "stat_amount": -4
+    },
+    "slime_seep_wet": {
+      "spell_id": "slime_seep_wet",
+      "name": "Slime Seep",
+      "description": "The slime soaks through your clothes. Something about it loosens your grip.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "wet",
+          "amount": 15
+        },
+        {
+          "type": "damage",
+          "power": 6
+        }
+      ]
+    },
+    "formula_force": {
+      "spell_id": "formula_force",
+      "name": "Formula Force",
+      "description": "Something warm and sweet is pushed past your lips. Your tummy churns.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "tum",
+          "amount": 35
+        },
+        {
+          "type": "damage",
+          "power": 5
+        }
+      ]
+    },
+    "venom_sting": {
+      "spell_id": "venom_sting",
+      "name": "Venom Sting",
+      "description": "A sharp toxin lances through you. Your stomach cramps sharply.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "poison",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "tum",
+          "amount": 15
+        },
+        {
+          "type": "damage",
+          "power": 12
+        }
+      ]
+    },
+    "cage_rattle": {
+      "spell_id": "cage_rattle",
+      "name": "Cage Rattle",
+      "description": "Iron bars slam shut with terrible finality. The sound of your own helplessness echoes.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "shame",
+          "amount": 40
+        },
+        {
+          "type": "damage",
+          "power": 10
+        }
+      ]
+    },
+    "neural_probe": {
+      "spell_id": "neural_probe",
+      "name": "Neural Probe",
+      "description": "Something maps your memories. Every embarrassing moment is visible. You feel watched and aroused at once.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "dark",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "shame",
+          "amount": 50
+        },
+        {
+          "type": "excitement",
+          "amount": 30
+        }
+      ]
+    },
+    "lullaby_trance": {
+      "spell_id": "lullaby_trance",
+      "name": "Lullaby Trance",
+      "description": "A melody so soothing it dissolves your defenses. The shame melts away... along with something else.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "shame",
+          "amount": -30
+        },
+        {
+          "type": "incontinence",
+          "amount": 10
+        }
+      ]
+    },
+    "light_pulse": {
+      "spell_id": "light_pulse",
+      "name": "Light Pulse",
+      "description": "A rhythmic glow makes you feel uncomfortably warm. Your guard slips.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "excitement",
+          "amount": 20
+        },
+        {
+          "type": "shame",
+          "amount": -10
+        }
+      ]
+    },
+    "injection_protocol": {
+      "spell_id": "injection_protocol",
+      "name": "Injection Protocol",
+      "description": "A needle finds a vein before you can protest. Something spreads cold through your veins.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "incontinence",
+          "amount": 25
+        },
+        {
+          "type": "damage",
+          "power": 10
+        }
+      ]
+    },
+    "serum_injection": {
+      "spell_id": "serum_injection",
+      "name": "Serum Injection",
+      "description": "A clinical injection. The compound is labeled 'R-7'. It works immediately.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "incontinence",
+          "amount": 25
+        },
+        {
+          "type": "damage",
+          "power": 10
+        }
+      ]
+    },
+    "treatment_protocol": {
+      "spell_id": "treatment_protocol",
+      "name": "Treatment Protocol",
+      "description": "A full procedure. Phase one hurts. Phase two doesn't. That's the worrying part.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "incontinence",
+          "amount": 30
+        },
+        {
+          "type": "shame",
+          "amount": -20
+        },
+        {
+          "type": "damage",
+          "power": 8
+        }
+      ]
+    },
+    "mild_trance": {
+      "spell_id": "mild_trance",
+      "name": "Mild Trance",
+      "description": "A gentle reframing. Some of the shame dissolves. Something else rises in its place.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "dark",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "shame",
+          "amount": -20
+        },
+        {
+          "type": "excitement",
+          "amount": 15
+        }
+      ]
+    },
+    "deep_trance": {
+      "spell_id": "deep_trance",
+      "name": "Deep Trance",
+      "description": "You go somewhere else. The shame is far away. So is everything else.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "dark",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "incontinence",
+          "amount": 20
+        },
+        {
+          "type": "shame",
+          "amount": -40
+        }
+      ]
+    },
+    "lullaby_syrup": {
+      "spell_id": "lullaby_syrup",
+      "name": "Lullaby Syrup",
+      "description": "Something sweet is pressed to your lips. Warmth spreads. Your legs feel heavy. Shame floods in after.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "stamina",
+          "amount": -40
+        },
+        {
+          "type": "shame",
+          "amount": 30
+        }
+      ]
+    },
+    "restraint_hold": {
+      "spell_id": "restraint_hold",
+      "name": "Restraint Hold",
+      "description": "Something grabs and pins you. You can barely move, and the struggling only makes it hurt.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "debuff",
+          "stat": "dex",
+          "amount": -5,
+          "turns": 3
+        },
+        {
+          "type": "damage",
+          "power": 5
+        }
+      ]
+    },
+    "mop_splash": {
+      "spell_id": "mop_splash",
+      "name": "Mop Splash",
+      "description": "A mop bucket tips — intentionally — right at you. Wet and humiliated.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "wet",
+          "amount": 20
+        },
+        {
+          "type": "damage",
+          "power": 8
+        }
+      ]
+    },
+    "spectral_chill": {
+      "spell_id": "spectral_chill",
+      "name": "Spectral Chill",
+      "description": "A ghost passes through you. Cold and shame come with it.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "dark",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "shame",
+          "amount": 20
+        },
+        {
+          "type": "damage",
+          "power": 8
+        }
+      ]
+    },
+    "ecto_seep": {
+      "spell_id": "ecto_seep",
+      "name": "Ecto Seep",
+      "description": "Ectoplasm soaks through your clothing with unpleasant warmth.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "wet",
+          "amount": 15
+        },
+        {
+          "type": "damage",
+          "power": 6
+        }
+      ]
+    },
+    "triple_blessing": {
+      "spell_id": "triple_blessing",
+      "name": "Triple Blessing",
+      "description": "Three acolytes speak in unison. Wet, tum, and nerve pathways all respond at once.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "holy",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "wet",
+          "amount": 25
+        },
+        {
+          "type": "tum",
+          "amount": 25
+        },
+        {
+          "type": "excitement",
+          "amount": 25
+        }
+      ]
+    }
+  },
+  "charms": {
+    "auto_strapper": {
+      "cute_preference": "neutral",
+      "success": "The Auto-Strapper's arms retract. A polite tone announces, 'Fit confirmed. No further fastening required.'",
+      "failure": "The Auto-Strapper buzzes angrily. 'Subject moving too much. Securing immediately.'"
+    },
+    "bloated_slime": {
+      "cute_preference": "neutral",
+      "success": "The bloated slime burbles warmly and sloshes off, too charmed to keep fighting.",
+      "failure": "The bloated slime quivers, then crashes over you in a sticky wave."
+    },
+    "bottle_slime": {
+      "cute_preference": "neutral",
+      "success": "The Bottle Slime wobbles in pleased little circles, then oozes away with a bubbly coo.",
+      "failure": "The Bottle Slime ripples with greedy interest and engulfs you before you can pull back."
+    },
+    "pacifier_wraith": {
+      "cute_preference": "high",
+      "success": "The wraith pauses its humming, drifts back, and dissolves. It'll find someone else tonight.",
+      "failure": "Something cool and smooth clicks past your lips before you've registered the movement, and then your thoughts begin to round."
+    },
+    "diaper_hugger": {
+      "cute_preference": "high",
+      "success": "The Diaper-Hugger chirps something pleased, pats at your head, and waddles away without latching.",
+      "failure": "The Diaper-Hugger gets both arms around you before the gesture is even finished, and by the time it lets go you've already been changed."
+    },
+    "lullaby_siren": {
+      "cute_preference": "neutral",
+      "success": "The Lullaby Siren trails off mid-refrain, genuinely caught off-guard, and lets you pass with a drowsy smile.",
+      "failure": "The Lullaby Siren simply sings louder, and you stop being able to remember what you were doing."
+    },
+    "crib_mimic": {
+      "cute_preference": "high",
+      "success": "The Crib Mimic creaks back open and stays still. It's not going to close on you today.",
+      "failure": "The slats snap shut before you realize they were moving, and by the time you get out, everything is different."
+    },
+    "canyon_raider": {
+      "cute_preference": "low",
+      "success": "The Canyon Raider laughs so hard they forget to finish the fight, and you slip away while they recover.",
+      "failure": "The Canyon Raider smirks. 'Save that sparkle for a mark who'll pay for it.'"
+    },
+    "chest_mimic": {
+      "cute_preference": "low",
+      "success": "The Chest Mimic snaps shut, rattles happily, and decides the teasing was enough for one meal.",
+      "failure": "The Chest Mimic lunges the instant you lean in too close."
+    },
+    "cradle_golem": {
+      "cute_preference": "high",
+      "success": "The Cradle Golem rocks once, decides you are calm enough, and sets you down gently.",
+      "failure": "The Cradle Golem mistakes your attempt for a sleepy fuss and tucks you in by force."
+    },
+    "cultist_excess": {
+      "cute_preference": "neutral",
+      "success": "The Cultist of Excess applauds your shamelessness and declares the rite complete.",
+      "failure": "The Cultist of Excess opens their arms wide. 'More. Always more.'"
+    },
+    "cultist_excite": {
+      "cute_preference": "neutral",
+      "success": "The Cultist of Excite shivers, enthralled by your confidence, and backs away to savor it.",
+      "failure": "The Cultist of Excite laughs breathlessly. 'Almost. Try again after you break.'"
+    },
+    "cultist_tum": {
+      "cute_preference": "neutral",
+      "success": "The Cultist of Tum takes your vulnerability as a holy sign and lets you stagger away blessed.",
+      "failure": "'Yes, confess with your body,' the Cultist of Tum whispers, overwhelming you with pressure."
+    },
+    "cultist_wet": {
+      "cute_preference": "neutral",
+      "success": "The Cultist of Wet smiles beatifically and releases you to spread the lesson onward.",
+      "failure": "'Not yet sincere enough,' the Cultist of Wet murmurs, flooding your senses."
+    },
+    "diaper_dispenser": {
+      "cute_preference": "high",
+      "success": "The dispenser bot whirs happily and rolls away after logging you as 'already supplied.'",
+      "failure": "The dispenser bot opens every compartment at once. 'Emergency fitting required.'"
+    },
+    "diaper_fairy": {
+      "cute_preference": "high",
+      "success": "The Diaper Fairy twirls in delight. 'You are precious. Shoo, before I keep you forever.'",
+      "failure": "The Diaper Fairy claps. 'Too stiff. Too self-conscious. We'll fix that.'"
+    },
+    "dust_scavenger": {
+      "cute_preference": "low",
+      "success": "The Dust Scavenger whistles, impressed by your audacity, and leaves you to your own luck.",
+      "failure": "The Dust Scavenger bares their teeth. 'Pretty face, bad read.'"
+    },
+    "elder_witch": {
+      "cute_preference": "high",
+      "success": "The Elder Witch studies you, amused. 'You learn quickly. Very well. I'll spare you this lesson.'",
+      "failure": "The Elder Witch's eyes narrow. 'All that effort, and still no poise. Disappointing.'"
+    },
+    "formula_feeder_bot": {
+      "cute_preference": "high",
+      "success": "The Formula Feeder Bot emits a soft chime. 'Feeding response accepted. Ending intervention.'",
+      "failure": "The Formula Feeder Bot clamps your shoulders. 'Refusal masked as flirtation. Override engaged.'"
+    },
+    "ghost": {
+      "cute_preference": "neutral",
+      "success": "The ghost sighs wistfully, gives you a mournful nod, and drifts into the wall.",
+      "failure": "The ghost brushes through you with freezing delight, drinking in your failed bravado."
+    },
+    "glowroach": {
+      "cute_preference": "high",
+      "success": "The Glowroach's lights pulse in a happy rhythm before it skitters harmlessly away.",
+      "failure": "The Glowroach flares bright, dives for your face, and leaves you reeling."
+    },
+    "goblin": {
+      "cute_preference": "low",
+      "success": "The goblin blinks, snorts, and decides robbing someone else sounds easier.",
+      "failure": "'Aww, it thinks it's pretty.' The goblin cackles, clubs you down, and calls the others over."
+    },
+    "goblin_brute": {
+      "cute_preference": "low",
+      "success": "The brute grins, gives your cheek a rough pat, and lumbers off with a smug laugh instead of finishing you.",
+      "failure": "'Cute trick. Wrong audience.' The brute grabs you by the scruff and drops you hard."
+    },
+    "hospital_doctor": {
+      "cute_preference": "neutral",
+      "success": "The Chrysalis Doctor chuckles behind their mask. 'Unexpected bedside manner. Fine. You may go.'",
+      "failure": "'Misusing rapport during treatment?' the Doctor says. 'Noted.'"
+    },
+    "hospital_nurse": {
+      "cute_preference": "high",
+      "success": "The Research Nurse's clinical smile turns fond. 'You've had enough excitement. I'll mark this a discharge.'",
+      "failure": "The Research Nurse exhales softly. 'Oh sweetheart, trying that now just proves you need observation.'"
+    },
+    "hospital_orderly": {
+      "cute_preference": "low",
+      "success": "The Orderly smirks, calls you trouble, and lets you slip away while he's still entertained.",
+      "failure": "'You've got nerve,' the Orderly says, cracking his knuckles. 'Bad timing.'"
+    },
+    "hospital_researcher": {
+      "cute_preference": "neutral",
+      "success": "The Mind Researcher gets distracted scribbling notes about your social adaptability and forgets to finish the job.",
+      "failure": "The Mind Researcher lights up. 'Oh, a bold test subject. Wonderful.'"
+    },
+    "hospital_security": {
+      "cute_preference": "low",
+      "success": "The security officer huffs out a laugh and chooses paperwork over pursuit.",
+      "failure": "'Cute act,' Security says, cinching the restraints tighter. 'Still a security breach.'"
+    },
+    "hospital_surgeon": {
+      "cute_preference": "neutral",
+      "success": "The Chief Surgeon gives you a long, considering look, then decides your bravado is reward enough.",
+      "failure": "The Chief Surgeon does not blink. 'No. Hold still.'"
+    },
+    "hypnotist_adept": {
+      "cute_preference": "neutral",
+      "success": "The Adept Hypnotist smiles knowingly. 'That was very good. You can keep your secrets for today.'",
+      "failure": "The Adept Hypnotist meets your gaze without blinking. 'Deflection is still deflection.'"
+    },
+    "hypnotist_master": {
+      "cute_preference": "neutral",
+      "success": "The Master Hypnotist inclines their head. 'At last. Intentional vulnerability. Go, while you still understand it.'",
+      "failure": "The Master Hypnotist smiles like they expected this. 'You wanted control. Interesting choice.'"
+    },
+    "hypnotist_novice": {
+      "cute_preference": "high",
+      "success": "The Novice Hypnotist flushes, loses their cadence, and waves you away before they embarrass themself further.",
+      "failure": "The Novice Hypnotist swallows hard. 'N-no, wait, I can still do this.' The pendulum swings."
+    },
+    "mansion_slime": {
+      "cute_preference": "neutral",
+      "success": "The ectoplasm slime bubbles with lazy affection and dissolves back into the floorboards.",
+      "failure": "The ectoplasm slime surges upward, wrapping around your limbs while it quivers with interest."
+    },
+    "matron_rosalind_boss": {
+      "cute_preference": "low",
+      "success": "Matron Rosalind's smile slips for half a second. 'You are an interesting one, dear. Go on, then. Today.'",
+      "failure": "'Charm, dear? On *me*?' Matron Rosalind laughs once, sharply. 'How adorable. Sentinels — full cycle.'"
+    },
+    "nanny_bot": {
+      "cute_preference": "high",
+      "success": "The NannyBot chirps. 'Patient displaying cooperative cuteness. Session complete.'",
+      "failure": "The NannyBot's speaker crackles. 'Counterfeit compliance detected. Restraining patient.'"
+    },
+    "nanny_golem": {
+      "cute_preference": "high",
+      "success": "The Nanny Golem pauses, scans your earnest pose, and classifies you as 'already soothed.' It stands down.",
+      "failure": "The Nanny Golem's eyes brighten. 'Charm response inadequate. Escalating care.'"
+    },
+    "nanny_sentinel": {
+      "cute_preference": "high",
+      "success": "The Sentinel's monitors settle to green. 'Subject pacified. Patrol resuming.'",
+      "failure": "The Sentinel locks onto you. 'Manipulative behavior logged. Full corrective cycle engaged.'"
+    },
+    "nursery_witch": {
+      "cute_preference": "high",
+      "success": "The Nursery Witch's smile turns indulgent. 'Oh, now that's adorable. Run along before I change my mind.'",
+      "failure": "The Nursery Witch laughs softly. 'If you want attention that badly, I'll give it to you properly.'"
+    },
+    "potty_trainer_bot": {
+      "cute_preference": "high",
+      "success": "The Potty Trainer Bot flashes a gold star icon and declares the lesson complete.",
+      "failure": "'Regression behavior detected,' the bot says, pinning you down with cheerful efficiency."
+    },
+    "raider_chief": {
+      "cute_preference": "low",
+      "success": "The Raider Chief grins like they've met a worthy liar and calls the hunt off out of respect.",
+      "failure": "'Good try,' the Raider Chief says. 'Now kneel.'"
+    },
+    "research_director": {
+      "cute_preference": "neutral",
+      "success": "The Research Director studies your performance, smiles faintly, and decides the data is more valuable with you still active.",
+      "failure": "The Research Director steeples their fingers. 'Charming. Also predictable.'"
+    },
+    "robo_nurse": {
+      "cute_preference": "high",
+      "success": "Robo-Nurse pauses mid-procedure. 'Patient morale stabilized. Further treatment postponed.'",
+      "failure": "Robo-Nurse tilts its head. 'Seduction subroutine not recognized. Administering compliance care.'"
+    },
+    "sand_stinger": {
+      "cute_preference": "neutral",
+      "success": "The Sand Stinger hovers, confused by your confidence, then darts off into the dunes.",
+      "failure": "The Sand Stinger mistakes your stillness for weakness and drives straight in."
+    },
+    "school_janitor": {
+      "cute_preference": "low",
+      "success": "The Janitor sighs, blushes just a little, and mutters that he has better things to clean than this fight.",
+      "failure": "'Save it for someone who cares,' the Janitor grunts, hauling you off your feet."
+    },
+    "school_nurse": {
+      "cute_preference": "high",
+      "success": "The School Nurse softens instantly. 'Sweetie, if you can still smile like that, you can go.'",
+      "failure": "The School Nurse clicks her tongue. 'Honey, if you're trying that while dizzy, you need supervision.'"
+    },
+    "school_principal": {
+      "cute_preference": "neutral",
+      "success": "The Principal adjusts her glasses and waves you off, deciding the spectacle has made its point already.",
+      "failure": "The Principal's expression hardens. 'Improper conduct on top of insubordination. Unacceptable.'"
+    },
+    "school_teacher": {
+      "cute_preference": "neutral",
+      "success": "The Teacher folds her arms, clears her throat, and dismisses class early with a stern little smile.",
+      "failure": "'Flirting your way out of consequences?' the Teacher says. 'Detention.'"
+    },
+    "scrap_trapper": {
+      "cute_preference": "low",
+      "success": "The Scrap Trapper grins and tips their hat, deciding you'd cause more trouble alive than caught.",
+      "failure": "'Stand still and look cute for the cage,' the Scrap Trapper says."
+    },
+    "shadow_fairy": {
+      "cute_preference": "high",
+      "success": "The Shadow Fairy traces your jaw with a cold finger, then vanishes with a pleased whisper.",
+      "failure": "The Shadow Fairy laughs in the dark. 'Not convincing. Not yet.'"
+    },
+    "teachers_pet": {
+      "cute_preference": "high",
+      "success": "Teacher's Pet gasps, utterly smitten, and runs off to daydream about you instead of fighting.",
+      "failure": "'Wow. That was embarrassing,' Teacher's Pet says, before ratting you out and knocking you flat."
+    },
+    "teddy_mimic": {
+      "cute_preference": "high",
+      "success": "The Teddy Mimic melts into a happy wiggle and lets you go, content with the attention.",
+      "failure": "The Teddy Mimic squeals, pounces, and mauls you with needy little hugs until you crumple."
+    },
+    "subject_theta_boss": {
+      "cute_preference": "cute",
+      "success": "Theta's tentacles slow. Its bioluminescence shifts to a warm amber — it recognizes something gentle in you. The singing stops. It watches you go, lights fading like a lullaby reaching its end.",
+      "failure": "The lullaby grows louder. You feel your thoughts go soft and cottony, your limbs heavy and compliant, before Theta's embrace becomes inescapable."
+    }
+  }
+}
