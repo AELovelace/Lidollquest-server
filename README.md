@@ -187,3 +187,10 @@ firewall-restricted private interface between hosts.
 This is an initial shared-zone implementation with individual battles, not
 cooperative combat. It verifies legal gameplay and bounded rewards; it does not
 claim to distinguish a human player from a bot submitting legal actions.
+
+
+## NPC appearances
+
+`GET /zones` includes the public `avatars` catalog. `create` accepts an optional `avatar` ID (default `player`); `appearance` changes an existing character using the usual character_id, revision, controller, and request_id while present in an arena. The server validates IDs against `server/avatars.json`, journals updates, and includes `avatar` in character and peer snapshots. Appearance changes do not affect combat or rewards. Existing state without an avatar defaults to `player`; no database migration is required.
+
+Regenerate the catalog from the game checkout with `python python/export_online_avatars.py --server-root C:/Scripts/Lidollquest-server` whenever NPC names or sprite assignments change. Ship this JSON with the service and deploy the matching game assets. No tracker gateway changes are required.

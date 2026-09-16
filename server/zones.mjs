@@ -1,10 +1,15 @@
 import {randomUUID,randomInt,createHash} from 'node:crypto';
+import {readFileSync} from 'node:fs';
+
+export const questAvatars=Object.freeze(JSON.parse(readFileSync(new URL('./avatars.json',import.meta.url),'utf8')).map(Object.freeze)); // Generated from the game's NPC registry and authored object sprites.
+const avatarIds=new Set(questAvatars.map(a=>a.id));
 
 export const questZones=Object.freeze([
  {id:'honeydew-lantern',hub:'town',name:'Lantern Court',theme:'lantern',rule:'Recovery between rounds',enemies:['Moss Sprite','Lantern Knight','Moonlit Warden'],attack:5,health:22,recovery:6},
  {id:'littlebig-clockwork',hub:'littlebig_city',name:'Clockwork Coliseum',theme:'clockwork',rule:'Every third enemy turn hits harder',enemies:['Tin Sentry','Gear Hound','Clockwork Monarch'],attack:5,health:24,recovery:3},
 ]);
 const fail=(status,message)=>{throw Object.assign(Error(message),{status,code:'zone_request_failed'});};
+const avatar=value=>typeof value==='string'&&avatarIds.has(value)?value:fail(400,'Choose an NPC from the appearance list.'); // Never accept arbitrary asset paths or gameplay stats.
 const identifier=value=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(value);
 const clean=(value,max)=>typeof value==='string'?value.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069#]/g,' ').trim().slice(0,max):'';
 const zone=id=>questZones.find(z=>z.id===id)??fail(400,'Choose an online zone.');
@@ -24,14 +29,14 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
  function atomic(work){db.exec('BEGIN IMMEDIATE');try{const result=work();db.exec('COMMIT');return result;}catch(e){db.exec('ROLLBACK');throw e;}}
  function limit(owner){const time=now();db.prepare('DELETE FROM quest_request_limits WHERE started<=?').run(time-60000);const r=db.prepare('INSERT INTO quest_request_limits VALUES (?,?,1) ON CONFLICT(owner) DO UPDATE SET count=count+1 RETURNING count').get(owner,time);if(r.count>600)fail(429,'Please slow down.');}
  function character(owner,id){if(!identifier(id))fail(400,'Choose an online character.');const c=db.prepare('SELECT * FROM quest_characters WHERE owner=? AND id=?').get(owner,id);if(!c)fail(404,'Online character not found for this account.');return c;}
- function publicCharacter(c){return {id:c.id,name:c.name,revision:c.revision,...JSON.parse(c.state)};}
+ function publicCharacter(c){return {avatar:'player',id:c.id,name:c.name,revision:c.revision,...JSON.parse(c.state)};} // Existing characters keep their default appearance without a database migration.
  function presence(i,c,controller){const p=db.prepare('SELECT * FROM quest_presence WHERE owner=? AND character_id=? AND grant_id=? AND controller=? AND seen>?').get(i.owner,c.id,i.id,controller,now()-30000);if(!p)fail(409,'Enter the zone again; this connection no longer controls the character.');return p;}
  function snapshot(i,c=null){
   const p=c?db.prepare('SELECT * FROM quest_presence WHERE owner=? AND character_id=? AND seen>?').get(i.owner,c.id,now()-30000):null;
-  const peers=p?db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT 64').all(p.zone,now()-30000).filter(r=>enabled(r.owner)).map(r=>({id:r.character_id,name:r.name,x:r.x,y:r.y,stage:JSON.parse(r.state).run?.stage??0,fighting:JSON.parse(r.state).run?.phase==='fight'})):[];
+  const peers=p?db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT 64').all(p.zone,now()-30000).filter(r=>enabled(r.owner)).map(r=>({id:r.character_id,name:r.name,avatar:JSON.parse(r.state).avatar??'player',x:r.x,y:r.y,stage:JSON.parse(r.state).run?.stage??0,fighting:JSON.parse(r.state).run?.phase==='fight'})):[];
   const chat=p?db.prepare('SELECT seq,name,text,character_id AS characterId FROM quest_chat WHERE zone=? AND created>? ORDER BY seq DESC LIMIT 40').all(p.zone,now()-86400000).reverse():[];
   const spent=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,Math.floor(now()/86400000))?.coins??0;
-  return {serverTime:now(),zones:questZones.map(z=>({...z,walls:Array.from({length:12},(_,y)=>Array.from({length:20},(_,x)=>blocked(z,x,y)?1:0))})),characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(publicCharacter),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers,chat,coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,250-spent)};
+  return {serverTime:now(),avatars:questAvatars,zones:questZones.map(z=>({...z,walls:Array.from({length:12},(_,y)=>Array.from({length:20},(_,x)=>blocked(z,x,y)?1:0))})),characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(publicCharacter),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers,chat,coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,250-spent)};
  } // Snapshots expose only zone avatars and chat, never wallet credentials or account IDs.
  function read(secret,id){const i=identity(secret);limit(i.owner);return snapshot(i,id?character(i.owner,id):null);}
  function enemy(z,stage){return {name:z.enemies[Math.min(2,Math.floor((stage-1)/3))],hp:z.health+(stage-1)*5,maxHp:z.health+(stage-1)*5,turn:0};}
@@ -45,14 +50,15 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   const i=identity(secret);limit(i.owner);
   grant(secret,'wallet:write');
   if(!input||!identifier(input.request_id)||!identifier(input.controller))fail(400,'Supply a stable request ID and controller.');
-  if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text'].includes(k)))fail(400,'Unsupported zone input.');
+  if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar'].includes(k)))fail(400,'Unsupported zone input.');
   return atomic(()=>{
    identity(secret);
    if(input.action==='create'){
-    const name=clean(input.name,24);if(!name)fail(400,'Give your online character a name.');
+    const name=clean(input.name,24),appearance=avatar(input.avatar===undefined?'player':input.avatar);if(!name)fail(400,'Give your online character a name.');
     let c=db.prepare('SELECT * FROM quest_characters WHERE owner=? AND creation_id=?').get(i.owner,input.request_id);
     if(c&&c.name!==name)fail(409,'This creation request already has another name.');
-    if(!c){if(db.prepare('SELECT COUNT(*) AS n FROM quest_characters WHERE owner=?').get(i.owner).n>=5)fail(409,'This account already has five online characters.');const id=randomUUID();db.prepare('INSERT INTO quest_characters VALUES (?,?,?,?,0,?,?)').run(id,i.owner,name,now(),JSON.stringify({wins:0,run:null,lastStart:0,lastResult:null}),input.request_id);c=character(i.owner,id);}
+    if(c&&(JSON.parse(c.state).creationAvatar??'player')!==appearance)fail(409,'This creation request already has another appearance.');
+    if(!c){if(db.prepare('SELECT COUNT(*) AS n FROM quest_characters WHERE owner=?').get(i.owner).n>=5)fail(409,'This account already has five online characters.');const id=randomUUID();db.prepare('INSERT INTO quest_characters VALUES (?,?,?,?,0,?,?)').run(id,i.owner,name,now(),JSON.stringify({avatar:appearance,creationAvatar:appearance,wins:0,run:null,lastStart:0,lastResult:null}),input.request_id);c=character(i.owner,id);}
     return snapshot(i,c);
    }
    const c=character(i.owner,input.character_id),fingerprint=createHash('sha256').update(JSON.stringify(Object.keys(input).sort().map(k=>[k,input[k]]))).digest('hex'); // Journal reloads may change JSON property order without changing the command.
@@ -71,7 +77,8 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
     db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,10,9,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=10,y=9,seen=excluded.seen,moved=0').run(i.owner,c.id,z.id,i.id,input.controller,now());
    }else{
     p=presence(i,c,input.controller);const z=zone(p.zone);
-    if(input.action==='leave'){if(state.run)fail(409,'Bank your completed rounds or forfeit before leaving.');db.prepare('DELETE FROM quest_presence WHERE owner=?').run(i.owner);}
+    if(input.action==='appearance'){state.avatar=avatar(input.avatar);} // Cosmetic changes use the same ownership, presence, revision and replay checks as other arena commands.
+    else if(input.action==='leave'){if(state.run)fail(409,'Bank your completed rounds or forfeit before leaving.');db.prepare('DELETE FROM quest_presence WHERE owner=?').run(i.owner);}
     else if(input.action==='move'){
      if(state.run?.phase==='fight')fail(409,'Finish this round before moving.');
      if(now()-p.moved<200)fail(429,'Movement is too fast.');

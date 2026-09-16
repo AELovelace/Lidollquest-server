@@ -15,9 +15,9 @@ test('standalone HTTP service persists fights and recovers a lost payout after r
  const stop=()=>new Promise(r=>service.server.close(r));const act=async(action,c,extra={})=>{now+=500;const response=await fetch(url+'/zones/action',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({action,character_id:c?.id,revision:c?.revision,controller:'test-window',request_id:randomUUID(),...extra})});const data=await response.json();assert.equal(response.status,200,JSON.stringify(data));return data;};
  await start();try{
   assert.equal((await fetch(url+'/zones')).status,401);assert.equal((await fetch(url+'/zones',{headers:{Authorization:'Bearer '+token,Origin:'https://evil.invalid'}})).status,403);
-  let c=(await act('create',null,{name:'Tester'})).character;c=(await act('enter',c,{zone:'honeydew-lantern'})).character;c=(await act('start',c)).character;
+  let c=(await act('create',null,{name:'Tester',avatar:'objNPCGuard'})).character;c=(await act('enter',c,{zone:'honeydew-lantern'})).character;c=(await act('start',c)).character;
   c=(await act('attack',c)).character;const hp=c.run.enemy.hp;
-  await stop();await start();const recovered=await (await fetch(url+'/zones?character_id='+c.id,{headers:{Authorization:'Bearer '+token}})).json();assert.equal(recovered.character.run.enemy.hp,hp);
+  await stop();await start();const recovered=await (await fetch(url+'/zones?character_id='+c.id,{headers:{Authorization:'Bearer '+token}})).json();assert.equal(recovered.character.run.enemy.hp,hp);assert.equal(recovered.character.avatar,'objNPCGuard');assert.equal(recovered.peers.find(p=>p.id===c.id).avatar,'objNPCGuard');
   while(c.run.phase==='fight')c=(await act('attack',c)).character;
   let result=await act('cashout',c);assert.equal(result.pendingCoins,5);assert.equal(balance,55);assert.equal(receipts.size,1);
   await stop();await start();result=await (await fetch(url+'/zones?character_id='+c.id,{headers:{Authorization:'Bearer '+token}})).json();assert.equal(result.pendingCoins,0);assert.equal(result.coins,55);assert.equal(receipts.size,1);assert.equal(calls,2);

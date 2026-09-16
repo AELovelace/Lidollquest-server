@@ -1,0 +1,866 @@
+[
+  {
+    "id": "player",
+    "name": "Default adventurer",
+    "sprite": "",
+    "walk": ""
+  },
+  {
+    "id": "objLBCCivicNPC23",
+    "name": "Auntie Dot",
+    "sprite": "sprNPCArtStudent",
+    "walk": "sprNPCArtStudentWalk"
+  },
+  {
+    "id": "objLBCCivicNPC13",
+    "name": "Auntie Greta",
+    "sprite": "sprNPCInnkeeper",
+    "walk": "sprNPCInnkeeperWalk"
+  },
+  {
+    "id": "objLBCCivicNPC03",
+    "name": "Auntie Marigold",
+    "sprite": "sprNPCArtStudent",
+    "walk": "sprNPCArtStudentWalk"
+  },
+  {
+    "id": "objLBCCivicNPC43",
+    "name": "Auntie Posy",
+    "sprite": "sprNPCArtStudent",
+    "walk": "sprNPCArtStudentWalk"
+  },
+  {
+    "id": "objNPCBigBaby",
+    "name": "Babette",
+    "sprite": "sprBabette",
+    "walk": "sprBabetteWalk"
+  },
+  {
+    "id": "objNPCInnkeeper",
+    "name": "Barlow",
+    "sprite": "sprNPCInnkeeper",
+    "walk": "sprNPCInnkeeperWalk"
+  },
+  {
+    "id": "objNPCNurseryBaby",
+    "name": "Basil",
+    "sprite": "sprBasil",
+    "walk": "sprBasilWalk"
+  },
+  {
+    "id": "objLBCCivicNPC11",
+    "name": "Bee",
+    "sprite": "sprNPCGuard",
+    "walk": "sprNPCGuardWalk"
+  },
+  {
+    "id": "objNPCCityAccessories",
+    "name": "Bex",
+    "sprite": "sprNPCAdventurer",
+    "walk": "sprNPCAdventurerWalk"
+  },
+  {
+    "id": "objNPCLunchLady",
+    "name": "Big Barb",
+    "sprite": "sprNPCNursemaid",
+    "walk": "sprNPCNursemaidWalk"
+  },
+  {
+    "id": "objLBCCivicNPC12",
+    "name": "Bonnie",
+    "sprite": "sprNPCHerbalist",
+    "walk": "sprNPCHerbalistWalk"
+  },
+  {
+    "id": "objLBCCivicNPC22",
+    "name": "Bottles",
+    "sprite": "sprNPCApothecary",
+    "walk": "sprNPCApothecaryWalk"
+  },
+  {
+    "id": "objNPCForestDrifter",
+    "name": "Bramble",
+    "sprite": "sprNPCAdventurer",
+    "walk": "sprNPCAdventurerWalk"
+  },
+  {
+    "id": "objNPCPaddedWarrior",
+    "name": "Brann",
+    "sprite": "sprNPCPaddedWarrior",
+    "walk": "sprNPCPaddedWarriorWalk"
+  },
+  {
+    "id": "objNPCBottleBaby",
+    "name": "Bubbles",
+    "sprite": "sprBubbles",
+    "walk": "sprBubblesWalk"
+  },
+  {
+    "id": "objLBCCivicNPC40",
+    "name": "Bubbles Eve",
+    "sprite": "sprNPCFormerSoldier",
+    "walk": "sprNPCFormerSoldierWalk"
+  },
+  {
+    "id": "objLBCCivicNPC32",
+    "name": "Bubs",
+    "sprite": "sprNPCHerbalist",
+    "walk": "sprNPCHerbalistWalk"
+  },
+  {
+    "id": "objNPCCatatonicPatient",
+    "name": "Catatonic Patient",
+    "sprite": "sprNPCCatatonicPatient",
+    "walk": "sprNPCCatatonicPatientWalk"
+  },
+  {
+    "id": "objLBCCivicNPC20",
+    "name": "Cordial Cal",
+    "sprite": "sprNPCFormerSoldier",
+    "walk": "sprNPCFormerSoldierWalk"
+  },
+  {
+    "id": "objNPCNewArrival",
+    "name": "Corin",
+    "sprite": "sprNPCNewArrival",
+    "walk": "sprNPCNewArrivalWalk"
+  },
+  {
+    "id": "objNPCCorporalVex",
+    "name": "Corporal Vex",
+    "sprite": "sprNPCFormerSoldierWalk",
+    "walk": ""
+  },
+  {
+    "id": "objLBCCivicNPC31",
+    "name": "Cricket",
+    "sprite": "sprNPCGuard",
+    "walk": "sprNPCGuardWalk"
+  },
+  {
+    "id": "objLBCCivicNPC38",
+    "name": "Dax",
+    "sprite": "sprNPCWaddlingKid",
+    "walk": "sprNPCWaddlingKidWalk"
+  },
+  {
+    "id": "objNPCClassClown",
+    "name": "Decklan",
+    "sprite": "sprNPCProudBaby",
+    "walk": "sprNPCProudBabyWalk"
+  },
+  {
+    "id": "objNPCCrybabyCitizen",
+    "name": "Dewdrop",
+    "sprite": "sprDewdrop",
+    "walk": "sprDewdropWalk"
+  },
+  {
+    "id": "objNPCCaravanRemnant",
+    "name": "Doss",
+    "sprite": "sprNPCFormerSoldier",
+    "walk": "sprNPCFormerSoldierWalk"
+  },
+  {
+    "id": "objNPCGigglyGuard",
+    "name": "Dottie",
+    "sprite": "sprNPCGigglyGuard",
+    "walk": "sprNPCGigglyGuardWalk"
+  },
+  {
+    "id": "objNPCDelusionalPatient",
+    "name": "Dr. Helena Voss",
+    "sprite": "sprNPCDelusionalPatient",
+    "walk": "sprNPCDelusionalPatientWalk"
+  },
+  {
+    "id": "objNPCVillageElder",
+    "name": "Elder Rowan",
+    "sprite": "sprNPCVillageElder",
+    "walk": "sprNPCVillageElderWalk"
+  },
+  {
+    "id": "objNPCChaplain",
+    "name": "Father Thomas Brennan",
+    "sprite": "sprNPCChaplain",
+    "walk": "sprNPCChaplainWalk"
+  },
+  {
+    "id": "objLBCCivicNPC35",
+    "name": "Felix",
+    "sprite": "sprNPCPaddedWanderer",
+    "walk": "sprNPCPaddedWandererWalk"
+  },
+  {
+    "id": "objNPCForestPilgrim",
+    "name": "Fen",
+    "sprite": "sprNPCStoryteller",
+    "walk": "sprNPCStorytellerWalk"
+  },
+  {
+    "id": "objNPCApothecary",
+    "name": "Fern",
+    "sprite": "sprNPCApothecary",
+    "walk": "sprNPCApothecaryWalk"
+  },
+  {
+    "id": "objLBCCivicNPC50",
+    "name": "Fizz Cleo",
+    "sprite": "sprNPCFriendlyNurse",
+    "walk": "sprNPCFriendlyNurseWalk"
+  },
+  {
+    "id": "objNPCCrybaby",
+    "name": "Fletcher",
+    "sprite": "sprNPCCrybaby",
+    "walk": "sprNPCCrybabyWalk"
+  },
+  {
+    "id": "objNPCFormerPolitician",
+    "name": "Former Politician",
+    "sprite": "sprNPCFormerPolitician",
+    "walk": "sprNPCFormerPoliticianWalk"
+  },
+  {
+    "id": "objNPCFormerProfessor",
+    "name": "Former Professor",
+    "sprite": "sprNPCFormerProfessor",
+    "walk": "sprNPCFormerProfessorWalk"
+  },
+  {
+    "id": "objNPCFormerSoldier",
+    "name": "Former Soldier",
+    "sprite": "sprNPCFormerSoldier",
+    "walk": "sprNPCFormerSoldierWalk"
+  },
+  {
+    "id": "objNPCHalfwayHero",
+    "name": "Garrick",
+    "sprite": "sprNPCHalfwayHero",
+    "walk": "sprNPCHalfwayHeroWalk"
+  },
+  {
+    "id": "objNPCGigglingPatient",
+    "name": "Giggling Patient",
+    "sprite": "sprNPCGigglingPatient",
+    "walk": "sprNPCGigglingPatientWalk"
+  },
+  {
+    "id": "objLBCCivicNPC10",
+    "name": "Glitter Jen",
+    "sprite": "sprNPCFriendlyNurse",
+    "walk": "sprNPCFriendlyNurseWalk"
+  },
+  {
+    "id": "objLBCCivicNPC19",
+    "name": "Grandpa Mort",
+    "sprite": "sprNPCFormerProfessor",
+    "walk": "sprNPCFormerProfessorWalk"
+  },
+  {
+    "id": "objLBCCivicNPC49",
+    "name": "Granny Aldis",
+    "sprite": "sprNPCFarmer",
+    "walk": "sprNPCFarmerWalk"
+  },
+  {
+    "id": "objLBCCivicNPC09",
+    "name": "Granny Hettie",
+    "sprite": "sprNPCFarmer",
+    "walk": "sprNPCFarmerWalk"
+  },
+  {
+    "id": "objNPCWeaponsmith",
+    "name": "Grog",
+    "sprite": "sprNPCWeaponsmith",
+    "walk": "sprNPCWeaponsmithWalk"
+  },
+  {
+    "id": "objNPCDiaperGuardian",
+    "name": "Guardian Iris",
+    "sprite": "sprNPCBarmaid",
+    "walk": "sprNPCBarmaidWalk"
+  },
+  {
+    "id": "objNPCBlacksmith",
+    "name": "Hank",
+    "sprite": "sprNPCBlacksmith",
+    "walk": "sprNPCBlacksmithWalk"
+  },
+  {
+    "id": "objNPCCoolJanitor",
+    "name": "Hank",
+    "sprite": "sprNPCStoryteller",
+    "walk": "sprNPCStorytellerWalk"
+  },
+  {
+    "id": "objLBCCivicNPC45",
+    "name": "Hara",
+    "sprite": "sprNPCBottleBaby",
+    "walk": "sprNPCBottleBabyWalk"
+  },
+  {
+    "id": "objNPCDiaperedDrifter",
+    "name": "Haze",
+    "sprite": "sprHaze",
+    "walk": "sprHazeWalk"
+  },
+  {
+    "id": "objNPCTownCrier",
+    "name": "Herald",
+    "sprite": "sprNPCTownCrier",
+    "walk": "sprNPCTownCrierWalk"
+  },
+  {
+    "id": "objNPCMossWitch",
+    "name": "Hilda",
+    "sprite": "sprNPCSage",
+    "walk": "sprNPCSageWalk"
+  },
+  {
+    "id": "objNPCMansionHousekeeper",
+    "name": "Housekeeper Vesper",
+    "sprite": "sprNPCNursemaid",
+    "walk": "sprNPCNursemaidWalk"
+  },
+  {
+    "id": "objNPCStudyBuddy",
+    "name": "Iris",
+    "sprite": "sprNPCRegressor",
+    "walk": "sprNPCRegressorWalk"
+  },
+  {
+    "id": "objLBCCivicNPC15",
+    "name": "Jonas",
+    "sprite": "sprNPCPaddedWanderer",
+    "walk": "sprNPCPaddedWandererWalk"
+  },
+  {
+    "id": "objLBCCivicNPC48",
+    "name": "Junie",
+    "sprite": "sprNPCDiaperedDrifter",
+    "walk": "sprNPCDiaperedDrifterWalk"
+  },
+  {
+    "id": "objNPCJuniperVale",
+    "name": "Juniper Vale",
+    "sprite": "sprNPCJuniperVale",
+    "walk": "sprNPCJuniperValeWalk"
+  },
+  {
+    "id": "objNPCAdventurer",
+    "name": "Kael",
+    "sprite": "sprNPCAdventurer",
+    "walk": "sprNPCAdventurerWalk"
+  },
+  {
+    "id": "objLBCCivicNPC08",
+    "name": "Kit",
+    "sprite": "sprNPCDiaperedDrifter",
+    "walk": "sprNPCDiaperedDrifterWalk"
+  },
+  {
+    "id": "objNPCLucidPatient",
+    "name": "Lucid Patient",
+    "sprite": "sprNPCLucidPatient",
+    "walk": "sprNPCLucidPatientWalk"
+  },
+  {
+    "id": "objLBCCivicNPC21",
+    "name": "Lulu",
+    "sprite": "sprNPCAdventurer",
+    "walk": "sprNPCAdventurerWalk"
+  },
+  {
+    "id": "objNPCRegressor",
+    "name": "Lulu",
+    "sprite": "sprLulu",
+    "walk": "sprLuluWalk"
+  },
+  {
+    "id": "objNPCFormulaDrinker",
+    "name": "Lydia",
+    "sprite": "sprNPCFormulaDrinker",
+    "walk": "sprNPCFormulaDrinkerWalk"
+  },
+  {
+    "id": "objNPCMansionMedium",
+    "name": "Madame Stillwater",
+    "sprite": "sprNPCSage",
+    "walk": "sprNPCSageWalk"
+  },
+  {
+    "id": "objLBCCivicNPC25",
+    "name": "Mara",
+    "sprite": "sprNPCBottleBaby",
+    "walk": "sprNPCBottleBabyWalk"
+  },
+  {
+    "id": "objNPCVisitingRelative",
+    "name": "Margaret Hill",
+    "sprite": "sprNPCVisitingRelative",
+    "walk": "sprNPCVisitingRelativeWalk"
+  },
+  {
+    "id": "objNPCCityCurios",
+    "name": "Marrow",
+    "sprite": "sprNPCAdventurer",
+    "walk": "sprNPCAdventurerWalk"
+  },
+  {
+    "id": "objNPCMarshalRhea",
+    "name": "Marshal Rhea",
+    "sprite": "sprNPCMarshalRhea",
+    "walk": "sprNPCMarshalRheaWalk"
+  },
+  {
+    "id": "objNPCShyStudent",
+    "name": "Mika",
+    "sprite": "sprNPCNurseryBaby",
+    "walk": "sprNPCNurseryBabyWalk"
+  },
+  {
+    "id": "objNPCMikaScrapwright",
+    "name": "Mika Scrapwright",
+    "sprite": "sprNPCMikaScrapwright",
+    "walk": "sprNPCMikaScrapwrightWalk"
+  },
+  {
+    "id": "objLBCCivicNPC02",
+    "name": "Mimi",
+    "sprite": "sprNPCApothecary",
+    "walk": "sprNPCApothecaryWalk"
+  },
+  {
+    "id": "objNPCMerchant",
+    "name": "Mira",
+    "sprite": "sprNPCBarmaid",
+    "walk": "sprNPCBarmaidWalk"
+  },
+  {
+    "id": "objLBCCivicNPC06",
+    "name": "Miss Avra",
+    "sprite": "sprNPCCartMerchant",
+    "walk": "sprNPCCartMerchantWalk"
+  },
+  {
+    "id": "objLBCCivicNPC46",
+    "name": "Miss Doon",
+    "sprite": "sprNPCCartMerchant",
+    "walk": "sprNPCCartMerchantWalk"
+  },
+  {
+    "id": "objLBCCivicNPC26",
+    "name": "Miss Pell",
+    "sprite": "sprNPCCartMerchant",
+    "walk": "sprNPCCartMerchantWalk"
+  },
+  {
+    "id": "objLBCCivicNPC37",
+    "name": "Mr. Quigg",
+    "sprite": "sprNPCTownCrier",
+    "walk": "sprNPCTownCrierWalk"
+  },
+  {
+    "id": "objNPCBandTeacher",
+    "name": "Mr. Tempo",
+    "sprite": "sprNPCSage",
+    "walk": "sprNPCSageWalk"
+  },
+  {
+    "id": "objLBCCivicNPC47",
+    "name": "Mrs. Hardacre",
+    "sprite": "sprNPCCobbler",
+    "walk": "sprNPCCobblerWalk"
+  },
+  {
+    "id": "objLBCCivicNPC17",
+    "name": "Mrs. Pevensie",
+    "sprite": "sprNPCTownCrier",
+    "walk": "sprNPCTownCrierWalk"
+  },
+  {
+    "id": "objLBCCivicNPC27",
+    "name": "Mrs. Tippet",
+    "sprite": "sprNPCCobbler",
+    "walk": "sprNPCCobblerWalk"
+  },
+  {
+    "id": "objLBCCivicNPC07",
+    "name": "Mrs. Whitcomb",
+    "sprite": "sprNPCCobbler",
+    "walk": "sprNPCCobblerWalk"
+  },
+  {
+    "id": "objNPCNiceTeacher",
+    "name": "Ms. Clover",
+    "sprite": "sprNPCStoryteller",
+    "walk": "sprNPCStorytellerWalk"
+  },
+  {
+    "id": "objNPCLibrarian",
+    "name": "Ms. Margot",
+    "sprite": "sprNPCStoryteller",
+    "walk": "sprNPCStorytellerWalk"
+  },
+  {
+    "id": "objNPCStoryteller",
+    "name": "Mumbles",
+    "sprite": "sprNPCStoryteller",
+    "walk": "sprNPCStorytellerWalk"
+  },
+  {
+    "id": "objLBCCivicNPC29",
+    "name": "Nana Iolanthe",
+    "sprite": "sprNPCFarmer",
+    "walk": "sprNPCFarmerWalk"
+  },
+  {
+    "id": "objNPCNursemaid",
+    "name": "Nanny Mabel",
+    "sprite": "sprNPCNursemaid",
+    "walk": "sprNPCNursemaidWalk"
+  },
+  {
+    "id": "objNPCNightNurse",
+    "name": "Nell",
+    "sprite": "sprNPCNightNurse",
+    "walk": "sprNPCNightNurseWalk"
+  },
+  {
+    "id": "objNPCNewAdmission",
+    "name": "New Admission",
+    "sprite": "sprNPCNewAdmission",
+    "walk": "sprNPCNewAdmissionWalk"
+  },
+  {
+    "id": "objLBCCivicNPC04",
+    "name": "Nurse Beth",
+    "sprite": "sprNPCBarmaid",
+    "walk": "sprNPCBarmaidWalk"
+  },
+  {
+    "id": "objLBCCivicNPC14",
+    "name": "Nurse Lina",
+    "sprite": "sprNPCLibrarian",
+    "walk": "sprNPCLibrarianWalk"
+  },
+  {
+    "id": "objLBCCivicNPC44",
+    "name": "Nurse Mira",
+    "sprite": "sprNPCBarmaid",
+    "walk": "sprNPCBarmaidWalk"
+  },
+  {
+    "id": "objNPCFriendlyNurse",
+    "name": "Nurse Penny",
+    "sprite": "sprNPCNightNurse",
+    "walk": "sprNPCNightNurseWalk"
+  },
+  {
+    "id": "objNPCNurseVaccine",
+    "name": "Nurse Rachel",
+    "sprite": "sprNPCNurseVaccine",
+    "walk": "sprNPCNurseVaccineWalk"
+  },
+  {
+    "id": "objLBCCivicNPC24",
+    "name": "Nurse Sam",
+    "sprite": "sprNPCBarmaid",
+    "walk": "sprNPCBarmaidWalk"
+  },
+  {
+    "id": "objLBCCivicNPC34",
+    "name": "Nurse Toby",
+    "sprite": "sprNPCLibrarian",
+    "walk": "sprNPCLibrarianWalk"
+  },
+  {
+    "id": "objNPCOccultistRecruiter",
+    "name": "Occultist Recruiter",
+    "sprite": "sprFriendly",
+    "walk": ""
+  },
+  {
+    "id": "objNPCCityDressmaker",
+    "name": "Odile",
+    "sprite": "sprNPCAdventurer",
+    "walk": "sprNPCAdventurerWalk"
+  },
+  {
+    "id": "objLBCCivicNPC36",
+    "name": "Old Bram",
+    "sprite": "sprNPCRegressor",
+    "walk": "sprNPCRegressorWalk"
+  },
+  {
+    "id": "objNPCSage",
+    "name": "Old Fenwick",
+    "sprite": "sprNPCSage",
+    "walk": "sprNPCSageWalk"
+  },
+  {
+    "id": "objNPCFarmer",
+    "name": "Old Gus",
+    "sprite": "sprNPCFarmer",
+    "walk": "sprNPCFarmerWalk"
+  },
+  {
+    "id": "objLBCCivicNPC16",
+    "name": "Old Hen",
+    "sprite": "sprNPCRegressor",
+    "walk": "sprNPCRegressorWalk"
+  },
+  {
+    "id": "objNPCHospitalJanitor",
+    "name": "Old Pete",
+    "sprite": "sprNPCHospitalJanitor",
+    "walk": "sprNPCHospitalJanitorWalk"
+  },
+  {
+    "id": "objNPCCobbler",
+    "name": "Patches",
+    "sprite": "sprNPCCobbler",
+    "walk": "sprNPCCobblerWalk"
+  },
+  {
+    "id": "objNPCPatientZero",
+    "name": "Patient Zero",
+    "sprite": "sprNPCPatientZero",
+    "walk": "sprNPCPatientZeroWalk"
+  },
+  {
+    "id": "objNPCToddlerling",
+    "name": "Pip",
+    "sprite": "sprNPCToddlerling",
+    "walk": "sprNPCToddlerlingWalk"
+  },
+  {
+    "id": "objNPCWaddlingKid",
+    "name": "Pip",
+    "sprite": "sprNPCWaddlingKid",
+    "walk": "sprNPCWaddlingKidWalk"
+  },
+  {
+    "id": "objLBCCivicNPC01",
+    "name": "Pippa",
+    "sprite": "sprNPCAdventurer",
+    "walk": "sprNPCAdventurerWalk"
+  },
+  {
+    "id": "objLBCCivicNPC39",
+    "name": "Pop-Pop Yusef",
+    "sprite": "sprNPCFormerProfessor",
+    "walk": "sprNPCFormerProfessorWalk"
+  },
+  {
+    "id": "objNPCDiaperVendor",
+    "name": "Prudence",
+    "sprite": "sprPrudence",
+    "walk": "sprPrudenceWalk"
+  },
+  {
+    "id": "objNPCNurseryChampion",
+    "name": "Puddles",
+    "sprite": "sprNPCNurseryChampion",
+    "walk": "sprNPCNurseryChampionWalk"
+  },
+  {
+    "id": "objNPCRegressedPatient",
+    "name": "Regressed Patient",
+    "sprite": "sprNPCRegressedPatient",
+    "walk": "sprNPCRegressedPatientWalk"
+  },
+  {
+    "id": "objNPCResistingPatient",
+    "name": "Resisting Patient",
+    "sprite": "sprNPCResistingPatient",
+    "walk": "sprNPCResistingPatientWalk"
+  },
+  {
+    "id": "objNPCEscapePlanner",
+    "name": "Riley Chen",
+    "sprite": "sprNPCEscapePlanner",
+    "walk": "sprNPCEscapePlannerWalk"
+  },
+  {
+    "id": "objLBCCivicNPC18",
+    "name": "Riv",
+    "sprite": "sprNPCWaddlingKid",
+    "walk": "sprNPCWaddlingKidWalk"
+  },
+  {
+    "id": "objNPCBarmaid",
+    "name": "Rosie",
+    "sprite": "sprNPCBarmaid",
+    "walk": "sprNPCBarmaidWalk"
+  },
+  {
+    "id": "objNPCNewKid",
+    "name": "Rowan",
+    "sprite": "sprNPCToddlerling",
+    "walk": "sprNPCToddlerlingWalk"
+  },
+  {
+    "id": "objNPCSableCartographer",
+    "name": "Sable Cartographer",
+    "sprite": "sprNPCSableCartographer",
+    "walk": "sprNPCSableCartographerWalk"
+  },
+  {
+    "id": "objLBCCivicNPC28",
+    "name": "Sage",
+    "sprite": "sprNPCDiaperedDrifter",
+    "walk": "sprNPCDiaperedDrifterWalk"
+  },
+  {
+    "id": "objNPCHerbalist",
+    "name": "Sage",
+    "sprite": "sprNPCHerbalist",
+    "walk": "sprNPCHerbalistWalk"
+  },
+  {
+    "id": "objNPCGuard",
+    "name": "Sergeant Brom",
+    "sprite": "sprSergeantBrom",
+    "walk": "sprSergeantBromWalk"
+  },
+  {
+    "id": "objNPCTailor",
+    "name": "Silka",
+    "sprite": "sprNPCTailor",
+    "walk": "sprNPCTailorWalk"
+  },
+  {
+    "id": "objNPCRedFaceKnight",
+    "name": "Sir Aldric",
+    "sprite": "sprNPCRedFaceKnight",
+    "walk": "sprNPCRedFaceKnightWalk"
+  },
+  {
+    "id": "objNPCSisterDusk",
+    "name": "Sister Dusk",
+    "sprite": "sprNPCNursemaid",
+    "walk": "sprNPCNursemaidWalk"
+  },
+  {
+    "id": "objNPCArtStudent",
+    "name": "Soleil",
+    "sprite": "sprNPCNapTaker",
+    "walk": "sprNPCNapTakerWalk"
+  },
+  {
+    "id": "objNPCNapTaker",
+    "name": "Solene",
+    "sprite": "sprNPCNapTaker",
+    "walk": "sprNPCNapTakerWalk"
+  },
+  {
+    "id": "objLBCCivicNPC30",
+    "name": "Sparkler Ren",
+    "sprite": "sprNPCFriendlyNurse",
+    "walk": "sprNPCFriendlyNurseWalk"
+  },
+  {
+    "id": "objNPCLostChild",
+    "name": "Spool",
+    "sprite": "sprNPCNewKid",
+    "walk": "sprNPCNewKidWalk"
+  },
+  {
+    "id": "objNPCPaddedWanderer",
+    "name": "Squish",
+    "sprite": "sprNPCPaddedWanderer",
+    "walk": "sprNPCPaddedWandererWalk"
+  },
+  {
+    "id": "objLBCCivicNPC42",
+    "name": "Suckle",
+    "sprite": "sprNPCApothecary",
+    "walk": "sprNPCApothecaryWalk"
+  },
+  {
+    "id": "objNPCProudBaby",
+    "name": "Sunny",
+    "sprite": "sprNPCProudBaby",
+    "walk": "sprNPCProudBabyWalk"
+  },
+  {
+    "id": "objLBCCivicNPC05",
+    "name": "Tess",
+    "sprite": "sprNPCBottleBaby",
+    "walk": "sprNPCBottleBabyWalk"
+  },
+  {
+    "id": "objNPCTherapyGroupLeader",
+    "name": "Therapy Group Leader",
+    "sprite": "sprNPCTherapyGroupLeader",
+    "walk": "sprNPCTherapyGroupLeaderWalk"
+  },
+  {
+    "id": "objNPCReluctantWetter",
+    "name": "Thessa",
+    "sprite": "sprNPCReluctantWetter",
+    "walk": "sprNPCReluctantWetterWalk"
+  },
+  {
+    "id": "objNPCForestHerbalist",
+    "name": "Thistle",
+    "sprite": "sprNPCHerbalist",
+    "walk": "sprNPCHerbalistWalk"
+  },
+  {
+    "id": "objNPCToddlerTown",
+    "name": "Tumbles",
+    "sprite": "sprNPCToddlerTown",
+    "walk": "sprNPCToddlerTownWalk"
+  },
+  {
+    "id": "objLBCCivicNPC41",
+    "name": "Twee",
+    "sprite": "sprNPCAdventurer",
+    "walk": "sprNPCAdventurerWalk"
+  },
+  {
+    "id": "objLBCCivicNPC33",
+    "name": "Uncle Wren",
+    "sprite": "sprNPCInnkeeper",
+    "walk": "sprNPCInnkeeperWalk"
+  },
+  {
+    "id": "objNPCBotBuddy",
+    "name": "Unit-7",
+    "sprite": "sprNPCBotBuddy",
+    "walk": "sprNPCBotBuddyWalk"
+  },
+  {
+    "id": "objNPCCartMerchant",
+    "name": "Vera",
+    "sprite": "sprNPCCartMerchant",
+    "walk": "sprNPCCartMerchantWalk"
+  },
+  {
+    "id": "objNPCMistTouched",
+    "name": "Verity",
+    "sprite": "sprNPCReluctantWetter",
+    "walk": "sprNPCReluctantWetterWalk"
+  },
+  {
+    "id": "objNPCForestWarden",
+    "name": "Warden Oakes",
+    "sprite": "sprNPCVillageElder",
+    "walk": "sprNPCVillageElderWalk"
+  },
+  {
+    "id": "objNPCWhistleblower",
+    "name": "Whistleblower",
+    "sprite": "sprNPCWhistleblower",
+    "walk": "sprNPCWhistleblowerWalk"
+  },
+  {
+    "id": "objNPCDenierScout",
+    "name": "Wren",
+    "sprite": "sprNPCDenierScout",
+    "walk": "sprNPCDenierScoutWalk"
+  }
+]
