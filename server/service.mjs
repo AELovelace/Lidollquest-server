@@ -18,7 +18,7 @@ export function createQuestService({filename=':memory:',walletClient,now=Date.no
   const task=(async()=>{
    for(const row of db.prepare('SELECT * FROM reward_outbox WHERE owner=? AND delivered=0 LIMIT 8').all(owner)){
     try{const receipt=await walletClient.credit(token,{request_id:'arena-'+row.id,kind:'credit',amount:row.amount});db.prepare('UPDATE reward_outbox SET delivered=1 WHERE id=?').run(row.id);db.prepare('UPDATE wallet_cache SET coins=? WHERE owner=?').run(receipt.balance,owner);}
-    catch{return;} // Retry the same entitlement on the next authenticated visit; a lost response cannot pay twice.
+    catch(error){console.warn('quest_reward_delivery_failed',row.id,error?.status??'transport');return;} // Log no credentials; retry this same entitlement on the next authenticated visit.
    }
   })();deliveries.set(owner,task);try{await task;}finally{deliveries.delete(owner);}
  }
@@ -44,5 +44,6 @@ export function createQuestService({filename=':memory:',walletClient,now=Date.no
    res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));
   }finally{active--;const count=perToken.get(token)-1;if(count)perToken.set(token,count);else perToken.delete(token);}
  })().catch(error=>{if(res.destroyed)return;if(res.headersSent){res.destroy();return;}res.writeHead(error.status??503,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({error:error.code??'zone_request_failed',error_description:error.status?error.message:'Online zones are temporarily unavailable.'}));});});
- server.requestTimeout=10000;server.headersTimeout=5000;server.on('close',()=>db.close());return {server,db};
+ const diveTimer=setInterval(()=>zones.tick(),1000);diveTimer.unref(); // Weekly resets and roaming continue without browser requests.
+ server.requestTimeout=10000;server.headersTimeout=5000;server.on('close',()=>{clearInterval(diveTimer);db.close();});return {server,db};
 } // The standalone database owns characters, fights, chat, presence and durable payouts; the tracker owns only shared currency.

@@ -1,5 +1,58 @@
 # LiDollQuest server
 
+## Weekly Dungeon Dive
+
+Both arena lobbies now lead to one shared Princess' Quarters pilot. The server
+generates a validated floor on Monday at **04:00 America/Los_Angeles**, respecting
+DST. Generation catches up after downtime without creating skipped editions.
+The pilot ends with Guardian Iris; route/edition/depth keys support later themed
+descents without implementing infinite floors yet.
+
+Fairies roam once per second and pursue within six walkable steps; mimics and
+Iris are stationary. Each non-entry room contains two enemies and one chest.
+Fights reserve an enemy for one character. Normal/boss respawns take ten/five
+minutes. Loot and XP persist immediately; defeat restores quarter HP at entry.
+Disconnect grace is two minutes and combat inactivity expires after five.
+At weekly reset, idle visitors return to their entrance lobby; active fights
+have a maximum ten-minute grace, including settlement of their earned reward.
+
+Each character claims each chest once per edition. The first Iris victory earns
+50 coins within the existing account-wide 250-coin UTC daily cap. Any capped
+remainder stays explicitly claimable until edition retirement. Delivered rewards
+use the existing transactional outbox and stable wallet receipt IDs.
+
+`GET /zones` retains existing fields and adds `dive` metadata. While inside, the
+zone list includes `dive-quarters` geometry/decoration and `dive` includes enemies,
+personal exploration, chest claim status, reset time and outstanding boss coins.
+`POST /zones/action` adds `dive_enter`, `dive_exit`, `dive_engage` (`encounter`),
+`dive_claim` (`chest`) and `dive_claim_reward`. Commands made inside the dive must
+carry its `edition`; heartbeat retains the existing presence protocol. Existing
+move/chat/combat/inventory/stat commands work in the dive and keep ownership,
+controller/revision checks and command receipts. Entry is from either lobby;
+`enter` with `zone: "dive-quarters"` resumes a saved visit without importing stale
+client inventory. An expired weekly visit resumes at its originating lobby.
+
+`dive_editions` and `dive_progress` are additive SQLite tables. The floor and
+claims persist across restart. Failed generation retains the last valid edition
+without refreshing its claims, logs a failure and retries after one minute.
+
+Authoring lives in the game's **Zones > Dungeon Dive** editor panel. Export with
+`python python/export_online_dive.py --server-root C:/Scripts/Lidollquest-server`
+from the game checkout and deploy `server/dive-data.json` with this service.
+`config.enabled` gates new entries. The pilot defaults to enabled; set it false
+to disable new entry while allowing existing visitors to leave. Keep the route
+ID stable for existing visits. Quarters dimensions support 24–128 tiles per axis,
+1–6 enemies per room and BSP depth 1–5; only the Quarters theme is available now.
+
+Run `npm test`, then the game's `ps/Test-OnlineZones.ps1`. Deploy this service
+first using the existing Fedora installer, then publish the rebuilt game.
+No tracker route, nginx or scope change is necessary. Check both lobby entrances
+and a chest/fight after deployment. Watch `journalctl -u lidollquest-server` for
+`dive_generation_failed`, `dive_tick_failed`, `dive_encounter_abandoned` and
+`quest_reward_delivery_failed`. Logs contain no wallet credentials.
+
+The arena-specific behavior below remains unchanged.
+
 A standalone Node 24 service for **two online zones**:
 
 | Hub | Zone | Fight rule |

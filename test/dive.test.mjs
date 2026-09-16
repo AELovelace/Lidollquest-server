@@ -1,0 +1,91 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {randomUUID} from 'node:crypto';
+import {createQuestZones} from '../server/zones.mjs';
+import {diveData,DIVE_ZONE} from '../server/dive.mjs';
+import {generateFloor,validateFloor,weeklyWindow,pathTo} from '../server/dive-generation.mjs';
+
+function fixture(options={}){
+ const db=new DatabaseSync(':memory:');let time=Date.parse('2026-09-16T12:00:00Z'),owner='alice',zones;
+ const awards=[];
+ const setup=()=>zones=createQuestZones(db,{now:()=>time,roll:()=>0,grant:()=>({owner,id:owner,client:'lidollquest'}),wallet:()=>({coins:0}),adjust:(o,asset,n,id)=>awards.push({o,n,id}),diveOptions:{log:()=>{},...options}});
+ setup();const loadout={player_info:{class_id:'fighter',playerHealth:500,playerHealthMax:500,str:100,def:8,dex:8,int:20,cha:100,level:30,xp:0,stat_points:0},inventory:[],player_spells:['fireball'],player_mp:100,player_mp_max:100};
+ const snap=id=>zones.read('',id);
+ function command(id,action,extra={}){const s=snap(id);return {action,request_id:randomUUID(),controller:'window',character_id:id,revision:s.character?.revision,...(s.zone===DIVE_ZONE?{edition:s.dive.edition}:{}),...extra};}
+ function act(id,action,extra={}){time+=350;return zones.act('',command(id,action,extra));}
+ function player(name='alice',hub='honeydew-lantern'){owner=name;const c=zones.act('',{action:'create',name,request_id:randomUUID(),controller:'window'}).character;act(c.id,'enter',{zone:hub,loadout,combat_version:2});return act(c.id,'dive_enter',{loadout}).character.id;}
+ function place(id,target){const row=db.prepare('SELECT state FROM quest_characters WHERE id=?').get(id),s=JSON.parse(row.state);s.dive.position={x:target.x,y:target.y};s.dive.safeUntil=time+600000;db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(s),id);db.prepare('UPDATE quest_presence SET x=?,y=?,seen=? WHERE character_id=?').run(target.x,target.y,time,id);}
+ function near(id,entity){const s=snap(id),f=s.zones.find(z=>z.id===DIVE_ZONE);const path=pathTo(f,f.entrance,entity);place(id,path.length>1?path.at(-2):f.entrance);}
+ function engage(id,foe='iris'){const e=snap(id).dive.enemies.find(e=>e.id===foe);near(id,e);return act(id,'dive_engage',{encounter:foe});}
+ function win(id){let s=snap(id);for(let n=0;n<10&&s.character.run;n++){if(!s.character.run.turnReady)s=act(id,'turn_ready',{loadout:s.character.loadout,forfeit:false});s=act(id,s.character.loadout.player_info.class_id==='diplomat'?'allure':s.character.loadout.player_info.class_id==='mage'?'cast':'attack',{spell:'fireball'});}return s;}
+ return {db,awards,loadout,player,place,near,engage,win,act,command,snap,as:n=>owner=n,advance:ms=>time+=ms,setTime:t=>time=Date.parse(t),restart:setup,raw:input=>zones.act('',input),tick:()=>zones.tick(),close:()=>db.close()};
+}
+
+test('weekly boundaries remain Monday 04:00 Pacific across both DST transitions',()=>{
+ assert.deepEqual(weeklyWindow(Date.parse('2026-03-09T10:59:59Z')),{edition:'2026-03-02',start:Date.parse('2026-03-02T12:00:00Z'),ends:Date.parse('2026-03-09T11:00:00Z')});
+ assert.equal(weeklyWindow(Date.parse('2026-03-09T11:00:00Z')).edition,'2026-03-09');
+ assert.equal(weeklyWindow(Date.parse('2026-11-02T11:59:59Z')).edition,'2026-10-26');
+ assert.equal(weeklyWindow(Date.parse('2026-11-02T12:00:00Z')).edition,'2026-11-02');
+});
+test('one hundred deterministic floors have reachable loot, safe entrances and the configured density',()=>{
+ for(let i=0;i<100;i++){const f=generateFloor(diveData,'seed-'+i);assert.ok(validateFloor(f));assert.deepEqual(f,generateFloor(diveData,'seed-'+i));assert.equal(f.enemies.length,(f.rooms.length-1)*2+1);assert.equal(f.chests.length,f.rooms.length-1);}
+});
+test('both lobbies share a floor; personal chest claims survive replay, inventory limits and reconnects',()=>{
+ const f=fixture();try{const a=f.player(),first=f.snap(a),ch=first.dive.chests[0];f.near(a,ch);
+  const input=f.command(a,'dive_claim',{chest:ch.id}),claimed=f.raw(input);assert.equal(claimed.character.loadout.inventory.length,1);assert.equal(f.raw(input).character.loadout.inventory.length,1);
+  f.advance(31000);let resumed=f.act(a,'enter',{zone:DIVE_ZONE,loadout:{...f.loadout,inventory:[]}});assert.equal(resumed.character.loadout.inventory.length,1);assert.equal(resumed.dive.claimed,1);
+  const second=resumed.dive.chests[1];f.near(a,second);const full=structuredClone(resumed.character.loadout);full.inventory=Array.from({length:99},()=>({item_id:'hair_bow'}));f.act(a,'loadout',{loadout:full});assert.throws(()=>f.act(a,'dive_claim',{chest:second.id}),/Inventory full/);assert.equal(f.snap(a).dive.claimed,1);
+  f.act(a,'dive_exit');assert.equal(f.snap(a).zone,'honeydew-lantern');
+  const b=f.player('bob','littlebig-clockwork'),bs=f.snap(b);assert.equal(bs.dive.edition,first.dive.edition);assert.equal(bs.dive.claimed,0);assert.deepEqual(bs.zones.at(-1).walls,first.zones.at(-1).walls);f.near(b,ch);assert.equal(f.act(b,'dive_claim',{chest:ch.id}).dive.claimed,1);assert.equal(f.act(b,'dive_exit').zone,'littlebig-clockwork');
+ }finally{f.close();}
+});
+test('shared encounter locks, authored stats, class combat, respawns and weekly reward cap',()=>{
+ const f=fixture();try{const a=f.player(),b=f.player('bob');f.as('alice');let s=f.engage(a);assert.equal(s.character.run.enemy.hp,100);assert.equal(s.character.run.enemy.str,8);
+  f.as('bob');f.near(b,f.snap(b).dive.enemies.find(e=>e.id==='iris'));assert.throws(()=>f.act(b,'dive_engage',{encounter:'iris'}),/not available/);
+  f.as('alice');const day=Math.floor(Date.parse('2026-09-16T12:00:00Z')/86400000);f.db.prepare('INSERT INTO quest_reward_days VALUES (?,?,240)').run('alice',day);
+  s=f.win(a);assert.equal(s.character.run,null);assert.equal(s.dive.completed,true);assert.equal(s.dive.claimableCoins,40);assert.equal(f.awards.reduce((n,a)=>n+a.n,0),10);assert.equal(f.act(a,'dive_claim_reward').dive.claimableCoins,40);
+  f.setTime('2026-09-17T12:00:00Z');f.act(a,'enter',{zone:DIVE_ZONE});assert.equal(f.act(a,'dive_claim_reward').dive.claimableCoins,0);assert.equal(f.awards.reduce((n,a)=>n+a.n,0),50);
+  for(const cls of ['mage','diplomat']){let l=f.snap(a).character.loadout;l.player_info.class_id=cls;f.act(a,'loadout',{loadout:l});f.engage(a);s=f.win(a);assert.equal(s.character.run,null);assert.equal(f.awards.reduce((n,a)=>n+a.n,0),50);f.advance(301000);f.act(a,'enter',{zone:DIVE_ZONE});}
+ }finally{f.close();}
+});
+test('encounter expiry restores enemies and keeps committed inventory; restart preserves floor and claims',()=>{
+ const f=fixture();try{const a=f.player();const before=f.snap(a).zones.at(-1).walls;f.engage(a);f.advance(121000);f.tick();let s=f.snap(a);assert.equal(s.character.run,null);assert.equal(s.character.lastResult.outcome,'abandoned');f.act(a,'enter',{zone:DIVE_ZONE});f.restart();s=f.snap(a);assert.deepEqual(s.zones.at(-1).walls,before);assert.equal(s.dive.enemies.find(e=>e.id==='iris').engaged,null);
+  f.engage(a);for(let i=0;i<11;i++){f.advance(29000);f.act(a,'heartbeat');}assert.equal(f.snap(a).character.run,null,'heartbeats cannot reserve an idle encounter indefinitely');
+ }finally{f.close();}
+});
+test('weekly reset returns idle visitors, grants active fights grace and rejects stale editions',()=>{
+ const f=fixture();try{const a=f.player();f.setTime('2026-09-21T10:59:50Z');f.act(a,'enter',{zone:DIVE_ZONE});f.engage(a);const old=f.snap(a).dive.edition;
+  f.setTime('2026-09-21T11:00:01Z');let s=f.act(a,'heartbeat');assert.equal(s.zone,DIVE_ZONE);assert.equal(s.dive.edition,old);s=f.win(a);assert.equal(s.zone,'honeydew-lantern');assert.equal(f.awards.reduce((n,a)=>n+a.n,0),50);
+  s=f.act(a,'dive_enter');assert.notEqual(s.dive.edition,old);assert.equal(s.dive.claimed,0);assert.throws(()=>f.act(a,'move',{direction:'east',edition:old}),/edition changed/);
+  f.setTime('2026-10-05T11:00:01Z');f.tick();assert.equal(f.snap(a).character.dive,null);assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM dive_editions').get().n,3,'downtime creates only the currently due edition');
+ }finally{f.close();}
+});
+test('failed generation retains the last valid edition and claims',()=>{
+ let broken=false;const f=fixture({generate:(...args)=>{if(broken)throw Error('fixture failure');return generateFloor(...args);}});try{const a=f.player(),old=f.snap(a).dive.edition;broken=true;f.setTime('2026-09-21T11:00:01Z');f.tick();f.act(a,'enter',{zone:DIVE_ZONE});assert.equal(f.snap(a).dive.edition,old);assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM dive_editions').get().n,1);}finally{f.close();}
+});
+
+test('server clock pursues players, starts only one shared fight and respects the safe entrance',()=>{
+ const f=fixture();try{const a=f.player(),s=f.snap(a),row=f.db.prepare('SELECT * FROM dive_editions').get(),floor=JSON.parse(row.content),fairy=floor.enemies.find(e=>e.type==='diaper_fairy');
+  const target={x:fairy.x,y:fairy.y},steps=pathTo(floor,floor.entrance,target),position=steps.at(-3);f.place(a,position);
+  const c=f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(a),state=JSON.parse(c.state);state.dive.safeUntil=0;f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),a);
+  for(let i=0;i<4&&!f.snap(a).character.run;i++){f.advance(1100);f.tick();}
+  assert.equal(f.snap(a).character.run.kind,'dive');assert.equal(f.snap(a).dive.enemies.filter(e=>e.engaged===a).length,1);
+  f.act(a,'flee');assert.deepEqual(f.snap(a).position,s.zones.at(-1).entrance);
+  for(let i=0;i<20;i++){f.advance(1100);f.act(a,'heartbeat');}assert.equal(f.snap(a).character.run,null);
+ }finally{f.close();}
+});
+
+test('defeat preserves chest items, restores quarter HP and respawns the opponent',()=>{
+ const f=fixture({roll:n=>n-1});try{const a=f.player(),ch=f.snap(a).dive.chests[0];f.near(a,ch);f.act(a,'dive_claim',{chest:ch.id});const loadout=f.snap(a).character.loadout;loadout.player_info.playerHealth=1;loadout.player_info.str=1;f.act(a,'loadout',{loadout});f.engage(a);let s=f.snap(a);s=f.act(a,'turn_ready',{loadout:s.character.loadout,forfeit:false});s=f.act(a,'attack');assert.equal(s.character.run,null);assert.equal(s.character.lastResult.outcome,'defeat');assert.equal(s.character.loadout.player_info.playerHealth,125);assert.equal(s.character.loadout.inventory.length,1);assert.equal(s.dive.enemies.find(e=>e.id==='iris').engaged,null);
+ }finally{f.close();}
+});
+
+test('ten-minute reset grace ends even an active encounter and suspended clients resume at their lobby',()=>{
+ const f=fixture();try{const a=f.player();f.setTime('2026-09-21T10:59:59Z');f.act(a,'enter',{zone:DIVE_ZONE});f.engage(a);f.setTime('2026-09-21T11:09:59Z');
+  // Keep the combat activity/lease current to isolate the hard reset deadline from idle expiry.
+  const c=f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(a),state=JSON.parse(c.state);state.run.acted=Date.parse('2026-09-21T11:09:59Z');f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),a);f.db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(Date.parse('2026-09-21T11:09:59Z'),a);
+  f.tick();assert.ok(f.snap(a).character.run);f.setTime('2026-09-21T11:10:01Z');f.tick();assert.equal(f.snap(a).character.run,null);assert.equal(f.snap(a).zone,'honeydew-lantern');assert.equal(f.awards.length,0);
+  f.advance(31000);assert.equal(f.act(a,'enter',{zone:DIVE_ZONE}).zone,'honeydew-lantern');
+ }finally{f.close();}
+});

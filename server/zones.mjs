@@ -2,6 +2,7 @@ import {randomUUID,randomInt,createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience} from './combat.mjs';
+import {createDive,DIVE_ZONE} from './dive.mjs';
 
 export const questAvatars=Object.freeze(JSON.parse(readFileSync(new URL('./avatars.json',import.meta.url),'utf8')).map(Object.freeze)); // Generated from the game's NPC registry and authored object sprites.
 const avatarIds=new Set(questAvatars.map(a=>a.id));
@@ -23,7 +24,7 @@ function canonical(value,depth=0){ // Nested loadout property order may change w
  return value;
 }
 
-export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Date.now,roll=randomInt}={}) {
+export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Date.now,roll=randomInt,diveOptions={}}={}) {
  db.exec(`CREATE TABLE IF NOT EXISTS quest_characters(id TEXT PRIMARY KEY,owner TEXT NOT NULL,name TEXT NOT NULL,created INTEGER NOT NULL,revision INTEGER NOT NULL DEFAULT 0,state TEXT NOT NULL,creation_id TEXT NOT NULL,UNIQUE(owner,creation_id));
  CREATE INDEX IF NOT EXISTS quest_character_owner ON quest_characters(owner);
  CREATE TABLE IF NOT EXISTS quest_presence(owner TEXT PRIMARY KEY,character_id TEXT NOT NULL UNIQUE,zone TEXT NOT NULL,grant_id TEXT NOT NULL,controller TEXT NOT NULL,x INTEGER NOT NULL,y INTEGER NOT NULL,seen INTEGER NOT NULL,moved INTEGER NOT NULL);
@@ -33,6 +34,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
  CREATE INDEX IF NOT EXISTS quest_chat_zone ON quest_chat(zone,seq);
  CREATE TABLE IF NOT EXISTS quest_reward_days(owner TEXT NOT NULL,day INTEGER NOT NULL,coins INTEGER NOT NULL,PRIMARY KEY(owner,day));
  CREATE TABLE IF NOT EXISTS quest_request_limits(owner TEXT PRIMARY KEY,started INTEGER NOT NULL,count INTEGER NOT NULL);`);
+ const dive=createDive(db,{now,roll,adjust,...diveOptions});
  function identity(secret){const i=grant(secret,'wallet:read');if(i.client!=='lidollquest')fail(403,'These zones are for LiDollQuest.');return i;} // A registered app ID alone is not a player identity.
  function atomic(work){db.exec('BEGIN IMMEDIATE');try{const result=work();db.exec('COMMIT');return result;}catch(e){db.exec('ROLLBACK');throw e;}}
  function limit(owner){const time=now();db.prepare('DELETE FROM quest_request_limits WHERE started<=?').run(time-60000);const r=db.prepare('INSERT INTO quest_request_limits VALUES (?,?,1) ON CONFLICT(owner) DO UPDATE SET count=count+1 RETURNING count').get(owner,time);if(r.count>600)fail(429,'Please slow down.');}
@@ -44,9 +46,13 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   const peers=p?db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT 64').all(p.zone,now()-30000).filter(r=>enabled(r.owner)).map(r=>({id:r.character_id,name:r.name,avatar:JSON.parse(r.state).avatar??'player',x:r.x,y:r.y,stage:JSON.parse(r.state).run?.stage??0,fighting:JSON.parse(r.state).run?.phase==='fight'})):[];
   const chat=p?db.prepare('SELECT seq,name,text,character_id AS characterId FROM quest_chat WHERE zone=? AND created>? ORDER BY seq DESC LIMIT 40').all(p.zone,now()-86400000).reverse():[];
   const spent=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,Math.floor(now()/86400000))?.coins??0;
-  return {serverTime:now(),loadoutSupport:true,combatVersion:2,avatars:questAvatars,zones:questZones.map(z=>({...z,walls:Array.from({length:12},(_,y)=>Array.from({length:20},(_,x)=>blocked(z,x,y)?1:0))})),characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers,chat,coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,250-spent)};
+  const dungeon=dive.snapshot(c,p),definitions=questZones.map(z=>({...z,walls:Array.from({length:12},(_,y)=>Array.from({length:20},(_,x)=>blocked(z,x,y)?1:0))}));
+  if(dungeon.definition)definitions.push(dungeon.definition);
+  const edition=c?JSON.parse(c.state).dive?.edition:null;
+  const visiblePeers=p?.zone===DIVE_ZONE?peers.filter(peer=>JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(peer.id).state).dive?.edition===edition):peers;
+  return {serverTime:now(),loadoutSupport:true,combatVersion:2,dive:dungeon.dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,250-spent)};
  } // Snapshots expose only zone avatars and chat, never wallet credentials or account IDs.
- function read(secret,id){const i=identity(secret);limit(i.owner);return snapshot(i,id?character(i.owner,id):null);}
+ function read(secret,id){const i=identity(secret);limit(i.owner);dive.tick();return snapshot(i,id?character(i.owner,id):null);}
  function enemy(z,stage){return {name:z.enemies[Math.min(2,Math.floor((stage-1)/3))],hp:z.health+(stage-1)*5,maxHp:z.health+(stage-1)*5,turn:0};}
  function settle(i,c,state,run){
   const day=Math.floor(now()/86400000),used=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,day)?.coins??0;
@@ -67,8 +73,9 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
  function act(secret,input){
   const i=identity(secret);limit(i.owner);
   grant(secret,'wallet:write');
+  dive.tick(); // Scheduled resets and enemy decisions precede command revision checks.
   if(!input||!identifier(input.request_id)||!identifier(input.controller))fail(400,'Supply a stable request ID and controller.');
-  if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat'].includes(k)))fail(400,'Unsupported zone input.');
+  if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest'].includes(k)))fail(400,'Unsupported zone input.');
   return atomic(()=>{
    identity(secret);
    if(input.action==='create'){
@@ -87,7 +94,13 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
    }
    if(!Number.isSafeInteger(input.revision)||input.revision!==c.revision)fail(409,'Character changed; refresh before choosing another action.');
    const state=JSON.parse(c.state);let p;
-   if(input.action==='enter'){
+   const divePresence=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
+   if(dive.handles(input,divePresence)){
+    if(!['enter','dive_enter'].includes(input.action))presence(i,c,input.controller);
+    if(input.action==='appearance')avatar(input.avatar);
+    dive.act(i,c,state,input,divePresence);
+    db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(now(),c.id);
+   }else if(input.action==='enter'){
     const z=zone(input.zone),active=db.prepare('SELECT * FROM quest_presence WHERE owner=? AND seen>?').get(i.owner,now()-30000);
     if(active&&(active.controller!==input.controller||active.character_id!==c.id||active.grant_id!==i.id))fail(409,'This account is active in another game window.');
     if(state.run&&state.run.zone!==z.id)fail(409,'Finish or forfeit the current arena run before changing zones.');
@@ -175,5 +188,5 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
    return {...snapshot(i,c),receipt};
   });
  }
- return {read,act};
+ return {read,act,tick:dive.tick};
 } // Campaign stats and inventory are client-trusted; arena outcomes and shared-currency awards still belong to this simulation.

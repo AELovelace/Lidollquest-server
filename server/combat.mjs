@@ -15,10 +15,10 @@ export function mageScaling(loadout){ // Match scrSpellSystem's childish/shame a
  return {magic:1+affinity,physical:Math.max(0.4,1-affinity),flat:mage?Math.floor(Math.max(0,num(p.diaper_wet_absorbed))+Math.max(0,num(p.diaper_tum_absorbed))):0};
 }
 
-export function beginRound(state,z,roll){ // This state is serialized with the run, including timers and charm pressure.
+export function beginRound(state,z,roll,authoredEnemy=null){ // Arena rounds and authored dungeon encounters share turn/effect initialization.
  const r=state.run;r.combatVersion=2;r.turn=(r.turn??0)+1;r.turnReady=false;r.buffs=[];r.debuffs=[];r.dots=[];
  r.charmFailures=0;r.charmLimit=1+roll(5);r.charmPressure=0;
- Object.assign(r.enemy,{str:z.attack+r.stage+1,def:Math.floor((r.stage-1)/2),exp:r.stage*5,enemy_id:'goblin',enemy_spells:r.stage>=3?[z.theme==='clockwork'?'assessment_scan':'haunting_urge']:[],spell_cast_chance:0.35});
+ Object.assign(r.enemy,authoredEnemy??{str:z.attack+r.stage+1,def:Math.floor((r.stage-1)/2),exp:r.stage*5,enemy_id:'goblin',enemy_spells:r.stage>=3?[z.theme==='clockwork'?'assessment_scan':'haunting_urge']:[],spell_cast_chance:0.35});
  applyRunLoadout(r,state.loadout);
 }
 
