@@ -186,7 +186,9 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    if(now()-p.moved<200)fail('Movement is too fast.');const d={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];if(!d)fail('Choose a direction.');
    const x=p.x+d[0],y=p.y+d[1];if(!walkable(f,x,y))fail('That tile is blocked.');const foe=f.enemies.find(e=>e.x===x&&e.y===y&&e.respawnAt<=now());
    if(foe){start(c,state,record,foe);return;}
-   const exit=f.exits?.find(e=>e.x===x&&e.y===y);if(exit){back(c,state,exit.zone);return;} // Entering a staircase commits the hub transfer atomically.
+   const exit=f.exits?.find(e=>e.x===x&&e.y===y);
+   const entranceReturn=!(f.exits?.length)&&x===f.entrance.x&&y===f.entrance.y;
+   if(exit||entranceReturn){back(c,state,exit?.zone);return;} // Stepping onto any return portal commits the transfer; spawning/reconnecting on it never triggers a bounce.
    db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(x,y,now(),c.id);reveal(c,state,f,x,y);
    if(input.world_step===true)state.worldTurnDue={id:randomUUID()}; // Loot commits first; the needs tick resumes from that inventory rather than overwriting the grant.
    const pickup=[...f.chests,...(f.pickups??[])].find(ch=>ch.x===x&&ch.y===y);if(pickup)claim(c,state,record,pickup,true);return; // Walking onto either a room chest or a loose pickup commits the same personal claim as Interact.

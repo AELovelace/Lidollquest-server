@@ -435,3 +435,8 @@ District content version 2 replaces the common path lattice with Castle BSP room
 Persisted layout keys now include both the month and content version. Deploying this version refreshes current districts immediately and returns visitors to (48,25); old edition rows remain archived. Same-version restarts preserve layouts and positions. Monthly regeneration still occurs on the first at 04:00 Pacific. The rebuilt client uses `district.layoutKey` to repaint and close stale NPC dialogue on either kind of refresh.
 
 Deploy the matching service/content before the rebuilt client, preserving databases, purchases, bank state and weekly editions. Run `npm test`, including `test/district-overhaul.test.mjs`, and the game's two-player `--districts-only` fixture to verify immediate upgrades as well as monthly resets. Inactive district snapshots omit full geometry to retain the gateway response budget.
+
+
+## Dive return portal contact
+
+The movement handler now returns single-entrance Dives to their recorded entry hall when a character steps back onto the entrance tile. Explicit Desert/Tundra exits retain their destination behavior. Entry, heartbeat and reconnect never trigger a return just for occupying the portal. Transfers reuse the existing atomic return path, preserving inventory, personal claims and command receipts; pending needs turns must settle first. This correction requires a service update only, with no database reset, regenerated edition or client protocol change. `test/dive-halls.test.mjs` covers all hall destinations; the game browser re-entry fixture checks keyboard and click contact.
