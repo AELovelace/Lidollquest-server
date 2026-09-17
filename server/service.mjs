@@ -2,7 +2,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {createServer} from 'node:http';
 import {createQuestZones} from './zones.mjs';
 
-export function createQuestService({filename=':memory:',walletClient,now=Date.now,roll}={}){
+export function createQuestService({filename=':memory:',walletClient,now=Date.now,roll,log=console.warn}={}){
  const db=new DatabaseSync(filename);db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;');
  db.exec(`CREATE TABLE IF NOT EXISTS wallet_cache(owner TEXT PRIMARY KEY,coins INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS reward_outbox(id TEXT PRIMARY KEY,owner TEXT NOT NULL,amount INTEGER NOT NULL,reason TEXT NOT NULL,delivered INTEGER NOT NULL DEFAULT 0);
@@ -38,7 +38,10 @@ export function createQuestService({filename=':memory:',walletClient,now=Date.no
     try{input=JSON.parse(Buffer.concat(chunks));}catch{throw Object.assign(Error('Invalid JSON.'),{status:400});}
    }
    const verified=await walletClient.authenticate(token);db.prepare('INSERT INTO wallet_cache VALUES (?,?) ON CONFLICT(owner) DO UPDATE SET coins=excluded.coins').run(verified.owner,verified.coins);
-   let result;identity=verified;try{result=req.method==='GET'?zones.read(token,url.searchParams.get('character_id')):zones.act(token,input);}finally{identity=null;}
+   let result;identity=verified;try{result=req.method==='GET'?zones.read(token,url.searchParams.get('character_id')):zones.act(token,input);}catch(error){
+    if(input?.action==='enter'&&error.status===409)log('quest_lobby_entry_conflict',error.message); // Fixed gameplay rejection text only: never log credentials, request bodies or inventories.
+    throw error;
+   }finally{identity=null;}
    await flush(verified.owner,token);result.coins=db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(verified.owner).coins;
    result.pendingCoins=db.prepare('SELECT COALESCE(SUM(amount),0) AS n FROM reward_outbox WHERE owner=? AND delivered=0').get(verified.owner).n;
    res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));

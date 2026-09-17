@@ -8,6 +8,24 @@ import {createWalletClient} from '../server/wallet.mjs';
 import {createServer} from 'node:http';
 import {connect} from 'node:net';
 const token='a'.repeat(43),owner='a'.repeat(64);
+test('lobby conflicts log their precise reason without exposing wallet tokens or loadouts',async()=>{
+ const logs=[],walletClient={authenticate:async()=>({owner,id:'grant-a',client:'lidollquest',coins:50})};
+ const service=createQuestService({walletClient,now:()=>1000000,log:(...parts)=>logs.push(parts)});
+ await new Promise(resolve=>service.server.listen(0,'127.0.0.1',resolve));
+ const url='http://127.0.0.1:'+service.server.address().port;
+ async function act(action,c,extra={}){const response=await fetch(url+'/zones/action',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({action,character_id:c?.id,revision:c?.revision,controller:'test-window',request_id:randomUUID(),...extra})});return {status:response.status,body:await response.json()};}
+ try{
+  const created=await act('create',null,{name:'Tester'});
+  const entered=await act('enter',created.body.character,{zone:'honeydew-lantern'});
+  assert.equal(entered.status,200);assert.equal(logs.length,0);
+  const stale=await act('enter',created.body.character,{zone:'honeydew-lantern',loadout:{note:'PRIVATE-INVENTORY'}});
+  assert.equal(stale.status,409);
+  assert.deepEqual(logs.at(-1),['quest_lobby_entry_conflict',stale.body.error_description]);
+  const busy=await act('enter',entered.body.character,{zone:'honeydew-lantern',controller:'another-window'});
+  assert.equal(busy.status,409);assert.match(logs.at(-1)[1],/another game window/);
+  assert.doesNotMatch(JSON.stringify(logs),new RegExp(token+'|PRIVATE-INVENTORY'));
+ }finally{service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));}
+});
 test('standalone HTTP service persists fights and recovers a lost payout after restart without double credit',async()=>{
  mkdirSync('artifacts',{recursive:true});const directory=mkdtempSync(resolve('artifacts/service-'));let now=1000000,balance=50,lose=true,calls=0;const receipts=new Map();
  const walletClient={authenticate:async secret=>{if(secret!==token)throw Object.assign(Error('Bad token'),{status:401});return {owner,id:'grant-a',client:'lidollquest',coins:balance};},credit:async(secret,body)=>{calls++;let receipt=receipts.get(body.request_id);if(!receipt){balance+=body.amount;receipt={request_id:body.request_id,currency:'LiDollCoin',amount:body.amount,balance};receipts.set(body.request_id,receipt);}if(lose){lose=false;throw Error('Lost response');}return receipt;}};

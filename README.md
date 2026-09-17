@@ -258,7 +258,9 @@ Regenerate the catalog from the game checkout with `python python/export_online_
 
 Loads are capped at 192 KiB (512 inventory entries); HTTP bodies at 256 KiB. Currency keys are stripped recursively. Only the selected character snapshot includes its loadout, keeping roster lists small; peers never receive another player's inventory. HP and item consumption persist back into the game. Re-entry into an unfinished run resumes its stored loadout instead of restoring spent items from an older campaign snapshot. Combat v2 supports the campaign class menus and spells, with companion metadata preserved but no companion actor.
 
-Deploy the updated standalone service and game together; the existing tracker request limit already supports these imports. No schema migration or wallet changes are needed.
+Deploy the updated standalone service and game together. The tracker browser gateway must allow 256 KiB specifically for `zones/action`; older versions used the wallet's 8 KiB allowance and return HTTP 413 for inventories. No schema migration or wallet changes are needed.
+
+Lobby entry HTTP 409 reasons are logged as `quest_lobby_entry_conflict` in `journalctl -u lidollquest-server`. This distinguishes stale character revisions, another active window, mismatched saved arena runs, and dungeon re-entry conflicts when a GX runner omits the HTTP error body. The log contains the fixed rejection message only, without tokens or character inventory. Preserve the server state until the actual reason is known; do not clear fights or disable ownership/revision checks to work around a generic status code.
 
 
 ## Class combat v2
