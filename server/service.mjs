@@ -73,7 +73,7 @@ export function createQuestService({filename=':memory:',walletClient,now=Date.no
     throw error;
    }finally{identity=null;}
    await settlePurchases(verified.owner,token);
-   const receipt=result.receipt;identity=verified;try{result=zones.read(token,result.character?.id,{companion:input?.action==='bank_sell'});if(receipt)result.receipt=receipt;}finally{identity=null;}
+   const receipt=result.receipt;identity=verified;try{result=zones.read(token,result.character?.id,req.method==='GET'?view:{companion:input?.action==='bank_sell'});if(receipt)result.receipt=receipt;}finally{identity=null;}
    await flush(verified.owner,token);result.coins=db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(verified.owner).coins;
    result.pendingCoins=db.prepare('SELECT COALESCE(SUM(amount),0) AS n FROM reward_outbox WHERE owner=? AND delivered=0').get(verified.owner).n;
    result.capabilities={unifiedCreation:true,inspection:true,friends:true,cloudSaves:true,saveManagement:true,characterManagement:true,companionBank:true,bankSales:true};

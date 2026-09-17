@@ -440,3 +440,12 @@ Deploy the matching service/content before the rebuilt client, preserving databa
 ## Dive return portal contact
 
 The movement handler now returns single-entrance Dives to their recorded entry hall when a character steps back onto the entrance tile. Explicit Desert/Tundra exits retain their destination behavior. Entry, heartbeat and reconnect never trigger a return just for occupying the portal. Transfers reuse the existing atomic return path, preserving inventory, personal claims and command receipts; pending needs turns must settle first. This correction requires a service update only, with no database reset, regenerated edition or client protocol change. `test/dive-halls.test.mjs` covers all hall destinations; the game browser re-entry fixture checks keyboard and click contact.
+
+
+## Private companion character sheet
+
+GET /zones?view=companion retains that view through the final settlement re-read, including bank_page. With no character_id it selects the account's current/latest online presence or newest character. An explicit character_id remains owner-validated. Responses include a compact roster, selected identity, bank, balances and the private sheet; dungeon geometry and duplicate raw loadouts are omitted.
+
+server/companion.mjs adds bounded inventory entries, equipped item details, stats, appearance and Tush Status. Active gameplay, unfinished Dives/fights and pending turns use committed online state. An offline cloud preview may be used only when its online_revision is at least the committed loadout revision. Reads never mutate loadouts or renew/take over presence. Public inspection remains unchanged. Full 512-item sheets stay within the 256 KiB gateway budget.
+
+Export companion-items.json with the game's python/export_companion_assets.py and deploy the service before the matching Little Log companion assets. Preserve all databases and bank-sale receipts. test/companion.test.mjs exercises the actual HTTP response, selected/default characters, paging, ownership, cloud freshness and response bounds. The game's companion_browser.mjs verifies the full UI and real bank sales.
