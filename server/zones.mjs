@@ -2,7 +2,7 @@ import {randomUUID,randomInt,createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience} from './combat.mjs';
-import {hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases} from './hubs.mjs';
+import {hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap} from './hubs.mjs';
 import {createDive,DIVE_ZONE} from './dive.mjs';
 import {generateDesert} from './desert-generation.mjs';
 export const DESERT_ZONE='dive-desert';
@@ -22,7 +22,7 @@ const avatar=value=>typeof value==='string'&&avatarIds.has(value)?value:fail(400
 const identifier=value=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(value);
 const clean=(value,max)=>typeof value==='string'?value.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069#]/g,' ').trim().slice(0,max):'';
 const zone=id=>[...questZones,...hubRooms].find(z=>z.id===id)??fail(400,'Choose an online zone.');
-const blocked=(z,x,y)=>x<1||y<1||x>(z.width??20)-2||y>(z.height??12)-2||hubBlocked(z,x,y)||(!z.parent&&z.theme==='clockwork'&&y===5&&x>5&&x<14&&x!==10);
+const blocked=(z,x,y)=>x<0||y<0||x>=(z.width??20)||y>=(z.height??12)||(!hubGaps(z).some(g=>inHubGap(g,x,y))&&(x<1||y<1||x>(z.width??20)-2||y>(z.height??12)-2))||hubBlocked(z,x,y)||(!z.parent&&z.theme==='clockwork'&&y===5&&x>5&&x<14&&x!==10);
 function canonical(value,depth=0){ // Nested loadout property order may change when GameMaker reloads its request journal.
  if(depth>20)fail(400,'Request data is too complex.');
  if(Array.isArray(value))return value.map(v=>canonical(v,depth+1));
@@ -58,6 +58,14 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
  function character(owner,id){if(!identifier(id))fail(400,'Choose an online character.');const c=db.prepare('SELECT * FROM quest_characters WHERE owner=? AND id=?').get(owner,id);if(!c)fail(404,'Online character not found for this account.');return c;}
  function publicCharacter(c){return {avatar:'player',id:c.id,name:c.name,revision:c.revision,...JSON.parse(c.state)};} // Existing characters keep their default appearance without a database migration.
  function presence(i,c,controller){const p=db.prepare('SELECT * FROM quest_presence WHERE owner=? AND character_id=? AND grant_id=? AND controller=? AND seen>?').get(i.owner,c.id,i.id,controller,now()-30000);if(!p)fail(409,'Enter the zone again; this connection no longer controls the character.');return p;}
+ function visitHub(i,state,source,destination){
+  if(state.run)fail(409,'Finish or forfeit your arena run before visiting another room.');
+  if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>?').get(destination.id,now()-30000).n>=64)fail(429,'This room is full.');
+  if(destination.parent)state.hubVisit=destination.id;else delete state.hubVisit;
+  let spawn=destination.spawn??{x:10,y:9};
+  if(source.parent===destination.id&&['garden','beds'].includes(source.kind))spawn={x:source.kind==='garden'?1:18,y:6};
+  db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE owner=?').run(destination.id,spawn.x,spawn.y,now(),i.owner);
+ } // Enter just inside the matching wall opening, facing into the destination; a held movement key cannot immediately bounce back.
  function snapshot(i,c=null){
   const p=c?db.prepare('SELECT * FROM quest_presence WHERE owner=? AND character_id=? AND seen>?').get(i.owner,c.id,now()-30000):null;
   const peers=p?db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT 64').all(p.zone,now()-30000).filter(r=>enabled(r.owner)).map(r=>({id:r.character_id,name:r.name,avatar:JSON.parse(r.state).avatar??'player',x:r.x,y:r.y,stage:JSON.parse(r.state).run?.stage??0,fighting:JSON.parse(r.state).run?.phase==='fight'})):[];
@@ -142,10 +150,8 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
      if(state.run)fail(409,'Finish or forfeit your arena run before visiting another room.');
      const destination=zone(input.zone);
      if(z.parent){if(destination.id!==z.parent)fail(409,'Return to your originating lobby.');} // The normal Return action works from anywhere outside combat.
-     else {const portal=hubPortals(z.id).find(portal=>portal.target===destination.id);if(!portal||Math.abs(p.x-portal.x)+Math.abs(p.y-portal.y)>1)fail(409,'Stand next to the room entrance.');}
-     if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>?').get(destination.id,now()-30000).n>=64)fail(429,'This room is full.');
-     if(destination.parent)state.hubVisit=destination.id;else delete state.hubVisit;
-     const spawn=destination.spawn??{x:10,y:9};db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=0 WHERE owner=?').run(destination.id,spawn.x,spawn.y,i.owner);
+     else {const portal=hubPortals(z.id).find(portal=>portal.target===destination.id);if(!portal||Math.abs(p.x-portal.x)+Math.abs(p.y-portal.y)>1)fail(409,'Stand next to the room entrance.');if(portal.style==='gap'&&!inHubGap(portal,p.x,p.y))fail(409,'Walk through the wall opening.');}
+     visitHub(i,state,z,destination);
     }else if(input.action==='shop_buy'){purchases.prepare(i,c,state,z,p,input);}
     else if(input.action==='shop_sell'){
      if(state.run||!state.loadout)fail(409,'Leave combat before selling.');
@@ -194,8 +200,10 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
      if(state.run?.phase==='fight')fail(409,'Finish this round before moving.');
      if(now()-p.moved<200)fail(429,'Movement is too fast.');
      const directions={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]},d=Object.hasOwn(directions,input.direction)?directions[input.direction]:null;if(!d)fail(400,'Choose a movement direction.');
-     const x=p.x+d[0],y=p.y+d[1];if(blocked(z,x,y))fail(409,'That tile is blocked.');db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE owner=?').run(x,y,now(),i.owner);
-     if(input.world_step===true&&state.loadout)state.worldTurnDue={id:randomUUID()}; // Acknowledged movement reserves exactly one campaign needs tick, recoverable after reconnect.
+     const x=p.x+d[0],y=p.y+d[1];if(blocked(z,x,y))fail(409,'That tile is blocked.');
+     const gap=hubGaps(z).find(g=>inHubGap(g,x,y));
+     if(gap)visitHub(i,state,z,zone(gap.target)); // The server commits wall contact and room transfer in one receipt, including click-path movement.
+     else {db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE owner=?').run(x,y,now(),i.owner);if(input.world_step===true&&state.loadout)state.worldTurnDue={id:randomUUID()};} // Ordinary walking still reserves one recoverable needs turn.
     }else if(input.action==='chat'){
      const text=clean(input.text,240);if(!text)fail(400,'Write a message first.');
      if(db.prepare('SELECT COUNT(*) AS n FROM quest_chat WHERE owner=? AND created>?').get(i.owner,now()-10000).n>=5)fail(429,'Wait a moment before sending another message.');

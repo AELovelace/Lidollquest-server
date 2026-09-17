@@ -21,12 +21,13 @@ test('both lobbies connect to four shared annexes with quadruple gardens, six be
    const initial=act('enter',{zone:lobby.id,loadout:{player_info:{playerHealth:20},inventory:[{item_id:'adult_food'}]}});
    for(const portal of initial.zones.find(z=>z.id===lobby.id).portals){
     assert.throws(()=>act('hub_visit',{zone:portal.target}),/Stand next/);
-    place(portal.x,portal.y+1);const room=act('hub_visit',{zone:portal.target});
+    place(portal.style==='gap'?(portal.side==='left'?1:18):portal.x,portal.y+1);
+    const room=portal.style==='gap'?act('move',{direction:portal.side==='left'?'west':'east',world_step:true}):act('hub_visit',{zone:portal.target});
     assert.equal(room.zone,portal.target);assert.equal(room.character.loadout.inventory.length,1);
     assert.throws(()=>act('start'),/lobby/);
     const definition=room.zones.find(z=>z.id===portal.target);
     if(definition.kind==='garden'){
-     assert.equal(definition.width*definition.height,20*12*4);assert.equal(definition.exit.style,'door');
+     assert.equal(definition.width*definition.height,20*12*4);assert.equal(definition.exit.style,'gap');
      const fountain=definition.fixtures[0];place(fountain.x,fountain.y+1);assert.throws(()=>act('move',{direction:'north'}),/blocked/);
      place(35,20);assert.equal(act('move',{direction:'east'}).position.x,36); // The extra garden space is playable, not merely painted beyond old movement bounds.
      place(definition.width-2,20);assert.throws(()=>act('move',{direction:'east'}),/blocked/);
@@ -44,7 +45,11 @@ test('both lobbies connect to four shared annexes with quadruple gardens, six be
     if(definition.kind==='dives'){assert.equal(portal.style,'door');assert.equal(definition.portals.length,2);assert.ok(definition.portals.every(p=>p.style==='warp'));}
     const committed=structuredClone(c.loadout);const reconnect=act('enter',{zone:lobby.id,loadout:{player_info:{},inventory:[]}});
     assert.equal(reconnect.zone,portal.target);assert.deepEqual(c.loadout,committed);
-    place(10,9);assert.equal(act('hub_visit',{zone:lobby.id}).zone,lobby.id);
+    if(definition.exit.style==='gap'){
+     const e=definition.exit;place(e.side==='left'?1:definition.width-2,e.y+1);
+     const returned=act('move',{direction:e.side==='left'?'west':'east',world_step:true});
+     assert.equal(returned.zone,lobby.id);assert.deepEqual(returned.position,{x:definition.kind==='garden'?1:18,y:6});assert.equal(returned.character.worldTurnDue,undefined);
+    }else {place(10,9);assert.equal(act('hub_visit',{zone:lobby.id}).zone,lobby.id);}
    }
   }
   assert.equal(hubRooms.length,8);
