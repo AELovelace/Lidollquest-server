@@ -56,6 +56,22 @@ test('one hundred deterministic floors have reachable loot, safe entrances and t
  }
 });
 
+test('room chests collect on contact once per character and stay unclaimed when inventory is full',()=>{
+ const f=fixture();try{
+  const a=f.player(),ch=f.snap(a).dive.chests[0];f.near(a,ch);
+  const pos=f.snap(a).position,direction=ch.x>pos.x?'east':ch.x<pos.x?'west':ch.y>pos.y?'south':'north';
+  const full=structuredClone(f.loadout);full.inventory=Array.from({length:99},()=>({item_id:'hair_bow'}));f.act(a,'loadout',{loadout:full});
+  let s=f.act(a,'move',{direction});assert.equal(s.dive.claimed,0);assert.equal(s.character.loadout.inventory.length,99);assert.match(s.character.dive.lootNotice,/Inventory full/);
+  f.act(a,'loadout',{loadout:f.loadout});f.place(a,pos);f.advance(350);
+  const input=f.command(a,'move',{direction});s=f.raw(input);assert.equal(s.dive.claimed,1);assert.equal(s.character.loadout.inventory.length,1);
+  const item=s.character.loadout.inventory[0];assert.deepEqual(f.raw(input).character.loadout.inventory,[item]);
+  f.place(a,pos);assert.deepEqual(f.act(a,'move',{direction}).character.loadout.inventory,[item]);
+  f.restart();assert.equal(f.snap(a).dive.claimed,1);
+  const b=f.player('bob');f.near(b,ch);const bp=f.snap(b).position;
+  assert.equal(f.act(b,'move',{direction:ch.x>bp.x?'east':ch.x<bp.x?'west':ch.y>bp.y?'south':'north'}).dive.claimed,1);
+ }finally{f.close();}
+});
+
 test('potions and treasure are personal, persistent, replay-safe and remain available with full inventory',()=>{
  const f=fixture();try{
   const a=f.player(),p=f.snap(a).dive.pickups.find(p=>p.kind==='potion');

@@ -11,6 +11,8 @@ retains the previous floor and retries after a minute. Deploy the matching rebui
 game after the service so it renders full-size scenery below actors and supports
 pickup interaction, movement collision, collection feedback and minimap markers.
 Loot remains independent per character; full inventories leave it unclaimed.
+Room chests and loose pickups both collect on movement contact; adjacent Interact
+remains available. Replaying a move or stepping on a claimed chest cannot grant it twice.
 
 Both arena lobbies now lead to one shared Princess' Quarters pilot. The server
 generates a validated floor on Monday at **04:00 America/Los_Angeles**, respecting

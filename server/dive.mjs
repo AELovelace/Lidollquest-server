@@ -171,7 +171,7 @@ export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFl
    const x=p.x+d[0],y=p.y+d[1];if(!walkable(f,x,y))fail('That tile is blocked.');const foe=f.enemies.find(e=>e.x===x&&e.y===y&&e.respawnAt<=now());
    if(foe){start(c,state,record,foe);return;}
    db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(x,y,now(),c.id);reveal(c,state,f,x,y);
-   const pickup=f.pickups?.find(ch=>ch.x===x&&ch.y===y);if(pickup)claim(c,state,record,pickup,true);return; // Loose treasure collects on contact; room chests still use Interact.
+   const pickup=[...f.chests,...(f.pickups??[])].find(ch=>ch.x===x&&ch.y===y);if(pickup)claim(c,state,record,pickup,true);return; // Walking onto either a room chest or a loose pickup commits the same personal claim as Interact.
   }
   const z={id:DIVE_ZONE,theme:'princess_quarters',recovery:0};let result;
   if(action==='loadout'||action==='use_item'){
