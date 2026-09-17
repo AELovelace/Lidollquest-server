@@ -6,14 +6,21 @@ export const hubData=JSON.parse(readFileSync(new URL('./hub-data.json',import.me
 const c=hubData.config;
 if(!Number.isInteger(c.stock_size)||c.stock_size<1||c.stock_size>24||!Number.isFinite(c.coin_price_multiplier)||c.coin_price_multiplier<=0||c.coin_price_multiplier>100||!Number.isInteger(c.inventory_capacity)||c.inventory_capacity<1||c.inventory_capacity>512||!Number.isInteger(c.rest_tick_ms)||c.rest_tick_ms<500)throw Error('Invalid online hub tuning');
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'hub_conflict'});};
-export const hubRooms=['honeydew-lantern','littlebig-clockwork'].flatMap(parent=>['garden','beds','shops'].map(kind=>({
+const gardenWidth=c.garden_width??40,gardenHeight=c.garden_height??24;
+if(![gardenWidth,gardenHeight].every(n=>Number.isInteger(n)&&n>=20&&n<=80))throw Error('Invalid garden dimensions');
+export const dungeonPortals=[{x:6,y:4,name:"Princess' Quarters",target:'dive-quarters',style:'warp'},{x:14,y:4,name:'Dustbreak Desert',target:'dive-desert',style:'warp'}]; // Both travel halls share destination metadata; claims remain scoped to the actual dungeon route.
+export const hubRooms=['honeydew-lantern','littlebig-clockwork'].flatMap(parent=>['garden','beds','shops','dives'].map(kind=>({
  id:parent+'-'+kind,parent,kind,hub:parent==='honeydew-lantern'?'town':'littlebig_city',theme:parent==='honeydew-lantern'?'lantern':'clockwork',
- name:(parent==='honeydew-lantern'?'Lantern ':'Clockwork ')+({garden:'Garden',beds:'Resting Hall',shops:'Market Hall'})[kind],
+ name:(parent==='honeydew-lantern'?'Lantern ':'Clockwork ')+({garden:'Garden',beds:'Resting Hall',shops:'Market Hall',dives:'Dive Hall'})[kind],
+ width:kind==='garden'?gardenWidth:20,height:kind==='garden'?gardenHeight:12,
+ spawn:kind==='garden'?{x:Math.floor(gardenWidth/2),y:gardenHeight-3}:{x:10,y:9},
+ exit:kind==='garden'?{x:Math.floor(gardenWidth/2),y:gardenHeight-2,style:'door'}:{x:10,y:10,style:kind==='shops'?'stairs':'door'},
  fixtures:kind==='beds'?hubData.beds.map((bed,i)=>({...bed,kind:'bed',x:3+(i%3)*6,y:3+Math.floor(i/3)*4})):
  kind==='shops'?[...hubData.shops.map((shop,i)=>({id:shop.id,name:shop.name,sprite:shop.sprite,kind:'shop',x:3+(i%4)*4,y:3+Math.floor(i/4)*4})),{id:'bank',name:'Bank',kind:'bank',x:17,y:9}]:
- [{id:'fountain',name:'',kind:'scenery',x:10,y:4},{id:'bench-left',name:'',kind:'scenery',x:6,y:6},{id:'bench-right',name:'',kind:'scenery',x:14,y:6}], // Match the game's native 32-pixel garden props with authoritative collision.
+ kind==='garden'?[{id:'fountain',name:'',kind:'scenery',sprite:'sprTownEnvFountain',x:Math.floor(gardenWidth/2),y:Math.floor(gardenHeight/3)},
+ ...[[0.3,0.5],[0.7,0.5],[0.2,0.75],[0.8,0.75]].map(([x,y],i)=>({id:'bench-'+i,name:'',kind:'scenery',sprite:'sprTownEnvBench',x:Math.floor(gardenWidth*x),y:Math.floor(gardenHeight*y)}))]:[], // Spread social seating across the larger garden; clients use the same fixture coordinates as collision.
 }))); // Each hub has its own presence/chat scope; fixtures are presentation data, never campaign NPCs.
-export const hubPortals=parent=>[{x:3,y:8,name:'Garden',target:parent+'-garden'},{x:6,y:8,name:'Beds',target:parent+'-beds'},{x:15,y:8,name:'Shops',target:parent+'-shops'}];
+export const hubPortals=parent=>[{x:3,y:8,name:'Garden',target:parent+'-garden',style:'door'},{x:6,y:8,name:'Beds',target:parent+'-beds',style:'door'},{x:15,y:8,name:'Shops',target:parent+'-shops',style:'stairs'},{x:10,y:2,name:'Dungeon Dive',target:parent+'-dives',style:'door'}];
 export const hubBlocked=(z,x,y)=>z.fixtures?.some(f=>f.x===x&&f.y===y)??false;
 export function shopOffers(zone,shop,time){
  const day=Math.floor(time/86400000),rnd=seeded(`${zone}:${shop.id}:${day}`),pool=[...shop.pool],offers=[];
@@ -26,7 +33,7 @@ export function shopOffers(zone,shop,time){
   offers.push({id:`${day}-${slot}`,price,item});
  }return offers;
 } // Stock is shared, deterministic and inexhaustible; purchases never consume somebody else's offer.
-export function hubDefinition(z,time){return {...z,restTickMs:c.rest_tick_ms,portals:z.parent?[]:hubPortals(z.id),fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:shopOffers(z.id,hubData.shops.find(s=>s.id===f.id),time)}:f)};}
+export function hubDefinition(z,time){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??{x:10,y:10,style:'stairs'},restTickMs:c.rest_tick_ms,portals:z.kind==='dives'?dungeonPortals:z.parent?[]:hubPortals(z.id),fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:shopOffers(z.id,hubData.shops.find(s=>s.id===f.id),time)}:f)};}
 export function nearbyFixture(z,p,id,kind){const f=z.fixtures?.find(f=>f.id===id&&f.kind===kind);if(!f||Math.abs(f.x-p.x)+Math.abs(f.y-p.y)>1)fail('Stand next to that '+kind+'.');return f;}
 
 export function createHubPurchases(db,{now,origins}){

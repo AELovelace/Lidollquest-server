@@ -163,11 +163,11 @@ test('weekly reset returns idle visitors, grants active fights grace and rejects
  const f=fixture();try{const a=f.player();f.setTime('2026-09-21T10:59:50Z');f.act(a,'enter',{zone:DIVE_ZONE});f.engage(a);const old=f.snap(a).dive.edition;
   f.setTime('2026-09-21T11:00:01Z');let s=f.act(a,'heartbeat');assert.equal(s.zone,DIVE_ZONE);assert.equal(s.dive.edition,old);s=f.win(a);assert.equal(s.zone,'honeydew-lantern');assert.equal(f.awards.reduce((n,a)=>n+a.n,0),50);
   s=f.act(a,'dive_enter');assert.notEqual(s.dive.edition,old);assert.equal(s.dive.claimed,0);assert.throws(()=>f.act(a,'move',{direction:'east',edition:old}),/edition changed/);
-  f.setTime('2026-10-05T11:00:01Z');f.tick();assert.equal(f.snap(a).character.dive,null);assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM dive_editions').get().n,3,'downtime creates only the currently due edition');
+  f.setTime('2026-10-05T11:00:01Z');f.tick();assert.equal(f.snap(a).character.dive,null);assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM dive_editions WHERE route='quarters-pilot'").get().n,3,'downtime creates only the currently due edition');
  }finally{f.close();}
 });
 test('failed generation retains the last valid edition and claims',()=>{
- let broken=false;const f=fixture({generate:(...args)=>{if(broken)throw Error('fixture failure');return generateFloor(...args);}});try{const a=f.player(),old=f.snap(a).dive.edition;broken=true;f.setTime('2026-09-21T11:00:01Z');f.tick();f.act(a,'enter',{zone:DIVE_ZONE});assert.equal(f.snap(a).dive.edition,old);assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM dive_editions').get().n,1);}finally{f.close();}
+ let broken=false;const f=fixture({generate:(...args)=>{if(broken)throw Error('fixture failure');return generateFloor(...args);}});try{const a=f.player(),old=f.snap(a).dive.edition;broken=true;f.setTime('2026-09-21T11:00:01Z');f.tick();f.act(a,'enter',{zone:DIVE_ZONE});assert.equal(f.snap(a).dive.edition,old);assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM dive_editions WHERE route='quarters-pilot'").get().n,1);}finally{f.close();}
 });
 
 test('server clock pursues players, starts only one shared fight and respects the safe entrance',()=>{

@@ -4,6 +4,9 @@ import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience} from './combat.mjs';
 import {hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases} from './hubs.mjs';
 import {createDive,DIVE_ZONE} from './dive.mjs';
+import {generateDesert} from './desert-generation.mjs';
+export const DESERT_ZONE='dive-desert';
+export const desertData=JSON.parse(readFileSync(new URL('./desert-data.json',import.meta.url),'utf8'));
 import {createBank} from './bank.mjs';
 import {createItemOrigins} from './item-origins.mjs';
 
@@ -19,7 +22,7 @@ const avatar=value=>typeof value==='string'&&avatarIds.has(value)?value:fail(400
 const identifier=value=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(value);
 const clean=(value,max)=>typeof value==='string'?value.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069#]/g,' ').trim().slice(0,max):'';
 const zone=id=>[...questZones,...hubRooms].find(z=>z.id===id)??fail(400,'Choose an online zone.');
-const blocked=(z,x,y)=>x<1||y<1||x>18||y>10||hubBlocked(z,x,y)||(!z.parent&&z.theme==='clockwork'&&y===5&&x>5&&x<14&&x!==10);
+const blocked=(z,x,y)=>x<1||y<1||x>(z.width??20)-2||y>(z.height??12)-2||hubBlocked(z,x,y)||(!z.parent&&z.theme==='clockwork'&&y===5&&x>5&&x<14&&x!==10);
 function canonical(value,depth=0){ // Nested loadout property order may change when GameMaker reloads its request journal.
  if(depth>20)fail(400,'Request data is too complex.');
  if(Array.isArray(value))return value.map(v=>canonical(v,depth+1));
@@ -27,7 +30,7 @@ function canonical(value,depth=0){ // Nested loadout property order may change w
  return value;
 }
 
-export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Date.now,roll=randomInt,diveOptions={}}={}) {
+export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Date.now,roll=randomInt,diveOptions={},desertOptions={}}={}) {
  db.exec(`CREATE TABLE IF NOT EXISTS quest_characters(id TEXT PRIMARY KEY,owner TEXT NOT NULL,name TEXT NOT NULL,created INTEGER NOT NULL,revision INTEGER NOT NULL DEFAULT 0,state TEXT NOT NULL,creation_id TEXT NOT NULL,UNIQUE(owner,creation_id));
  CREATE INDEX IF NOT EXISTS quest_character_owner ON quest_characters(owner);
  CREATE TABLE IF NOT EXISTS quest_presence(owner TEXT PRIMARY KEY,character_id TEXT NOT NULL UNIQUE,zone TEXT NOT NULL,grant_id TEXT NOT NULL,controller TEXT NOT NULL,x INTEGER NOT NULL,y INTEGER NOT NULL,seen INTEGER NOT NULL,moved INTEGER NOT NULL);
@@ -40,7 +43,15 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
  const origins=createItemOrigins(db);
  const purchases=createHubPurchases(db,{now,origins});
  const bank=createBank(db);
- const dive=createDive(db,{now,roll,adjust,origins,...diveOptions});
+ const quarters=createDive(db,{now,roll,adjust,origins,...diveOptions});
+ const desert=createDive(db,{now,roll,adjust,origins,data:desertData,generate:generateDesert,...desertOptions});
+ const isDungeon=id=>id===DIVE_ZONE||id===DESERT_ZONE;
+ const engine=id=>id===DESERT_ZONE?desert:quarters;
+ const dive={tick(){quarters.tick();desert.tick();},
+  snapshot(c,p){return engine(p?.zone??(c?JSON.parse(c.state).dive?.zone:null)).snapshot(c,p);},
+  chatArea(c,p){return engine(p.zone).chatArea(c,p);},
+  handles(input,p){return quarters.handles(input,p)||desert.handles(input,p);},
+  act(i,c,state,input,p){const id=state.dive?.zone??(state.dive?DIVE_ZONE:input.zone??p?.zone);return engine(id).act(i,c,state,input,p);}}; // Share settlement and leases, while keeping weekly maps and claims route-scoped.
  function identity(secret){const i=grant(secret,'wallet:read');if(i.client!=='lidollquest')fail(403,'These zones are for LiDollQuest.');return i;} // A registered app ID alone is not a player identity.
  function atomic(work){db.exec('BEGIN IMMEDIATE');try{const result=work();db.exec('COMMIT');return result;}catch(e){db.exec('ROLLBACK');throw e;}}
  function limit(owner){const time=now();db.prepare('DELETE FROM quest_request_limits WHERE started<=?').run(time-60000);const r=db.prepare('INSERT INTO quest_request_limits VALUES (?,?,1) ON CONFLICT(owner) DO UPDATE SET count=count+1 RETURNING count').get(owner,time);if(r.count>600)fail(429,'Please slow down.');}
@@ -50,14 +61,14 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
  function snapshot(i,c=null){
   const p=c?db.prepare('SELECT * FROM quest_presence WHERE owner=? AND character_id=? AND seen>?').get(i.owner,c.id,now()-30000):null;
   const peers=p?db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT 64').all(p.zone,now()-30000).filter(r=>enabled(r.owner)).map(r=>({id:r.character_id,name:r.name,avatar:JSON.parse(r.state).avatar??'player',x:r.x,y:r.y,stage:JSON.parse(r.state).run?.stage??0,fighting:JSON.parse(r.state).run?.phase==='fight'})):[];
-  const chatArea=p?.zone===DIVE_ZONE?dive.chatArea(c,p):p?{id:p.zone,name:zone(p.zone).name}:null;
+  const chatArea=isDungeon(p?.zone)?dive.chatArea(c,p):p?{id:p.zone,name:zone(p.zone).name}:null;
   const chat=chatArea?db.prepare('SELECT seq,name,text,character_id AS characterId FROM quest_chat WHERE zone=? AND created>? ORDER BY seq DESC LIMIT 40').all(chatArea.id,now()-86400000).reverse():[];
   const spent=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,Math.floor(now()/86400000))?.coins??0;
-  const dungeon=dive.snapshot(c,p),definitions=[...questZones,...hubRooms].map(z=>({...hubDefinition(z,now()),walls:Array.from({length:12},(_,y)=>Array.from({length:20},(_,x)=>blocked({...z,fixtures:[]},x,y)?1:0))})); // Fixtures block navigation separately; painting them as walls hides their artwork.
+  const dungeon=dive.snapshot(c,p),definitions=[...questZones,...hubRooms].map(z=>({...hubDefinition(z,now()),walls:Array.from({length:z.height??12},(_,y)=>Array.from({length:z.width??20},(_,x)=>blocked({...z,fixtures:[]},x,y)?1:0))})); // Fixtures block navigation separately; painting them as walls hides their artwork.
   if(dungeon.definition)definitions.push(dungeon.definition);
   const edition=c?JSON.parse(c.state).dive?.edition:null;
-  const visiblePeers=p?.zone===DIVE_ZONE?peers.filter(peer=>JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(peer.id).state).dive?.edition===edition):peers;
-  return {serverTime:now(),loadoutSupport:true,combatVersion:2,controllerTakeover:true,dive:dungeon.dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,bank:bank.snapshot(c,p,p&&p.zone!==DIVE_ZONE?zone(p.zone):null),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,250-spent)};
+  const visiblePeers=isDungeon(p?.zone)?peers.filter(peer=>JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(peer.id).state).dive?.edition===edition):peers;
+  return {serverTime:now(),loadoutSupport:true,combatVersion:2,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,250-spent)};
  } // Snapshots expose only zone avatars and chat, never wallet credentials or account IDs.
  function read(secret,id){const i=identity(secret);limit(i.owner);dive.tick();return snapshot(i,id?character(i.owner,id):null);}
  function enemy(z,stage){return {name:z.enemies[Math.min(2,Math.floor((stage-1)/3))],hp:z.health+(stage-1)*5,maxHp:z.health+(stage-1)*5,turn:0};}
@@ -124,7 +135,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
     if(z.parent)state.hubVisit=z.id; // Explicit annex entry also resumes committed inventory after reconnect.
     if(input.combat_version===2&&state.run&&state.run.combatVersion!==2&&state.loadout)beginRound(state,z,roll); // Preserve the old opponent, HP and pot while upgrading an unfinished run.
     if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(z.id,now()-30000,i.owner).n>=64)fail(429,'This zone is full. Try again shortly.');
-    db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,10,9,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=10,y=9,seen=excluded.seen,moved=0').run(i.owner,c.id,z.id,i.id,input.controller,now());
+    const spawn=z.spawn??{x:10,y:9};db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,?,?,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=excluded.x,y=excluded.y,seen=excluded.seen,moved=0').run(i.owner,c.id,z.id,i.id,input.controller,spawn.x,spawn.y,now());
    }else{
     p=presence(i,c,input.controller);const z=zone(p.zone);
     if(input.action==='hub_visit'){
@@ -134,7 +145,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
      else {const portal=hubPortals(z.id).find(portal=>portal.target===destination.id);if(!portal||Math.abs(p.x-portal.x)+Math.abs(p.y-portal.y)>1)fail(409,'Stand next to the room entrance.');}
      if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>?').get(destination.id,now()-30000).n>=64)fail(429,'This room is full.');
      if(destination.parent)state.hubVisit=destination.id;else delete state.hubVisit;
-     db.prepare('UPDATE quest_presence SET zone=?,x=10,y=9,moved=0 WHERE owner=?').run(destination.id,i.owner);
+     const spawn=destination.spawn??{x:10,y:9};db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=0 WHERE owner=?').run(destination.id,spawn.x,spawn.y,i.owner);
     }else if(input.action==='shop_buy'){purchases.prepare(i,c,state,z,p,input);}
     else if(input.action==='shop_sell'){
      if(state.run||!state.loadout)fail(409,'Leave combat before selling.');

@@ -10,7 +10,7 @@ import {diveData} from '../server/dive.mjs';
 import {generateFloor,addFood,validateFloor} from '../server/dive-generation.mjs';
 import {createQuestService} from '../server/service.mjs';
 
-test('both lobbies connect to three shared annexes with all six beds and eight shops; travel retains inventory',()=>{
+test('both lobbies connect to four shared annexes with quadruple gardens, six beds and eight shops; travel retains inventory',()=>{
  const db=new DatabaseSync(':memory:');let time=1000000;
  const zones=createQuestZones(db,{now:()=>time,grant:()=>({owner:'alice',id:'a',client:'lidollquest'}),wallet:()=>({coins:1000}),adjust:()=>{}});
  let c;const act=(action,extra={})=>{time+=1500;const result=zones.act('token',{action,controller:'a',request_id:randomUUID(),character_id:c?.id,revision:c?.revision,...extra});c=result.character;return result;};
@@ -25,22 +25,29 @@ test('both lobbies connect to three shared annexes with all six beds and eight s
     assert.equal(room.zone,portal.target);assert.equal(room.character.loadout.inventory.length,1);
     assert.throws(()=>act('start'),/lobby/);
     const definition=room.zones.find(z=>z.id===portal.target);
-    if(definition.kind==='garden'){place(10,5);assert.throws(()=>act('move',{direction:'north'}),/blocked/);}
+    if(definition.kind==='garden'){
+     assert.equal(definition.width*definition.height,20*12*4);assert.equal(definition.exit.style,'door');
+     const fountain=definition.fixtures[0];place(fountain.x,fountain.y+1);assert.throws(()=>act('move',{direction:'north'}),/blocked/);
+     place(35,20);assert.equal(act('move',{direction:'east'}).position.x,36); // The extra garden space is playable, not merely painted beyond old movement bounds.
+     place(definition.width-2,20);assert.throws(()=>act('move',{direction:'east'}),/blocked/);
+    }
     if(definition.kind==='beds'){
      assert.equal(definition.fixtures.length,6);
      for(const bed of definition.fixtures){place(bed.x,bed.y+1);const next=structuredClone(c.loadout);next.player_info.playerHealth=30;act('hub_rest',{fixture:bed.id,loadout:next});assert.equal(c.loadout.player_info.playerHealth,30);}
     }
     if(definition.kind==='shops'){
+     assert.equal(definition.exit.style,'stairs');
      assert.equal(definition.fixtures.filter(f=>f.kind==='shop').length,8);
      assert.equal(definition.fixtures.filter(f=>f.kind==='bank').length,1);
      for(const merchant of definition.fixtures.filter(f=>f.kind==='shop')){assert.ok(merchant.offers.length);assert.ok(merchant.offers.every(o=>Number.isSafeInteger(o.price)&&o.price>0));}
     }
+    if(definition.kind==='dives'){assert.equal(portal.style,'door');assert.equal(definition.portals.length,2);assert.ok(definition.portals.every(p=>p.style==='warp'));}
     const committed=structuredClone(c.loadout);const reconnect=act('enter',{zone:lobby.id,loadout:{player_info:{},inventory:[]}});
     assert.equal(reconnect.zone,portal.target);assert.deepEqual(c.loadout,committed);
     place(10,9);assert.equal(act('hub_visit',{zone:lobby.id}).zone,lobby.id);
    }
   }
-  assert.equal(hubRooms.length,6);
+  assert.equal(hubRooms.length,8);
  }finally{db.close();}
 });
 
