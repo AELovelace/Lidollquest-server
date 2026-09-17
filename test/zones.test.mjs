@@ -117,7 +117,7 @@ test('NPC appearances persist, synchronize, reject arbitrary assets and preserve
 });
 test('exactly one distinct zone per hub; character ownership, input and single-window control are enforced',()=>{
  const f=fixture();try{
-  assert.equal(questZones.length,2);assert.equal(new Set(questZones.map(z=>z.hub)).size,2);
+  assert.equal(questZones.length,3);assert.equal(new Set(questZones.map(z=>z.hub)).size,3);
   const c=f.act('create',null,{name:'Alice'}).character;
   assert.throws(()=>f.act('enter',c,{zone:'honeydew-bramble'}),e=>e.status===400);
   let a=f.act('enter',c,{zone:questZones[0].id});assert.equal(a.position.x,10);

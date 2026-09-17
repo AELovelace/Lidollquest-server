@@ -1,0 +1,380 @@
+{
+  "version": 1,
+  "dressing_version": 1,
+  "food_version": 1,
+  "config": {
+    "_comment": "Shared weekly early-game crossing. Export with python/export_online_tundra.py. Winter effects are visual only.",
+    "enabled": true,
+    "route": "frostveil-crossing",
+    "zone_id": "dive-tundra",
+    "name": "Frostveil Tundra",
+    "theme": "tundra",
+    "width": 100,
+    "height": 50,
+    "enemies_per_room": 2,
+    "potions_per_room": 1,
+    "food_per_room": 1,
+    "treasures_per_room": 1,
+    "enemy_respawn_seconds": 600,
+    "boss_respawn_seconds": 600,
+    "pursuit_steps": 6,
+    "boss_id": "",
+    "boss_coins": 0,
+    "inventory_capacity": 99,
+    "endpoints": [
+      {
+        "zone": "princess-rose",
+        "name": "Princess' Quarters"
+      },
+      {
+        "zone": "honeydew-lantern",
+        "name": "Honeydew Village"
+      }
+    ]
+  },
+  "structure": {
+    "fill_chance": 58,
+    "smooth_passes": 3,
+    "birth_limit": 5,
+    "death_limit": 3,
+    "basin_count": 7,
+    "min_basin_w": 10,
+    "max_basin_w": 18,
+    "min_basin_h": 7,
+    "max_basin_h": 13,
+    "main_path_width_min": 5,
+    "main_path_width_max": 8,
+    "side_path_width_min": 4,
+    "side_path_width_max": 6,
+    "side_path_count": 5,
+    "drunk_bias": 76,
+    "prop_count_min": 12,
+    "prop_count_max": 16
+  },
+  "enemy_types": [
+    {
+      "enemy_id": "frost_slime",
+      "chance": 45
+    },
+    {
+      "enemy_id": "snow_hare",
+      "chance": 35
+    },
+    {
+      "enemy_id": "rime_sprite",
+      "chance": 20
+    }
+  ],
+  "enemies": {
+    "frost_slime": {
+      "enemy_id": "frost_slime",
+      "name": "Frost Slime",
+      "hp": 20,
+      "str": 3,
+      "def": 0,
+      "exp": 6,
+      "enemy_spells": [],
+      "spell_cast_chance": 0,
+      "sprite": "sprFrostSlime",
+      "battle_sprite": "sprBattleFrostSlime"
+    },
+    "snow_hare": {
+      "enemy_id": "snow_hare",
+      "name": "Snow Hare",
+      "hp": 26,
+      "str": 4,
+      "def": 1,
+      "exp": 8,
+      "enemy_spells": [],
+      "spell_cast_chance": 0,
+      "sprite": "sprSnowHare",
+      "battle_sprite": "sprBattleSnowHare"
+    },
+    "rime_sprite": {
+      "enemy_id": "rime_sprite",
+      "name": "Rime Sprite",
+      "hp": 32,
+      "str": 5,
+      "def": 1,
+      "exp": 10,
+      "enemy_spells": [],
+      "spell_cast_chance": 0,
+      "sprite": "sprRimeSprite",
+      "battle_sprite": "sprBattleRimeSprite"
+    }
+  },
+  "items": {
+    "adult_food": {
+      "item_id": "adult_food",
+      "category": "food",
+      "name": "Adult Food",
+      "desc": "A proper grown-up meal. Restores more health than baby food, and the tummy effects are milder and shorter-lived.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 25,
+      "value": 10,
+      "childish": 1,
+      "stamina_restore": 8,
+      "hunger_restore": 167,
+      "tum_instant": 4,
+      "pressure_turns": 4,
+      "tum_per_turn": 5,
+      "tum_target_gain": 20
+    },
+    "ankle_socks": {
+      "item_id": "ankle_socks",
+      "category": "socks",
+      "name": "Ankle Socks",
+      "desc": "Plain white socks. Nothing to see here.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 2
+    },
+    "baby_food": {
+      "item_id": "baby_food",
+      "category": "food",
+      "name": "Baby Food",
+      "desc": "Mushy, sweet purée in a little jar. Restores some health, but sits extremely heavy in your tummy for a long time.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 15,
+      "value": 8,
+      "childish": 9,
+      "stamina_restore": 15,
+      "hunger_restore": 167,
+      "tum_instant": 4,
+      "pressure_turns": 6,
+      "tum_per_turn": 4,
+      "tum_target_gain": 20
+    },
+    "boots": {
+      "item_id": "boots",
+      "category": "shoes",
+      "name": "Sturdy Boots",
+      "desc": "Heavy-duty boots that mean business. +2 DEF.",
+      "atk": 0,
+      "def": 2,
+      "hp_restore": 0,
+      "value": 18,
+      "childish": 0
+    },
+    "cotton_panties": {
+      "item_id": "cotton_panties",
+      "category": "panties",
+      "name": "Cotton Panties",
+      "desc": "Plain cotton underwear. Comfortable and practical.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": 1,
+      "value": 3,
+      "childish": 1,
+      "bulk": 0
+    },
+    "diaper": {
+      "item_id": "diaper",
+      "category": "panties",
+      "name": "Fluffy Diaper",
+      "desc": "Extra padding. Protects against accidents. Hard to move in. ATK -1, DEX -2.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -3,
+      "atk_mod": -1,
+      "def_mod": 0,
+      "dex_mod": -2,
+      "value": 8,
+      "childish": 10,
+      "bulk": 3,
+      "is_diaper": true
+    },
+    "dried_apple": {
+      "item_id": "dried_apple",
+      "category": "food",
+      "is_snack": true,
+      "name": "Dried Apple Slices",
+      "desc": "A paper pouch of tart apple slices. Light, portable, and easy on the tummy.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 3,
+      "value": 6,
+      "childish": 2,
+      "hunger_restore": 125,
+      "tum_instant": 1,
+      "pressure_turns": 3,
+      "tum_per_turn": 4,
+      "tum_target_gain": 12
+    },
+    "hair_bow": {
+      "item_id": "hair_bow",
+      "category": "head",
+      "name": "Big Hair Bow",
+      "desc": "An enormous ribbon bow. Impossible to ignore.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 5,
+      "childish": 8
+    },
+    "stamina_potion": {
+      "item_id": "stamina_potion",
+      "category": "drink",
+      "name": "Stamina Potion",
+      "desc": "A fizzing sky-blue vial. Your legs feel solid the moment you pop the cork. Restores your stamina fully.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "stamina_restore": -1,
+      "value": 18,
+      "childish": 3,
+      "thirst_restore": 125,
+      "wet_instant": 2,
+      "pressure_turns": 3,
+      "wet_per_turn": 4,
+      "wet_target_gain": 12
+    },
+    "trail_rations": {
+      "item_id": "trail_rations",
+      "category": "food",
+      "name": "Trail Rations",
+      "desc": "A sturdy packet of crackers, nuts, and dried fruit. Filling enough for a long dungeon walk.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 5,
+      "stamina_restore": 5,
+      "value": 10,
+      "childish": 1,
+      "hunger_restore": 167,
+      "tum_instant": 3,
+      "pressure_turns": 5,
+      "tum_per_turn": 4,
+      "tum_target_gain": 20
+    },
+    "training_pants": {
+      "item_id": "training_pants",
+      "category": "panties",
+      "name": "Training Pants",
+      "desc": "Thick padded cotton pants for... practice. Slightly restricts movement. DEX -1.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -1,
+      "atk_mod": 0,
+      "def_mod": 0,
+      "dex_mod": -1,
+      "value": 5,
+      "childish": 7,
+      "bulk": 1
+    },
+    "water_bottle": {
+      "item_id": "water_bottle",
+      "category": "food",
+      "is_drink": true,
+      "name": "Water Bottle",
+      "desc": "A plain plastic water bottle. Restores some health. All that water has somewhere to go.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 8,
+      "value": 5,
+      "childish": 0,
+      "stamina_restore": 5,
+      "thirst_restore": 167,
+      "wet_instant": 3,
+      "pressure_turns": 4,
+      "wet_per_turn": 5,
+      "wet_target_gain": 20
+    },
+    "wooden_sword": {
+      "item_id": "wooden_sword",
+      "category": "weapon",
+      "name": "Wooden Sword",
+      "desc": "A sturdy practice sword. Deals 8 damage per swing. It shines when you need to be brave.",
+      "atk": 8,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 12,
+      "childish": 3,
+      "magical_effects": [
+        {
+          "effect_id": "valorous_light",
+          "enabled": true,
+          "trigger_mode": "step",
+          "proc_min": 147,
+          "proc_max": 310,
+          "chance_percent": 70,
+          "cooldown": 24,
+          "popup_title": "Valorous Light",
+          "popup_text": "",
+          "popup_lines": [
+            "{item} shines, and for a moment {name} is nobody's baby at all.",
+            "A clean bright courage runs out of {item} and into {name}'s chest."
+          ],
+          "log_text": "{item} emboldens you: HP +6, Shame +10.",
+          "narrative_chunk": "",
+          "movement_lock": false,
+          "lock_prompt_min": 4,
+          "lock_prompt_max": 8,
+          "lock_release_chance": 35,
+          "lock_title": "Constricted!",
+          "lock_text": "You struggle against {item}...",
+          "content_pass": "cursed_blessed_pass_v1",
+          "alignment": "blessed",
+          "stat_delta": {
+            "health": 5,
+            "shame": 11
+          }
+        }
+      ],
+      "blessed": true
+    }
+  },
+  "item_pool": [
+    "adult_food",
+    "baby_food",
+    "water_bottle",
+    "trail_rations",
+    "dried_apple",
+    "stamina_potion",
+    "wooden_sword",
+    "cotton_panties",
+    "training_pants",
+    "diaper",
+    "ankle_socks",
+    "boots",
+    "hair_bow"
+  ],
+  "food_pool": [
+    "adult_food",
+    "baby_food",
+    "trail_rations",
+    "dried_apple"
+  ],
+  "potion_pool": [
+    "stamina_potion"
+  ],
+  "detail_profiles": [
+    {
+      "sprite": "sprTundraBoulder",
+      "span_w": 2,
+      "span_h": 2,
+      "solid": true
+    },
+    {
+      "sprite": "sprTundraShrub",
+      "span_w": 1,
+      "span_h": 1,
+      "solid": true
+    },
+    {
+      "sprite": "sprTundraCrystal",
+      "span_w": 2,
+      "span_h": 2,
+      "solid": true
+    }
+  ]
+}

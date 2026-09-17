@@ -2,11 +2,13 @@ import {randomUUID,randomInt,createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience} from './combat.mjs';
-import {hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap} from './hubs.mjs';
+import {hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog} from './hubs.mjs';
 import {createDive,DIVE_ZONE} from './dive.mjs';
 import {generateDesert} from './desert-generation.mjs';
 export const DESERT_ZONE='dive-desert';
 export const desertData=JSON.parse(readFileSync(new URL('./desert-data.json',import.meta.url),'utf8'));
+export const TUNDRA_ZONE='dive-tundra';
+export const tundraData=JSON.parse(readFileSync(new URL('./tundra-data.json',import.meta.url),'utf8'));
 import {createBank} from './bank.mjs';
 import {createItemOrigins} from './item-origins.mjs';
 import {inspectionProjection} from './inspection.mjs';
@@ -15,10 +17,9 @@ import {managementSchema,appearanceFields} from './character-management.mjs';
 export const questAvatars=Object.freeze(JSON.parse(readFileSync(new URL('./avatars.json',import.meta.url),'utf8')).map(Object.freeze)); // Generated from the game's NPC registry and authored object sprites.
 const avatarIds=new Set(questAvatars.map(a=>a.id));
 
-export const questZones=Object.freeze([
- {id:'honeydew-lantern',hub:'town',name:'Lantern Court',theme:'lantern',rule:'Recovery between rounds',enemies:['Moss Sprite','Lantern Knight','Moonlit Warden'],attack:5,health:22,recovery:6},
- {id:'littlebig-clockwork',hub:'littlebig_city',name:'Clockwork Coliseum',theme:'clockwork',rule:'Every third enemy turn hits harder',enemies:['Tin Sentry','Gear Hound','Clockwork Monarch'],attack:5,health:24,recovery:3},
-]);
+export const questZones=Object.freeze(hubCatalog.map(h=>({...h,...(h.theme==='clockwork'
+ ?{rule:'Every third enemy turn hits harder',enemies:['Tin Sentry','Gear Hound','Clockwork Monarch'],attack:5,health:24,recovery:3}
+ :{rule:'Recovery between rounds',enemies:h.theme==='rose'?['Rose Sprite','Ribbon Knight','Crown Warden']:['Moss Sprite','Lantern Knight','Moonlit Warden'],attack:5,health:22,recovery:6})}))); // Rose Court uses Lantern balance and the same account-wide reward cap.
 const fail=(status,message,code='zone_request_failed')=>{throw Object.assign(Error(message),{status,code});};
 const avatar=value=>typeof value==='string'&&avatarIds.has(value)?value:fail(400,'Choose an NPC from the appearance list.'); // Never accept arbitrary asset paths or gameplay stats.
 const identifier=value=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(value);
@@ -32,7 +33,7 @@ function canonical(value,depth=0){ // Nested loadout property order may change w
  return value;
 }
 
-export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Date.now,roll=randomInt,diveOptions={},desertOptions={}}={}) {
+export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Date.now,roll=randomInt,diveOptions={},desertOptions={},tundraOptions={}}={}) {
  db.exec(`CREATE TABLE IF NOT EXISTS quest_characters(id TEXT PRIMARY KEY,owner TEXT NOT NULL,name TEXT NOT NULL,created INTEGER NOT NULL,revision INTEGER NOT NULL DEFAULT 0,state TEXT NOT NULL,creation_id TEXT NOT NULL,UNIQUE(owner,creation_id));
  CREATE INDEX IF NOT EXISTS quest_character_owner ON quest_characters(owner);
  CREATE TABLE IF NOT EXISTS quest_presence(owner TEXT PRIMARY KEY,character_id TEXT NOT NULL UNIQUE,zone TEXT NOT NULL,grant_id TEXT NOT NULL,controller TEXT NOT NULL,x INTEGER NOT NULL,y INTEGER NOT NULL,seen INTEGER NOT NULL,moved INTEGER NOT NULL);
@@ -48,12 +49,14 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
  const bank=createBank(db);
  const quarters=createDive(db,{now,roll,adjust,origins,...diveOptions});
  const desert=createDive(db,{now,roll,adjust,origins,data:desertData,generate:generateDesert,...desertOptions});
- const isDungeon=id=>id===DIVE_ZONE||id===DESERT_ZONE;
- const engine=id=>id===DESERT_ZONE?desert:quarters;
- const dive={tick(){quarters.tick();desert.tick();},
+ const tundra=createDive(db,{now,roll,adjust,origins,data:tundraData,generate:generateDesert,...tundraOptions});
+ const engines=new Map([[DIVE_ZONE,quarters],[DESERT_ZONE,desert],[TUNDRA_ZONE,tundra]]);
+ const isDungeon=id=>engines.has(id);
+ const engine=id=>engines.get(id)??quarters; // No active visit still exposes the legacy Quarters summary.
+ const dive={tick(){for(const route of engines.values())route.tick();},
   snapshot(c,p){return engine(p?.zone??(c?JSON.parse(c.state).dive?.zone:null)).snapshot(c,p);},
   chatArea(c,p){return engine(p.zone).chatArea(c,p);},
-  handles(input,p){return quarters.handles(input,p)||desert.handles(input,p);},
+  handles(input,p){return [...engines.values()].some(route=>route.handles(input,p));},
   act(i,c,state,input,p){const id=state.dive?.zone??(state.dive?DIVE_ZONE:input.zone??p?.zone);return engine(id).act(i,c,state,input,p);}}; // Share settlement and leases, while keeping weekly maps and claims route-scoped.
  function identity(secret){const i=grant(secret,'wallet:read');if(i.client!=='lidollquest')fail(403,'These zones are for LiDollQuest.');return i;} // A registered app ID alone is not a player identity.
  function atomic(work){db.exec('BEGIN IMMEDIATE');try{const result=work();db.exec('COMMIT');return result;}catch(e){db.exec('ROLLBACK');throw e;}}
@@ -79,7 +82,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   if(dungeon.definition)definitions.push(dungeon.definition);
   const edition=c?JSON.parse(c.state).dive?.edition:null;
   const visiblePeers=isDungeon(p?.zone)?peers.filter(peer=>JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(peer.id).state).dive?.edition===edition):peers;
-  return {serverTime:now(),loadoutSupport:true,combatVersion:2,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,250-spent)};
+  return {serverTime:now(),loadoutSupport:true,combatVersion:2,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,tundra:tundra.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,250-spent)};
  } // Snapshots expose only zone avatars and chat, never wallet credentials or account IDs.
  function read(secret,id){const i=identity(secret);limit(i.owner);dive.tick();return snapshot(i,id?character(i.owner,id):null);}
  function enemy(z,stage){return {name:z.enemies[Math.min(2,Math.floor((stage-1)/3))],hp:z.health+(stage-1)*5,maxHp:z.health+(stage-1)*5,turn:0};}

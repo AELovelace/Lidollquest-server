@@ -3,7 +3,7 @@ import {randomUUID} from 'node:crypto';
 import {generateFloor,dressFloor,addFood,weeklyWindow,seeded,pathTo,walkable,inside} from './dive-generation.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience} from './combat.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
-import {dungeonPortals,hubRooms} from './hubs.mjs';
+import {dungeonPortals,hubRooms,hubCatalog} from './hubs.mjs';
 
 export const diveData=JSON.parse(readFileSync(new URL('./dive-data.json',import.meta.url),'utf8'));
 export const DIVE_ZONE='dive-quarters';
@@ -149,8 +149,9 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    } // A browser suspended across reset resumes in its lobby instead of retrying a retired floor forever.
    if(state.run&&state.run.kind!=='dive')fail('Finish your arena run before diving.');
    if(state.dive&&!owns(state.dive))fail('Leave your current dungeon before entering another route.');
-   if(!state.dive){const hall=hubRooms.find(r=>r.id===p?.zone&&r.kind==='dives');if(!p||!hall&&!['honeydew-lantern','littlebig-clockwork'].includes(p.zone)||p.seen<=now()-30000||p.controller!==input.controller||p.grant_id!==i.id)fail('Enter from an online dive hall.');
-    if(hall){const portal=dungeonPortals.find(v=>v.target===zoneId);if(!portal||Math.abs(p.x-portal.x)+Math.abs(p.y-portal.y)>1)fail('Stand on or beside that glowing portal.');} // Legacy root-lobby requests remain accepted during the service-first rollout.
+   if(!state.dive){const hall=hubRooms.find(r=>r.id===p?.zone&&r.kind==='dives');if(!p||!hall&&!hubCatalog.some(h=>h.id===p.zone)||p.seen<=now()-30000||p.controller!==input.controller||p.grant_id!==i.id)fail('Enter from an online dive hall.');
+    const portal=dungeonPortals(hall?.parent??p.zone).find(v=>v.target===zoneId);
+    if(!portal||hall&&Math.abs(p.x-portal.x)+Math.abs(p.y-portal.y)>1)fail('Stand on or beside that glowing portal.'); // Legacy lobby entry remains accepted only for routes connected to that hub.
     if(input.loadout)state.loadout=importLoadout(input.loadout);if(!state.loadout)fail('Import your character first.');
     const record=current(),origin=hall?.parent??p.zone;if(!record)fail('The weekly floor is not ready.');state.dive={route,zone:zoneId,edition:record.edition,depth:1,origin,returnZone:p.zone,position:{...entry(record.floor,origin)},safeUntil:now()+10*seconds};state.diveReturned=null;delete state.hubVisit;
    }

@@ -11,7 +11,7 @@ test('hall portals validate proximity, preserve inventory, restore on reconnect 
  const place=(x,y)=>db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(x,y,c.id);
  try{
   act('create',{name:'Alice'});
-  for(const root of ['honeydew-lantern','littlebig-clockwork']){
+  for(const root of ['honeydew-lantern','littlebig-clockwork','princess-rose']){
    act('enter',{zone:root,loadout:{player_info:{playerHealth:50,playerHealthMax:50},inventory:[{item_id:'adult_food'}]}});
    place(10,3);const hall=act('hub_visit',{zone:root+'-dives'});assert.equal(hall.zone,root+'-dives');
    for(const portal of hall.zones.find(z=>z.id===hall.zone).portals){
@@ -22,6 +22,7 @@ test('hall portals validate proximity, preserve inventory, restore on reconnect 
     const back=act('dive_exit');assert.equal(back.zone,root+'-dives');assert.equal(c.hubVisit,root+'-dives');
     assert.equal(act('enter',{zone:root,loadout:{player_info:{},inventory:[]}}).zone,root+'-dives');assert.deepEqual(c.loadout.inventory,inventory);
    }
+   if(root==='princess-rose')continue; // Its crossing has dedicated two-direction Tundra coverage.
    place(14,4);const desert=act('dive_enter',{zone:'dive-desert'}),opposite=root==='honeydew-lantern'?'littlebig-clockwork':'honeydew-lantern';
    const exit=desert.zones.find(z=>z.id==='dive-desert').exits.find(e=>e.zone===opposite);place(exit.x,exit.y);
    assert.equal(act('dive_exit',{zone:opposite}).zone,opposite+'-dives');assert.equal(c.hubVisit,opposite+'-dives');

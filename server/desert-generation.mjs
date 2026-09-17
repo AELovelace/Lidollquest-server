@@ -42,7 +42,9 @@ export function generateDesert(data,edition,depth=1){
   }
  }
  f.safeRooms=[{x:1,y:Math.floor(f.height/2)-3,w:7,h:7},{x:f.width-8,y:Math.floor(f.height/2)-3,w:7,h:7}];
- f.exits=[{x:4,y:Math.floor(f.height/2),zone:'honeydew-lantern',name:'Honeydew Village'},{x:f.width-5,y:Math.floor(f.height/2),zone:'littlebig-clockwork',name:'LittleBig City'}];
+ const endpoints=c.endpoints??[{zone:'honeydew-lantern',name:'Honeydew Village'},{zone:'littlebig-clockwork',name:'LittleBig City'}];
+ if(endpoints.length!==2||endpoints[0].zone===endpoints[1].zone||endpoints.some(p=>!p.zone||!p.name))throw Error('Invalid crossing endpoints');
+ f.exits=endpoints.map((p,i)=>({x:i===0?4:f.width-5,y:Math.floor(f.height/2),zone:p.zone,name:p.name})); // Desert defaults and random draws stay unchanged for existing editions.
  f.entrance={x:f.exits[0].x+1,y:f.exits[0].y};
  f.entries=Object.fromEntries(f.exits.map((p,i)=>[p.zone,{x:p.x+(i===0?1:-1),y:p.y}]));
  f.rooms.push(...f.safeRooms);path(f.exits[0],f.exits[1],range(s.main_path_width_min,s.main_path_width_max));

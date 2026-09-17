@@ -8,10 +8,23 @@ if(!Number.isInteger(c.stock_size)||c.stock_size<1||c.stock_size>24||!Number.isF
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'hub_conflict'});};
 const gardenWidth=c.garden_width??40,gardenHeight=c.garden_height??24;
 if(![gardenWidth,gardenHeight].every(n=>Number.isInteger(n)&&n>=20&&n<=80))throw Error('Invalid garden dimensions');
-export const dungeonPortals=[{x:6,y:4,name:"Princess' Quarters",target:'dive-quarters',style:'warp'},{x:14,y:4,name:'Dustbreak Desert',target:'dive-desert',style:'warp'}]; // Both travel halls share destination metadata; claims remain scoped to the actual dungeon route.
-export const hubRooms=['honeydew-lantern','littlebig-clockwork'].flatMap(parent=>['garden','beds','shops','dives'].map(kind=>({
- id:parent+'-'+kind,parent,kind,hub:parent==='honeydew-lantern'?'town':'littlebig_city',theme:parent==='honeydew-lantern'?'lantern':'clockwork',
- name:(parent==='honeydew-lantern'?'Lantern ':'Clockwork ')+({garden:'Garden',beds:'Resting Hall',shops:'Market Hall',dives:'Dive Hall'})[kind],
+export const hubCatalog=Object.freeze([
+ {id:'honeydew-lantern',hub:'town',theme:'lantern',prefix:'Lantern',name:'Lantern Court'},
+ {id:'littlebig-clockwork',hub:'littlebig_city',theme:'clockwork',prefix:'Clockwork',name:'Clockwork Coliseum'},
+ {id:'princess-rose',hub:'princess_quarters',theme:'rose',prefix:'Rose',name:'Rose Court'},
+]); // A single catalog supplies lobby identity, annexes and legacy entry validation.
+export function dungeonPortals(parent){
+ const quarters={x:6,y:4,name:"Princess' Quarters",target:'dive-quarters',style:'warp'};
+ const desert={x:14,y:4,name:'Dustbreak Desert',target:'dive-desert',style:'warp'};
+ const tundra={x:14,y:4,name:'Frostveil Tundra',target:'dive-tundra',style:'warp'};
+ if(parent==='princess-rose')return [quarters,tundra];
+ if(parent==='honeydew-lantern')return [quarters,desert,{...tundra,x:10,y:6}];
+ if(parent==='littlebig-clockwork')return [quarters,desert];
+ return [];
+} // Only adjacent routes are offered; keep the two established pad positions stable.
+export const hubRooms=hubCatalog.flatMap(root=>['garden','beds','shops','dives'].map(kind=>({
+ id:root.id+'-'+kind,parent:root.id,kind,hub:root.hub,theme:root.theme,
+ name:root.prefix+' '+({garden:'Garden',beds:'Resting Hall',shops:'Market Hall',dives:'Dive Hall'})[kind],
  width:kind==='garden'?gardenWidth:20,height:kind==='garden'?gardenHeight:12,
  spawn:kind==='garden'?{x:gardenWidth-2,y:Math.floor(gardenHeight/2)}:kind==='beds'?{x:1,y:6}:{x:10,y:9},
  exit:kind==='garden'?{x:gardenWidth-1,y:Math.floor(gardenHeight/2)-1,w:1,h:2,style:'gap',side:'right'}:kind==='beds'?{x:0,y:5,w:1,h:2,style:'gap',side:'left'}:{x:10,y:10,style:kind==='shops'?'stairs':'door'},
@@ -35,7 +48,7 @@ export function shopOffers(zone,shop,time){
   offers.push({id:`${day}-${slot}`,price,item});
  }return offers;
 } // Stock is shared, deterministic and inexhaustible; purchases never consume somebody else's offer.
-export function hubDefinition(z,time){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??{x:10,y:10,style:'stairs'},restTickMs:c.rest_tick_ms,portals:z.kind==='dives'?dungeonPortals:z.parent?[]:hubPortals(z.id),fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:shopOffers(z.id,hubData.shops.find(s=>s.id===f.id),time)}:f)};}
+export function hubDefinition(z,time){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??{x:10,y:10,style:'stairs'},restTickMs:c.rest_tick_ms,portals:z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z.id),fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:shopOffers(z.id,hubData.shops.find(s=>s.id===f.id),time)}:f)};}
 export function nearbyFixture(z,p,id,kind){const f=z.fixtures?.find(f=>f.id===id&&f.kind===kind);if(!f||Math.abs(f.x-p.x)+Math.abs(f.y-p.y)>1)fail('Stand next to that '+kind+'.');return f;}
 
 export function createHubPurchases(db,{now,origins}){
