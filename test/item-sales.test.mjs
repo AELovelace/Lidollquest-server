@@ -45,7 +45,7 @@ test('sales require server-issued rights, ignore forged prices, replay once and 
 
 test('bank rights survive transfers; imported bank copies and consumed/cross-character rights cannot sell',()=>{
  const f=fixture();try{
-  const item=f.buy(),copy=structuredClone(f.c.loadout);f.place(16,9);f.act('bank_deposit',{fixture:'bank',slot:1});
+  const item=f.buy(),copy=structuredClone(f.c.loadout);f.place(29,20);f.act('bank_deposit',{fixture:'bank',slot:1});
   f.act('loadout',{loadout:copy});assert.equal(f.c.loadout.inventory[1].online_item,undefined,'a banked token cannot be imported into the backpack');
   const bank=f.zones.read('token',f.c.id).bank.items[0];f.act('bank_withdraw',{fixture:'bank',bank_item:bank.id});
   assert.equal(f.c.loadout.inventory.at(-1).online_item,item.online_item);
@@ -59,7 +59,7 @@ test('bank rights survive transfers; imported bank copies and consumed/cross-cha
 
 test('the companion reads its own bank anywhere, pages without moving the in-game drawer, and needs no game session',()=>{
  const f=fixture();try{
-  const item=f.buy();f.place(16,9);f.act('bank_deposit',{fixture:'bank',slot:1});
+  const item=f.buy();f.place(29,20);f.act('bank_deposit',{fixture:'bank',slot:1});
   const stored=f.zones.read('token',f.c.id).bank.items[0];
   f.place(1,1); // Walk away from the bank fixture.
   const ingame=f.zones.read('token',f.c.id).bank;
@@ -82,7 +82,7 @@ test('the companion reads its own bank anywhere, pages without moving the in-gam
 
 test('bank sales pay once from anywhere, respect the daily cap, and reject forged or foreign tokens',()=>{
  const f=fixture();try{
-  const item=f.buy();f.place(16,9);f.act('bank_deposit',{fixture:'bank',slot:1});
+  const item=f.buy();f.place(29,20);f.act('bank_deposit',{fixture:'bank',slot:1});
   const stored=f.zones.read('token',f.c.id).bank.items[0];
   f.place(1,1);f.db.prepare('DELETE FROM quest_presence WHERE character_id=?').run(f.c.id);
   assert.throws(()=>f.act('bank_sell',{bank_item:stored.id,item_instance:'fake'}),/tracked online/);

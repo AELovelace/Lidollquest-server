@@ -11,7 +11,7 @@ test('personal bank: both halls, atomic replay, full storage/inventory, ownershi
  const command=(action,extra={})=>({action,controller:owner,request_id:randomUUID(),character_id:c?.id,revision:c?.revision,...extra});
  const send=input=>{time+=100;const result=zones.act(owner,input);c=result.character;return result;};
  const act=(action,extra)=>send(command(action,extra));
- const place=()=>db.prepare('UPDATE quest_presence SET x=16,y=9 WHERE character_id=?').run(c.id);
+ const place=()=>db.prepare('UPDATE quest_presence SET x=29,y=20 WHERE character_id=?').run(c.id);
  try{
   act('create',{name:'Alice'});const id=c.id;
   act('enter',{zone:'honeydew-lantern-shops',loadout:{player_info:{equipped_weapon:'iron_dagger'},inventory:[{item_id:'adult_food',name:'Food',custom:{quality:12}}]}});

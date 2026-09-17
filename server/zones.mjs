@@ -1,3 +1,4 @@
+import {publishPlayerActivity} from './player-activity.mjs';
 import {createHubDistricts} from './hub-districts.mjs';
 import {randomUUID,randomInt,createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
@@ -80,7 +81,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   const p=c?db.prepare('SELECT * FROM quest_presence WHERE owner=? AND character_id=? AND seen>?').get(i.owner,c.id,now()-30000):null;
   const peers=p?db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT 64').all(p.zone,now()-30000).filter(r=>enabled(r.owner)).map(r=>({id:r.character_id,name:r.name,avatar:JSON.parse(r.state).avatar??'player',x:r.x,y:r.y,stage:JSON.parse(r.state).run?.stage??0,fighting:JSON.parse(r.state).run?.phase==='fight'})):[];
   const chatArea=isDungeon(p?.zone)?dive.chatArea(c,p):p?{id:p.zone,name:zone(p.zone).name}:null;
-  const chat=chatArea?db.prepare('SELECT seq,name,text,character_id AS characterId FROM quest_chat WHERE zone=? AND created>? ORDER BY seq DESC LIMIT 40').all(chatArea.id,now()-86400000).reverse():[];
+  const chat=chatArea?db.prepare('SELECT seq,name,text,character_id AS characterId,owner LIKE \'activity:%\' AS activity FROM quest_chat WHERE zone=? AND created>? ORDER BY seq DESC LIMIT 40').all(chatArea.id,now()-86400000).reverse():[];
   const spent=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,Math.floor(now()/86400000))?.coins??0;
   const dungeon=dive.snapshot(c,p),definitions=[...questZones,...hubRooms].map(base=>{
    const z=zone(base.id),definition=hubDefinition(z,now());
@@ -116,7 +117,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   districts.refresh(); // Materialize monthly maps before the command transaction, keeping rollback and cached geometry consistent.
   dive.tick(); // Scheduled resets and enemy decisions precede command revision checks.
   if(!input||!identifier(input.request_id)||!identifier(input.controller))fail(400,'Supply a stable request ID and controller.');
-   if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance','creation','online_revision'].includes(k)))fail(400,'Unsupported zone input.');
+   if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance','item_id','creation','online_revision'].includes(k)))fail(400,'Unsupported zone input.');
   if(input.takeover!==undefined&&(input.action!=='enter'||typeof input.takeover!=='boolean'))fail(400,'Control can only be transferred by an explicit entry request.'); // Never let movement or a background heartbeat steal control.
   return atomic(()=>{
    identity(secret);
@@ -187,9 +188,10 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
      else {const portal=hubPortals(z.id).find(portal=>portal.target===destination.id);if(!portal||Math.abs(p.x-portal.x)+Math.abs(p.y-portal.y)>1)fail(409,'Stand next to the room entrance.');if(portal.style==='gap'&&!inHubGap(portal,p.x,p.y))fail(409,'Walk through the wall opening.');}
      visitHub(i,state,z,destination);
     }else if(input.action==='hub_talk'){
-     if(!z.district)fail(409,'There is nobody to talk to here.');
+     if(!z.district&&z.kind!=='shops')fail(409,'There is nobody to talk to here.');
      const npc=nearbyFixture(z,p,input.fixture,'npc');state.hubNotice=npc.name+': '+npc.line;state.hubNoticeAt=now();
-    }else if(input.action==='shop_buy'){purchases.prepare(i,c,state,z,p,input);}
+    }else if(input.action==='curse_remove'){purchases.prepareCurse(i,c,state,z,p,input);}
+    else if(input.action==='shop_buy'){purchases.prepare(i,c,state,z,p,input);}
     else if(input.action==='shop_sell'){
      if(state.run||!state.loadout)fail(409,'Leave combat before selling.');
      nearbyFixture(z,p,input.fixture,'shop');
@@ -287,6 +289,10 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
     if(!state.profileAppearance){const initial={gender:'Female',hair_style:1,hair_color:'Brown',has_breasts:false,nipple_style:0,penis_style:0,pubes_style:0};for(const key of appearanceFields)if(state.loadout.player_info[key]!==undefined)initial[key]=state.loadout.player_info[key];state.profileAppearance=initial;}
     Object.assign(state.loadout.player_info,{name:c.name},state.profileAppearance);
    } // Preserve the first imported paperdoll; subsequent changes require the paid makeover, including legacy-client imports.
+   publishPlayerActivity(db,{previous:JSON.parse(c.state),state,action:input.action,character:c,owner:i.owner,now,area:()=>{
+    const p=db.prepare('SELECT * FROM quest_presence WHERE character_id=? AND seen>?').get(c.id,now()-30000);
+    return p?(isDungeon(p.zone)?dive.chatArea({...c,state:JSON.stringify(state)},p)?.id:p.zone):null;
+   }}); // Emit shared notices in this same transaction, using the committed route/room rather than a client-supplied destination.
    if(JSON.stringify(state.loadout)!==JSON.stringify(JSON.parse(c.state).loadout))state.loadoutRevision=c.revision+1;
    c.revision++;c.state=JSON.stringify(state);db.prepare('UPDATE quest_characters SET revision=?,state=? WHERE id=?').run(c.revision,c.state,c.id);
    const receipt={request_id:input.request_id,revision:c.revision,action:input.action,result:state.lastResult};
