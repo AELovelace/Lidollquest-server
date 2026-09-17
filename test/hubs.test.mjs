@@ -31,8 +31,9 @@ test('both lobbies connect to three shared annexes with all six beds and eight s
      for(const bed of definition.fixtures){place(bed.x,bed.y+1);const next=structuredClone(c.loadout);next.player_info.playerHealth=30;act('hub_rest',{fixture:bed.id,loadout:next});assert.equal(c.loadout.player_info.playerHealth,30);}
     }
     if(definition.kind==='shops'){
-     assert.equal(definition.fixtures.length,8);
-     for(const merchant of definition.fixtures){assert.ok(merchant.offers.length);assert.ok(merchant.offers.every(o=>Number.isSafeInteger(o.price)&&o.price>0));}
+     assert.equal(definition.fixtures.filter(f=>f.kind==='shop').length,8);
+     assert.equal(definition.fixtures.filter(f=>f.kind==='bank').length,1);
+     for(const merchant of definition.fixtures.filter(f=>f.kind==='shop')){assert.ok(merchant.offers.length);assert.ok(merchant.offers.every(o=>Number.isSafeInteger(o.price)&&o.price>0));}
     }
     const committed=structuredClone(c.loadout);const reconnect=act('enter',{zone:lobby.id,loadout:{player_info:{},inventory:[]}});
     assert.equal(reconnect.zone,portal.target);assert.deepEqual(c.loadout,committed);

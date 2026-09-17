@@ -4,6 +4,7 @@ import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience} from './combat.mjs';
 import {hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases} from './hubs.mjs';
 import {createDive,DIVE_ZONE} from './dive.mjs';
+import {createBank} from './bank.mjs';
 
 export const questAvatars=Object.freeze(JSON.parse(readFileSync(new URL('./avatars.json',import.meta.url),'utf8')).map(Object.freeze)); // Generated from the game's NPC registry and authored object sprites.
 const avatarIds=new Set(questAvatars.map(a=>a.id));
@@ -36,6 +37,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
  CREATE TABLE IF NOT EXISTS quest_reward_days(owner TEXT NOT NULL,day INTEGER NOT NULL,coins INTEGER NOT NULL,PRIMARY KEY(owner,day));
  CREATE TABLE IF NOT EXISTS quest_request_limits(owner TEXT PRIMARY KEY,started INTEGER NOT NULL,count INTEGER NOT NULL);`);
  const purchases=createHubPurchases(db,{now});
+ const bank=createBank(db);
  const dive=createDive(db,{now,roll,adjust,...diveOptions});
  function identity(secret){const i=grant(secret,'wallet:read');if(i.client!=='lidollquest')fail(403,'These zones are for LiDollQuest.');return i;} // A registered app ID alone is not a player identity.
  function atomic(work){db.exec('BEGIN IMMEDIATE');try{const result=work();db.exec('COMMIT');return result;}catch(e){db.exec('ROLLBACK');throw e;}}
@@ -46,13 +48,14 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
  function snapshot(i,c=null){
   const p=c?db.prepare('SELECT * FROM quest_presence WHERE owner=? AND character_id=? AND seen>?').get(i.owner,c.id,now()-30000):null;
   const peers=p?db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT 64').all(p.zone,now()-30000).filter(r=>enabled(r.owner)).map(r=>({id:r.character_id,name:r.name,avatar:JSON.parse(r.state).avatar??'player',x:r.x,y:r.y,stage:JSON.parse(r.state).run?.stage??0,fighting:JSON.parse(r.state).run?.phase==='fight'})):[];
-  const chat=p?db.prepare('SELECT seq,name,text,character_id AS characterId FROM quest_chat WHERE zone=? AND created>? ORDER BY seq DESC LIMIT 40').all(p.zone,now()-86400000).reverse():[];
+  const chatArea=p?.zone===DIVE_ZONE?dive.chatArea(c,p):p?{id:p.zone,name:zone(p.zone).name}:null;
+  const chat=chatArea?db.prepare('SELECT seq,name,text,character_id AS characterId FROM quest_chat WHERE zone=? AND created>? ORDER BY seq DESC LIMIT 40').all(chatArea.id,now()-86400000).reverse():[];
   const spent=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,Math.floor(now()/86400000))?.coins??0;
   const dungeon=dive.snapshot(c,p),definitions=[...questZones,...hubRooms].map(z=>({...hubDefinition(z,now()),walls:Array.from({length:12},(_,y)=>Array.from({length:20},(_,x)=>blocked({...z,fixtures:[]},x,y)?1:0))})); // Fixtures block navigation separately; painting them as walls hides their artwork.
   if(dungeon.definition)definitions.push(dungeon.definition);
   const edition=c?JSON.parse(c.state).dive?.edition:null;
   const visiblePeers=p?.zone===DIVE_ZONE?peers.filter(peer=>JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(peer.id).state).dive?.edition===edition):peers;
-  return {serverTime:now(),loadoutSupport:true,combatVersion:2,controllerTakeover:true,dive:dungeon.dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,250-spent)};
+  return {serverTime:now(),loadoutSupport:true,combatVersion:2,controllerTakeover:true,dive:dungeon.dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,bank:bank.snapshot(c,p,p&&p.zone!==DIVE_ZONE?zone(p.zone):null),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,250-spent)};
  } // Snapshots expose only zone avatars and chat, never wallet credentials or account IDs.
  function read(secret,id){const i=identity(secret);limit(i.owner);dive.tick();return snapshot(i,id?character(i.owner,id):null);}
  function enemy(z,stage){return {name:z.enemies[Math.min(2,Math.floor((stage-1)/3))],hp:z.health+(stage-1)*5,maxHp:z.health+(stage-1)*5,turn:0};}
@@ -77,7 +80,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   grant(secret,'wallet:write');
   dive.tick(); // Scheduled resets and enemy decisions precede command revision checks.
   if(!input||!identifier(input.request_id)||!identifier(input.controller))fail(400,'Supply a stable request ID and controller.');
-  if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer'].includes(k)))fail(400,'Unsupported zone input.');
+  if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id'].includes(k)))fail(400,'Unsupported zone input.');
   if(input.takeover!==undefined&&(input.action!=='enter'||typeof input.takeover!=='boolean'))fail(400,'Control can only be transferred by an explicit entry request.'); // Never let movement or a background heartbeat steal control.
   return atomic(()=>{
    identity(secret);
@@ -98,8 +101,15 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
    if(!Number.isSafeInteger(input.revision)||input.revision!==c.revision)fail(409,'Character changed; refresh before choosing another action.');
    const state=JSON.parse(c.state);let p;
    if(state.pendingPurchase&&!['enter','chat'].includes(input.action))fail(409,'Your purchase is still settling. Reconnect to finish it.','purchase_pending');
+   if(state.worldTurnDue&&!['world_turn','enter','chat'].includes(input.action))fail(409,'Finish your pending exploration turn first.');
    const divePresence=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
-   if(dive.handles(input,divePresence)){
+   if(input.action==='world_turn'){
+    presence(i,c,input.controller);
+    if(!state.worldTurnDue||state.worldTurnDue.id!==input.world_turn_id||state.run)fail(409,'That exploration turn is no longer pending.');
+    const next=importLoadout(input.loadout);next.player_info.companions=state.loadout?.player_info.companions??{};
+    state.loadout=next;delete state.worldTurnDue;
+    db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(now(),c.id);
+   }else if(dive.handles(input,divePresence)){
     if(!['enter','dive_enter'].includes(input.action))presence(i,c,input.controller);
     if(input.action==='appearance')avatar(input.avatar);
     dive.act(i,c,state,input,divePresence);
@@ -108,7 +118,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
     const z=zone(state.hubVisit??input.zone),active=db.prepare('SELECT * FROM quest_presence WHERE owner=? AND seen>?').get(i.owner,now()-30000);
     if(active&&(active.controller!==input.controller||active.character_id!==c.id||active.grant_id!==i.id)&&input.takeover!==true)fail(409,'This account is active in another game window.','zone_controller_conflict'); // The owner may explicitly replace the single lease; ordinary retries never do.
     if(state.run&&state.run.zone!==z.id)fail(409,'Finish or forfeit the current arena run before changing zones.');
-    if(input.loadout!==undefined&&!state.run&&!state.hubVisit&&!state.pendingPurchase&&!(input.takeover===true&&state.loadout))state.loadout=importLoadout(input.loadout); // Fights and explicit takeovers resume committed items/HP; ordinary campaign entry may import a new loadout.
+    if(input.loadout!==undefined&&!state.run&&!state.hubVisit&&!state.pendingPurchase&&!state.worldTurnDue&&!(input.takeover===true&&state.loadout))state.loadout=importLoadout(input.loadout); // Resume committed turns before importing another campaign inventory.
     if(z.parent)state.hubVisit=z.id; // Explicit annex entry also resumes committed inventory after reconnect.
     if(input.combat_version===2&&state.run&&state.run.combatVersion!==2&&state.loadout)beginRound(state,z,roll); // Preserve the old opponent, HP and pot while upgrading an unfinished run.
     if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(z.id,now()-30000,i.owner).n>=64)fail(429,'This zone is full. Try again shortly.');
@@ -124,6 +134,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
      if(destination.parent)state.hubVisit=destination.id;else delete state.hubVisit;
      db.prepare('UPDATE quest_presence SET zone=?,x=10,y=9,moved=0 WHERE owner=?').run(destination.id,i.owner);
     }else if(input.action==='shop_buy'){purchases.prepare(i,c,state,z,p,input);}
+    else if(['bank_deposit','bank_withdraw','bank_page'].includes(input.action)){bank.transfer(c,state,z,p,input);}
     else if(input.action==='hub_rest'){
      if(state.run)fail(409,'Finish combat before resting.');nearbyFixture(z,p,input.fixture,'bed');
      if(state.restedAt&&now()-state.restedAt<hubData.config.rest_tick_ms)fail(429,'Wait for the next rest turn.');
@@ -159,6 +170,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
      if(now()-p.moved<200)fail(429,'Movement is too fast.');
      const directions={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]},d=Object.hasOwn(directions,input.direction)?directions[input.direction]:null;if(!d)fail(400,'Choose a movement direction.');
      const x=p.x+d[0],y=p.y+d[1];if(blocked(z,x,y))fail(409,'That tile is blocked.');db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE owner=?').run(x,y,now(),i.owner);
+     if(input.world_step===true&&state.loadout)state.worldTurnDue={id:randomUUID()}; // Acknowledged movement reserves exactly one campaign needs tick, recoverable after reconnect.
     }else if(input.action==='chat'){
      const text=clean(input.text,240);if(!text)fail(400,'Write a message first.');
      if(db.prepare('SELECT COUNT(*) AS n FROM quest_chat WHERE owner=? AND created>?').get(i.owner,now()-10000).n>=5)fail(429,'Wait a moment before sending another message.');

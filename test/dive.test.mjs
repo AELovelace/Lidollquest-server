@@ -22,6 +22,25 @@ function fixture(options={}){
  return {db,awards,loadout,player,place,near,engage,win,act,command,snap,as:n=>owner=n,advance:ms=>time+=ms,setTime:t=>time=Date.parse(t),restart:setup,raw:input=>zones.act('',input),tick:()=>zones.tick(),close:()=>db.close()};
 }
 
+test('area chat follows individual rooms and corridors, survives reconnect and excludes previous editions',()=>{
+ const f=fixture();try{
+  const a=f.player(),b=f.player('bob');f.as('alice');
+  const floor=f.snap(a).zones.find(z=>z.id===DIVE_ZONE),room=floor.rooms[1];
+  f.place(a,room);f.act(a,'chat',{text:'Room one'});
+  const area=f.snap(a).chatArea.id;
+  f.as('bob');assert.equal(f.snap(b).chat.length,0);
+  f.place(b,room);assert.equal(f.snap(b).chat[0].text,'Room one');assert.equal(f.snap(b).chatArea.id,area);
+  f.place(b,floor.rooms[2]);assert.equal(f.snap(b).chat.length,0);f.act(b,'chat',{text:'Room two'});
+  f.as('alice');assert.equal(f.snap(a).chat.length,1);assert.equal(f.snap(a).chat[0].text,'Room one');
+  f.restart();assert.equal(f.snap(a).chat[0].text,'Room one');
+  const corridor=pathTo(floor,floor.entrance,room).find(p=>!floor.rooms.some(r=>p.x>=r.x&&p.x<r.x+r.w&&p.y>=r.y&&p.y<r.y+r.h));
+  assert.ok(corridor);f.place(a,corridor);assert.equal(f.snap(a).chat.length,0);assert.match(f.snap(a).chatArea.name,/corridors/);
+  f.act(a,'chat',{text:'Hallway'});f.as('bob');f.place(b,corridor);assert.equal(f.snap(b).chat[0].text,'Hallway');
+  f.as('alice');f.setTime('2026-09-21T11:00:01Z');f.tick();f.act(a,'enter',{zone:'honeydew-lantern'});f.act(a,'dive_enter',{loadout:f.loadout});
+  const next=f.snap(a).zones.find(z=>z.id===DIVE_ZONE);f.place(a,next.rooms[1]);assert.notEqual(f.snap(a).chatArea.id,area);assert.equal(f.snap(a).chat.length,0);
+ }finally{f.close();}
+});
+
 test('weekly boundaries remain Monday 04:00 Pacific across both DST transitions',()=>{
  assert.deepEqual(weeklyWindow(Date.parse('2026-03-09T10:59:59Z')),{edition:'2026-03-02',start:Date.parse('2026-03-02T12:00:00Z'),ends:Date.parse('2026-03-09T11:00:00Z')});
  assert.equal(weeklyWindow(Date.parse('2026-03-09T11:00:00Z')).edition,'2026-03-09');
@@ -54,6 +73,20 @@ test('one hundred deterministic floors have reachable loot, safe entrances and t
   for(const p of f.decorations)for(let dy=0;dy<p.span_h;dy++)for(let dx=0;dx<p.span_w;dx++)assert.equal(walkable(f,p.x+dx,p.y+dy),!p.solid);
   assert.equal(dressFloor(diveData,f),false,'already dressed floors must not move loot or furniture');
  }
+});
+
+test('a pending Dive movement-needs turn resumes with its collected loot and settles once',()=>{
+ const f=fixture();try{
+  const id=f.player(),ch=f.snap(id).dive.chests[0];f.near(id,ch);
+  const p=f.snap(id).position,direction=ch.x>p.x?'east':ch.x<p.x?'west':ch.y>p.y?'south':'north';
+  let s=f.act(id,'move',{direction,world_step:true});assert.equal(s.character.loadout.inventory.length,1);assert.ok(s.character.worldTurnDue);
+  const due=s.character.worldTurnDue.id,item=s.character.loadout.inventory[0];
+  f.restart();s=f.act(id,'enter',{zone:DIVE_ZONE,loadout:f.loadout});assert.equal(s.character.worldTurnDue.id,due);assert.deepEqual(s.character.loadout.inventory,[item]);
+  const next=structuredClone(s.character.loadout);next.player_info.hunger=123;
+  const command=f.command(id,'world_turn',{world_turn_id:due,loadout:next});s=f.raw(command);
+  assert.equal(s.character.worldTurnDue,undefined);assert.deepEqual(s.character.loadout.inventory,[item]);assert.equal(s.character.loadout.player_info.hunger,123);
+  assert.deepEqual(f.raw(command).character.loadout.inventory,[item]);assert.equal(f.snap(id).dive.claimed,1);
+ }finally{f.close();}
 });
 
 test('room chests collect on contact once per character and stay unclaimed when inventory is full',()=>{

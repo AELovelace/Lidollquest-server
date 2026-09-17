@@ -10,7 +10,7 @@ export const hubRooms=['honeydew-lantern','littlebig-clockwork'].flatMap(parent=
  id:parent+'-'+kind,parent,kind,hub:parent==='honeydew-lantern'?'town':'littlebig_city',theme:parent==='honeydew-lantern'?'lantern':'clockwork',
  name:(parent==='honeydew-lantern'?'Lantern ':'Clockwork ')+({garden:'Garden',beds:'Resting Hall',shops:'Market Hall'})[kind],
  fixtures:kind==='beds'?hubData.beds.map((bed,i)=>({...bed,kind:'bed',x:3+(i%3)*6,y:3+Math.floor(i/3)*4})):
- kind==='shops'?hubData.shops.map((shop,i)=>({id:shop.id,name:shop.name,sprite:shop.sprite,kind:'shop',x:3+(i%4)*4,y:3+Math.floor(i/4)*4})):
+ kind==='shops'?[...hubData.shops.map((shop,i)=>({id:shop.id,name:shop.name,sprite:shop.sprite,kind:'shop',x:3+(i%4)*4,y:3+Math.floor(i/4)*4})),{id:'bank',name:'Bank',kind:'bank',x:17,y:9}]:
  [{id:'fountain',name:'',kind:'scenery',x:10,y:4},{id:'bench-left',name:'',kind:'scenery',x:6,y:6},{id:'bench-right',name:'',kind:'scenery',x:14,y:6}], // Match the game's native 32-pixel garden props with authoritative collision.
 }))); // Each hub has its own presence/chat scope; fixtures are presentation data, never campaign NPCs.
 export const hubPortals=parent=>[{x:3,y:8,name:'Garden',target:parent+'-garden'},{x:6,y:8,name:'Beds',target:parent+'-beds'},{x:15,y:8,name:'Shops',target:parent+'-shops'}];

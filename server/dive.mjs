@@ -28,6 +28,12 @@ export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFl
   p.explored=[...seen];saveProgress(c,f.edition,p);state.dive.position={x,y};
  } // Match the campaign's six-cell circular reveal and structural-wall line of sight.
  function current(){return getFloor(latest());}
+ function chatArea(c,p){
+  const state=JSON.parse(c.state),visit=state.dive,record=visit?getFloor(visit.edition):null;
+  if(!record)return null;
+  const index=record.floor.rooms.findIndex(room=>inside(room,p.x,p.y));
+  return {id:JSON.stringify([DIVE_ZONE,route,record.edition,record.depth,index]),name:index<0?'Quarters corridors':index===0?'Quarters entrance':'Quarters room '+(index+1)};
+ } // Scope by committed position, route, edition and floor; clients cannot choose another room's chat.
  function ensure(){
   if(!config.enabled)return;
   const window=weeklyWindow(now());if(getFloor(window.edition)||now()<retryAt)return;
@@ -95,7 +101,7 @@ export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFl
   const rnd=seeded(active.edition+':'+Math.floor(now()/seconds));
   for(const foe of f.enemies){
    if(foe.engaged||foe.respawnAt>now()||foe.type!=='diaper_fairy')continue;
-   const targets=players.filter(p=>{const s=JSON.parse(p.state);return s.dive?.edition===active.edition&&!s.run&&!(s.loadout?.player_info.stat_points>0)&&s.dive.safeUntil<=now()&&!inside(f.rooms[0],p.x,p.y);});
+   const targets=players.filter(p=>{const s=JSON.parse(p.state);return s.dive?.edition===active.edition&&!s.run&&!s.worldTurnDue&&!(s.loadout?.player_info.stat_points>0)&&s.dive.safeUntil<=now()&&!inside(f.rooms[0],p.x,p.y);});
    let target=null,best=null;
    for(const p of targets){const path=pathTo(f,foe,p,config.pursuit_steps);if(path&&(!best||path.length<best.length)){target=p;best=path;}}
    if(best?.length===0||best?.length===1){const c={id:target.character_id,owner:target.owner,revision:target.revision},s=JSON.parse(target.state);if(s.loadout?.player_info.playerHealth>0){start(c,s,active,foe);saveCharacter(c,s);target.state=c.state;target.revision=c.revision;}continue;}
@@ -153,8 +159,9 @@ export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFl
   if(action==='chat'){
    const text=String(input.text??'').replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069#]/g,' ').trim().slice(0,240);if(!text)fail('Write a message first.');
    if(db.prepare('SELECT COUNT(*) AS n FROM quest_chat WHERE owner=? AND created>?').get(i.owner,now()-10000).n>=5)fail('Wait before sending another message.');
-   db.prepare('INSERT INTO quest_chat(zone,owner,character_id,name,text,created) VALUES (?,?,?,?,?,?)').run(DIVE_ZONE,i.owner,c.id,c.name,text,now());
-   db.prepare('DELETE FROM quest_chat WHERE zone=? AND seq NOT IN (SELECT seq FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 100)').run(DIVE_ZONE,DIVE_ZONE);return;
+   const area=chatArea(c,p);
+   db.prepare('INSERT INTO quest_chat(zone,owner,character_id,name,text,created) VALUES (?,?,?,?,?,?)').run(area.id,i.owner,c.id,c.name,text,now());
+   db.prepare('DELETE FROM quest_chat WHERE zone=? AND seq NOT IN (SELECT seq FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 100)').run(area.id,area.id);return;
   }
   if(action==='appearance'){state.avatar=input.avatar;return;} // The zone adapter validates the cosmetic allowlist before dispatch.
   if(action==='allocate'){if(state.run||!['str','def','dex','int','cha'].includes(input.stat)||!(state.loadout.player_info.stat_points>0))fail('Choose an available stat point outside combat.');state.loadout.player_info[input.stat]++;state.loadout.player_info.stat_points--;if(input.stat==='int')state.loadout.player_mp_max=Math.max(0,10+state.loadout.player_info.int*5);return;}
@@ -171,6 +178,7 @@ export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFl
    const x=p.x+d[0],y=p.y+d[1];if(!walkable(f,x,y))fail('That tile is blocked.');const foe=f.enemies.find(e=>e.x===x&&e.y===y&&e.respawnAt<=now());
    if(foe){start(c,state,record,foe);return;}
    db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(x,y,now(),c.id);reveal(c,state,f,x,y);
+   if(input.world_step===true)state.worldTurnDue={id:randomUUID()}; // Loot commits first; the needs tick resumes from that inventory rather than overwriting the grant.
    const pickup=[...f.chests,...(f.pickups??[])].find(ch=>ch.x===x&&ch.y===y);if(pickup)claim(c,state,record,pickup,true);return; // Walking onto either a room chest or a loose pickup commits the same personal claim as Interact.
   }
   const z={id:DIVE_ZONE,theme:'princess_quarters',recovery:0};let result;
@@ -196,5 +204,5 @@ export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFl
    if(record.edition!==latest())back(c,state);
   }
  }
- return {tick,snapshot,handles,act};
+ return {tick,snapshot,handles,act,chatArea};
 } // All mutations run inside the zone command transaction; scheduled simulation owns its own transaction.
