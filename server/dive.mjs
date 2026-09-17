@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
-import {generateFloor,dressFloor,weeklyWindow,seeded,pathTo,walkable,inside} from './dive-generation.mjs';
+import {generateFloor,dressFloor,addFood,weeklyWindow,seeded,pathTo,walkable,inside} from './dive-generation.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience} from './combat.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
 
@@ -73,10 +73,10 @@ export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFl
  }
  function maintain(){
   ensure();let active=current();if(!active)return;
-  if((active.floor.dressingVersion??0)<(data.dressing_version??2)&&now()>=dressingRetryAt){
+  if(((active.floor.dressingVersion??0)<(data.dressing_version??2)||(active.floor.foodVersion??0)<(data.food_version??0))&&now()>=dressingRetryAt){
    try{
     const visitors=db.prepare('SELECT state FROM quest_characters WHERE state LIKE ?').all('%"dive":{%').map(c=>JSON.parse(c.state).dive).filter(d=>d?.edition===active.edition).map(d=>d.position);
-    const upgraded=clone(active);dressFloor(data,upgraded.floor,visitors);saveFloor(upgraded);active=upgraded;log('dive_dressing_upgraded',active.edition);
+    const upgraded=clone(active);dressFloor(data,upgraded.floor,visitors);addFood(data,upgraded.floor,visitors);saveFloor(upgraded);active=upgraded;log('dive_dressing_upgraded',active.edition);
    }catch(error){dressingRetryAt=now()+minutes;log('dive_dressing_failed',String(error));}
   } // Existing weekly chest claims and ongoing fights survive the additive scenery/pickup upgrade.
   for(const c of db.prepare('SELECT * FROM quest_characters WHERE state LIKE ?').all('%"dive":{%')){
@@ -118,7 +118,7 @@ export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFl
   const personal=progress(c,record.edition);if(personal.claimed.includes(chest.id)){if(automatic)return;fail('You already claimed this treasure this week.');}
   if(state.loadout.inventory.length>=config.inventory_capacity){if(automatic){state.dive.lootNotice='Inventory full. Treasure remains here.';state.dive.lootNoticeAt=now();return;}fail('Inventory full. This treasure remains unclaimed.');}
   if(!personal.rolls[chest.id]){
-   const rnd=seeded(`${route}:${record.edition}:1:${c.id}:${chest.id}`),items=chest.kind==='potion'?data.potion_pool:Object.keys(data.items).sort(),item=clone(data.items[items[rnd(items.length)]]);
+   const rnd=seeded(`${route}:${record.edition}:1:${c.id}:${chest.id}`),items=chest.kind==='food'?data.food_pool:chest.kind==='potion'?data.potion_pool:Object.keys(data.items).sort(),item=clone(data.items[items[rnd(items.length)]]);
    if(item.atk_min!==undefined){item.atk=item.atk_min+rnd(item.atk_max-item.atk_min+1);if(typeof item.desc==='string')item.desc=item.desc.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}
    personal.rolls[chest.id]=item;
   }

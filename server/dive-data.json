@@ -1,6 +1,7 @@
 {
   "version": 1,
   "dressing_version": 2,
+  "food_version": 1,
   "config": {
     "_comment": "Weekly server-owned pilot. Export with python/export_online_dive.py after editing; campaign generation is unchanged.",
     "enabled": true,
@@ -13,6 +14,7 @@
     "enemies_per_room": 2,
     "potions_per_room": 1,
     "treasures_per_room": 1,
+    "food_per_room": 1,
     "detail_area_per_object": 18,
     "details_max_per_room": 4,
     "enemy_respawn_seconds": 600,
@@ -21309,5 +21311,13 @@
     "mystery_potion_14",
     "stamina_potion",
     "stamina_potion"
+  ],
+  "food_pool": [
+    "baby_food",
+    "adult_food",
+    "trail_rations",
+    "dried_apple",
+    "cheese_sandwich",
+    "berry_tart"
   ]
 }

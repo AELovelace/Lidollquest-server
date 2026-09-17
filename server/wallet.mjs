@@ -10,7 +10,9 @@ export function createWalletClient({baseUrl,key,fetcher=fetch}={}){
   const signature=body?createHmac('sha256',key).update('lidollquest\n'+token+'\n'+JSON.stringify(body)).digest('hex'):null;
   const response=await fetcher(url,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json','X-Reward-Signature':signature}:{})},body:body?JSON.stringify(body):undefined,redirect:'error',signal:AbortSignal.timeout(5000)});
   const chunks=[];let size=0;for await(const chunk of response.body){size+=chunk.length;if(size>32768)throw Error('Wallet response too large');chunks.push(Buffer.from(chunk));}
-  const data=JSON.parse(Buffer.concat(chunks));if(!response.ok)throw Object.assign(Error(response.status===401?'Reconnect your linked account.':'The wallet is temporarily unavailable.'),{status:response.status,code:'wallet_unavailable'});return data;
+  const data=JSON.parse(Buffer.concat(chunks));
+  if(!response.ok&&body?.kind==='debit'&&response.status===409&&data.error_description==='Insufficient balance or account balance limit reached.')throw Object.assign(Error('Not enough LiDollCoins.'),{status:409,code:'insufficient_balance'});
+  if(!response.ok)throw Object.assign(Error(response.status===401?'Reconnect your linked account.':'The wallet is temporarily unavailable.'),{status:response.status,code:'wallet_unavailable'});return data;
  }
  return {
   async authenticate(token){

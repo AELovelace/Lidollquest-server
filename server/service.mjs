@@ -22,6 +22,14 @@ export function createQuestService({filename=':memory:',walletClient,now=Date.no
    }
   })();deliveries.set(owner,task);try{await task;}finally{deliveries.delete(owner);}
  }
+ const purchases=new Map();
+ async function settlePurchases(owner,token){
+  if(purchases.has(owner))return purchases.get(owner);
+  const task=(async()=>{for(const row of db.prepare("SELECT * FROM hub_purchases WHERE owner=? AND status='pending'").all(owner)){
+   try{const receipt=await walletClient.credit(token,{request_id:'shop-'+row.id,kind:'debit',amount:row.price});zones.completePurchase(row.id,true);db.prepare('UPDATE wallet_cache SET coins=? WHERE owner=?').run(receipt.balance,owner);}
+   catch(error){if(error.code==='insufficient_balance')zones.completePurchase(row.id,false);else log('quest_purchase_delivery_pending',row.id,error.status??'transport');}
+  }})();purchases.set(owner,task);try{await task;}finally{purchases.delete(owner);}
+ } // Retry a durable debit ID before accepting any subsequent inventory-changing command.
  let active=0;const perToken=new Map();
  const server=createServer((req,res)=>{void (async()=>{
   if(!req.url?.startsWith('/')||req.url.startsWith('//')||req.url.includes('\\'))throw Object.assign(Error('Invalid request target.'),{status:400});
@@ -38,10 +46,13 @@ export function createQuestService({filename=':memory:',walletClient,now=Date.no
     try{input=JSON.parse(Buffer.concat(chunks));}catch{throw Object.assign(Error('Invalid JSON.'),{status:400});}
    }
    const verified=await walletClient.authenticate(token);db.prepare('INSERT INTO wallet_cache VALUES (?,?) ON CONFLICT(owner) DO UPDATE SET coins=excluded.coins').run(verified.owner,verified.coins);
+   await settlePurchases(verified.owner,token);
    let result;identity=verified;try{result=req.method==='GET'?zones.read(token,url.searchParams.get('character_id')):zones.act(token,input);}catch(error){
     if(input?.action==='enter'&&error.status===409)log('quest_lobby_entry_conflict',error.message); // Fixed gameplay rejection text only: never log credentials, request bodies or inventories.
     throw error;
    }finally{identity=null;}
+   await settlePurchases(verified.owner,token);
+   const receipt=result.receipt;identity=verified;try{result=zones.read(token,result.character?.id);if(receipt)result.receipt=receipt;}finally{identity=null;}
    await flush(verified.owner,token);result.coins=db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(verified.owner).coins;
    result.pendingCoins=db.prepare('SELECT COALESCE(SUM(amount),0) AS n FROM reward_outbox WHERE owner=? AND delivered=0').get(verified.owner).n;
    res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));

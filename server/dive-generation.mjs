@@ -50,7 +50,7 @@ export function generateFloor(data,edition,depth=1){
   for(let j=0;j<2&&data.decorations.length;j++)f.decorations.push({...free(room),sprite:data.decorations[rnd(data.decorations.length)]});
  }
  const boss=free(far);f.enemies.push({id:'iris',type:'dive_iris',...boss,spawn:{...boss},engaged:null,respawnAt:0});
- dressFloor(data,f);validateFloor(f);return f;
+ dressFloor(data,f);addFood(data,f);validateFloor(f);return f;
 } // Generate one materialized floor; the route/edition/depth key is ready for later lazy descent.
 export function dressFloor(data,f,visitors=[]){
  if((f.dressingVersion??0)>=(data.dressing_version??2))return false;
@@ -97,3 +97,16 @@ export function validateFloor(f){
  if(!f.enemies.some(e=>e.id==='iris'))throw Error('Missing guardian');
  return true;
 }
+
+export function addFood(data,f,visitors=[]){
+ if((f.foodVersion??0)>=(data.food_version??0))return false;
+ const count=data.config.food_per_room??1,rnd=seeded(`${f.route}:${f.edition}:${f.depth}:food1`),key=p=>p.x+','+p.y;
+ if(!Number.isInteger(count)||count<0||count>4||!data.food_pool?.length||data.food_pool.some(id=>!data.items[id]))throw Error('Invalid food distribution');
+ const occupied=new Set([f.entrance,...f.enemies,...f.enemies.map(e=>e.spawn),...f.chests,...(f.pickups??[]),...visitors].map(key));
+ f.pickups??=[];
+ for(let i=1;i<f.rooms.length;i++)for(let n=0;n<count;n++){
+  const id=`food-${i}-${n}`;if(f.pickups.some(p=>p.id===id))continue;
+  const r=f.rooms[i],free=[];for(let y=r.y;y<r.y+r.h;y++)for(let x=r.x;x<r.x+r.w;x++)if(walkable(f,x,y)&&!occupied.has(x+','+y))free.push({x,y});
+  if(!free.length)throw Error('No safe food placement');const p=free[rnd(free.length)];occupied.add(key(p));f.pickups.push({id,kind:'food',...p,sprite:'sprItem'});
+ }f.foodVersion=data.food_version;return true;
+} // Supplement an active edition without moving its furniture, enemies or previously claimed treasure.
