@@ -29,7 +29,7 @@ export function shopOffers(zone,shop,time){
 export function hubDefinition(z,time){return {...z,restTickMs:c.rest_tick_ms,portals:z.parent?[]:hubPortals(z.id),fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:shopOffers(z.id,hubData.shops.find(s=>s.id===f.id),time)}:f)};}
 export function nearbyFixture(z,p,id,kind){const f=z.fixtures?.find(f=>f.id===id&&f.kind===kind);if(!f||Math.abs(f.x-p.x)+Math.abs(f.y-p.y)>1)fail('Stand next to that '+kind+'.');return f;}
 
-export function createHubPurchases(db,{now}){
+export function createHubPurchases(db,{now,origins}){
  db.exec(`CREATE TABLE IF NOT EXISTS hub_purchases(id TEXT PRIMARY KEY,owner TEXT NOT NULL,character_id TEXT NOT NULL,item TEXT NOT NULL,price INTEGER NOT NULL,status TEXT NOT NULL DEFAULT 'pending');
  CREATE INDEX IF NOT EXISTS hub_pending_purchases ON hub_purchases(owner,status);`);
  function prepare(i,char,state,z,p,input){
@@ -48,7 +48,7 @@ export function createHubPurchases(db,{now}){
    const char=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(row.character_id),state=JSON.parse(char.state);
    if(state.pendingPurchase!==id)throw Error('Purchase reservation missing');
    const item=JSON.parse(row.item);
-   if(paid)state.loadout.inventory.push(item);
+   if(paid)state.loadout.inventory.push(origins.mint(char.id,item,row.price)); // Resale never exceeds the actual paid price, even with discounted stock tuning.
    delete state.pendingPurchase;state.hubNotice=paid?`Bought ${item.name??item.item_id} for ${row.price} LiDollCoins.`:'Not enough LiDollCoins. Nothing was purchased.';state.hubNoticeAt=now();
    db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),char.id);
    db.prepare('UPDATE hub_purchases SET status=? WHERE id=?').run(paid?'delivered':'declined',id);db.exec('COMMIT');

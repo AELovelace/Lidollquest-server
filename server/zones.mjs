@@ -5,6 +5,7 @@ import {beginRound,clearEffects,readyTurn,combatAction,awardExperience} from './
 import {hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases} from './hubs.mjs';
 import {createDive,DIVE_ZONE} from './dive.mjs';
 import {createBank} from './bank.mjs';
+import {createItemOrigins} from './item-origins.mjs';
 
 export const questAvatars=Object.freeze(JSON.parse(readFileSync(new URL('./avatars.json',import.meta.url),'utf8')).map(Object.freeze)); // Generated from the game's NPC registry and authored object sprites.
 const avatarIds=new Set(questAvatars.map(a=>a.id));
@@ -36,9 +37,10 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
  CREATE INDEX IF NOT EXISTS quest_chat_zone ON quest_chat(zone,seq);
  CREATE TABLE IF NOT EXISTS quest_reward_days(owner TEXT NOT NULL,day INTEGER NOT NULL,coins INTEGER NOT NULL,PRIMARY KEY(owner,day));
  CREATE TABLE IF NOT EXISTS quest_request_limits(owner TEXT PRIMARY KEY,started INTEGER NOT NULL,count INTEGER NOT NULL);`);
- const purchases=createHubPurchases(db,{now});
+ const origins=createItemOrigins(db);
+ const purchases=createHubPurchases(db,{now,origins});
  const bank=createBank(db);
- const dive=createDive(db,{now,roll,adjust,...diveOptions});
+ const dive=createDive(db,{now,roll,adjust,origins,...diveOptions});
  function identity(secret){const i=grant(secret,'wallet:read');if(i.client!=='lidollquest')fail(403,'These zones are for LiDollQuest.');return i;} // A registered app ID alone is not a player identity.
  function atomic(work){db.exec('BEGIN IMMEDIATE');try{const result=work();db.exec('COMMIT');return result;}catch(e){db.exec('ROLLBACK');throw e;}}
  function limit(owner){const time=now();db.prepare('DELETE FROM quest_request_limits WHERE started<=?').run(time-60000);const r=db.prepare('INSERT INTO quest_request_limits VALUES (?,?,1) ON CONFLICT(owner) DO UPDATE SET count=count+1 RETURNING count').get(owner,time);if(r.count>600)fail(429,'Please slow down.');}
@@ -80,7 +82,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   grant(secret,'wallet:write');
   dive.tick(); // Scheduled resets and enemy decisions precede command revision checks.
   if(!input||!identifier(input.request_id)||!identifier(input.controller))fail(400,'Supply a stable request ID and controller.');
-  if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id'].includes(k)))fail(400,'Unsupported zone input.');
+   if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance'].includes(k)))fail(400,'Unsupported zone input.');
   if(input.takeover!==undefined&&(input.action!=='enter'||typeof input.takeover!=='boolean'))fail(400,'Control can only be transferred by an explicit entry request.'); // Never let movement or a background heartbeat steal control.
   return atomic(()=>{
    identity(secret);
@@ -134,6 +136,18 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
      if(destination.parent)state.hubVisit=destination.id;else delete state.hubVisit;
      db.prepare('UPDATE quest_presence SET zone=?,x=10,y=9,moved=0 WHERE owner=?').run(destination.id,i.owner);
     }else if(input.action==='shop_buy'){purchases.prepare(i,c,state,z,p,input);}
+    else if(input.action==='shop_sell'){
+     if(state.run||!state.loadout)fail(409,'Leave combat before selling.');
+     nearbyFixture(z,p,input.fixture,'shop');
+     const inventory=state.loadout.inventory,item=Number.isInteger(input.slot)?inventory[input.slot]:null,row=origins.sale(c,item);
+     if(!row||row.id!==input.item_instance)fail(409,'Only tracked online loot and purchases can be sold.');
+     const day=Math.floor(now()/86400000),used=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,day)?.coins??0;
+     if(row.price>Math.max(0,250-used))fail(409,'Daily coin limit reached. Keep this item and sell it after the UTC reset.');
+     inventory.splice(input.slot,1);db.prepare("UPDATE quest_item_origins SET status='sold' WHERE id=?").run(row.id);
+     adjust(i.owner,'coins',row.price,'sale-'+row.id,'LiDollQuest item sale'); // Item removal, one payout entitlement and its receipt commit atomically.
+     db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=coins+excluded.coins').run(i.owner,day,row.price);
+     state.hubNotice='Sold '+(JSON.parse(row.item).name??item.item_id)+' for '+row.price+' LiDollCoins.';state.hubNoticeAt=now();
+    }
     else if(['bank_deposit','bank_withdraw','bank_page'].includes(input.action)){bank.transfer(c,state,z,p,input);}
     else if(input.action==='hub_rest'){
      if(state.run)fail(409,'Finish combat before resting.');nearbyFixture(z,p,input.fixture,'bed');
@@ -211,6 +225,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
     if(input.action!=='leave')db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);
    }
    if(state.run)syncRunHealth(state,state.run);
+   origins.reconcile(c,state,JSON.parse(c.state)); // Strip forged/duplicate item markers on every imported loadout and persist equipment/bank transitions.
    c.revision++;c.state=JSON.stringify(state);db.prepare('UPDATE quest_characters SET revision=?,state=? WHERE id=?').run(c.revision,c.state,c.id);
    const receipt={request_id:input.request_id,revision:c.revision,action:input.action,result:state.lastResult};
    db.prepare('INSERT INTO quest_commands VALUES (?,?,?,?,?)').run(c.id,input.request_id,c.revision,fingerprint,JSON.stringify(receipt));

@@ -301,6 +301,14 @@ Snapshot `chatArea` identifies the current room. Every hub annex/lobby has separ
 
 Banks expose 16 stored items per response, plus `page`, `pages` and `pageSize`. `bank_page` accepts a zero-based `page` and the bank fixture; this avoids sending all 512 item structs through the existing 256 KiB gateway response limit.
 
+## Shared shop sales
+
+Deploy this service before the rebuilt game. Startup adds `quest_item_origins` without resetting saves. Only new paid purchases and dungeon loot receive sale identities; existing or imported untracked items remain unsellable. `shop_sell` takes `fixture`, committed inventory `slot`, and `item_instance` plus the standard controller, revision and request ID. The server determines the price: half authored value (floor, minimum 1), cursed items 1, never above the original paid purchase price. Quest/zero-value items receive no sale right.
+
+Sales use the account-wide 250-coin UTC daily earnings allowance and require room for the entire quote; rejection leaves the item intact. Inventory removal, retired identity, cap accounting and durable wallet outbox entry commit together. Payment transport failures retry the same outbox entitlement after reconnect/restart. Tokens are character-bound, price edits are ignored, and sold/consumed/duplicated/banked tokens cannot be imported to mint another sale. Reconciliation retains identities through bank transfers and normal online equipment changes, including dresses and identical-copy swaps. Old clients remain compatible; stock or loot predating this update is not retroactively certified.
+
+Run `npm test` for provenance, sales, cap, retry and restart coverage; the game checkout's `ps/Test-OnlineZones.ps1 -SalesOnly` exercises real Buy/Sell panels against this service and the tracker wallet.
+
 ## Player needs and exploration
 
 New clients attach `world_step: true` to movement. A successful step reserves `worldTurnDue` after any loot grant. The client evaluates the existing campaign needs routines and popup choices, then submits `world_turn` with the matching `world_turn_id` and complete loadout. Inventory mutations and enemy engagement wait for that result. Reconnect preserves the reserved turn and committed inventory; receipt replay cannot apply a turn twice. `loadout.world` persists the turn clock, crawling/wet-only flags and delayed accident popup state. These player effects remain client-trusted, like existing campaign imports; coin rewards remain server-controlled. Legacy clients can continue their existing movement protocol during rollout.

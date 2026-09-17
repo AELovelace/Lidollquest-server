@@ -115,6 +115,7 @@ test('potions and treasure are personal, persistent, replay-safe and remain avai
   assert.throws(()=>f.act(a,'dive_claim',{chest:p.id}),/Inventory full/);
   f.act(a,'loadout',{loadout:f.loadout});const input=f.command(a,'dive_claim',{chest:p.id}),s=f.raw(input),item=s.character.loadout.inventory[0];
   assert.ok(diveData.potion_pool.includes(item.item_id));assert.equal(s.dive.pickupsClaimed,1);assert.equal(s.dive.claimed,0);
+  assert.ok(item.online_item);assert.ok(item.online_sell_price>0); // Actual dungeon grants, not only shop purchases, receive durable provenance.
   assert.deepEqual(f.raw(input).character.loadout.inventory,[item]);f.restart();assert.deepEqual(f.snap(a).character.loadout.inventory,[item]);
   const b=f.player('bob','littlebig-clockwork');assert.equal(f.snap(b).dive.pickupsClaimed,0);f.near(b,p);const bp=f.snap(b).position;
   const walked=f.act(b,'move',{direction:p.x>bp.x?'east':p.x<bp.x?'west':p.y>bp.y?'south':'north'});assert.equal(walked.dive.pickupsClaimed,1);assert.ok(diveData.potion_pool.includes(walked.character.loadout.inventory[0].item_id));

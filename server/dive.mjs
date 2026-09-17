@@ -10,7 +10,7 @@ const fail=(message,code='dive_conflict')=>{throw Object.assign(Error(message),{
 const clone=structuredClone;
 const seconds=1000,minutes=60000;
 
-export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFloor,log=console.warn}){
+export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn}){
  const config=data.config,route=config.route;
  db.exec(`CREATE TABLE IF NOT EXISTS dive_editions(route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,starts INTEGER NOT NULL,ends INTEGER NOT NULL,content TEXT NOT NULL,updated INTEGER NOT NULL,PRIMARY KEY(route,edition,depth));
  CREATE TABLE IF NOT EXISTS dive_progress(character_id TEXT NOT NULL,route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,state TEXT NOT NULL,PRIMARY KEY(character_id,route,edition,depth));`);
@@ -128,7 +128,7 @@ export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFl
    if(item.atk_min!==undefined){item.atk=item.atk_min+rnd(item.atk_max-item.atk_min+1);if(typeof item.desc==='string')item.desc=item.desc.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}
    personal.rolls[chest.id]=item;
   }
-  const item=clone(personal.rolls[chest.id]);state.loadout.inventory.push(item);personal.claimed.push(chest.id);saveProgress(c,record.edition,personal);
+  const item=clone(personal.rolls[chest.id]);if(origins)origins.mint(c.id,item);state.loadout.inventory.push(item);personal.claimed.push(chest.id);saveProgress(c,record.edition,personal);
   state.dive.lootNotice='Found '+(item.name??item.item_id)+'.';state.dive.lootNoticeAt=now();
  } // Inventory, deterministic item roll and personal claim commit together inside the zone transaction.
  function handles(input,p){return input.action==='dive_enter'||input.action==='enter'&&input.zone===DIVE_ZONE||p?.zone===DIVE_ZONE;}
