@@ -1,3 +1,4 @@
+import {districtData} from './hub-districts.mjs';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {seeded} from './dive-generation.mjs';
@@ -9,7 +10,7 @@ if(!Number.isInteger(c.stock_size)||c.stock_size<1||c.stock_size>24||!Number.isF
 export const DAILY_COIN_CAP=c.daily_coin_cap??250;
 if(!Number.isInteger(DAILY_COIN_CAP)||DAILY_COIN_CAP<1||DAILY_COIN_CAP>100000)throw Error('Invalid daily coin cap'); // One account-wide UTC earnings allowance shared by arena payouts, dungeon bosses and item sales.
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'hub_conflict'});};
-const gardenWidth=c.garden_width??40,gardenHeight=c.garden_height??24;
+const gardenWidth=districtData.width,gardenHeight=districtData.height;
 if(![gardenWidth,gardenHeight].every(n=>Number.isInteger(n)&&n>=20&&n<=80))throw Error('Invalid garden dimensions');
 export const hubCatalog=Object.freeze([
  {id:'honeydew-lantern',hub:'town',theme:'lantern',prefix:'Lantern',name:'Lantern Court'},
@@ -25,19 +26,18 @@ export function dungeonPortals(parent){
 } // Only adjacent routes are offered; keep the two established pad positions stable.
 export const hubRooms=hubCatalog.flatMap(root=>['garden','beds','shops','dives'].map(kind=>({
  id:root.id+'-'+kind,parent:root.id,kind,hub:root.hub,theme:root.theme,
- name:root.prefix+' '+({garden:'Garden',beds:'Resting Hall',shops:'Market Hall',dives:'Dive Hall'})[kind],
+ name:kind==='garden'?districtData.districts.find(d=>d.hub===root.id).name:root.prefix+' '+({garden:'Garden',beds:'Resting Hall',shops:'Market Hall',dives:'Dive Hall'})[kind],
  width:kind==='garden'?gardenWidth:20,height:kind==='garden'?gardenHeight:12,
  spawn:kind==='garden'?{x:gardenWidth-2,y:Math.floor(gardenHeight/2)}:kind==='beds'?{x:1,y:6}:{x:10,y:9},
  exit:kind==='garden'?{x:gardenWidth-1,y:Math.floor(gardenHeight/2)-1,w:1,h:2,style:'gap',side:'right'}:kind==='beds'?{x:0,y:5,w:1,h:2,style:'gap',side:'left'}:{x:10,y:10,style:kind==='shops'?'stairs':'door'},
  fixtures:kind==='beds'?hubData.beds.map((bed,i)=>({...bed,kind:'bed',x:3+(i%3)*6,y:3+Math.floor(i/3)*4})):
  kind==='shops'?[...hubData.shops.map((shop,i)=>({id:shop.id,name:shop.name,sprite:shop.sprite,kind:'shop',x:3+(i%4)*4,y:3+Math.floor(i/4)*4})),{id:'bank',name:'Bank',kind:'bank',x:17,y:9}]:
- kind==='garden'?[{id:'fountain',name:'',kind:'scenery',sprite:'sprTownEnvFountain',x:Math.floor(gardenWidth/2),y:Math.floor(gardenHeight/3)},
- ...[[0.3,0.5],[0.7,0.5],[0.2,0.75],[0.8,0.75]].map(([x,y],i)=>({id:'bench-'+i,name:'',kind:'scenery',sprite:'sprTownEnvBench',x:Math.floor(gardenWidth*x),y:Math.floor(gardenHeight*y)}))]:[], // Spread social seating across the larger garden; clients use the same fixture coordinates as collision.
+ [], // Monthly districts supply their own persisted scenery and NPC fixtures.
 }))); // Each hub has its own presence/chat scope; fixtures are presentation data, never campaign NPCs.
-export const hubPortals=parent=>[{x:0,y:5,w:1,h:2,name:'Garden',target:parent+'-garden',style:'gap',side:'left'},{x:19,y:5,w:1,h:2,name:'Beds',target:parent+'-beds',style:'gap',side:'right'},{x:15,y:8,name:'Shops',target:parent+'-shops',style:'stairs'},{x:10,y:2,name:'Dungeon Dive',target:parent+'-dives',style:'door'}];
+export const hubPortals=parent=>[{x:0,y:5,w:1,h:2,name:districtData.districts.find(d=>d.hub===parent)?.name??'District',target:parent+'-garden',style:'gap',side:'left'},{x:19,y:5,w:1,h:2,name:'Beds',target:parent+'-beds',style:'gap',side:'right'},{x:15,y:8,name:'Shops',target:parent+'-shops',style:'stairs'},{x:10,y:2,name:'Dungeon Dive',target:parent+'-dives',style:'door'}];
 export const inHubGap=(gap,x,y)=>x>=gap.x&&x<gap.x+(gap.w??1)&&y>=gap.y&&y<gap.y+(gap.h??1);
 export const hubGaps=z=>z.parent?(z.exit?.style==='gap'?[{...z.exit,target:z.parent}]:[]):hubPortals(z.id).filter(p=>p.style==='gap'); // Only declared wall openings are traversable; all other perimeter cells remain walls.
-export const hubBlocked=(z,x,y)=>z.fixtures?.some(f=>f.x===x&&f.y===y)??false;
+export const hubBlocked=(z,x,y)=>z.fixtures?.some(f=>f.solid!==false&&x>=f.x&&y>=f.y&&x<f.x+(f.span_w??1)&&y<f.y+(f.span_h??1))??false;
 export function shopOffers(zone,shop,time){
  const day=Math.floor(time/86400000),rnd=seeded(`${zone}:${shop.id}:${day}`),pool=[...shop.pool],offers=[];
  // Keep a meal available at the general merchant and apothecary every day.

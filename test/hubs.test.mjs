@@ -27,9 +27,9 @@ test('both lobbies connect to four shared annexes with quadruple gardens, six be
     assert.throws(()=>act('start'),/lobby/);
     const definition=room.zones.find(z=>z.id===portal.target);
     if(definition.kind==='garden'){
-     assert.equal(definition.width*definition.height,20*12*4);assert.equal(definition.exit.style,'gap');
-     const fountain=definition.fixtures[0];place(fountain.x,fountain.y+1);assert.throws(()=>act('move',{direction:'north'}),/blocked/);
-     place(35,20);assert.equal(act('move',{direction:'east'}).position.x,36); // The extra garden space is playable, not merely painted beyond old movement bounds.
+     assert.equal(definition.width*definition.height,50*50);assert.equal(definition.exit.style,'gap');
+     const fountain=definition.fixtures.find(f=>f.kind==='npc');place(fountain.x,fountain.y+1);assert.throws(()=>act('move',{direction:'north'}),/blocked/);
+     place(48,25);assert.equal(act('move',{direction:'west'}).position.x,47); // The extra garden space is playable, not merely painted beyond old movement bounds.
      place(definition.width-2,20);assert.throws(()=>act('move',{direction:'east'}),/blocked/);
     }
     if(definition.kind==='beds'){

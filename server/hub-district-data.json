@@ -1,0 +1,317 @@
+{
+  "_comment": "Safe monthly replacements for the online gardens. Export with python/export_online_districts.py. Existing garden IDs remain stable for saves.",
+  "version": 1,
+  "width": 50,
+  "height": 50,
+  "reset_hour": 4,
+  "scenery_count": 60,
+  "districts": [
+    {
+      "hub": "princess-rose",
+      "name": "The Castle",
+      "style": "castle",
+      "tileset": "tilePrincessQuarters",
+      "scenery": [
+        {
+          "sprite": "sprPQDetailRoyalBanner",
+          "span_w": 1,
+          "span_h": 3,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprPQDetailCanopyBed",
+          "span_w": 3,
+          "span_h": 3,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprPQDetailVanity",
+          "span_w": 2,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprPQDetailWardrobe",
+          "span_w": 2,
+          "span_h": 3,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprPQDetailWritingDesk",
+          "span_w": 2,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprPQDetailLaceRug",
+          "span_w": 3,
+          "span_h": 2,
+          "solid": false,
+          "glow": false
+        },
+        {
+          "sprite": "sprPQDetailPottedRose",
+          "span_w": 1,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprPQDetailOilLamp",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprPQDetailDollhouse",
+          "span_w": 2,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprPQDetailMusicBox",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        }
+      ],
+      "npcs": [
+        {
+          "avatar": "objNPCGigglyGuard",
+          "name": "Castle Greeter",
+          "line": "Welcome to The Castle. The rooms change each month, but the passage back to Rose Court is always on the east wall."
+        },
+        {
+          "avatar": "objNPCNursemaid",
+          "name": "Royal Housekeeper",
+          "line": "The reading rooms and rose parlours are open to everyone. Take your time and make yourself comfortable."
+        },
+        {
+          "avatar": "objNPCTailor",
+          "name": "Court Tailor",
+          "line": "The court has a new arrangement every month. Proper shopping and the shared bank are through the hub's Market Hall."
+        },
+        {
+          "avatar": "objNPCGuard",
+          "name": "Hall Steward",
+          "line": "No battles in these halls. This is a place to meet your friends between adventures."
+        }
+      ]
+    },
+    {
+      "hub": "honeydew-lantern",
+      "name": "Market Square",
+      "style": "market",
+      "tileset": "tileTown",
+      "scenery": [
+        {
+          "sprite": "sprTownEnvMarketStall",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprTownEnvKiosk",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprTownEnvTestCanopyStand",
+          "span_w": 3,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprTownEnvTestClockTower",
+          "span_w": 2,
+          "span_h": 3,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprTownEnvFountain",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprTownEnvBench",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprTownEnvLampPost",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprTownEnvNoticeBoard",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprTownEnvCrateStack",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprTownEnvTestHandcart",
+          "span_w": 2,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprTownEnvTestPlanterRow",
+          "span_w": 3,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        }
+      ],
+      "npcs": [
+        {
+          "avatar": "objNPCMerchant",
+          "name": "Market Host",
+          "line": "Welcome to Market Square! Follow the broad paths to find the stalls, or head east to return to Lantern Court."
+        },
+        {
+          "avatar": "objNPCCartMerchant",
+          "name": "Travelling Trader",
+          "line": "We rearrange the square on the first of every month. There is always somewhere new to meet."
+        },
+        {
+          "avatar": "objNPCTailor",
+          "name": "Ribbon Seller",
+          "line": "I'm displaying samples today. The hub's Market Hall has the merchants who can take your orders."
+        },
+        {
+          "avatar": "objNPCBarmaid",
+          "name": "Tea Stall Host",
+          "line": "Pull up beside a friend and enjoy the village bustle. There are no monsters to interrupt you here."
+        }
+      ]
+    },
+    {
+      "hub": "littlebig-clockwork",
+      "name": "Red Light District",
+      "style": "nightlife",
+      "tileset": "tileCity",
+      "scenery": [
+        {
+          "sprite": "sprCityFacadeStorefront",
+          "span_w": 2,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprCityFacadeSmall1",
+          "span_w": 1,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprCityFacadeSmall2",
+          "span_w": 1,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprCityFacadeMed1",
+          "span_w": 2,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprCityFacadeApartment",
+          "span_w": 2,
+          "span_h": 3,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprCityShopAwning",
+          "span_w": 2,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprCityLamp",
+          "span_w": 1,
+          "span_h": 2,
+          "solid": true,
+          "glow": true
+        },
+        {
+          "sprite": "sprCityStreetSign",
+          "span_w": 1,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprCitySidewalkPlanter",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprTownEnvBench",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        }
+      ],
+      "npcs": [
+        {
+          "avatar": "objNPCBarmaid",
+          "name": "Velvet Lounge Host",
+          "line": "Welcome to the Red Light District. Enjoy the warm lights and a quiet chat. The east passage leads back to Clockwork Coliseum."
+        },
+        {
+          "avatar": "objLBCCivicNPC01",
+          "name": "Evening Guide",
+          "line": "Everyone gets to set their own pace here. Ask before joining someone's evening."
+        },
+        {
+          "avatar": "objLBCCivicNPC03",
+          "name": "Night Market Regular",
+          "line": "New streets, familiar faces. The neighbourhood changes its layout at the start of each month."
+        },
+        {
+          "avatar": "objNPCGuard",
+          "name": "Night Porter",
+          "line": "These streets are a safe place to gather. Leave the arena battles inside the Coliseum."
+        }
+      ]
+    }
+  ]
+}
