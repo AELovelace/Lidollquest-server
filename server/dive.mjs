@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
-import {generateFloor,weeklyWindow,seeded,pathTo,walkable,inside} from './dive-generation.mjs';
+import {generateFloor,dressFloor,weeklyWindow,seeded,pathTo,walkable,inside} from './dive-generation.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience} from './combat.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
 
@@ -14,7 +14,7 @@ export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFl
  const config=data.config,route=config.route;
  db.exec(`CREATE TABLE IF NOT EXISTS dive_editions(route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,starts INTEGER NOT NULL,ends INTEGER NOT NULL,content TEXT NOT NULL,updated INTEGER NOT NULL,PRIMARY KEY(route,edition,depth));
  CREATE TABLE IF NOT EXISTS dive_progress(character_id TEXT NOT NULL,route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,state TEXT NOT NULL,PRIMARY KEY(character_id,route,edition,depth));`);
- let lastTick=-Infinity,retryAt=0;
+ let lastTick=-Infinity,retryAt=0,dressingRetryAt=0;
  const getFloor=edition=>{const row=db.prepare('SELECT * FROM dive_editions WHERE route=? AND edition=? AND depth=1').get(route,edition);return row?{...row,floor:JSON.parse(row.content)}:null;};
  const latest=()=>db.prepare('SELECT edition FROM dive_editions WHERE route=? ORDER BY starts DESC LIMIT 1').get(route)?.edition;
  function saveFloor(record){db.prepare('UPDATE dive_editions SET content=?,updated=? WHERE route=? AND edition=? AND depth=1').run(JSON.stringify(record.floor),record.updated,route,record.edition);}
@@ -23,7 +23,7 @@ export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFl
  function saveCharacter(c,state){c.revision++;c.state=JSON.stringify(state);db.prepare('UPDATE quest_characters SET revision=?,state=? WHERE id=?').run(c.revision,c.state,c.id);}
  function reveal(c,state,f,x,y){
   const p=progress(c,f.edition),seen=new Set(p.explored);
-  function visible(tx,ty){let px=x,py=y,dx=Math.abs(tx-x),dy=Math.abs(ty-y),err=dx-dy;for(let n=0;n<dx+dy+2;n++){if(px===tx&&py===ty)return true;const e=err*2;if(e>-dy){err-=dy;px+=Math.sign(tx-x);}if(e<dx){err+=dx;py+=Math.sign(ty-y);}if(px===tx&&py===ty)return true;if(!walkable(f,px,py))return false;}return false;}
+  function visible(tx,ty){let px=x,py=y,dx=Math.abs(tx-x),dy=Math.abs(ty-y),err=dx-dy;for(let n=0;n<dx+dy+2;n++){if(px===tx&&py===ty)return true;const e=err*2;if(e>-dy){err-=dy;px+=Math.sign(tx-x);}if(e<dx){err+=dx;py+=Math.sign(ty-y);}if(px===tx&&py===ty)return true;if(f.walls[py]?.[px]!==0)return false;}return false;} // Furniture shares the campaign's transparent CELL_PROP sight rules.
   for(let yy=Math.max(0,y-6);yy<=Math.min(f.height-1,y+6);yy++)for(let xx=Math.max(0,x-6);xx<=Math.min(f.width-1,x+6);xx++)if((xx-x)**2+(yy-y)**2<=36&&visible(xx,yy))seen.add(yy*f.width+xx);
   p.explored=[...seen];saveProgress(c,f.edition,p);state.dive.position={x,y};
  } // Match the campaign's six-cell circular reveal and structural-wall line of sight.
@@ -73,6 +73,12 @@ export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFl
  }
  function maintain(){
   ensure();let active=current();if(!active)return;
+  if((active.floor.dressingVersion??0)<(data.dressing_version??2)&&now()>=dressingRetryAt){
+   try{
+    const visitors=db.prepare('SELECT state FROM quest_characters WHERE state LIKE ?').all('%"dive":{%').map(c=>JSON.parse(c.state).dive).filter(d=>d?.edition===active.edition).map(d=>d.position);
+    const upgraded=clone(active);dressFloor(data,upgraded.floor,visitors);saveFloor(upgraded);active=upgraded;log('dive_dressing_upgraded',active.edition);
+   }catch(error){dressingRetryAt=now()+minutes;log('dive_dressing_failed',String(error));}
+  } // Existing weekly chest claims and ongoing fights survive the additive scenery/pickup upgrade.
   for(const c of db.prepare('SELECT * FROM quest_characters WHERE state LIKE ?').all('%"dive":{%')){
    const state=JSON.parse(c.state);if(!state.dive)continue;
    const old=state.dive.edition!==active.edition,record=getFloor(state.dive.edition),run=state.run,p=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
@@ -103,11 +109,22 @@ export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFl
  function tick(){if(now()-lastTick<seconds)return;lastTick=now();db.exec('BEGIN IMMEDIATE');try{maintain();db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');lastTick=-Infinity;log('dive_tick_failed',String(error));}}
  function snapshot(c,p){
   const state=c?JSON.parse(c.state):null,record=state?.dive?getFloor(state.dive.edition):current(),personal=c&&record?progress(c,record.edition):null;
-  const summary={enabled:config.enabled&&!!record,version:1,route,edition:record?.edition??'',resetsAt:record?.ends??weeklyWindow(now()).ends,completed:personal?.completed??false,claimed:personal?.claimed.length??0,total:record?.floor.chests.length??0,claimableCoins:personal?.completed?Math.max(0,config.boss_coins-personal.coinsPaid):0};
+  const summary={enabled:config.enabled&&!!record,version:1,route,edition:record?.edition??'',resetsAt:record?.ends??weeklyWindow(now()).ends,completed:personal?.completed??false,claimed:record?.floor.chests.filter(ch=>personal?.claimed.includes(ch.id)).length??0,total:record?.floor.chests.length??0,pickupsClaimed:(record?.floor.pickups??[]).filter(ch=>personal?.claimed.includes(ch.id)).length,pickupsTotal:record?.floor.pickups?.length??0,claimableCoins:personal?.completed?Math.max(0,config.boss_coins-personal.coinsPaid):0};
   if(!record||p?.zone!==DIVE_ZONE||!state?.dive)return {dive:summary};
   const f=record.floor;
-  return {dive:{...summary,depth:1,origin:state.dive.origin,explored:personal.explored,enemies:f.enemies.map(e=>({...e,name:data.enemies[e.type].name,sprite:data.enemies[e.type].sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:DIVE_ZONE,name:"Princess' Quarters - Dungeon Dive",theme:'princess_quarters',walls:f.walls,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,decorations:f.decorations}};
+  return {dive:{...summary,depth:1,origin:state.dive.origin,explored:personal.explored,enemies:f.enemies.map(e=>({...e,name:data.enemies[e.type].name,sprite:data.enemies[e.type].sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:DIVE_ZONE,name:"Princess' Quarters - Dungeon Dive",theme:'princess_quarters',walls:f.walls,props:f.props,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,decorations:f.decorations}};
  } // Snapshots expose claim status but never another character's inventory or chest rolls.
+ function claim(c,state,record,chest,automatic=false){
+  const personal=progress(c,record.edition);if(personal.claimed.includes(chest.id)){if(automatic)return;fail('You already claimed this treasure this week.');}
+  if(state.loadout.inventory.length>=config.inventory_capacity){if(automatic){state.dive.lootNotice='Inventory full. Treasure remains here.';state.dive.lootNoticeAt=now();return;}fail('Inventory full. This treasure remains unclaimed.');}
+  if(!personal.rolls[chest.id]){
+   const rnd=seeded(`${route}:${record.edition}:1:${c.id}:${chest.id}`),items=chest.kind==='potion'?data.potion_pool:Object.keys(data.items).sort(),item=clone(data.items[items[rnd(items.length)]]);
+   if(item.atk_min!==undefined){item.atk=item.atk_min+rnd(item.atk_max-item.atk_min+1);if(typeof item.desc==='string')item.desc=item.desc.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}
+   personal.rolls[chest.id]=item;
+  }
+  const item=clone(personal.rolls[chest.id]);state.loadout.inventory.push(item);personal.claimed.push(chest.id);saveProgress(c,record.edition,personal);
+  state.dive.lootNotice='Found '+(item.name??item.item_id)+'.';state.dive.lootNoticeAt=now();
+ } // Inventory, deterministic item roll and personal claim commit together inside the zone transaction.
  function handles(input,p){return input.action==='dive_enter'||input.action==='enter'&&input.zone===DIVE_ZONE||p?.zone===DIVE_ZONE;}
  function act(i,c,state,input,p){
   const action=input.action;
@@ -144,11 +161,8 @@ export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFl
   if(record.edition!==latest()&&!state.run)fail('This weekly dungeon has ended.');
   if(action==='dive_claim_reward'){if(state.run)fail('Finish the current fight first.');const amount=pay(c,state,record);state.lastResult={outcome:'reward_claimed',coins:amount,zone:DIVE_ZONE,log:[]};return;}
   if(action==='dive_claim'){
-   if(state.run)fail('Finish the current fight first.');const chest=f.chests.find(ch=>ch.id===input.chest);if(!chest||Math.abs(chest.x-p.x)+Math.abs(chest.y-p.y)>1)fail('Stand next to that chest.');
-   const personal=progress(c,record.edition);if(personal.claimed.includes(chest.id))fail('You already claimed this chest this week.');
-   if(state.loadout.inventory.length>=config.inventory_capacity)fail('Inventory full. This chest remains unclaimed.');
-   if(!personal.rolls[chest.id]){const rnd=seeded(`${route}:${record.edition}:1:${c.id}:${chest.id}`),items=Object.keys(data.items).sort(),item=clone(data.items[items[rnd(items.length)]]);if(item.atk_min!==undefined){item.atk=item.atk_min+rnd(item.atk_max-item.atk_min+1);if(typeof item.desc==='string')item.desc=item.desc.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}personal.rolls[chest.id]=item;}
-   state.loadout.inventory.push(clone(personal.rolls[chest.id]));personal.claimed.push(chest.id);saveProgress(c,record.edition,personal);return;
+   if(state.run)fail('Finish the current fight first.');const chest=[...f.chests,...(f.pickups??[])].find(ch=>ch.id===input.chest);if(!chest||Math.abs(chest.x-p.x)+Math.abs(chest.y-p.y)>1)fail('Stand next to that treasure.');
+   claim(c,state,record,chest);return;
   }
   if(action==='move'||action==='dive_engage'){
    if(state.run||state.loadout.player_info.stat_points>0)fail('Finish combat and spend level-up points first.');
@@ -156,7 +170,8 @@ export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFl
    if(now()-p.moved<200)fail('Movement is too fast.');const d={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];if(!d)fail('Choose a direction.');
    const x=p.x+d[0],y=p.y+d[1];if(!walkable(f,x,y))fail('That tile is blocked.');const foe=f.enemies.find(e=>e.x===x&&e.y===y&&e.respawnAt<=now());
    if(foe){start(c,state,record,foe);return;}
-   db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(x,y,now(),c.id);reveal(c,state,f,x,y);return;
+   db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(x,y,now(),c.id);reveal(c,state,f,x,y);
+   const pickup=f.pickups?.find(ch=>ch.x===x&&ch.y===y);if(pickup)claim(c,state,record,pickup,true);return; // Loose treasure collects on contact; room chests still use Interact.
   }
   const z={id:DIVE_ZONE,theme:'princess_quarters',recovery:0};let result;
   if(action==='loadout'||action==='use_item'){

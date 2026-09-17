@@ -4,7 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
 import {createQuestZones} from '../server/zones.mjs';
 import {diveData,DIVE_ZONE} from '../server/dive.mjs';
-import {generateFloor,validateFloor,weeklyWindow,pathTo} from '../server/dive-generation.mjs';
+import {generateFloor,validateFloor,weeklyWindow,pathTo,walkable,dressFloor} from '../server/dive-generation.mjs';
 
 function fixture(options={}){
  const db=new DatabaseSync(':memory:');let time=Date.parse('2026-09-16T12:00:00Z'),owner='alice',zones;
@@ -46,7 +46,45 @@ test('explicit dungeon takeover retains personal loot and a reserved fight',()=>
  }finally{f.close();}
 });
 test('one hundred deterministic floors have reachable loot, safe entrances and the configured density',()=>{
- for(let i=0;i<100;i++){const f=generateFloor(diveData,'seed-'+i);assert.ok(validateFloor(f));assert.deepEqual(f,generateFloor(diveData,'seed-'+i));assert.equal(f.enemies.length,(f.rooms.length-1)*2+1);assert.equal(f.chests.length,f.rooms.length-1);}
+ for(let i=0;i<100;i++){
+  const f=generateFloor(diveData,'seed-'+i);assert.ok(validateFloor(f));assert.deepEqual(f,generateFloor(diveData,'seed-'+i));assert.equal(f.enemies.length,(f.rooms.length-1)*2+1);assert.equal(f.chests.length,f.rooms.length-1);
+  assert.equal(f.pickups.filter(p=>p.kind==='potion').length,(f.rooms.length-1)*diveData.config.potions_per_room);
+  assert.equal(f.pickups.filter(p=>p.kind==='treasure').length,(f.rooms.length-1)*diveData.config.treasures_per_room);
+  assert.ok(f.decorations.some(p=>p.span_w>1||p.span_h>1));
+  for(const p of f.decorations)for(let dy=0;dy<p.span_h;dy++)for(let dx=0;dx<p.span_w;dx++)assert.equal(walkable(f,p.x+dx,p.y+dy),!p.solid);
+  assert.equal(dressFloor(diveData,f),false,'already dressed floors must not move loot or furniture');
+ }
+});
+
+test('potions and treasure are personal, persistent, replay-safe and remain available with full inventory',()=>{
+ const f=fixture();try{
+  const a=f.player(),p=f.snap(a).dive.pickups.find(p=>p.kind==='potion');
+  assert.throws(()=>f.act(a,'dive_claim',{chest:p.id}),/Stand next/);
+  f.near(a,p);const full=structuredClone(f.loadout);full.inventory=Array.from({length:99},()=>({item_id:'hair_bow'}));f.act(a,'loadout',{loadout:full});
+  const pos=f.snap(a).position,direction=p.x>pos.x?'east':p.x<pos.x?'west':p.y>pos.y?'south':'north';
+  const moved=f.act(a,'move',{direction});assert.deepEqual(moved.position,{x:p.x,y:p.y});assert.equal(moved.dive.pickupsClaimed,0);assert.match(moved.character.dive.lootNotice,/Inventory full/);
+  assert.throws(()=>f.act(a,'dive_claim',{chest:p.id}),/Inventory full/);
+  f.act(a,'loadout',{loadout:f.loadout});const input=f.command(a,'dive_claim',{chest:p.id}),s=f.raw(input),item=s.character.loadout.inventory[0];
+  assert.ok(diveData.potion_pool.includes(item.item_id));assert.equal(s.dive.pickupsClaimed,1);assert.equal(s.dive.claimed,0);
+  assert.deepEqual(f.raw(input).character.loadout.inventory,[item]);f.restart();assert.deepEqual(f.snap(a).character.loadout.inventory,[item]);
+  const b=f.player('bob','littlebig-clockwork');assert.equal(f.snap(b).dive.pickupsClaimed,0);f.near(b,p);const bp=f.snap(b).position;
+  const walked=f.act(b,'move',{direction:p.x>bp.x?'east':p.x<bp.x?'west':p.y>bp.y?'south':'north'});assert.equal(walked.dive.pickupsClaimed,1);assert.ok(diveData.potion_pool.includes(walked.character.loadout.inventory[0].item_id));
+  const treasure=walked.dive.pickups.find(p=>p.kind==='treasure');f.near(b,treasure);assert.equal(f.act(b,'dive_claim',{chest:treasure.id}).dive.pickupsClaimed,2);assert.equal(f.awards.length,0);
+ }finally{f.close();}
+});
+
+test('live dressing upgrade preserves walls, claims, inventory, fights and player positions exactly once',()=>{
+ const f=fixture();try{
+  const a=f.player(),ch=f.snap(a).dive.chests[0];f.near(a,ch);f.act(a,'dive_claim',{chest:ch.id});const fighting=f.engage(a);
+  const row=f.db.prepare('SELECT * FROM dive_editions').get(),floor=JSON.parse(row.content);
+  delete floor.dressingVersion;delete floor.pickups;delete floor.props;floor.decorations=[];
+  f.db.prepare('UPDATE dive_editions SET content=?').run(JSON.stringify(floor));f.restart();f.tick();
+  const s=f.snap(a),upgraded=JSON.parse(f.db.prepare('SELECT content FROM dive_editions').get().content);
+  assert.deepEqual(s.character.run,fighting.character.run);assert.deepEqual(s.character.loadout,fighting.character.loadout);assert.deepEqual(s.position,fighting.position);
+  assert.deepEqual(upgraded.walls,floor.walls);assert.deepEqual(upgraded.chests,floor.chests);assert.equal(s.dive.claimed,1);assert.equal(s.dive.completed,false);
+  assert.ok(walkable(upgraded,s.position.x,s.position.y));assert.ok(s.dive.pickupsTotal>0);assert.equal(s.dive.enemies.find(e=>e.id==='iris').engaged,a);
+  f.restart();f.tick();assert.deepEqual(JSON.parse(f.db.prepare('SELECT content FROM dive_editions').get().content),upgraded);
+ }finally{f.close();}
 });
 test('both lobbies share a floor; personal chest claims survive replay, inventory limits and reconnects',()=>{
  const f=fixture();try{const a=f.player(),first=f.snap(a),ch=first.dive.chests[0];f.near(a,ch);

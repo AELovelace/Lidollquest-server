@@ -16,7 +16,7 @@ export function weeklyWindow(now){
 } // Weekly boundaries remain 04:00 local across DST and server downtime.
 export function seeded(seed){let s=createHash('sha256').update(seed).digest().readUInt32LE(0);return n=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return Math.floor(s/4294967296*n);};}
 const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
-export const walkable=(f,x,y)=>Number.isInteger(x)&&Number.isInteger(y)&&y>=0&&y<f.height&&x>=0&&x<f.width&&f.walls[y][x]===0;
+export const walkable=(f,x,y)=>Number.isInteger(x)&&Number.isInteger(y)&&y>=0&&y<f.height&&x>=0&&x<f.width&&f.walls[y][x]===0&&!f.props?.[y]?.[x]; // Furniture blocks movement without becoming a structural wall.
 export const inside=(r,x,y)=>x>=r.x&&x<r.x+r.w&&y>=r.y&&y<r.y+r.h;
 export function pathTo(f,start,target,limit=Infinity){
  const queue=[{...start,path:[]}],seen=new Set([start.x+','+start.y]);
@@ -50,11 +50,50 @@ export function generateFloor(data,edition,depth=1){
   for(let j=0;j<2&&data.decorations.length;j++)f.decorations.push({...free(room),sprite:data.decorations[rnd(data.decorations.length)]});
  }
  const boss=free(far);f.enemies.push({id:'iris',type:'dive_iris',...boss,spawn:{...boss},engaged:null,respawnAt:0});
- validateFloor(f);return f;
+ dressFloor(data,f);validateFloor(f);return f;
 } // Generate one materialized floor; the route/edition/depth key is ready for later lazy descent.
+export function dressFloor(data,f,visitors=[]){
+ if((f.dressingVersion??0)>=(data.dressing_version??2))return false;
+ const c=data.config,rnd=seeded(`${f.route}:${f.edition}:${f.depth}:dressing2`),key=p=>p.x+','+p.y;
+ const potions=c.potions_per_room??1,treasures=c.treasures_per_room??1,area=c.detail_area_per_object??18,max=c.details_max_per_room??4;
+ if(![potions,treasures].every(n=>Number.isInteger(n)&&n>=0&&n<=4)||!Number.isInteger(area)||area<8||!Number.isInteger(max)||max<0||max>8)throw Error('Dive scenery/loot density is outside supported bounds');
+ if(!data.potion_pool?.length||data.potion_pool.some(id=>!data.items[id]))throw Error('Missing eligible potion pool');
+ f.props=Array.from({length:f.height},()=>Array(f.width).fill(0));f.decorations=[];f.pickups??=[];
+ const occupied=new Set([f.entrance,...f.enemies,...f.enemies.map(e=>e.spawn),...f.chests,...f.pickups,...visitors].map(key));
+ const cells=r=>{const a=[];for(let y=r.y;y<r.y+r.h;y++)for(let x=r.x;x<r.x+r.w;x++)if(walkable(f,x,y)&&!occupied.has(x+','+y))a.push({x,y});return a;};
+ for(let i=1;i<f.rooms.length;i++)for(const [kind,count] of [['potion',potions],['treasure',treasures]])for(let n=0;n<count;n++){
+  const id=`${kind}-${i}-${n}`;if(f.pickups.some(p=>p.id===id))continue;
+  const free=cells(f.rooms[i]);if(!free.length)throw Error('No room for personal pickups');
+  const p=free[rnd(free.length)];occupied.add(key(p));f.pickups.push({id,kind,...p,sprite:'sprItem'});
+ } // Add stable personal loot IDs without changing existing chest rolls, enemies or edition keys.
+ function connected(){
+  const queue=[f.entrance],seen=new Set([key(f.entrance)]);
+  for(let i=0;i<queue.length;i++)for(const [dx,dy] of dirs){const p={x:queue[i].x+dx,y:queue[i].y+dy};if(walkable(f,p.x,p.y)&&!seen.has(key(p))){seen.add(key(p));queue.push(p);}}
+  for(let y=0;y<f.height;y++)for(let x=0;x<f.width;x++)if(walkable(f,x,y)&&!seen.has(x+','+y))return false;
+  return true;
+ } // Validate all remaining walkable cells, including approaches and occupied player tiles.
+ const profiles=data.detail_profiles??[];
+ for(let i=0;i<f.rooms.length;i++){
+  const r=f.rooms[i],count=Math.max(0,Math.min(max,Math.max(1,Math.floor(r.w*r.h/area)))-(i===0?1:0));let placed=0;
+  for(let attempt=0;attempt<160&&placed<count&&profiles.length;attempt++){
+   const profile=profiles[rnd(profiles.length)],w=profile.span_w,h=profile.span_h;
+   if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w>8||h>8)throw Error('Invalid furniture footprint');
+   const margin=r.w<=w+profile.margin*2||r.h<=h+profile.margin*2?0:profile.margin;
+   if(r.w-w-2*margin<0||r.h-h-2*margin<0)continue;
+   const x=r.x+margin+rnd(r.w-w-2*margin+1),y=r.y+margin+rnd(r.h-h-2*margin+1),footprint=[];
+   for(let dy=0;dy<h;dy++)for(let dx=0;dx<w;dx++)footprint.push({x:x+dx,y:y+dy});
+   if(footprint.some(p=>!walkable(f,p.x,p.y)||occupied.has(key(p))||Math.abs(p.x-f.entrance.x)+Math.abs(p.y-f.entrance.y)<3))continue;
+   if(profile.solid){for(const p of footprint)f.props[p.y][p.x]=1;if(!connected()){for(const p of footprint)f.props[p.y][p.x]=0;continue;}}
+   for(const p of footprint)occupied.add(key(p));
+   f.decorations.push({...profile,x,y});placed++;
+  }
+ }
+ if(!connected())throw Error('Disconnected furnished floor');
+ f.dressingVersion=data.dressing_version??2;return true;
+} // Idempotent dressing upgrade preserves the live weekly layout, progress and reward entitlements.
 export function validateFloor(f){
  if(f.rooms.length<2||!walkable(f,f.entrance.x,f.entrance.y))throw Error('Invalid entrance');
- const seen=new Set();for(const entity of [...f.enemies,...f.chests]){const key=entity.x+','+entity.y;if(seen.has(key)||!pathTo(f,f.entrance,entity)||inside(f.rooms[0],entity.x,entity.y))throw Error('Unreachable or unsafe content');seen.add(key);}
+ const seen=new Set();for(const entity of [...f.enemies,...f.chests,...(f.pickups??[])]){const key=entity.x+','+entity.y;if(seen.has(key)||!pathTo(f,f.entrance,entity)||inside(f.rooms[0],entity.x,entity.y))throw Error('Unreachable or unsafe content');seen.add(key);}
  if(!f.enemies.some(e=>e.id==='iris'))throw Error('Missing guardian');
  return true;
 }

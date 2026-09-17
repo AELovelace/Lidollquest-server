@@ -2,6 +2,16 @@
 
 ## Weekly Dungeon Dive
 
+Scenery/loot v2 adds full campaign furniture footprints, one weighted potion and
+one extra random treasure per non-entry room, alongside each personal weekly chest.
+The active edition receives this dressing once without changing walls, chest
+claims, fights or reward entitlements; saved visitor positions remain clear.
+Watch `dive_dressing_upgraded` / `dive_dressing_failed` in the journal. Failure
+retains the previous floor and retries after a minute. Deploy the matching rebuilt
+game after the service so it renders full-size scenery below actors and supports
+pickup interaction, movement collision, collection feedback and minimap markers.
+Loot remains independent per character; full inventories leave it unclaimed.
+
 Both arena lobbies now lead to one shared Princess' Quarters pilot. The server
 generates a validated floor on Monday at **04:00 America/Los_Angeles**, respecting
 DST. Generation catches up after downtime without creating skipped editions.

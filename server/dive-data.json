@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "dressing_version": 2,
   "config": {
     "_comment": "Weekly server-owned pilot. Export with python/export_online_dive.py after editing; campaign generation is unchanged.",
     "enabled": true,
@@ -10,6 +11,10 @@
     "width": 60,
     "height": 34,
     "enemies_per_room": 2,
+    "potions_per_room": 1,
+    "treasures_per_room": 1,
+    "detail_area_per_object": 18,
+    "details_max_per_room": 4,
     "enemy_respawn_seconds": 600,
     "boss_respawn_seconds": 300,
     "pursuit_steps": 6,
@@ -21128,5 +21133,181 @@
     "sprPQDetailPinkStool",
     "sprPQDetailToyChest",
     "sprPQDetailMobile"
+  ],
+  "detail_profiles": [
+    {
+      "object": "objPQDetailVanity",
+      "sprite": "sprPQDetailVanity",
+      "span_w": 2,
+      "span_h": 2,
+      "solid": true,
+      "margin": 1
+    },
+    {
+      "object": "objPQDetailWardrobe",
+      "sprite": "sprPQDetailWardrobe",
+      "span_w": 2,
+      "span_h": 3,
+      "solid": true,
+      "margin": 1
+    },
+    {
+      "object": "objPQDetailCanopyBed",
+      "sprite": "sprPQDetailCanopyBed",
+      "span_w": 3,
+      "span_h": 3,
+      "solid": true,
+      "margin": 1
+    },
+    {
+      "object": "objPQDetailWritingDesk",
+      "sprite": "sprPQDetailWritingDesk",
+      "span_w": 2,
+      "span_h": 2,
+      "solid": true,
+      "margin": 1
+    },
+    {
+      "object": "objPQDetailHighChair",
+      "sprite": "sprPQDetailHighChair",
+      "span_w": 1,
+      "span_h": 2,
+      "solid": true,
+      "margin": 1
+    },
+    {
+      "object": "objPQDetailChangingTable",
+      "sprite": "sprPQDetailChangingTable",
+      "span_w": 2,
+      "span_h": 2,
+      "solid": true,
+      "margin": 1
+    },
+    {
+      "object": "objPQDetailMusicBox",
+      "sprite": "sprPQDetailMusicBox",
+      "span_w": 1,
+      "span_h": 1,
+      "solid": false,
+      "margin": 0
+    },
+    {
+      "object": "objPQDetailJewelryBox",
+      "sprite": "sprPQDetailJewelryBox",
+      "span_w": 1,
+      "span_h": 1,
+      "solid": false,
+      "margin": 0
+    },
+    {
+      "object": "objPQDetailPlushTeddy",
+      "sprite": "sprPQDetailPlushTeddy",
+      "span_w": 1,
+      "span_h": 1,
+      "solid": false,
+      "margin": 0
+    },
+    {
+      "object": "objPQDetailDollhouse",
+      "sprite": "sprPQDetailDollhouse",
+      "span_w": 2,
+      "span_h": 2,
+      "solid": true,
+      "margin": 1
+    },
+    {
+      "object": "objPQDetailRoyalBanner",
+      "sprite": "sprPQDetailRoyalBanner",
+      "span_w": 1,
+      "span_h": 3,
+      "solid": true,
+      "margin": 1
+    },
+    {
+      "object": "objPQDetailPottedRose",
+      "sprite": "sprPQDetailPottedRose",
+      "span_w": 1,
+      "span_h": 2,
+      "solid": true,
+      "margin": 1
+    },
+    {
+      "object": "objPQDetailDiaperPail",
+      "sprite": "sprPQDetailDiaperPail",
+      "span_w": 1,
+      "span_h": 1,
+      "solid": true,
+      "margin": 1
+    },
+    {
+      "object": "objPQDetailPowderBottle",
+      "sprite": "sprPQDetailPowderBottle",
+      "span_w": 1,
+      "span_h": 1,
+      "solid": false,
+      "margin": 0
+    },
+    {
+      "object": "objPQDetailOilLamp",
+      "sprite": "sprPQDetailOilLamp",
+      "span_w": 1,
+      "span_h": 1,
+      "solid": false,
+      "margin": 0
+    },
+    {
+      "object": "objPQDetailPorcelainJar",
+      "sprite": "sprPQDetailPorcelainJar",
+      "span_w": 1,
+      "span_h": 1,
+      "solid": true,
+      "margin": 1
+    },
+    {
+      "object": "objPQDetailLaceRug",
+      "sprite": "sprPQDetailLaceRug",
+      "span_w": 3,
+      "span_h": 2,
+      "solid": false,
+      "margin": 1
+    },
+    {
+      "object": "objPQDetailPinkStool",
+      "sprite": "sprPQDetailPinkStool",
+      "span_w": 1,
+      "span_h": 1,
+      "solid": true,
+      "margin": 1
+    },
+    {
+      "object": "objPQDetailToyChest",
+      "sprite": "sprPQDetailToyChest",
+      "span_w": 2,
+      "span_h": 1,
+      "solid": true,
+      "margin": 1
+    },
+    {
+      "object": "objPQDetailMobile",
+      "sprite": "sprPQDetailMobile",
+      "span_w": 1,
+      "span_h": 1,
+      "solid": false,
+      "margin": 0
+    }
+  ],
+  "potion_pool": [
+    "mystery_potion",
+    "mystery_potion",
+    "mystery_potion",
+    "mystery_potion",
+    "mystery_potion_2",
+    "mystery_potion_2",
+    "mystery_potion_2",
+    "mystery_potion_8",
+    "mystery_potion_8",
+    "mystery_potion_14",
+    "stamina_potion",
+    "stamina_potion"
   ]
 }
