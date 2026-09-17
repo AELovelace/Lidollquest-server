@@ -11,6 +11,30 @@ function fixture(){
  return {db,zones,act,command,advance:ms=>instant+=ms,as:(name,id=name)=>{owner=name;token=id;}};
 }
 
+test('explicit owner takeover preserves a fight, rejects the old controller and remains replay-safe',()=>{
+ const f=fixture();try{
+  let c=f.act('create',null,{name:'Returning'}).character;
+  c=f.act('enter',c,{zone:questZones[0].id,loadout:{player_info:{playerHealth:60,playerHealthMax:100,str:5,def:3,level:2},inventory:[{item_id:'apple'}]}}).character;
+  c=f.act('start',c).character;
+  assert.throws(()=>f.act('enter',c,{zone:questZones[0].id,controller:'window-b'}),e=>e.code==='zone_controller_conflict');
+  const command=f.command('enter',c,{zone:questZones[0].id,controller:'window-b',takeover:true,loadout:{player_info:{playerHealth:999},inventory:[]}});
+  const resumed=f.zones.act('token-a',command);
+  assert.equal(resumed.controllerTakeover,true);
+  assert.deepEqual(resumed.character.run,c.run);
+  assert.deepEqual(resumed.character.loadout,c.loadout);
+  assert.deepEqual(f.zones.act('token-a',command).receipt,resumed.receipt);
+  assert.throws(()=>f.act('heartbeat',resumed.character),e=>e.status===409);
+  assert.throws(()=>f.act('enter',resumed.character,{zone:questZones[0].id}),e=>e.code==='zone_controller_conflict');
+  assert.throws(()=>f.act('heartbeat',resumed.character,{takeover:true}),e=>e.status===400);
+  assert.throws(()=>f.act('enter',resumed.character,{zone:questZones[0].id,takeover:'yes'}),e=>e.status===400);
+  assert.equal(f.act('heartbeat',resumed.character,{controller:'window-b'}).character.id,c.id);
+  const stopped=f.act('flee',resumed.character,{controller:'window-b'}).character;
+  const lobby=f.act('enter',stopped,{zone:questZones[0].id,takeover:true,loadout:{player_info:{playerHealth:999},inventory:[]}}).character;
+  assert.deepEqual(lobby.loadout,stopped.loadout,'taking over an idle lobby must also retain committed inventory');
+  f.as('bob');assert.throws(()=>f.act('enter',lobby,{zone:questZones[0].id,takeover:true}),e=>e.status===404);
+ }finally{f.db.close();}
+});
+
 test('campaign loadouts drive arena combat, persist items and never import currency',()=>{
  const f=fixture();try{
   const loadout={player_info:{name:'Hero',playerHealth:83,playerHealthMax:140,str:9,def:4,dex:6,int:8,cha:2,level:7,xp:22,equipped_weapon:'iron_dagger',gold:99999,companions:{friend:{hp:12}}},inventory:[{item_id:'potion',category:'food',hp_restore:30,name:'Potion'}],player_spells:['heal'],player_mp:17,player_mp_max:20,attack:18,gold:99999,coins:99999};

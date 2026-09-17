@@ -262,6 +262,8 @@ Deploy the updated standalone service and game together. The tracker browser gat
 
 Lobby entry HTTP 409 reasons are logged as `quest_lobby_entry_conflict` in `journalctl -u lidollquest-server`. This distinguishes stale character revisions, another active window, mismatched saved arena runs, and dungeon re-entry conflicts when a GX runner omits the HTTP error body. The log contains the fixed rejection message only, without tokens or character inventory. Preserve the server state until the actual reason is known; do not clear fights or disable ownership/revision checks to work around a generic status code.
 
+Snapshots advertise `controllerTakeover: true`. An owner may send `enter` with `takeover: true` after explicitly choosing **Take control here** in the game. This transfers the account's one controller lease atomically, preserves the selected character's committed inventory and fight, and rejects subsequent mutations from the old window. Ownership, revision, grant and request-receipt checks still apply. The field is a boolean accepted only on `enter`; default entry and heartbeats never take over another controller. Conflicting entry returns HTTP 409 with `zone_controller_conflict`. Deploy this service before the matching game; the button is hidden when an older server does not advertise support.
+
 
 ## Class combat v2
 

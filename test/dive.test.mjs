@@ -28,6 +28,23 @@ test('weekly boundaries remain Monday 04:00 Pacific across both DST transitions'
  assert.equal(weeklyWindow(Date.parse('2026-11-02T11:59:59Z')).edition,'2026-10-26');
  assert.equal(weeklyWindow(Date.parse('2026-11-02T12:00:00Z')).edition,'2026-11-02');
 });
+
+test('explicit dungeon takeover retains personal loot and a reserved fight',()=>{
+ const f=fixture();try{
+  const id=f.player(),chest=f.snap(id).dive.chests[0];f.near(id,chest);f.act(id,'dive_claim',{chest:chest.id});
+  const fighting=f.engage(id);
+  assert.throws(()=>f.act(id,'enter',{zone:DIVE_ZONE,controller:'replacement'}),e=>e.code==='zone_controller_conflict');
+  const command=f.command(id,'enter',{zone:DIVE_ZONE,controller:'replacement',takeover:true,loadout:{...f.loadout,inventory:[]}});
+  const resumed=f.raw(command);
+  assert.deepEqual(resumed.character.run,fighting.character.run);
+  assert.deepEqual(resumed.character.loadout,fighting.character.loadout);
+  assert.equal(resumed.dive.claimed,1);
+  assert.equal(resumed.dive.enemies.find(e=>e.id==='iris').engaged,id);
+  assert.deepEqual(f.raw(command).receipt,resumed.receipt);
+  assert.throws(()=>f.act(id,'heartbeat'),e=>e.status===409);
+  assert.throws(()=>f.act(id,'enter',{zone:DIVE_ZONE}),e=>e.code==='zone_controller_conflict');
+ }finally{f.close();}
+});
 test('one hundred deterministic floors have reachable loot, safe entrances and the configured density',()=>{
  for(let i=0;i<100;i++){const f=generateFloor(diveData,'seed-'+i);assert.ok(validateFloor(f));assert.deepEqual(f,generateFloor(diveData,'seed-'+i));assert.equal(f.enemies.length,(f.rooms.length-1)*2+1);assert.equal(f.chests.length,f.rooms.length-1);}
 });

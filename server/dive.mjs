@@ -6,7 +6,7 @@ import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
 
 export const diveData=JSON.parse(readFileSync(new URL('./dive-data.json',import.meta.url),'utf8'));
 export const DIVE_ZONE='dive-quarters';
-const fail=message=>{throw Object.assign(Error(message),{status:409,code:'dive_conflict'});};
+const fail=(message,code='dive_conflict')=>{throw Object.assign(Error(message),{status:409,code});};
 const clone=structuredClone;
 const seconds=1000,minutes=60000;
 
@@ -114,7 +114,7 @@ export function createDive(db,{now,roll,adjust,data=diveData,generate=generateFl
   if(action==='dive_enter'||action==='enter'){
    if(!config.enabled)fail('Dungeon Dive is not enabled.');
    const existing=db.prepare('SELECT * FROM quest_presence WHERE owner=?').get(i.owner);
-   if(existing&&existing.seen>now()-30000&&(existing.controller!==input.controller||existing.character_id!==c.id||existing.grant_id!==i.id))fail('This account is active in another window.');
+   if(existing&&existing.seen>now()-30000&&(existing.controller!==input.controller||existing.character_id!==c.id||existing.grant_id!==i.id)&&input.takeover!==true)fail('This account is active in another window.','zone_controller_conflict'); // Explicit re-entry can recover this character without discarding its dungeon fight or items.
    if(action==='enter'&&!state.dive&&state.diveReturned){
     db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,10,9,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=10,y=9,seen=excluded.seen,moved=0').run(i.owner,c.id,state.diveReturned,i.id,input.controller,now());return;
    } // A browser suspended across reset resumes in its lobby instead of retrying a retired floor forever.

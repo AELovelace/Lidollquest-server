@@ -11,7 +11,7 @@ export const questZones=Object.freeze([
  {id:'honeydew-lantern',hub:'town',name:'Lantern Court',theme:'lantern',rule:'Recovery between rounds',enemies:['Moss Sprite','Lantern Knight','Moonlit Warden'],attack:5,health:22,recovery:6},
  {id:'littlebig-clockwork',hub:'littlebig_city',name:'Clockwork Coliseum',theme:'clockwork',rule:'Every third enemy turn hits harder',enemies:['Tin Sentry','Gear Hound','Clockwork Monarch'],attack:5,health:24,recovery:3},
 ]);
-const fail=(status,message)=>{throw Object.assign(Error(message),{status,code:'zone_request_failed'});};
+const fail=(status,message,code='zone_request_failed')=>{throw Object.assign(Error(message),{status,code});};
 const avatar=value=>typeof value==='string'&&avatarIds.has(value)?value:fail(400,'Choose an NPC from the appearance list.'); // Never accept arbitrary asset paths or gameplay stats.
 const identifier=value=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(value);
 const clean=(value,max)=>typeof value==='string'?value.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069#]/g,' ').trim().slice(0,max):'';
@@ -50,7 +50,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   if(dungeon.definition)definitions.push(dungeon.definition);
   const edition=c?JSON.parse(c.state).dive?.edition:null;
   const visiblePeers=p?.zone===DIVE_ZONE?peers.filter(peer=>JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(peer.id).state).dive?.edition===edition):peers;
-  return {serverTime:now(),loadoutSupport:true,combatVersion:2,dive:dungeon.dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,250-spent)};
+  return {serverTime:now(),loadoutSupport:true,combatVersion:2,controllerTakeover:true,dive:dungeon.dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,250-spent)};
  } // Snapshots expose only zone avatars and chat, never wallet credentials or account IDs.
  function read(secret,id){const i=identity(secret);limit(i.owner);dive.tick();return snapshot(i,id?character(i.owner,id):null);}
  function enemy(z,stage){return {name:z.enemies[Math.min(2,Math.floor((stage-1)/3))],hp:z.health+(stage-1)*5,maxHp:z.health+(stage-1)*5,turn:0};}
@@ -75,7 +75,8 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   grant(secret,'wallet:write');
   dive.tick(); // Scheduled resets and enemy decisions precede command revision checks.
   if(!input||!identifier(input.request_id)||!identifier(input.controller))fail(400,'Supply a stable request ID and controller.');
-  if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest'].includes(k)))fail(400,'Unsupported zone input.');
+  if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover'].includes(k)))fail(400,'Unsupported zone input.');
+  if(input.takeover!==undefined&&(input.action!=='enter'||typeof input.takeover!=='boolean'))fail(400,'Control can only be transferred by an explicit entry request.'); // Never let movement or a background heartbeat steal control.
   return atomic(()=>{
    identity(secret);
    if(input.action==='create'){
@@ -102,9 +103,9 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
     db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(now(),c.id);
    }else if(input.action==='enter'){
     const z=zone(input.zone),active=db.prepare('SELECT * FROM quest_presence WHERE owner=? AND seen>?').get(i.owner,now()-30000);
-    if(active&&(active.controller!==input.controller||active.character_id!==c.id||active.grant_id!==i.id))fail(409,'This account is active in another game window.');
+    if(active&&(active.controller!==input.controller||active.character_id!==c.id||active.grant_id!==i.id)&&input.takeover!==true)fail(409,'This account is active in another game window.','zone_controller_conflict'); // The owner may explicitly replace the single lease; ordinary retries never do.
     if(state.run&&state.run.zone!==z.id)fail(409,'Finish or forfeit the current arena run before changing zones.');
-    if(input.loadout!==undefined&&!state.run)state.loadout=importLoadout(input.loadout); // Re-entry during a fight resumes the saved combat inventory and HP.
+    if(input.loadout!==undefined&&!state.run&&!(input.takeover===true&&state.loadout))state.loadout=importLoadout(input.loadout); // Fights and explicit takeovers resume committed items/HP; ordinary campaign entry may import a new loadout.
     if(input.combat_version===2&&state.run&&state.run.combatVersion!==2&&state.loadout)beginRound(state,z,roll); // Preserve the old opponent, HP and pot while upgrading an unfinished run.
     if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(z.id,now()-30000,i.owner).n>=64)fail(429,'This zone is full. Try again shortly.');
     db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,10,9,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=10,y=9,seen=excluded.seen,moved=0').run(i.owner,c.id,z.id,i.id,input.controller,now());
