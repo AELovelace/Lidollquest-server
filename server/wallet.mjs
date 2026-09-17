@@ -18,8 +18,9 @@ export function createWalletClient({baseUrl,key,fetcher=fetch}={}){
   async authenticate(token){
    if(typeof token!=='string'||!/^[A-Za-z0-9_-]{20,100}$/.test(token))throw Object.assign(Error('A linked account is required.'),{status:401});
    const data=await request(token);if(!/^[a-f0-9]{64}$/.test(data.account_id??'')||!Number.isSafeInteger(data.balance)||data.balance<0)throw Error('Invalid wallet identity');
-   return {owner:data.account_id,id:createHash('sha256').update(token).digest('hex'),client:'lidollquest',coins:data.balance};
+   return {owner:data.account_id,id:createHash('sha256').update(token).digest('hex'),client:'lidollquest',coins:data.balance,scope:data.scope??''};
   },
   async credit(token,body){const result=await request(token,body);if(result.request_id!==body.request_id||result.currency!=='LiDollCoin'||result.amount!==body.amount||!Number.isSafeInteger(result.balance)||result.balance<0)throw Error('Invalid reward receipt');return result;},
+  async profile(token,account){const url=new URL('social',base);url.searchParams.set('client_id','lidollquest');url.searchParams.set('account_id',account);const response=await fetcher(url,{headers:{Authorization:'Bearer '+token},redirect:'error',signal:AbortSignal.timeout(5000)});if(!response.ok)throw Object.assign(Error('Account profile unavailable.'),{status:response.status});return response.json();},
  };
 } // Secrets stay on the service. Only verified arena entitlements reach the shared wallet.

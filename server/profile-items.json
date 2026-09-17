@@ -1,0 +1,4136 @@
+{
+  "rattle_1": {
+    "name": "Baby Rattle"
+  },
+  "cursed_teddy": {
+    "name": "Cursed Teddy Bear"
+  },
+  "goblin_rattle": {
+    "name": "Goblin Baby Rattle"
+  },
+  "wooden_spoon": {
+    "name": "Wooden Spoon"
+  },
+  "wooden_sword": {
+    "name": "Wooden Sword"
+  },
+  "pacifier": {
+    "name": "Blessed Pacifier"
+  },
+  "cursed_paci": {
+    "name": "Cursed Goblin Pacifier"
+  },
+  "goblin_plug": {
+    "name": "Goblin Rubber Plug"
+  },
+  "bottle": {
+    "name": "Milk Bottle"
+  },
+  "onesie": {
+    "name": "Snuggle Onesie"
+  },
+  "skirtP1": {
+    "name": "Pleated Schoolgirl Skirt"
+  },
+  "diaper": {
+    "name": "Fluffy Diaper"
+  },
+  "cursed_pottypants_diaper": {
+    "name": "Cursed PottyPants Diaper"
+  },
+  "blessed_pottypants_diaper": {
+    "name": "Blessed PottyPants Diaper"
+  },
+  "diaper_hugger_diaper": {
+    "name": "Diaper-Hugger's Embrace"
+  },
+  "bunny_onesie": {
+    "name": "Bunny Onesie"
+  },
+  "rainbow_booties": {
+    "name": "Rainbow Booties"
+  },
+  "pacifier_necklace": {
+    "name": "Pacifier Necklace"
+  },
+  "giggle_mittens": {
+    "name": "Giggle Mittens"
+  },
+  "cursed_lollipop": {
+    "name": "Cursed Lollipop"
+  },
+  "tickle_feather": {
+    "name": "Tickle Feather"
+  },
+  "cotton_panties": {
+    "name": "Cotton Panties"
+  },
+  "lace_panties": {
+    "name": "Lace Panties"
+  },
+  "frilly_panties": {
+    "name": "Frilly Panties"
+  },
+  "training_pants": {
+    "name": "Training Pants"
+  },
+  "pull_up": {
+    "name": "Pull-Up"
+  },
+  "printed_diaper": {
+    "name": "Printed Diaper"
+  },
+  "nighttime_diaper": {
+    "name": "Nighttime Diaper"
+  },
+  "plastic_panties": {
+    "name": "Crinkly Diaper Cover"
+  },
+  "iron_dagger": {
+    "name": "Iron Dagger"
+  },
+  "short_sword": {
+    "name": "Short Sword"
+  },
+  "rolling_pin": {
+    "name": "Rolling Pin"
+  },
+  "toy_wand": {
+    "name": "Toy Magic Wand"
+  },
+  "plush_hammer": {
+    "name": "Plush Hammer"
+  },
+  "hair_bow": {
+    "name": "Big Hair Bow"
+  },
+  "princess_tiara": {
+    "name": "Princess Tiara"
+  },
+  "witch_hat": {
+    "name": "Witch Hat"
+  },
+  "knight_helm": {
+    "name": "Knight's Helmet"
+  },
+  "frilly_dress": {
+    "name": "Frilly Baby Dress"
+  },
+  "leather_vest": {
+    "name": "Leather Vest"
+  },
+  "school_uniform_top": {
+    "name": "School Uniform Blouse"
+  },
+  "knit_sweater": {
+    "name": "Knit Sweater"
+  },
+  "bloomers": {
+    "name": "Puffy Bloomers"
+  },
+  "overalls": {
+    "name": "Geometry Top"
+  },
+  "blue_jeans": {
+    "name": "Blue Jeans"
+  },
+  "short_shorts": {
+    "name": "Short Shorts"
+  },
+  "knee_socks": {
+    "name": "Striped Knee Socks"
+  },
+  "ruffle_socks": {
+    "name": "Ruffle Ankle Socks"
+  },
+  "ankle_socks": {
+    "name": "Ankle Socks"
+  },
+  "mary_janes": {
+    "name": "Mary Jane Shoes"
+  },
+  "sneakers": {
+    "name": "Sneakers"
+  },
+  "boots": {
+    "name": "Sturdy Boots"
+  },
+  "mossy_amulet": {
+    "name": "Mossy Amulet"
+  },
+  "willow_switch": {
+    "name": "Willow Switch"
+  },
+  "toadstool_cap": {
+    "name": "Toadstool Cap"
+  },
+  "enchanted_blankie": {
+    "name": "Enchanted Blankie"
+  },
+  "spider_silk_panties": {
+    "name": "Spider Silk Panties"
+  },
+  "fairy_dust_bottle": {
+    "name": "Fairy Dust Bottle"
+  },
+  "cursed_paci_forest": {
+    "name": "Haunted Pacifier"
+  },
+  "bramble_bow": {
+    "name": "Bramble Bow"
+  },
+  "cobweb_diaper": {
+    "name": "Cobweb Diaper"
+  },
+  "moonlit_rattle": {
+    "name": "Moonlit Rattle"
+  },
+  "wet_moss_boots": {
+    "name": "Wet Moss Boots"
+  },
+  "owl_feather_cap": {
+    "name": "Owl Feather Cap"
+  },
+  "ghostly_onesie": {
+    "name": "Ghostly Onesie"
+  },
+  "thorn_vine_skirt": {
+    "name": "Thorn Vine Skirt"
+  },
+  "mushroom_plug": {
+    "name": "Enchanted Mushroom Plug"
+  },
+  "baby_wipes": {
+    "name": "Baby Wipes"
+  },
+  "baby_food": {
+    "name": "Baby Food"
+  },
+  "daily_shame_pass": {
+    "name": "Daily Shame Pass"
+  },
+  "comped_padding": {
+    "name": "Comped Padding Voucher"
+  },
+  "padded_purse": {
+    "name": "Padded Purse"
+  },
+  "adult_food": {
+    "name": "Adult Food"
+  },
+  "sippy_juice": {
+    "name": "Sippy Cup of Juice"
+  },
+  "water_bottle": {
+    "name": "Water Bottle"
+  },
+  "mystery_potion": {
+    "name": "Red Mystery Potion"
+  },
+  "mystery_potion_2": {
+    "name": "Pink Mystery Potion"
+  },
+  "mystery_potion_3": {
+    "name": "Black Mystery Potion"
+  },
+  "mystery_potion_4": {
+    "name": "Clear Mystery Potion"
+  },
+  "mystery_potion_5": {
+    "name": "Blue Mystery Potion"
+  },
+  "mystery_potion_6": {
+    "name": "Green Mystery Potion"
+  },
+  "mystery_potion_7": {
+    "name": "Purple Mystery Potion"
+  },
+  "mystery_potion_8": {
+    "name": "Orange Mystery Potion"
+  },
+  "mystery_potion_9": {
+    "name": "White Mystery Potion"
+  },
+  "mystery_potion_10": {
+    "name": "Teal Mystery Potion"
+  },
+  "mystery_potion_11": {
+    "name": "Gold Mystery Potion"
+  },
+  "mystery_potion_12": {
+    "name": "Silver Mystery Potion"
+  },
+  "mystery_potion_13": {
+    "name": "Indigo Mystery Potion"
+  },
+  "mystery_potion_14": {
+    "name": "Rose Mystery Potion"
+  },
+  "stamina_potion": {
+    "name": "Stamina Potion"
+  },
+  "ghost_bloomers": {
+    "name": "Ghost Bloomers"
+  },
+  "ghost_milk": {
+    "name": "Ghost Milk"
+  },
+  "ghostweave_dress": {
+    "name": "Ghostweave Dress"
+  },
+  "ghostly_rattle": {
+    "name": "Ghostly Rattle"
+  },
+  "spectral_sword": {
+    "name": "Spectral Sword"
+  },
+  "thorn_crown": {
+    "name": "Thorn Crown"
+  },
+  "thorned_wand": {
+    "name": "Thorned Wand"
+  },
+  "thorn_pacifier": {
+    "name": "Thorn Pacifier"
+  },
+  "vine_plug": {
+    "name": "Vine Plug"
+  },
+  "vine_skirt": {
+    "name": "Vine Skirt"
+  },
+  "root_boots": {
+    "name": "Root Boots"
+  },
+  "bark_armor": {
+    "name": "Bark Armor"
+  },
+  "mossy_socks": {
+    "name": "Mossy Socks"
+  },
+  "cobweb_panties": {
+    "name": "Cobweb Panties"
+  },
+  "cursed_swamp_diaper": {
+    "name": "Cursed Swamp Diaper"
+  },
+  "enchanted_diaper": {
+    "name": "Enchanted Diaper"
+  },
+  "mushroom_stew": {
+    "name": "Mushroom Stew"
+  },
+  "foam_mallet": {
+    "name": "Foam Mallet"
+  },
+  "bottle_launcher": {
+    "name": "Bottle Launcher"
+  },
+  "nursery_rattle": {
+    "name": "Jumbo Nursery Rattle"
+  },
+  "knitting_needle_weapon": {
+    "name": "Repurposed Knitting Needle"
+  },
+  "formula_wand": {
+    "name": "Formula Dispenser Wand"
+  },
+  "safety_helmet": {
+    "name": "Padded Safety Helmet"
+  },
+  "sensor_cap": {
+    "name": "Bladder Sensor Cap"
+  },
+  "auto_tutu": {
+    "name": "Auto-Fitted Tutu"
+  },
+  "nursery_coverall": {
+    "name": "Nursery Coverall"
+  },
+  "locking_bib": {
+    "name": "Locking Feeder Bib"
+  },
+  "potty_pants": {
+    "name": "Training Pants (Electronic)"
+  },
+  "lockable_bloomers": {
+    "name": "Locked Nursery Bloomers"
+  },
+  "auto_diaper": {
+    "name": "Auto-Taped Nursery Diaper"
+  },
+  "max_absorbency_diaper": {
+    "name": "Maximum Absorbency Diaper"
+  },
+  "diaper_school_issued": {
+    "name": "School-Issued Diaper"
+  },
+  "nursery_nappy": {
+    "name": "Disposable Nursery Nappy"
+  },
+  "white_diaper": {
+    "name": "Institutional White Diaper"
+  },
+  "activity_socks": {
+    "name": "Activity Socks (Jingles)"
+  },
+  "nursery_booties": {
+    "name": "Padded Nursery Booties"
+  },
+  "formula_bottle_an": {
+    "name": "Auto-Nursery Formula"
+  },
+  "gummy_vitamins": {
+    "name": "Gummy Vitamins"
+  },
+  "lullaby_syrup": {
+    "name": "Lullaby Syrup"
+  },
+  "nanny_juice_box": {
+    "name": "Nanny's Juice Box"
+  },
+  "printed_diaper_auto": {
+    "name": "Printed Disposable (Rocket Ships)"
+  },
+  "all_in_one_1": {
+    "name": "All In One #1"
+  },
+  "all_in_one_2": {
+    "name": "All In One #2"
+  },
+  "baby_one_piece_1": {
+    "name": "Baby One Piece #1"
+  },
+  "babydoll_top_1": {
+    "name": "Babydoll Top #1"
+  },
+  "cat_bodysuit_1": {
+    "name": "Cat Bodysuit #1"
+  },
+  "denim_shorttalls_1": {
+    "name": "Denim Shorttalls #1"
+  },
+  "diaper_cover_all_1": {
+    "name": "Diaper Cover All #1"
+  },
+  "ducky_romper_1": {
+    "name": "Ducky Romper #1"
+  },
+  "frilly_dress_1": {
+    "name": "Frilly Dress #1"
+  },
+  "hello_kitty_dress_1": {
+    "name": "Hello Kitty Dress #1"
+  },
+  "holey_all_in_one_1": {
+    "name": "Holey All In One #1"
+  },
+  "latex_apron_1": {
+    "name": "Latex Apron #1"
+  },
+  "latex_playsuit_1": {
+    "name": "Latex Playsuit #1"
+  },
+  "loli_dress_1": {
+    "name": "Loli Dress #1"
+  },
+  "mummys_pumpkin_t_shirt_1": {
+    "name": "Mummys Pumpkin T Shirt #1"
+  },
+  "net_body_suit_1": {
+    "name": "Net Body Suit #1"
+  },
+  "pinafore_1": {
+    "name": "Pinafore #1"
+  },
+  "pink_rubber_top_1": {
+    "name": "Pink Rubber Top #1"
+  },
+  "pink_shorttalls_1": {
+    "name": "Pink Shorttalls #1"
+  },
+  "pink_tutu_dress_1": {
+    "name": "Pink Tutu Dress #1"
+  },
+  "pumpkin_dress_1": {
+    "name": "Pumpkin Dress #1"
+  },
+  "romantic_dress_1": {
+    "name": "Romantic Dress #1"
+  },
+  "romper_2": {
+    "name": "Romper #2"
+  },
+  "romper_3": {
+    "name": "Romper #3"
+  },
+  "school_uniform_1": {
+    "name": "School Uniform #1"
+  },
+  "school_uniform_2": {
+    "name": "School Uniform #2"
+  },
+  "schoolgirl_top_1": {
+    "name": "Schoolgirl Top #1"
+  },
+  "smock_dress_1": {
+    "name": "Smock Dress #1"
+  },
+  "smock_1": {
+    "name": "Smock #1"
+  },
+  "snowman_outfit_1": {
+    "name": "Snowman Outfit #1"
+  },
+  "sweet_body_leotard_1": {
+    "name": "Sweet Body Leotard #1"
+  },
+  "tot_body_diaper_1": {
+    "name": "Tot Body Diaper #1"
+  },
+  "turquise_check_dress_1": {
+    "name": "Turquise Check Dress #1"
+  },
+  "unicorn_tutu_1": {
+    "name": "Unicorn Tutu #1"
+  },
+  "xmas_dress_2": {
+    "name": "Xmas Dress #2"
+  },
+  "xmas_dress_3": {
+    "name": "Xmas Dress #3"
+  },
+  "xmas_dress_4": {
+    "name": "Xmas Dress #4"
+  },
+  "xmas_latex_suit_3": {
+    "name": "Xmas Latex Suit #3"
+  },
+  "xmas_outfit_1": {
+    "name": "Xmas Outfit #1"
+  },
+  "a_b_c_shortalls_1": {
+    "name": "A B C Shortalls #1"
+  },
+  "anime_superheroine_1": {
+    "name": "Anime Superheroine #1"
+  },
+  "apron_1": {
+    "name": "Apron #1"
+  },
+  "baby_frilly_1": {
+    "name": "Baby Frilly #1"
+  },
+  "baby_frilly_2": {
+    "name": "Baby Frilly #2"
+  },
+  "baby_frilly_3": {
+    "name": "Baby Frilly #3"
+  },
+  "basque_1": {
+    "name": "Basque #1"
+  },
+  "basque_2": {
+    "name": "Basque #2"
+  },
+  "bear_top_dress_1": {
+    "name": "Bear Top Dress #1"
+  },
+  "bitch_top_1": {
+    "name": "Bitch Top #1"
+  },
+  "black_clubbing_dress_1": {
+    "name": "Black Clubbing Dress #1"
+  },
+  "black_exposing_clubbing_dress_1": {
+    "name": "Black Exposing Clubbing Dress #1"
+  },
+  "black_slut_clubbing_dress_1": {
+    "name": "Black Slut Clubbing Dress #1"
+  },
+  "blazing_dress_1": {
+    "name": "Blazing Dress #1"
+  },
+  "blouse_pink_1": {
+    "name": "Blouse Pink #1"
+  },
+  "blouse_1": {
+    "name": "Blouse #1"
+  },
+  "blue_clubbing_dress_1": {
+    "name": "Blue Clubbing Dress #1"
+  },
+  "blue_exposing_clubbing_dress_1": {
+    "name": "Blue Exposing Clubbing Dress #1"
+  },
+  "bodysuit_1": {
+    "name": "Bodysuit #1"
+  },
+  "bodysuit_2a": {
+    "name": "Bodysuit 2a"
+  },
+  "bodysuit_2b": {
+    "name": "Bodysuit 2b"
+  },
+  "bodysuit_2c": {
+    "name": "Bodysuit 2c"
+  },
+  "bodysuit_2e": {
+    "name": "Bodysuit 2e"
+  },
+  "bodysuit_2f": {
+    "name": "Bodysuit 2f"
+  },
+  "bodysuit_2g": {
+    "name": "Bodysuit 2g"
+  },
+  "bodysuit_3": {
+    "name": "Bodysuit #3"
+  },
+  "bodysuit_4": {
+    "name": "Bodysuit #4"
+  },
+  "bondage_ribbons_1": {
+    "name": "Bondage Ribbons #1"
+  },
+  "bridal_dress_1a": {
+    "name": "Bridal Dress 1a"
+  },
+  "bridal_dress_1b": {
+    "name": "Bridal Dress 1b"
+  },
+  "bridal_dress_2a": {
+    "name": "Bridal Dress 2a"
+  },
+  "bridal_dress_2b": {
+    "name": "Bridal Dress 2b"
+  },
+  "bridal_dress_3a": {
+    "name": "Bridal Dress 3a"
+  },
+  "bridal_dress_3b": {
+    "name": "Bridal Dress 3b"
+  },
+  "bridal_dress_4a": {
+    "name": "Bridal Dress 4a"
+  },
+  "bridal_dress_4b": {
+    "name": "Bridal Dress 4b"
+  },
+  "bridal_dress_5": {
+    "name": "Bridal Dress #5"
+  },
+  "bridal_dress_6": {
+    "name": "Bridal Dress #6"
+  },
+  "bridal_dress_7": {
+    "name": "Bridal Dress #7"
+  },
+  "bunny_dress_1": {
+    "name": "Bunny Dress #1"
+  },
+  "bunny_outfit_1": {
+    "name": "Bunny Outfit #1"
+  },
+  "bunny_suit_1a": {
+    "name": "Bunny Suit 1a"
+  },
+  "bunny_suit_1b": {
+    "name": "Bunny Suit 1b"
+  },
+  "bunny_suit_1c": {
+    "name": "Bunny Suit 1c"
+  },
+  "bunny_suit_2": {
+    "name": "Bunny Suit #2"
+  },
+  "bunny_suit_3": {
+    "name": "Bunny Suit #3"
+  },
+  "bunny_suit_4": {
+    "name": "Bunny Suit #4"
+  },
+  "bunny_suit_5": {
+    "name": "Bunny Suit #5"
+  },
+  "business_dress_fetish_1": {
+    "name": "Business Dress Fetish #1"
+  },
+  "business_dress_pinstripe_1": {
+    "name": "Business Dress Pinstripe #1"
+  },
+  "business_dress_polka_1": {
+    "name": "Business Dress Polka #1"
+  },
+  "butterfly_wings_1": {
+    "name": "Butterfly Wings #1"
+  },
+  "cafe_maid_dress_1": {
+    "name": "Cafe Maid Dress #1"
+  },
+  "chainmail_top_1": {
+    "name": "Chainmail Top #1"
+  },
+  "cheerleader_1": {
+    "name": "Cheerleader #1"
+  },
+  "cheerleader_2": {
+    "name": "Cheerleader #2"
+  },
+  "cheerleader_2_back": {
+    "name": "Cheerleader #2 Back"
+  },
+  "cheerleader_3": {
+    "name": "Cheerleader #3"
+  },
+  "cheerleader_4": {
+    "name": "Cheerleader #4"
+  },
+  "cheerleader_5": {
+    "name": "Cheerleader #5"
+  },
+  "cheerleader_6": {
+    "name": "Cheerleader #6"
+  },
+  "cheerleader_9": {
+    "name": "Cheerleader #9"
+  },
+  "christmas_dress_1": {
+    "name": "Christmas Dress #1"
+  },
+  "christmas_dress_10": {
+    "name": "Christmas Dress #10"
+  },
+  "christmas_dress_2": {
+    "name": "Christmas Dress #2"
+  },
+  "christmas_dress_3": {
+    "name": "Christmas Dress #3"
+  },
+  "christmas_dress_4": {
+    "name": "Christmas Dress #4"
+  },
+  "christmas_dress_5": {
+    "name": "Christmas Dress #5"
+  },
+  "christmas_dress_6": {
+    "name": "Christmas Dress #6"
+  },
+  "christmas_dress_7": {
+    "name": "Christmas Dress #7"
+  },
+  "christmas_dress_8": {
+    "name": "Christmas Dress #8"
+  },
+  "christmas_dress_9": {
+    "name": "Christmas Dress #9"
+  },
+  "christmas_naughty_1": {
+    "name": "Christmas Naughty #1"
+  },
+  "christmas_nice_1": {
+    "name": "Christmas Nice #1"
+  },
+  "commando_outfit_1": {
+    "name": "Commando Outfit #1"
+  },
+  "crop_top_1": {
+    "name": "Crop Top #1"
+  },
+  "crop_top_2": {
+    "name": "Crop Top #2"
+  },
+  "crop_top_3": {
+    "name": "Crop Top #3"
+  },
+  "crop_top_4": {
+    "name": "Crop Top #4"
+  },
+  "crop_top_5": {
+    "name": "Crop Top #5"
+  },
+  "crop_top_6": {
+    "name": "Crop Top #6"
+  },
+  "croptop_10": {
+    "name": "Croptop #10"
+  },
+  "croptop_11": {
+    "name": "Croptop #11"
+  },
+  "croptop_12": {
+    "name": "Croptop #12"
+  },
+  "croptop_14": {
+    "name": "Croptop #14"
+  },
+  "croptop_16": {
+    "name": "Croptop #16"
+  },
+  "croptop_17": {
+    "name": "Croptop #17"
+  },
+  "croptop_18": {
+    "name": "Croptop #18"
+  },
+  "croptop_19": {
+    "name": "Croptop #19"
+  },
+  "croptop_20": {
+    "name": "Croptop #20"
+  },
+  "croptop_7": {
+    "name": "Croptop #7"
+  },
+  "croptop_8": {
+    "name": "Croptop #8"
+  },
+  "croptop_9": {
+    "name": "Croptop #9"
+  },
+  "cultist_robe_1": {
+    "name": "Cultist Robe #1"
+  },
+  "dainty_dress_1": {
+    "name": "Dainty Dress #1"
+  },
+  "dining_dress_1": {
+    "name": "Dining Dress #1"
+  },
+  "dining_dress_2": {
+    "name": "Dining Dress #2"
+  },
+  "dinosaur_dress_1": {
+    "name": "Dinosaur Dress #1"
+  },
+  "doll_dress_1": {
+    "name": "Doll Dress #1"
+  },
+  "eveing_dress_1": {
+    "name": "Eveing Dress #1"
+  },
+  "eveing_dress_2": {
+    "name": "Eveing Dress #2"
+  },
+  "eveing_dress_3": {
+    "name": "Eveing Dress #3"
+  },
+  "eveing_dress_4": {
+    "name": "Eveing Dress #4"
+  },
+  "eveing_dress_5": {
+    "name": "Eveing Dress #5"
+  },
+  "fertility_goddess_dress_1": {
+    "name": "Fertility Goddess Dress #1"
+  },
+  "fertility_goddess_dress_2": {
+    "name": "Fertility Goddess Dress #2"
+  },
+  "fertility_goddess_dress_3": {
+    "name": "Fertility Goddess Dress #3"
+  },
+  "fertility_goddess_dress_4": {
+    "name": "Fertility Goddess Dress #4"
+  },
+  "fertility_goddess_dress_5": {
+    "name": "Fertility Goddess Dress #5"
+  },
+  "fertility_goddess_dress_6": {
+    "name": "Fertility Goddess Dress #6"
+  },
+  "fetish_baby_dress_1": {
+    "name": "Fetish Baby Dress #1"
+  },
+  "fishnet_dress_1": {
+    "name": "Fishnet Dress #1"
+  },
+  "fishnet_dress_2": {
+    "name": "Fishnet Dress #2"
+  },
+  "fishnet_top_1": {
+    "name": "Fishnet Top #1"
+  },
+  "fishnet_top_2": {
+    "name": "Fishnet Top #2"
+  },
+  "floofy_babydoll_1": {
+    "name": "Floofy Babydoll #1"
+  },
+  "full_body_romper_1": {
+    "name": "Full Body Romper #1"
+  },
+  "furry_hood_outfit_1": {
+    "name": "Furry Hood Outfit #1"
+  },
+  "gingham_dress_1": {
+    "name": "Gingham Dress #1"
+  },
+  "gingham_outfit_1": {
+    "name": "Gingham Outfit #1"
+  },
+  "hex_dress_1": {
+    "name": "Hex Dress #1"
+  },
+  "kimono_1": {
+    "name": "Kimono #1"
+  },
+  "kimono_2": {
+    "name": "Kimono #2"
+  },
+  "kimono_3": {
+    "name": "Kimono #3"
+  },
+  "kimono_4": {
+    "name": "Kimono #4"
+  },
+  "kitty_baby_dress_1a": {
+    "name": "Kitty Baby Dress 1a"
+  },
+  "kitty_baby_dress_1b": {
+    "name": "Kitty Baby Dress 1b"
+  },
+  "latex_catsuit_1": {
+    "name": "Latex Catsuit #1"
+  },
+  "latex_catsuit_2": {
+    "name": "Latex Catsuit #2"
+  },
+  "latex_catsuit_3": {
+    "name": "Latex Catsuit #3"
+  },
+  "latex_dress_1": {
+    "name": "Latex Dress #1"
+  },
+  "latex_dress_10": {
+    "name": "Latex Dress #10"
+  },
+  "latex_dress_11a": {
+    "name": "Latex Dress 11a"
+  },
+  "latex_dress_11b": {
+    "name": "Latex Dress 11b"
+  },
+  "latex_dress_12": {
+    "name": "Latex Dress #12"
+  },
+  "latex_dress_2": {
+    "name": "Latex Dress #2"
+  },
+  "latex_dress_3": {
+    "name": "Latex Dress #3"
+  },
+  "latex_dress_4": {
+    "name": "Latex Dress #4"
+  },
+  "latex_dress_5": {
+    "name": "Latex Dress #5"
+  },
+  "latex_dress_6": {
+    "name": "Latex Dress #6"
+  },
+  "latex_dress_7": {
+    "name": "Latex Dress #7"
+  },
+  "latex_dress_8": {
+    "name": "Latex Dress #8"
+  },
+  "latex_dress_9": {
+    "name": "Latex Dress #9"
+  },
+  "latex_dungarees_1": {
+    "name": "Latex Dungarees #1"
+  },
+  "latex_jacket_1": {
+    "name": "Latex Jacket #1"
+  },
+  "latex_shirt_1": {
+    "name": "Latex Shirt #1"
+  },
+  "latex_shirt_2": {
+    "name": "Latex Shirt #2"
+  },
+  "leather_jacket_1": {
+    "name": "Leather Jacket #1"
+  },
+  "leotard_1": {
+    "name": "Leotard #1"
+  },
+  "leotard_2": {
+    "name": "Leotard #2"
+  },
+  "leotard_3": {
+    "name": "Leotard #3"
+  },
+  "lolita_swimsuit_1": {
+    "name": "Lolita Swimsuit #1"
+  },
+  "lollipop_dress_1": {
+    "name": "Lollipop Dress #1"
+  },
+  "lycra_bodysuit_1": {
+    "name": "Lycra Bodysuit #1"
+  },
+  "magical_dress_1": {
+    "name": "Magical Dress #1"
+  },
+  "magical_dress_2": {
+    "name": "Magical Dress #2"
+  },
+  "magical_dress_3": {
+    "name": "Magical Dress #3"
+  },
+  "magical_dress_4": {
+    "name": "Magical Dress #4"
+  },
+  "magical_dress_5": {
+    "name": "Magical Dress #5"
+  },
+  "magical_dress_6": {
+    "name": "Magical Dress #6"
+  },
+  "magical_dress_7": {
+    "name": "Magical Dress #7"
+  },
+  "maid_dress_1": {
+    "name": "Maid Dress #1"
+  },
+  "maid_dress_12": {
+    "name": "Maid Dress #12"
+  },
+  "maid_dress_13": {
+    "name": "Maid Dress #13"
+  },
+  "maid_dress_14": {
+    "name": "Maid Dress #14"
+  },
+  "maid_dress_2": {
+    "name": "Maid Dress #2"
+  },
+  "maid_dress_3": {
+    "name": "Maid Dress #3"
+  },
+  "maid_dress_4": {
+    "name": "Maid Dress #4"
+  },
+  "maid_dress_5": {
+    "name": "Maid Dress #5"
+  },
+  "maid_dress_6": {
+    "name": "Maid Dress #6"
+  },
+  "maid_dress_7": {
+    "name": "Maid Dress #7"
+  },
+  "maid_dress_8": {
+    "name": "Maid Dress #8"
+  },
+  "maid_dress_9": {
+    "name": "Maid Dress #9"
+  },
+  "maid_waitress_dress_1": {
+    "name": "Maid Waitress Dress #1"
+  },
+  "maternity_dress_1": {
+    "name": "Maternity Dress #1"
+  },
+  "milking_harness_1": {
+    "name": "Milking Harness #1"
+  },
+  "missing_dress_1": {
+    "name": "Missing Dress #1"
+  },
+  "missing_hobble_dress_1": {
+    "name": "Missing Hobble Dress #1"
+  },
+  "missing_shirt_1": {
+    "name": "Missing Shirt #1"
+  },
+  "missing_suit_1": {
+    "name": "Missing Suit #1"
+  },
+  "missing_super_short_dress_1": {
+    "name": "Missing Super Short Dress #1"
+  },
+  "missing_top_1": {
+    "name": "Missing Top #1"
+  },
+  "monokini_1": {
+    "name": "Monokini #1"
+  },
+  "monokini_2": {
+    "name": "Monokini #2"
+  },
+  "monokini_3": {
+    "name": "Monokini #3"
+  },
+  "monokini_6": {
+    "name": "Monokini #6"
+  },
+  "monokini_7": {
+    "name": "Monokini #7"
+  },
+  "monokini_8": {
+    "name": "Monokini #8"
+  },
+  "monokini_9": {
+    "name": "Monokini #9"
+  },
+  "navy_tiny_clubbing_dress_1": {
+    "name": "Navy Tiny Clubbing Dress #1"
+  },
+  "negligee_1": {
+    "name": "Negligee #1"
+  },
+  "negligee_2": {
+    "name": "Negligee #2"
+  },
+  "negligee_3": {
+    "name": "Negligee #3"
+  },
+  "negligee_4": {
+    "name": "Negligee #4"
+  },
+  "negligee_5": {
+    "name": "Negligee #5"
+  },
+  "neko_maid_skirt_1": {
+    "name": "Neko Maid Skirt #1"
+  },
+  "neko_maid_1": {
+    "name": "Neko Maid #1"
+  },
+  "nightie_1": {
+    "name": "Nightie #1"
+  },
+  "nightie_2": {
+    "name": "Nightie #2"
+  },
+  "nightie_3": {
+    "name": "Nightie #3"
+  },
+  "nightie_4": {
+    "name": "Nightie #4"
+  },
+  "nun_bodysuit_1": {
+    "name": "Nun Bodysuit #1"
+  },
+  "nun_dress_1": {
+    "name": "Nun Dress #1"
+  },
+  "onesie_1": {
+    "name": "Onesie #1"
+  },
+  "onesie_2": {
+    "name": "Onesie #2"
+  },
+  "open_front_dress_1a": {
+    "name": "Open Front Dress 1a"
+  },
+  "open_front_dress_1b": {
+    "name": "Open Front Dress 1b"
+  },
+  "ornate_latex_dress_1": {
+    "name": "Ornate Latex Dress #1"
+  },
+  "pinafore_dress_1": {
+    "name": "Pinafore Dress #1"
+  },
+  "pink_clubbing_dress_1": {
+    "name": "Pink Clubbing Dress #1"
+  },
+  "pink_exposing_clubbing_dress_1": {
+    "name": "Pink Exposing Clubbing Dress #1"
+  },
+  "pink_floral_dress_1": {
+    "name": "Pink Floral Dress #1"
+  },
+  "pink_sequins_dress_1": {
+    "name": "Pink Sequins Dress #1"
+  },
+  "pink_slut_clubbing_dress_1": {
+    "name": "Pink Slut Clubbing Dress #1"
+  },
+  "police_uniform_1": {
+    "name": "Police Uniform #1"
+  },
+  "priestess_1": {
+    "name": "Priestess #1"
+  },
+  "priestess_2": {
+    "name": "Priestess #2"
+  },
+  "priestess_3": {
+    "name": "Priestess #3"
+  },
+  "priestess_4": {
+    "name": "Priestess #4"
+  },
+  "priestess_5": {
+    "name": "Priestess #5"
+  },
+  "priestess_6": {
+    "name": "Priestess #6"
+  },
+  "purple_cocktail_dress_1": {
+    "name": "Purple Cocktail Dress #1"
+  },
+  "ribbon_dress_1": {
+    "name": "Ribbon Dress #1"
+  },
+  "romper_blue_1": {
+    "name": "Romper Blue #1"
+  },
+  "romper_1": {
+    "name": "Romper #1"
+  },
+  "romper_10": {
+    "name": "Romper #10"
+  },
+  "romper_11": {
+    "name": "Romper #11"
+  },
+  "romper_12": {
+    "name": "Romper #12"
+  },
+  "romper_4": {
+    "name": "Romper #4"
+  },
+  "romper_6": {
+    "name": "Romper #6"
+  },
+  "romper_8": {
+    "name": "Romper #8"
+  },
+  "romper_9": {
+    "name": "Romper #9"
+  },
+  "rope_harness_1": {
+    "name": "Rope Harness #1"
+  },
+  "royal_dress_1": {
+    "name": "Royal Dress #1"
+  },
+  "royal_dress_2a": {
+    "name": "Royal Dress 2a"
+  },
+  "royal_dress_2b": {
+    "name": "Royal Dress 2b"
+  },
+  "royal_dress_3": {
+    "name": "Royal Dress #3"
+  },
+  "royal_dress_4": {
+    "name": "Royal Dress #4"
+  },
+  "rubber_dress_1": {
+    "name": "Rubber Dress #1"
+  },
+  "rubber_dress_2": {
+    "name": "Rubber Dress #2"
+  },
+  "rubber_dress_4": {
+    "name": "Rubber Dress #4"
+  },
+  "rubber_dress_5": {
+    "name": "Rubber Dress #5"
+  },
+  "rubber_dress_6": {
+    "name": "Rubber Dress #6"
+  },
+  "rubber_dress_7": {
+    "name": "Rubber Dress #7"
+  },
+  "rubber_dress_8": {
+    "name": "Rubber Dress #8"
+  },
+  "rugged_crop_top_1": {
+    "name": "Rugged Crop Top #1"
+  },
+  "sailor_fleece_dress_1": {
+    "name": "Sailor Fleece Dress #1"
+  },
+  "sanata_baby_outfit_1": {
+    "name": "Sanata Baby Outfit #1"
+  },
+  "schoolgirl_uniform_1": {
+    "name": "Schoolgirl Uniform #1"
+  },
+  "schoolgirl_uniform_2": {
+    "name": "Schoolgirl Uniform #2"
+  },
+  "schoolgirl_uniform_3": {
+    "name": "Schoolgirl Uniform #3"
+  },
+  "schoolgirl_uniform_4": {
+    "name": "Schoolgirl Uniform #4"
+  },
+  "sequin_dress_1": {
+    "name": "Sequin Dress #1"
+  },
+  "shirt_1": {
+    "name": "Shirt #1"
+  },
+  "shirt_2": {
+    "name": "Shirt #2"
+  },
+  "shirt_3a": {
+    "name": "Shirt 3a"
+  },
+  "shirt_3b": {
+    "name": "Shirt 3b"
+  },
+  "shirt_4a": {
+    "name": "Shirt 4a"
+  },
+  "shirt_4b": {
+    "name": "Shirt 4b"
+  },
+  "sinful_priestess_dress_1": {
+    "name": "Sinful Priestess Dress #1"
+  },
+  "sinful_priestess_dress_2": {
+    "name": "Sinful Priestess Dress #2"
+  },
+  "sinful_priestess_dress_3": {
+    "name": "Sinful Priestess Dress #3"
+  },
+  "sinful_priestess_dress_4": {
+    "name": "Sinful Priestess Dress #4"
+  },
+  "slave_dress_1": {
+    "name": "Slave Dress #1"
+  },
+  "slave_dress_2": {
+    "name": "Slave Dress #2"
+  },
+  "sparkely_long_dress_1": {
+    "name": "Sparkely Long Dress #1"
+  },
+  "string_monokini_10": {
+    "name": "String Monokini #10"
+  },
+  "string_monokini_11": {
+    "name": "String Monokini #11"
+  },
+  "string_monokini_12": {
+    "name": "String Monokini #12"
+  },
+  "string_monokini_14": {
+    "name": "String Monokini #14"
+  },
+  "string_monokini_1a": {
+    "name": "String Monokini 1a"
+  },
+  "string_monokini_1b": {
+    "name": "String Monokini 1b"
+  },
+  "string_monokini_2": {
+    "name": "String Monokini #2"
+  },
+  "string_monokini_3": {
+    "name": "String Monokini #3"
+  },
+  "string_monokini_4": {
+    "name": "String Monokini #4"
+  },
+  "string_monokini_5": {
+    "name": "String Monokini #5"
+  },
+  "string_monokini_6": {
+    "name": "String Monokini #6"
+  },
+  "string_monokini_7": {
+    "name": "String Monokini #7"
+  },
+  "string_monokini_8": {
+    "name": "String Monokini #8"
+  },
+  "string_monokini_9": {
+    "name": "String Monokini #9"
+  },
+  "striped_top_1": {
+    "name": "Striped Top #1"
+  },
+  "superheroine_1": {
+    "name": "Superheroine #1"
+  },
+  "swimming_top_1": {
+    "name": "Swimming Top #1"
+  },
+  "swimming_top_1a": {
+    "name": "Swimming Top 1a"
+  },
+  "t_shirt_1": {
+    "name": "T Shirt #1"
+  },
+  "t_shirt_10": {
+    "name": "T Shirt #10"
+  },
+  "t_shirt_11": {
+    "name": "T Shirt #11"
+  },
+  "t_shirt_14": {
+    "name": "T Shirt #14"
+  },
+  "t_shirt_15": {
+    "name": "T Shirt #15"
+  },
+  "t_shirt_2": {
+    "name": "T Shirt #2"
+  },
+  "t_shirt_3": {
+    "name": "T Shirt #3"
+  },
+  "t_shirt_4": {
+    "name": "T Shirt #4"
+  },
+  "t_shirt_5": {
+    "name": "T Shirt #5"
+  },
+  "t_shirt_6": {
+    "name": "T Shirt #6"
+  },
+  "t_shirt_7": {
+    "name": "T Shirt #7"
+  },
+  "t_shirt_8": {
+    "name": "T Shirt #8"
+  },
+  "t_shirt_9": {
+    "name": "T Shirt #9"
+  },
+  "teddybear_dress_1": {
+    "name": "Teddybear Dress #1"
+  },
+  "tight_dress_1": {
+    "name": "Tight Dress #1"
+  },
+  "tongue_bosysuit_1": {
+    "name": "Tongue Bosysuit #1"
+  },
+  "tongue_bosysuit_1a": {
+    "name": "Tongue Bosysuit 1a"
+  },
+  "tongue_bosysuit_2": {
+    "name": "Tongue Bosysuit #2"
+  },
+  "tongue_bosysuit_2a": {
+    "name": "Tongue Bosysuit 2a"
+  },
+  "tube_top_1": {
+    "name": "Tube Top #1"
+  },
+  "tube_top_10": {
+    "name": "Tube Top #10"
+  },
+  "tube_top_11": {
+    "name": "Tube Top #11"
+  },
+  "tube_top_2": {
+    "name": "Tube Top #2"
+  },
+  "tube_top_4": {
+    "name": "Tube Top #4"
+  },
+  "tube_top_5": {
+    "name": "Tube Top #5"
+  },
+  "tube_top_6": {
+    "name": "Tube Top #6"
+  },
+  "tube_top_7": {
+    "name": "Tube Top #7"
+  },
+  "tube_top_8": {
+    "name": "Tube Top #8"
+  },
+  "tube_top_9": {
+    "name": "Tube Top #9"
+  },
+  "tubetop_3": {
+    "name": "Tubetop #3"
+  },
+  "turtle_swimsuit_1": {
+    "name": "Turtle Swimsuit #1"
+  },
+  "vest_dress_1": {
+    "name": "Vest Dress #1"
+  },
+  "vest_1": {
+    "name": "Tank Top Yellow"
+  },
+  "vest_2": {
+    "name": "Vest #2"
+  },
+  "vest_3": {
+    "name": "Vest #3"
+  },
+  "vest_4": {
+    "name": "Vest #4"
+  },
+  "vest_5": {
+    "name": "Vest #5"
+  },
+  "vest_6": {
+    "name": "Vest #6"
+  },
+  "vest_7": {
+    "name": "Vest #7"
+  },
+  "vest_8": {
+    "name": "Vest #8"
+  },
+  "warrior_chestplate_1": {
+    "name": "Warrior Chestplate #1"
+  },
+  "warrior_chestplate_2": {
+    "name": "Warrior Chestplate #2"
+  },
+  "warrior_chestplate_3": {
+    "name": "Warrior Chestplate #3"
+  },
+  "warrior_chestplate_4": {
+    "name": "Warrior Chestplate #4"
+  },
+  "warrior_chestplate_5": {
+    "name": "Warrior Chestplate #5"
+  },
+  "warrior_chestplate_6": {
+    "name": "Warrior Chestplate #6"
+  },
+  "white_babydoll_1": {
+    "name": "White Babydoll #1"
+  },
+  "white_clubbing_dress_1": {
+    "name": "White Clubbing Dress #1"
+  },
+  "white_slut_clubbing_dress_1": {
+    "name": "White Slut Clubbing Dress #1"
+  },
+  "witch_bodysuit_1": {
+    "name": "Witch Bodysuit #1"
+  },
+  "wrestler_suit_1": {
+    "name": "Wrestler Suit #1"
+  },
+  "xmas_dress_6": {
+    "name": "Xmas Dress #6"
+  },
+  "xmas_latex_suit_1": {
+    "name": "Xmas Latex Suit #1"
+  },
+  "xmas_latex_suit_2": {
+    "name": "Xmas Latex Suit #2"
+  },
+  "yellow_baby_dress_1": {
+    "name": "Yellow Baby Dress #1"
+  },
+  "yellow_babydoll_1": {
+    "name": "Yellow Babydoll #1"
+  },
+  "bikini_12": {
+    "name": "Bikini #12"
+  },
+  "xmas_bra_1": {
+    "name": "Xmas Bra #1"
+  },
+  "bikini_1": {
+    "name": "Bikini #1"
+  },
+  "bikini_10": {
+    "name": "Bikini #10"
+  },
+  "bikini_11": {
+    "name": "Bikini #11"
+  },
+  "bikini_13": {
+    "name": "Bikini #13"
+  },
+  "bikini_2": {
+    "name": "Bikini #2"
+  },
+  "bikini_3": {
+    "name": "Bikini #3"
+  },
+  "bikini_4": {
+    "name": "Bikini #4"
+  },
+  "bikini_5": {
+    "name": "Bikini #5"
+  },
+  "bikini_6": {
+    "name": "Bikini #6"
+  },
+  "bikini_7": {
+    "name": "Bikini #7"
+  },
+  "bikini_8": {
+    "name": "Bikini #8"
+  },
+  "bikini_9": {
+    "name": "Bikini #9"
+  },
+  "bra_1": {
+    "name": "Bra #1"
+  },
+  "bra_2": {
+    "name": "Bra #2"
+  },
+  "bra_3": {
+    "name": "Bra #3"
+  },
+  "bra_4": {
+    "name": "Bra #4"
+  },
+  "bra_5": {
+    "name": "Bra #5"
+  },
+  "bra_6": {
+    "name": "Bra #6"
+  },
+  "bra_7": {
+    "name": "Bra #7"
+  },
+  "bra_8": {
+    "name": "Bra #8"
+  },
+  "cupless_bra_1": {
+    "name": "Cupless Bra #1"
+  },
+  "cupless_bra_2": {
+    "name": "Cupless Bra #2"
+  },
+  "exercise_bra_1": {
+    "name": "Exercise Bra #1"
+  },
+  "exercise_bra_2": {
+    "name": "Exercise Bra #2"
+  },
+  "exercise_bra_5": {
+    "name": "Exercise Bra #5"
+  },
+  "heart_bra_1": {
+    "name": "Heart Bra #1"
+  },
+  "latex_bra_1": {
+    "name": "Latex Bra #1"
+  },
+  "latex_bra_2": {
+    "name": "Latex Bra #2"
+  },
+  "metal_bra_1": {
+    "name": "Metal Bra #1"
+  },
+  "onahole_bra_1": {
+    "name": "Onahole Bra #1"
+  },
+  "pasties_1": {
+    "name": "Pasties #1"
+  },
+  "pasties_2": {
+    "name": "Pasties #2"
+  },
+  "portal_bra_1": {
+    "name": "Portal Bra #1"
+  },
+  "ribbon_bra_1": {
+    "name": "Ribbon Bra #1"
+  },
+  "spade_bra_1": {
+    "name": "Spade Bra #1"
+  },
+  "stripper_bra_1": {
+    "name": "Stripper Bra #1"
+  },
+  "stripper_bra_2": {
+    "name": "Stripper Bra #2"
+  },
+  "tartan_bra_1": {
+    "name": "Tartan Bra #1"
+  },
+  "tassels_1": {
+    "name": "Tassels #1"
+  },
+  "tongue_bust_1": {
+    "name": "Tongue Bust #1"
+  },
+  "tongue_bust_1a": {
+    "name": "Tongue Bust 1a"
+  },
+  "tongue_bust_2": {
+    "name": "Tongue Bust #2"
+  },
+  "tongue_bust_2a": {
+    "name": "Tongue Bust 2a"
+  },
+  "trainee_bra_1": {
+    "name": "Trainee Bra #1"
+  },
+  "ballet_corset_1": {
+    "name": "Ballet Corset"
+  },
+  "bat_corset_1": {
+    "name": "Bat Corset #1"
+  },
+  "bat_corset_2": {
+    "name": "Bat Corset #2"
+  },
+  "bat_corset_3": {
+    "name": "Bat Corset #3"
+  },
+  "bondage_corset_1": {
+    "name": "Bondage Corset #1"
+  },
+  "bondage_corset_2": {
+    "name": "Bondage Corset #2"
+  },
+  "bondage_corset_3": {
+    "name": "Bondage Corset #3"
+  },
+  "fetish_corset_1": {
+    "name": "Fetish Corset #1"
+  },
+  "gothic_corset_1": {
+    "name": "Gothic Corset #1"
+  },
+  "leather_corset_1": {
+    "name": "Leather Corset #1"
+  },
+  "missing_corset_1": {
+    "name": "Missing Corset #1"
+  },
+  "missing_corset_2": {
+    "name": "Missing Corset #2"
+  },
+  "santa_corset_1": {
+    "name": "Santa Corset #1"
+  },
+  "satin_corset_1": {
+    "name": "Satin Corset #1"
+  },
+  "spike_corset_1": {
+    "name": "Spike Corset #1"
+  },
+  "vinyl_corset_1": {
+    "name": "Vinyl Corset #1"
+  },
+  "bunny_suit_gloves_1": {
+    "name": "Bunny Suit Gloves #1"
+  },
+  "xmas_latex_gloves_2": {
+    "name": "Xmas Latex Gloves #2"
+  },
+  "xmas_latex_gloves_3": {
+    "name": "Xmas Latex Gloves #3"
+  },
+  "cat_gloves_1": {
+    "name": "Cat Gloves #1"
+  },
+  "combat_gloves_1": {
+    "name": "Combat Gloves #1"
+  },
+  "fake_nails_1": {
+    "name": "Fake Nails #1"
+  },
+  "football_gloves_1": {
+    "name": "Football Gloves #1"
+  },
+  "gape_gloves_1": {
+    "name": "Gape Gloves #1"
+  },
+  "handmaiden_gloves_1": {
+    "name": "Handmaiden Gloves #1"
+  },
+  "handmaiden_gloves_2": {
+    "name": "Handmaiden Gloves #2"
+  },
+  "hex_gloves_1": {
+    "name": "Hex Gloves #1"
+  },
+  "kitty_claws_1": {
+    "name": "Kitty Claws #1"
+  },
+  "kitty_claws_2": {
+    "name": "Kitty Claws #2"
+  },
+  "kitty_claws_3": {
+    "name": "Kitty Claws #3"
+  },
+  "mittens_1": {
+    "name": "Mittens #1"
+  },
+  "mittens_2": {
+    "name": "Mittens #2"
+  },
+  "mittens_3": {
+    "name": "Mittens #3"
+  },
+  "mittens_4": {
+    "name": "Mittens #4"
+  },
+  "mittens_5": {
+    "name": "Mittens #5"
+  },
+  "mittens_6": {
+    "name": "Mittens #6"
+  },
+  "mittens_7": {
+    "name": "Mittens #7"
+  },
+  "pom_poms_1": {
+    "name": "Pom Poms #1"
+  },
+  "pom_poms_2": {
+    "name": "Pom Poms #2"
+  },
+  "qo_s_gloves_1": {
+    "name": "Qo S Gloves #1"
+  },
+  "thumb_vibrators_1": {
+    "name": "Thumb Vibrators #1"
+  },
+  "tongue_gloves_1": {
+    "name": "Tongue Gloves #1"
+  },
+  "tongue_gloves_1a": {
+    "name": "Tongue Gloves 1a"
+  },
+  "tongue_gloves_2": {
+    "name": "Tongue Gloves #2"
+  },
+  "tongue_gloves_2a": {
+    "name": "Tongue Gloves 2a"
+  },
+  "xmas_latex_gloves_1": {
+    "name": "Xmas Latex Gloves #1"
+  },
+  "trousers_bloomers_2": {
+    "name": "Trousers Bloomers #2"
+  },
+  "trousers_canvas": {
+    "name": "Trousers Canvas"
+  },
+  "trousers_bitch_bottoms": {
+    "name": "Trousers Bitch Bottoms"
+  },
+  "trousers_bloomers_1": {
+    "name": "Trousers Bloomers #1"
+  },
+  "trousers_buttockless": {
+    "name": "Trousers Buttockless"
+  },
+  "trousers_exercise_shorts_black": {
+    "name": "Trousers Exercise Shorts Black"
+  },
+  "trousers_exercise_shorts_blue": {
+    "name": "Trousers Exercise Shorts Blue"
+  },
+  "trousers_exercise_shorts_grey": {
+    "name": "Trousers Exercise Shorts Grey"
+  },
+  "trousers_exercise_shorts_sheer": {
+    "name": "Trousers Exercise Shorts Sheer"
+  },
+  "trousers_exercise_shorts_tight_blue": {
+    "name": "Trousers Exercise Shorts Tight Blue"
+  },
+  "trousers_jeans_1": {
+    "name": "Trousers Jeans #1"
+  },
+  "trousers_jeans_2": {
+    "name": "Trousers Jeans #2"
+  },
+  "trousers_jeans_3": {
+    "name": "Trousers Jeans #3"
+  },
+  "trousers_kitty_pyjamas": {
+    "name": "Trousers Kitty Pyjamas"
+  },
+  "trousers_latex": {
+    "name": "Trousers Latex"
+  },
+  "trousers_leggings_1": {
+    "name": "Trousers Leggings #1"
+  },
+  "trousers_leggings_2": {
+    "name": "Trousers Leggings #2"
+  },
+  "trousers_witch": {
+    "name": "Trousers Witch"
+  },
+  "trousers_yoga": {
+    "name": "Trousers Yoga"
+  },
+  "shoes_boots_xmas": {
+    "name": "Shoes Boots Xmas"
+  },
+  "shoes_bunny_1": {
+    "name": "Shoes Bunny #1"
+  },
+  "shoes_bunny_2": {
+    "name": "Shoes Bunny #2"
+  },
+  "shoes_cat": {
+    "name": "Shoes Cat"
+  },
+  "shoes_heels_net_body": {
+    "name": "Shoes Heels Net Body"
+  },
+  "shoes_heels_tartan_bra": {
+    "name": "Shoes Heels Tartan Bra"
+  },
+  "shoes_heels_xmas": {
+    "name": "Shoes Heels Xmas"
+  },
+  "shoes_pompom": {
+    "name": "Shoes Pompom"
+  },
+  "shoes_ballet": {
+    "name": "Shoes Ballet"
+  },
+  "shoes_ballet_boots_1": {
+    "name": "Shoes Ballet Boots #1"
+  },
+  "shoes_ballet_boots_2": {
+    "name": "Shoes Ballet Boots #2"
+  },
+  "shoes_ballet_heels": {
+    "name": "Shoes Ballet Heels"
+  },
+  "shoes_booties_1": {
+    "name": "Shoes Booties #1"
+  },
+  "shoes_booties_2": {
+    "name": "Shoes Booties #2"
+  },
+  "shoes_booties_3": {
+    "name": "Shoes Booties #3"
+  },
+  "shoes_booties_bunny": {
+    "name": "Shoes Booties Bunny"
+  },
+  "shoes_booties_xmas": {
+    "name": "Shoes Booties Xmas"
+  },
+  "shoes_boots_candy_cane": {
+    "name": "Shoes Boots Candy Cane"
+  },
+  "shoes_boots_combat": {
+    "name": "Shoes Boots Combat"
+  },
+  "shoes_boots_cow": {
+    "name": "Shoes Boots Cow"
+  },
+  "shoes_boots_nun_1": {
+    "name": "Shoes Boots Nun #1"
+  },
+  "shoes_boots_nun_2": {
+    "name": "Shoes Boots Nun #2"
+  },
+  "shoes_boots_straps": {
+    "name": "Shoes Boots Straps"
+  },
+  "shoes_business_1": {
+    "name": "Shoes Business #1"
+  },
+  "shoes_fetish_boots_1": {
+    "name": "Shoes Fetish Boots #1"
+  },
+  "shoes_heels_armadillo_1": {
+    "name": "Shoes Heels Armadillo #1"
+  },
+  "shoes_heels_court_1": {
+    "name": "Shoes Heels Court #1"
+  },
+  "shoes_heels_court_2": {
+    "name": "Shoes Heels Court #2"
+  },
+  "shoes_heels_court_3": {
+    "name": "Shoes Heels Court #3"
+  },
+  "shoes_heels_court_4": {
+    "name": "Shoes Heels Court #4"
+  },
+  "shoes_heels_court_5": {
+    "name": "Shoes Heels Court #5"
+  },
+  "shoes_heels_court_bow_1": {
+    "name": "Shoes Heels Court Bow #1"
+  },
+  "shoes_heels_court_bow_2": {
+    "name": "Shoes Heels Court Bow #2"
+  },
+  "shoes_heels_court_bow_3": {
+    "name": "Shoes Heels Court Bow #3"
+  },
+  "shoes_heels_dildo": {
+    "name": "Shoes Heels Dildo"
+  },
+  "shoes_heels_lipstick": {
+    "name": "Shoes Heels Lipstick"
+  },
+  "shoes_heels_queen_1": {
+    "name": "Shoes Heels Queen #1"
+  },
+  "shoes_heels_queen_2": {
+    "name": "Shoes Heels Queen #2"
+  },
+  "shoes_heels_savior": {
+    "name": "Shoes Heels Savior"
+  },
+  "shoes_heels_wedge_1": {
+    "name": "Shoes Heels Wedge #1"
+  },
+  "shoes_heels_wedge_2": {
+    "name": "Shoes Heels Wedge #2"
+  },
+  "shoes_heels_wedge_3": {
+    "name": "Shoes Heels Wedge #3"
+  },
+  "shoes_mary_janes": {
+    "name": "Shoes Mary Janes"
+  },
+  "shoes_peep_toe_heels_1": {
+    "name": "Shoes Peep Toe Heels #1"
+  },
+  "shoes_peep_toe_heels_2": {
+    "name": "Shoes Peep Toe Heels #2"
+  },
+  "shoes_peep_toe_heels_3": {
+    "name": "Shoes Peep Toe Heels #3"
+  },
+  "shoes_platform_heels_1": {
+    "name": "Shoes Platform Heels #1"
+  },
+  "shoes_platform_heels_2": {
+    "name": "Shoes Platform Heels #2"
+  },
+  "shoes_platform_heels_3": {
+    "name": "Shoes Platform Heels #3"
+  },
+  "shoes_platform_heels_4": {
+    "name": "Shoes Platform Heels #4"
+  },
+  "shoes_platform_heels_5": {
+    "name": "Shoes Platform Heels #5"
+  },
+  "shoes_platform_heels_6": {
+    "name": "Shoes Platform Heels #6"
+  },
+  "shoes_rollerskates_1": {
+    "name": "Shoes Rollerskates #1"
+  },
+  "shoes_rollerskates_2": {
+    "name": "Shoes Rollerskates #2"
+  },
+  "shoes_rollerskates_3": {
+    "name": "Shoes Rollerskates #3"
+  },
+  "shoes_rollerskates_4": {
+    "name": "Shoes Rollerskates #4"
+  },
+  "shoes_rollerskates_5": {
+    "name": "Shoes Rollerskates #5"
+  },
+  "shoes_sandals_1": {
+    "name": "Shoes Sandals #1"
+  },
+  "shoes_sandals_2": {
+    "name": "Shoes Sandals #2"
+  },
+  "shoes_sandals_3": {
+    "name": "Shoes Sandals #3"
+  },
+  "shoes_sneakers_1": {
+    "name": "Shoes Sneakers #1"
+  },
+  "shoes_sneakers_2": {
+    "name": "Shoes Sneakers #2"
+  },
+  "shoes_tall_platform_heels_1": {
+    "name": "Shoes Tall Platform Heels #1"
+  },
+  "shoes_tall_platform_heels_2": {
+    "name": "Shoes Tall Platform Heels #2"
+  },
+  "shoes_thigh_heels_1": {
+    "name": "Shoes Thigh Heels #1"
+  },
+  "shoes_thigh_heels_2": {
+    "name": "Shoes Thigh Heels #2"
+  },
+  "shoes_thigh_heels_3": {
+    "name": "Shoes Thigh Heels #3"
+  },
+  "shoes_thigh_heels_latex_w_c": {
+    "name": "Shoes Thigh Heels Latex W C"
+  },
+  "shoes_tongue_1a": {
+    "name": "Shoes Tongue 1a"
+  },
+  "shoes_tongue_1b": {
+    "name": "Shoes Tongue 1b"
+  },
+  "shoes_tongue_2a": {
+    "name": "Shoes Tongue 2a"
+  },
+  "shoes_tongue_2b": {
+    "name": "Shoes Tongue 2b"
+  },
+  "shoes_tongue_3a": {
+    "name": "Shoes Tongue 3a"
+  },
+  "shoes_tongue_3b": {
+    "name": "Shoes Tongue 3b"
+  },
+  "shoes_tongue_4a": {
+    "name": "Shoes Tongue 4a"
+  },
+  "shoes_tongue_4b": {
+    "name": "Shoes Tongue 4b"
+  },
+  "skirts_babydoll": {
+    "name": "Skirts Babydoll"
+  },
+  "skirts_schoolgirl": {
+    "name": "Skirts Schoolgirl"
+  },
+  "pink_rubber_skirt_1": {
+    "name": "Pink Rubber Skirt #1"
+  },
+  "skirts_apron_1": {
+    "name": "Skirts Apron #1"
+  },
+  "skirts_chainmail": {
+    "name": "Skirts Chainmail"
+  },
+  "skirts_cheerleader": {
+    "name": "Skirts Cheerleader"
+  },
+  "skirts_chequered": {
+    "name": "Skirts Chequered"
+  },
+  "skirts_cupcake_tray_1": {
+    "name": "Skirts Cupcake Tray #1"
+  },
+  "skirts_cupcake_tray_2": {
+    "name": "Skirts Cupcake Tray #2"
+  },
+  "skirts_cupcake_tray_3": {
+    "name": "Skirts Cupcake Tray #3"
+  },
+  "skirts_cupcake_tray_4": {
+    "name": "Skirts Cupcake Tray #4"
+  },
+  "skirts_cupcake_tray_5": {
+    "name": "Skirts Cupcake Tray #5"
+  },
+  "skirts_flight_attendant_1": {
+    "name": "Skirts Flight Attendant #1"
+  },
+  "skirts_floral": {
+    "name": "Skirts Floral"
+  },
+  "skirts_flowing": {
+    "name": "Skirts Flowing"
+  },
+  "skirts_gown_1a": {
+    "name": "Skirts Gown 1a"
+  },
+  "skirts_gown_1b": {
+    "name": "Skirts Gown 1b"
+  },
+  "skirts_grope_me_1": {
+    "name": "Skirts Grope Me #1"
+  },
+  "skirts_lace_mini": {
+    "name": "Skirts Lace Mini"
+  },
+  "skirts_latex_1": {
+    "name": "Skirts Latex #1"
+  },
+  "skirts_latex_2": {
+    "name": "Skirts Latex #2"
+  },
+  "skirts_latex_hobble_1": {
+    "name": "Skirts Latex Hobble #1"
+  },
+  "skirts_latex_mini_1": {
+    "name": "Skirts Latex Mini #1"
+  },
+  "skirts_latex_mini_2": {
+    "name": "Skirts Latex Mini #2"
+  },
+  "skirts_micro_1": {
+    "name": "Skirts Micro #1"
+  },
+  "skirts_micro_2": {
+    "name": "Skirts Micro #2"
+  },
+  "skirts_micro_3": {
+    "name": "Skirts Micro #3"
+  },
+  "skirts_micro_4": {
+    "name": "Skirts Micro #4"
+  },
+  "skirts_naughty": {
+    "name": "Skirts Naughty"
+  },
+  "skirts_nun": {
+    "name": "Skirts Nun"
+  },
+  "skirts_office": {
+    "name": "Skirts Office"
+  },
+  "skirts_open_front_1": {
+    "name": "Skirts Open Front #1"
+  },
+  "skirts_priestess_1": {
+    "name": "Skirts Priestess #1"
+  },
+  "skirts_priestess_2": {
+    "name": "Skirts Priestess #2"
+  },
+  "skirts_punishment": {
+    "name": "Skirts Punishment"
+  },
+  "skirts_queen_of_spades_1": {
+    "name": "Skirts Queen Of Spades #1"
+  },
+  "skirts_tartan_micro_1": {
+    "name": "Skirts Tartan Micro #1"
+  },
+  "skirts_tartan_micro_2": {
+    "name": "Skirts Tartan Micro #2"
+  },
+  "skirts_tartan_micro_3": {
+    "name": "Skirts Tartan Micro #3"
+  },
+  "skirts_tartan_mini_1": {
+    "name": "Skirts Tartan Mini #1"
+  },
+  "skirts_tartan_mini_2": {
+    "name": "Skirts Tartan Mini #2"
+  },
+  "skirts_tartan_mini_3": {
+    "name": "Skirts Tartan Mini #3"
+  },
+  "skirts_zip": {
+    "name": "Skirts Zip"
+  },
+  "stockings_bunny": {
+    "name": "Stockings Bunny"
+  },
+  "stockings_cat": {
+    "name": "Stockings Cat"
+  },
+  "stockings_latex_fetish": {
+    "name": "Stockings Latex Fetish"
+  },
+  "stockings_priestess": {
+    "name": "Stockings Priestess"
+  },
+  "stockings_tartan_fishnets": {
+    "name": "Stockings Tartan Fishnets"
+  },
+  "stockings_xman_pantyhose": {
+    "name": "Stockings Xman Pantyhose"
+  },
+  "stockings_xmas_1": {
+    "name": "Stockings Xmas #1"
+  },
+  "stockings_xmas_2": {
+    "name": "Stockings Xmas #2"
+  },
+  "stockings_xmas_legwarmers": {
+    "name": "Stockings Xmas Legwarmers"
+  },
+  "socks_4": {
+    "name": "Socks #4"
+  },
+  "socks_5": {
+    "name": "Socks #5"
+  },
+  "stockings_1": {
+    "name": "Stockings #1"
+  },
+  "stockings_10": {
+    "name": "Stockings #10"
+  },
+  "stockings_11": {
+    "name": "Stockings #11"
+  },
+  "stockings_12": {
+    "name": "Stockings #12"
+  },
+  "stockings_2": {
+    "name": "Stockings #2"
+  },
+  "stockings_3": {
+    "name": "Stockings #3"
+  },
+  "stockings_4": {
+    "name": "Stockings #4"
+  },
+  "stockings_5": {
+    "name": "Stockings #5"
+  },
+  "stockings_6": {
+    "name": "Stockings #6"
+  },
+  "stockings_7": {
+    "name": "Stockings #7"
+  },
+  "stockings_8": {
+    "name": "Stockings #8"
+  },
+  "stockings_9": {
+    "name": "Stockings #9"
+  },
+  "stockings_maid_1": {
+    "name": "Stockings Maid #1"
+  },
+  "stockings_maid_2": {
+    "name": "Stockings Maid #2"
+  },
+  "stockings_maid_3": {
+    "name": "Stockings Maid #3"
+  },
+  "stockings_princess_bride": {
+    "name": "Stockings Princess Bride"
+  },
+  "stockings_queen_of_spades": {
+    "name": "Stockings Queen Of Spades"
+  },
+  "stockings_rubber_black": {
+    "name": "Stockings Rubber Black"
+  },
+  "stockings_rubber_red": {
+    "name": "Stockings Rubber Red"
+  },
+  "stockings_skeleton": {
+    "name": "Stockings Skeleton"
+  },
+  "stockings_striped_black_orange": {
+    "name": "Stockings Striped Black Orange"
+  },
+  "stockings_striped_black_yellow": {
+    "name": "Stockings Striped Black Yellow"
+  },
+  "stockings_stripper_1": {
+    "name": "Stockings Stripper #1"
+  },
+  "stockings_stripper_2": {
+    "name": "Stockings Stripper #2"
+  },
+  "stockings_tongue_1a": {
+    "name": "Stockings Tongue 1a"
+  },
+  "stockings_tongue_1b": {
+    "name": "Stockings Tongue 1b"
+  },
+  "stockings_tongue_2a": {
+    "name": "Stockings Tongue 2a"
+  },
+  "stockings_tongue_2b": {
+    "name": "Stockings Tongue 2b"
+  },
+  "beads_1": {
+    "name": "Beads #1"
+  },
+  "beads_2": {
+    "name": "Beads #2"
+  },
+  "beads_3": {
+    "name": "Beads #3"
+  },
+  "bell_1": {
+    "name": "Bell #1"
+  },
+  "book_1": {
+    "name": "Book #1"
+  },
+  "book_2": {
+    "name": "Book #2"
+  },
+  "book_3a": {
+    "name": "Book 3a"
+  },
+  "book_3b": {
+    "name": "Book 3b"
+  },
+  "book_3c": {
+    "name": "Book 3c"
+  },
+  "book_4": {
+    "name": "Book #4"
+  },
+  "book_5": {
+    "name": "Book #5"
+  },
+  "bouquet_1": {
+    "name": "Bouquet #1"
+  },
+  "bouquet_2": {
+    "name": "Bouquet #2"
+  },
+  "carrot_1": {
+    "name": "Carrot #1"
+  },
+  "goblet_1": {
+    "name": "Goblet #1"
+  },
+  "golden_chalice_1": {
+    "name": "Golden Chalice #1"
+  },
+  "heavy_club_1": {
+    "name": "Heavy Club #1"
+  },
+  "pink_spraybottle_1": {
+    "name": "Pink Spraybottle #1"
+  },
+  "pink_spraybottle_2": {
+    "name": "Pink Spraybottle #2"
+  },
+  "pistol_1": {
+    "name": "Pistol #1"
+  },
+  "royal_sceptre_1": {
+    "name": "Royal Sceptre #1"
+  },
+  "royal_sceptre_2": {
+    "name": "Royal Sceptre #2"
+  },
+  "stuffie_1": {
+    "name": "Stuffie #1"
+  },
+  "sword_1": {
+    "name": "Sword #1"
+  },
+  "sword_2": {
+    "name": "Sword #2"
+  },
+  "sword_3": {
+    "name": "Sword #3"
+  },
+  "sword_4": {
+    "name": "Sword #4"
+  },
+  "sword_5": {
+    "name": "Sword #5"
+  },
+  "tanto_1": {
+    "name": "Tanto #1"
+  },
+  "tanto_2": {
+    "name": "Tanto #2"
+  },
+  "totem_1": {
+    "name": "Totem #1"
+  },
+  "wand_1": {
+    "name": "Wand #1"
+  },
+  "wand_2": {
+    "name": "Wand #2"
+  },
+  "wand_3": {
+    "name": "Wand #3"
+  },
+  "wand_4": {
+    "name": "Wand #4"
+  },
+  "whip_1": {
+    "name": "Whip #1"
+  },
+  "wrench_1": {
+    "name": "Wrench #1"
+  },
+  "knickers_micro_shorts_xmas": {
+    "name": "Micro Shorts Xmas"
+  },
+  "knickers_giant_teddy_1": {
+    "name": "Giant Teddy #1"
+  },
+  "knickers_giant_teddy_2": {
+    "name": "Giant Teddy #2"
+  },
+  "knickers_bikini_briefs_1": {
+    "name": "Bikini Briefs #1"
+  },
+  "knickers_bikini_briefs_2": {
+    "name": "Bikini Briefs #2"
+  },
+  "knickers_bikini_briefs_3": {
+    "name": "Bikini Briefs #3"
+  },
+  "knickers_bikini_briefs_4": {
+    "name": "Bikini Briefs #4"
+  },
+  "knickers_bikini_briefs_5": {
+    "name": "Bikini Briefs #5"
+  },
+  "knickers_bikini_briefs_6": {
+    "name": "Bikini Briefs #6"
+  },
+  "knickers_bikini_briefs_7": {
+    "name": "Bikini Briefs #7"
+  },
+  "knickers_bikini_briefs_8": {
+    "name": "Bikini Briefs #8"
+  },
+  "knickers_bloomers_1": {
+    "name": "Bloomers #1"
+  },
+  "knickers_bloomers_2": {
+    "name": "Bloomers #2"
+  },
+  "knickers_briefs_1": {
+    "name": "Briefs #1"
+  },
+  "knickers_briefs_10": {
+    "name": "Briefs #10"
+  },
+  "knickers_briefs_11": {
+    "name": "Briefs #11"
+  },
+  "knickers_briefs_12": {
+    "name": "Briefs #12"
+  },
+  "knickers_briefs_13": {
+    "name": "Briefs #13"
+  },
+  "knickers_briefs_14": {
+    "name": "Briefs #14"
+  },
+  "knickers_briefs_15": {
+    "name": "Briefs #15"
+  },
+  "knickers_briefs_16": {
+    "name": "Briefs #16"
+  },
+  "knickers_briefs_19": {
+    "name": "Briefs #19"
+  },
+  "knickers_briefs_2": {
+    "name": "Briefs #2"
+  },
+  "knickers_briefs_3": {
+    "name": "Briefs #3"
+  },
+  "knickers_briefs_4": {
+    "name": "Briefs #4"
+  },
+  "knickers_briefs_5": {
+    "name": "Briefs #5"
+  },
+  "knickers_briefs_6": {
+    "name": "Briefs #6"
+  },
+  "knickers_briefs_7": {
+    "name": "Briefs #7"
+  },
+  "knickers_briefs_8": {
+    "name": "Briefs #8"
+  },
+  "knickers_briefs_9": {
+    "name": "Briefs #9"
+  },
+  "knickers_briefs_b_b_c": {
+    "name": "Briefs B B C"
+  },
+  "knickers_briefs_blowjob_queen": {
+    "name": "Briefs Blowjob Queen"
+  },
+  "knickers_briefs_breed_me": {
+    "name": "Briefs Breed Me"
+  },
+  "knickers_briefs_daddy_anal_whore": {
+    "name": "Briefs Daddy Anal Whore"
+  },
+  "knickers_briefs_daddy_girl": {
+    "name": "Briefs Daddy Girl"
+  },
+  "knickers_briefs_get_a_room": {
+    "name": "Briefs Get A Room"
+  },
+  "knickers_briefs_hello_kitty": {
+    "name": "Briefs Hello Kitty"
+  },
+  "knickers_briefs_hole": {
+    "name": "Briefs Hole"
+  },
+  "knickers_briefs_love_boys": {
+    "name": "Briefs Love Boys"
+  },
+  "knickers_briefs_lucky": {
+    "name": "Briefs Lucky"
+  },
+  "knickers_briefs_ovaries_black": {
+    "name": "Briefs Ovaries Black"
+  },
+  "knickers_briefs_ovaries_white": {
+    "name": "Briefs Ovaries White"
+  },
+  "knickers_briefs_pink_kitty": {
+    "name": "Briefs Pink Kitty"
+  },
+  "knickers_briefs_sucking_cock": {
+    "name": "Briefs Sucking Cock"
+  },
+  "knickers_briefs_sure_thing": {
+    "name": "Briefs Sure Thing"
+  },
+  "knickers_briefs_thirsty": {
+    "name": "Briefs Thirsty"
+  },
+  "knickers_briefs_tongue_1": {
+    "name": "Briefs Tongue #1"
+  },
+  "knickers_briefs_tongue_2": {
+    "name": "Briefs Tongue #2"
+  },
+  "knickers_briefs_tonight": {
+    "name": "Briefs Tonight"
+  },
+  "knickers_briefs_trick_me": {
+    "name": "Briefs Trick Me"
+  },
+  "knickers_briefs_up_all_night": {
+    "name": "Briefs Up All Night"
+  },
+  "knickers_briefs_want_it_all": {
+    "name": "Briefs Want It All"
+  },
+  "knickers_briefs_woke_up": {
+    "name": "Briefs Woke Up"
+  },
+  "knickers_codpiece_1": {
+    "name": "Codpiece #1"
+  },
+  "knickers_crotch_rope_1": {
+    "name": "Crotch Rope #1"
+  },
+  "knickers_crotchless_1": {
+    "name": "Crotchless #1"
+  },
+  "knickers_crotchless_2": {
+    "name": "Crotchless #2"
+  },
+  "knickers_crotchless_3": {
+    "name": "Crotchless #3"
+  },
+  "knickers_crotchless_4": {
+    "name": "Crotchless #4"
+  },
+  "knickers_crotchless_5": {
+    "name": "Crotchless #5"
+  },
+  "knickers_crotchless_6": {
+    "name": "Crotchless #6"
+  },
+  "knickers_crotchless_7": {
+    "name": "Crotchless #7"
+  },
+  "knickers_cutoffs_1": {
+    "name": "Cutoffs #1"
+  },
+  "knickers_cutoffs_2": {
+    "name": "Cutoffs #2"
+  },
+  "knickers_cutoffs_3": {
+    "name": "Cutoffs #3"
+  },
+  "knickers_diaper_1": {
+    "name": "Diaper #1"
+  },
+  "knickers_diaper_10": {
+    "name": "Diaper #10"
+  },
+  "knickers_diaper_11": {
+    "name": "Diaper #11"
+  },
+  "knickers_diaper_12": {
+    "name": "Diaper #12"
+  },
+  "knickers_diaper_13": {
+    "name": "Diaper #13"
+  },
+  "knickers_diaper_14": {
+    "name": "Diaper #14"
+  },
+  "knickers_diaper_15": {
+    "name": "Diaper #15"
+  },
+  "knickers_diaper_16": {
+    "name": "Diaper #16"
+  },
+  "knickers_diaper_17": {
+    "name": "Diaper #17"
+  },
+  "knickers_diaper_18": {
+    "name": "Diaper #18"
+  },
+  "knickers_diaper_19": {
+    "name": "Diaper #19"
+  },
+  "knickers_diaper_2": {
+    "name": "Diaper #2"
+  },
+  "knickers_diaper_20": {
+    "name": "Diaper #20"
+  },
+  "knickers_diaper_21": {
+    "name": "Diaper #21"
+  },
+  "knickers_diaper_22": {
+    "name": "Diaper #22"
+  },
+  "knickers_diaper_23": {
+    "name": "Diaper #23"
+  },
+  "knickers_diaper_24": {
+    "name": "Diaper #24"
+  },
+  "knickers_diaper_25": {
+    "name": "Diaper #25"
+  },
+  "knickers_diaper_26": {
+    "name": "Diaper #26"
+  },
+  "knickers_diaper_27": {
+    "name": "Diaper #27"
+  },
+  "knickers_diaper_3": {
+    "name": "Diaper #3"
+  },
+  "knickers_diaper_4": {
+    "name": "Diaper #4"
+  },
+  "knickers_diaper_5": {
+    "name": "Diaper #5"
+  },
+  "knickers_diaper_6": {
+    "name": "Diaper #6"
+  },
+  "knickers_diaper_7": {
+    "name": "Diaper #7"
+  },
+  "knickers_diaper_8": {
+    "name": "Diaper #8"
+  },
+  "knickers_diaper_9": {
+    "name": "Diaper #9"
+  },
+  "knickers_diaper_bunny_1": {
+    "name": "Diaper Bunny #1"
+  },
+  "knickers_diaper_bunny_2": {
+    "name": "Diaper Bunny #2"
+  },
+  "knickers_diaper_bunny_3": {
+    "name": "Diaper Bunny #3"
+  },
+  "knickers_diaper_bunny_4": {
+    "name": "Diaper Bunny #4"
+  },
+  "knickers_diaper_cloth_1": {
+    "name": "Diaper Cloth #1"
+  },
+  "knickers_diaper_cloth_2": {
+    "name": "Diaper Cloth #2"
+  },
+  "knickers_diaper_cloth_3": {
+    "name": "Diaper Cloth #3"
+  },
+  "knickers_diaper_cloth_4": {
+    "name": "Diaper Cloth #4"
+  },
+  "knickers_diaper_cover": {
+    "name": "Pastel Diaper Cover"
+  },
+  "knickers_diaper_rubber": {
+    "name": "Diaper Rubber"
+  },
+  "knickers_diaper_velcro_1": {
+    "name": "Diaper Velcro #1"
+  },
+  "knickers_diaper_velcro_2": {
+    "name": "Diaper Velcro #2"
+  },
+  "knickers_diaper_xmas_1": {
+    "name": "Diaper Xmas #1"
+  },
+  "knickers_diaper_xmas_2": {
+    "name": "Diaper Xmas #2"
+  },
+  "knickers_diaper_xmas_3": {
+    "name": "Diaper Xmas #3"
+  },
+  "knickers_facehugger_2": {
+    "name": "Facehugger #2"
+  },
+  "knickers_g_string_1": {
+    "name": "G String #1"
+  },
+  "knickers_g_string_2": {
+    "name": "G String #2"
+  },
+  "knickers_g_string_3": {
+    "name": "G String #3"
+  },
+  "knickers_g_string_4": {
+    "name": "G String #4"
+  },
+  "knickers_g_string_5": {
+    "name": "G String #5"
+  },
+  "knickers_g_string_6": {
+    "name": "G String #6"
+  },
+  "knickers_g_string_7": {
+    "name": "G String #7"
+  },
+  "knickers_g_string_8": {
+    "name": "G String #8"
+  },
+  "knickers_g_string_9": {
+    "name": "G String #9"
+  },
+  "knickers_g_string_be_mine": {
+    "name": "G String Be Mine"
+  },
+  "knickers_g_string_too_much_fun": {
+    "name": "G String Too Much Fun"
+  },
+  "knickers_hotpants_1": {
+    "name": "Hotpants #1"
+  },
+  "knickers_hotpants_2": {
+    "name": "Hotpants #2"
+  },
+  "knickers_hotpants_3": {
+    "name": "Hotpants #3"
+  },
+  "knickers_hotpants_4": {
+    "name": "Hotpants #4"
+  },
+  "knickers_meat_toilet_1": {
+    "name": "Meat Toilet #1"
+  },
+  "knickers_meat_toilet_2": {
+    "name": "Meat Toilet #2"
+  },
+  "knickers_meat_toilet_3": {
+    "name": "Meat Toilet #3"
+  },
+  "knickers_micro_shorts_black": {
+    "name": "Micro Shorts Black"
+  },
+  "knickers_missing": {
+    "name": "Missing"
+  },
+  "knickers_plastic_pants_1": {
+    "name": "White Diaper Cover"
+  },
+  "knickers_plastic_pants_2": {
+    "name": "Pink Diaper Cover"
+  },
+  "knickers_plastic_pants_3": {
+    "name": "Star-Print Diaper Cover"
+  },
+  "knickers_plastic_pants_4": {
+    "name": "Nursery Diaper Cover"
+  },
+  "knickers_plastic_pants_5": {
+    "name": "Frosted Diaper Cover"
+  },
+  "knickers_plastic_pants_6": {
+    "name": "Locking Diaper Cover"
+  },
+  "knickers_plug_panties_1": {
+    "name": "Plug Panties #1"
+  },
+  "knickers_plug_panties_2": {
+    "name": "Plug Panties #2"
+  },
+  "knickers_plug_panties_3": {
+    "name": "Plug Panties #3"
+  },
+  "knickers_portal_hotpants": {
+    "name": "Portal Hotpants"
+  },
+  "knickers_portal_pants": {
+    "name": "Portal Pants"
+  },
+  "knickers_pouch_panties": {
+    "name": "Pouch Panties"
+  },
+  "knickers_strapon_1": {
+    "name": "Strapon #1"
+  },
+  "knickers_strapon_2": {
+    "name": "Strapon #2"
+  },
+  "knickers_strapon_3": {
+    "name": "Strapon #3"
+  },
+  "knickers_strapon_4": {
+    "name": "Strapon #4"
+  },
+  "knickers_swimming_bottoms_1": {
+    "name": "Swimming Bottoms #1"
+  },
+  "knickers_thong_1": {
+    "name": "Thong #1"
+  },
+  "knickers_thong_10": {
+    "name": "Thong #10"
+  },
+  "knickers_thong_18": {
+    "name": "Thong #18"
+  },
+  "knickers_thong_19": {
+    "name": "Thong #19"
+  },
+  "knickers_thong_2": {
+    "name": "Thong #2"
+  },
+  "knickers_thong_3": {
+    "name": "Thong #3"
+  },
+  "knickers_thong_4": {
+    "name": "Thong #4"
+  },
+  "knickers_thong_5": {
+    "name": "Thong #5"
+  },
+  "knickers_thong_6": {
+    "name": "Thong #6"
+  },
+  "knickers_thong_7": {
+    "name": "Thong #7"
+  },
+  "knickers_thong_8": {
+    "name": "Thong #8"
+  },
+  "knickers_thong_9": {
+    "name": "Thong #9"
+  },
+  "knickers_thong_big_cock_lover": {
+    "name": "Thong Big Cock Lover"
+  },
+  "knickers_thong_heart": {
+    "name": "Thong Heart"
+  },
+  "knickers_thong_oops": {
+    "name": "Thong Oops"
+  },
+  "knickers_thong_pretty": {
+    "name": "Thong Pretty"
+  },
+  "knickers_thong_spade": {
+    "name": "Thong Spade"
+  },
+  "knickers_thong_stripper_1": {
+    "name": "Thong Stripper #1"
+  },
+  "knickers_thong_stripper_2": {
+    "name": "Thong Stripper #2"
+  },
+  "knickers_thong_sure_thing": {
+    "name": "Thong Sure Thing"
+  },
+  "knickers_training_pants_1": {
+    "name": "Training Pants #1"
+  },
+  "knickers_training_pants_2": {
+    "name": "Training Pants #2"
+  },
+  "knickers_training_pants_3": {
+    "name": "Training Pants #3"
+  },
+  "knickers_training_pants_4": {
+    "name": "Training Pants #4"
+  },
+  "knickers_training_pants_sexy": {
+    "name": "Training Pants Sexy"
+  },
+  "knickers_microshorts_xmas": {
+    "name": "Microshorts Xmas"
+  },
+  "knickers_pants_white_1": {
+    "name": "Pants White #1"
+  },
+  "knickers_string_bow_panties_1": {
+    "name": "String Bow Panties #1"
+  },
+  "knickers_tartan_panties_1": {
+    "name": "Tartan Panties #1"
+  },
+  "knickers_vaginal_seal_1": {
+    "name": "Vaginal Seal #1"
+  },
+  "knickers_woolen_panties_1": {
+    "name": "Woolen Panties #1"
+  },
+  "bondage_chastity_cage_1": {
+    "name": "Bondage Chastity Cage #1"
+  },
+  "bondage_chastity_cage_5": {
+    "name": "Bondage Chastity Cage #5"
+  },
+  "bondage_chastitybelt": {
+    "name": "Bondage Chastitybelt"
+  },
+  "bondage_chest_harness_1": {
+    "name": "Bondage Chest Harness #1"
+  },
+  "bondage_chest_harness_2": {
+    "name": "Bondage Chest Harness #2"
+  },
+  "bondage_pet_collar": {
+    "name": "Bondage Pet Collar"
+  },
+  "bondage_serving_tray_1": {
+    "name": "Bondage Serving Tray #1"
+  },
+  "egg_vibe_1": {
+    "name": "Egg Vibe #1"
+  },
+  "egg_vibe_2": {
+    "name": "Egg Vibe #2"
+  },
+  "egg_vibe_3": {
+    "name": "Egg Vibe #3"
+  },
+  "belly_1": {
+    "name": "Belly Piercing"
+  },
+  "earrings_1": {
+    "name": "Earrings #1"
+  },
+  "earrings_2": {
+    "name": "Earrings #2"
+  },
+  "earrings_3": {
+    "name": "Earrings #3"
+  },
+  "earrings_4": {
+    "name": "Earrings #4"
+  },
+  "module_1": {
+    "name": "Module #1"
+  },
+  "module_2": {
+    "name": "Module #2"
+  },
+  "module_3": {
+    "name": "Module #3"
+  },
+  "module_4": {
+    "name": "Module #4"
+  },
+  "module_5": {
+    "name": "Module #5"
+  },
+  "nipple_piercings_1": {
+    "name": "Nipple Piercings #1"
+  },
+  "nipple_piercings_2": {
+    "name": "Nipple Piercings #2"
+  },
+  "nipple_piercings_3": {
+    "name": "Nipple Piercings #3"
+  },
+  "anal_beads_plug": {
+    "name": "Anal Beads"
+  },
+  "bunny_tail_plug": {
+    "name": "Bunny Tail Plug"
+  },
+  "cat_tail_plug": {
+    "name": "Cat Tail Plug"
+  },
+  "demon_tail_plug": {
+    "name": "Demon Tail Plug"
+  },
+  "hospital_gown": {
+    "name": "Hospital Gown"
+  },
+  "thick_medical_diaper": {
+    "name": "Thick Medical Diaper"
+  },
+  "hospital_booties": {
+    "name": "Hospital Booties"
+  },
+  "medical_wristband": {
+    "name": "Patient Wristband"
+  },
+  "patient_pacifier": {
+    "name": "Patient Pacifier"
+  },
+  "regression_serum": {
+    "name": "Regression Serum"
+  },
+  "compliance_candy": {
+    "name": "Compliance Candy"
+  },
+  "thought_reset_dart": {
+    "name": "Thought-Reset Dart"
+  },
+  "mind_rewrite_syringe": {
+    "name": "Mind-Rewrite Syringe"
+  },
+  "sippy_cup_meds": {
+    "name": "Sippy Cup of Medicine"
+  },
+  "hospital_scalpel": {
+    "name": "Surgical Scalpel"
+  },
+  "syringe_weapon": {
+    "name": "Loaded Syringe"
+  },
+  "defib_paddle": {
+    "name": "Defibrillator Paddle"
+  },
+  "directors_labcoat": {
+    "name": "Director's Labcoat"
+  },
+  "scrubs_top": {
+    "name": "Medical Scrubs"
+  },
+  "nursery_blanket_hosp": {
+    "name": "Hospital Nursery Blanket"
+  },
+  "patient_file": {
+    "name": "Patient File"
+  },
+  "admission_form": {
+    "name": "Forged Admission Form"
+  },
+  "remedy_herb": {
+    "name": "Remedy Herb"
+  },
+  "moonbloom_herb": {
+    "name": "Moonbloom Herb"
+  },
+  "goblin_forge_fragment": {
+    "name": "Goblin Forge Fragment"
+  },
+  "aged_cask": {
+    "name": "Aged Cask"
+  },
+  "sole_mechanism": {
+    "name": "Sole Mechanism"
+  },
+  "merchants_crate": {
+    "name": "Merchant's Crate"
+  },
+  "basils_letter": {
+    "name": "Basil's Letter"
+  },
+  "village_census": {
+    "name": "Village Census"
+  },
+  "master_blade": {
+    "name": "Master Blade"
+  },
+  "mechanized_shoes": {
+    "name": "Mechanized Shoes"
+  },
+  "silkas_masterwork": {
+    "name": "Silka's Masterwork"
+  },
+  "premium_protection": {
+    "name": "Premium Protection"
+  },
+  "exam_gloves": {
+    "name": "Disposable Exam Gloves"
+  },
+  "bib_1": {
+    "name": "Baby Bib"
+  },
+  "lace_bib_1": {
+    "name": "Lace Bib"
+  },
+  "plastic_bib_1": {
+    "name": "Plastic Bib"
+  },
+  "scoop_bib_1": {
+    "name": "Scoop Bib"
+  },
+  "pumpkin_bib_1": {
+    "name": "Pumpkin Bib (Orange)"
+  },
+  "pumpkin_bib_2": {
+    "name": "Pumpkin Bib (Green)"
+  },
+  "pumpkin_bib_3": {
+    "name": "Pumpkin Bib (Purple)"
+  },
+  "anchor_collar_1": {
+    "name": "Anchor Collar"
+  },
+  "collar_chain": {
+    "name": "Chain Collar"
+  },
+  "collar_heart": {
+    "name": "Heart Collar"
+  },
+  "collar_heart_sparkle": {
+    "name": "Sparkle Heart Collar"
+  },
+  "collar_hex": {
+    "name": "Hex Collar"
+  },
+  "collar_slave": {
+    "name": "Slave Collar"
+  },
+  "collar_spike": {
+    "name": "Spiked Collar"
+  },
+  "collar_bbc": {
+    "name": "BBC Collar"
+  },
+  "collar_cock": {
+    "name": "Cock Collar"
+  },
+  "collar_cum_slut_1": {
+    "name": "Name Tag Collar"
+  },
+  "collar_fuck_doll": {
+    "name": "Doll Collar"
+  },
+  "collar_wc": {
+    "name": "WC Collar"
+  },
+  "steel_collar_1": {
+    "name": "Steel Collar"
+  },
+  "lipstick_collar_1": {
+    "name": "Lipstick Collar"
+  },
+  "pullstring_collar_1": {
+    "name": "Pull-String Collar"
+  },
+  "pink_rubber_dress_collar_1": {
+    "name": "Pink Rubber Collar"
+  },
+  "cat_bell_1": {
+    "name": "Cat Bell"
+  },
+  "cow_bell_1": {
+    "name": "Cow Bell"
+  },
+  "meow_cow_bell_1": {
+    "name": "Meow Cow Bell"
+  },
+  "necklace_1": {
+    "name": "Silver Necklace"
+  },
+  "necklace_2": {
+    "name": "Pearl Necklace"
+  },
+  "necklace_3": {
+    "name": "Ruby Pendant"
+  },
+  "necklace_4": {
+    "name": "Amber Necklace"
+  },
+  "necklace_5": {
+    "name": "Star Pendant"
+  },
+  "necklace_6": {
+    "name": "Moon Pendant"
+  },
+  "mystical_amulet_1": {
+    "name": "Mystical Amulet"
+  },
+  "soulstone_1": {
+    "name": "Soulstone Pendant"
+  },
+  "necktie_1": {
+    "name": "Striped Necktie"
+  },
+  "necktie_2": {
+    "name": "Polka Dot Necktie"
+  },
+  "scarf_1": {
+    "name": "Cozy Scarf"
+  },
+  "scarf_2": {
+    "name": "Silk Scarf"
+  },
+  "vampire_cape_1": {
+    "name": "Vampire Cape (Red)"
+  },
+  "vampire_cape_2": {
+    "name": "Vampire Cape (Purple)"
+  },
+  "accessories_apron": {
+    "name": "Frilly Apron"
+  },
+  "stethoscope_1": {
+    "name": "Stethoscope"
+  },
+  "stethoscope_2": {
+    "name": "Toy Stethoscope"
+  },
+  "combat_visor_1": {
+    "name": "Combat-Doll Visor"
+  },
+  "tartan_bra_earrings_1": {
+    "name": "Tartan Earrings"
+  },
+  "ball_gag_1": {
+    "name": "Ball Gag (Red)"
+  },
+  "ball_gag_2": {
+    "name": "Ball Gag (Pink)"
+  },
+  "ball_gag_3": {
+    "name": "Ball Gag (Black)"
+  },
+  "bit_gag_1": {
+    "name": "Bit Gag"
+  },
+  "bone_gag_1": {
+    "name": "Bone Gag"
+  },
+  "dental_gag_1": {
+    "name": "Dental Gag"
+  },
+  "duck_gag_1": {
+    "name": "Duck Gag"
+  },
+  "facehugger_1": {
+    "name": "Facehugger Gag"
+  },
+  "lips_gag_1": {
+    "name": "Lips Gag"
+  },
+  "portal_gag_1": {
+    "name": "Portal Gag"
+  },
+  "ring_gag_1": {
+    "name": "Ring Gag"
+  },
+  "pacifier_1": {
+    "name": "Pink Pacifier"
+  },
+  "pacifier_2": {
+    "name": "Blue Pacifier"
+  },
+  "pacifier_3": {
+    "name": "Green Pacifier"
+  },
+  "pacifier_4": {
+    "name": "Purple Pacifier"
+  },
+  "pumpkin_paci_1": {
+    "name": "Pumpkin Pacifier"
+  },
+  "spider_paci_1": {
+    "name": "Spider Pacifier"
+  },
+  "small_paci_gag_1": {
+    "name": "Pacifier Gag"
+  },
+  "cock_paci_1": {
+    "name": "Adult Pacifier (Variant A)"
+  },
+  "cock_paci_2": {
+    "name": "Adult Pacifier (Variant B)"
+  },
+  "medical_wristband_2": {
+    "name": "Patient Wristband (Blue)"
+  },
+  "medical_wristband_3": {
+    "name": "Patient Wristband (Pink)"
+  },
+  "dq_clothing_bunny_diaper1": {
+    "name": "Bunny Diaper1"
+  },
+  "dq_clothing_bunny_diaper2": {
+    "name": "Bunny Diaper2"
+  },
+  "dq_clothing_bunny_diaper3": {
+    "name": "Bunny Diaper3"
+  },
+  "dq_clothing_cloth_diaper1": {
+    "name": "Cloth Diaper1"
+  },
+  "dq_clothing_cloth_diaper2": {
+    "name": "Cloth Diaper2"
+  },
+  "dq_clothing_cloth_diaper3": {
+    "name": "Cloth Diaper3"
+  },
+  "dq_clothing_cloth_diaper4": {
+    "name": "Cloth Diaper4"
+  },
+  "dq_clothing_diaper_cover1": {
+    "name": "Diaper Cover1"
+  },
+  "dq_clothing_diaper_cover2": {
+    "name": "Diaper Cover2"
+  },
+  "dq_clothing_diaper_cover3": {
+    "name": "Diaper Cover3"
+  },
+  "dq_clothing_diaper_cover4": {
+    "name": "Diaper Cover4"
+  },
+  "dq_clothing_ghost_diaper1": {
+    "name": "Ghost Diaper1"
+  },
+  "dq_clothing_giant_diaper1": {
+    "name": "Giant Diaper1"
+  },
+  "dq_clothing_giant_diaper2": {
+    "name": "Giant Diaper2"
+  },
+  "dq_clothing_giant_diaper3": {
+    "name": "Giant Diaper3"
+  },
+  "dq_clothing_giant_diaper4": {
+    "name": "Giant Diaper4"
+  },
+  "dq_clothing_huge_diaper1": {
+    "name": "Huge Diaper1"
+  },
+  "dq_clothing_huge_diaper2": {
+    "name": "Huge Diaper2"
+  },
+  "dq_clothing_huge_diaper3": {
+    "name": "Huge Diaper3"
+  },
+  "dq_clothing_large_diaper1": {
+    "name": "Large Diaper1"
+  },
+  "dq_clothing_large_diaper2": {
+    "name": "Large Diaper2"
+  },
+  "dq_clothing_large_diaper3": {
+    "name": "Large Diaper3"
+  },
+  "dq_clothing_medium_diaper1": {
+    "name": "Medium Diaper1"
+  },
+  "dq_clothing_medium_diaper2": {
+    "name": "Medium Diaper2"
+  },
+  "dq_clothing_medium_diaper3": {
+    "name": "Medium Diaper3"
+  },
+  "dq_clothing_moosive_diaper1": {
+    "name": "Moosive Diaper1"
+  },
+  "dq_clothing_moosive_diaper2": {
+    "name": "Moosive Diaper2"
+  },
+  "dq_clothing_moosive_diaper3": {
+    "name": "Moosive Diaper3"
+  },
+  "dq_clothing_moosive_diaper4": {
+    "name": "Moosive Diaper4"
+  },
+  "dq_clothing_pullups": {
+    "name": "Pullups"
+  },
+  "dq_clothing_rubber_diaper": {
+    "name": "Rubber Diaper"
+  },
+  "dq_clothing_slime_diaper": {
+    "name": "Slime Diaper"
+  },
+  "dq_clothing_small_diaper1": {
+    "name": "Small Diaper1"
+  },
+  "dq_clothing_small_diaper2": {
+    "name": "Small Diaper2"
+  },
+  "dq_clothing_small_diaper3": {
+    "name": "Small Diaper3"
+  },
+  "dq_clothing_velcro_diaper1": {
+    "name": "Velcro Diaper1"
+  },
+  "dq_clothing_velcro_diaper2": {
+    "name": "Velcro Diaper2"
+  },
+  "dq_clothing_velcro_diaper3": {
+    "name": "Velcro Diaper3"
+  },
+  "dq_clothing_waddle_diaper1": {
+    "name": "Waddle Diaper1"
+  },
+  "dq_clothing_waddle_diaper2_large": {
+    "name": "Waddle Diaper2 Large"
+  },
+  "dq_clothing_waddle_diaper3_large": {
+    "name": "Waddle Diaper3 Large"
+  },
+  "dq_clothing_waddle_diaper_small": {
+    "name": "Waddle Diaper Small"
+  },
+  "desert_condenser_coil": {
+    "name": "Condenser Coil"
+  },
+  "dq_clothing_bikini_1": {
+    "name": "Bikini #1"
+  },
+  "dq_clothing_bra_8": {
+    "name": "Bra #8"
+  },
+  "dq_clothing_bloomers_1": {
+    "name": "Bloomers #1"
+  },
+  "dq_clothing_hotpants_silver_1": {
+    "name": "Hotpants Silver #1"
+  },
+  "dq_clothing_hotpants_silver_male_large_1": {
+    "name": "Hotpants Silver Male Large #1"
+  },
+  "dq_clothing_hotpants_silver_male_medium_1": {
+    "name": "Hotpants Silver Male Medium #1"
+  },
+  "dq_clothing_hotpants_silver_male_small_1": {
+    "name": "Hotpants Silver Male Small #1"
+  },
+  "dq_clothing_hotpants_white_1": {
+    "name": "Hotpants White #1"
+  },
+  "dq_clothing_hotpants_white_male_medium_1": {
+    "name": "Hotpants White Male Medium #1"
+  },
+  "dq_clothing_hotpants_white_male_small_1": {
+    "name": "Hotpants White Male Small #1"
+  },
+  "dq_clothing_panties_purple_1": {
+    "name": "Panties Purple #1"
+  },
+  "dq_clothing_panties_silver_1": {
+    "name": "Panties Silver #1"
+  },
+  "dq_clothing_pants_black_panties_1": {
+    "name": "Pants Black Panties #1"
+  },
+  "dq_clothing_pants_blue_1": {
+    "name": "Pants Blue #1"
+  },
+  "dq_clothing_pants_blue_male_large_1": {
+    "name": "Pants Blue Male Large #1"
+  },
+  "dq_clothing_pants_blue_male_medium_1": {
+    "name": "Pants Blue Male Medium #1"
+  },
+  "dq_clothing_pants_blue_male_small_1": {
+    "name": "Pants Blue Male Small #1"
+  },
+  "dq_clothing_pants_blue_cameltoe_1": {
+    "name": "Pants Blue Cameltoe #1"
+  },
+  "dq_clothing_pants_blue_cameltoe_male_large_1": {
+    "name": "Pants Blue Cameltoe Male Large #1"
+  },
+  "dq_clothing_pants_blue_cameltoe_male_medium_1": {
+    "name": "Pants Blue Cameltoe Male Medium #1"
+  },
+  "dq_clothing_pants_blue_cameltoe_male_small_1": {
+    "name": "Pants Blue Cameltoe Male Small #1"
+  },
+  "dq_clothing_pants_daddy_girl_1": {
+    "name": "Pants Daddy Girl #1"
+  },
+  "dq_clothing_pants_daddy_girl_male_large_1": {
+    "name": "Pants Daddy Girl Male Large #1"
+  },
+  "dq_clothing_pants_daddy_girl_male_medium_1": {
+    "name": "Pants Daddy Girl Male Medium #1"
+  },
+  "dq_clothing_pants_daddy_girl_male_small_1": {
+    "name": "Pants Daddy Girl Male Small #1"
+  },
+  "dq_clothing_pants_grey_1": {
+    "name": "Pants Grey #1"
+  },
+  "dq_clothing_pants_pink_kitty_1": {
+    "name": "Pants Pink Kitty #1"
+  },
+  "dq_clothing_pants_purple_1": {
+    "name": "Pants Purple #1"
+  },
+  "dq_clothing_pants_purple_male_large_1": {
+    "name": "Pants Purple Male Large #1"
+  },
+  "dq_clothing_pants_purple_male_small_1": {
+    "name": "Pants Purple Male Small #1"
+  },
+  "dq_clothing_pants_sheer_nylon_1": {
+    "name": "Pants Sheer Nylon #1"
+  },
+  "dq_clothing_pants_sheer_nylon_male_large_1": {
+    "name": "Pants Sheer Nylon Male Large #1"
+  },
+  "dq_clothing_pants_sheer_nylon_male_medium_1": {
+    "name": "Pants Sheer Nylon Male Medium #1"
+  },
+  "dq_clothing_pants_sheer_nylon_male_small_1": {
+    "name": "Pants Sheer Nylon Male Small #1"
+  },
+  "dq_clothing_pants_trick_me_1": {
+    "name": "Pants Trick Me #1"
+  },
+  "dq_clothing_pants_trick_me_male_large_1": {
+    "name": "Pants Trick Me Male Large #1"
+  },
+  "dq_clothing_pants_trick_me_male_medium_1": {
+    "name": "Pants Trick Me Male Medium #1"
+  },
+  "dq_clothing_pants_trick_me_male_small_1": {
+    "name": "Pants Trick Me Male Small #1"
+  },
+  "dq_clothing_pants_white_girly_1": {
+    "name": "Pants White Girly #1"
+  },
+  "dq_clothing_pants_white_girly_male_large_1": {
+    "name": "Pants White Girly Male Large #1"
+  },
+  "dq_clothing_pants_white_girly_male_medium_1": {
+    "name": "Pants White Girly Male Medium #1"
+  },
+  "dq_clothing_pants_white_girly_male_small_1": {
+    "name": "Pants White Girly Male Small #1"
+  },
+  "dq_clothing_pants_white_sheer_1": {
+    "name": "Pants White Sheer #1"
+  },
+  "dq_clothing_portal_pants_1": {
+    "name": "Portal Pants #1"
+  },
+  "dq_clothing_red_bikini_briefs_1": {
+    "name": "Red Bikini Briefs #1"
+  },
+  "dq_clothing_red_bikini_briefs_male_large_1": {
+    "name": "Red Bikini Briefs Male Large #1"
+  },
+  "dq_clothing_red_bikini_briefs_male_medium_1": {
+    "name": "Red Bikini Briefs Male Medium #1"
+  },
+  "dq_clothing_red_bikini_briefs_male_small_1": {
+    "name": "Red Bikini Briefs Male Small #1"
+  },
+  "dq_clothing_sexy_training_pants_1": {
+    "name": "Sexy Training Pants #1"
+  },
+  "dq_clothing_training_pants_1": {
+    "name": "Training Pants #1"
+  },
+  "dq_clothing_babydoll_back_1": {
+    "name": "Babydoll Back #1"
+  },
+  "dq_clothing_babydoll_skirt_1": {
+    "name": "Babydoll Skirt #1"
+  },
+  "dq_clothing_flowing_skirt_1": {
+    "name": "Flowing Skirt #1"
+  },
+  "dq_clothing_lace_miniskirt_1": {
+    "name": "Lace Miniskirt #1"
+  },
+  "dq_clothing_naughty_skirt_1": {
+    "name": "Naughty Skirt #1"
+  },
+  "dq_clothing_punishment_skirt_1": {
+    "name": "Punishment Skirt #1"
+  },
+  "dq_clothing_tartan_microskirt_1": {
+    "name": "Tartan Microskirt #1"
+  },
+  "dq_clothing_tartan_microskirt_brown_1": {
+    "name": "Tartan Microskirt Brown #1"
+  },
+  "dq_clothing_tartan_microskirt_pink_1": {
+    "name": "Tartan Microskirt Pink #1"
+  },
+  "dq_clothing_blue_pants_1": {
+    "name": "Blue Pants #1"
+  },
+  "dq_clothing_buttockless_pants_1": {
+    "name": "Buttockless Pants #1"
+  },
+  "dq_clothing_exercise_shorts_1": {
+    "name": "Exercise Shorts #1"
+  },
+  "dq_clothing_exercise_shorts_blue_1": {
+    "name": "Exercise Shorts Blue #1"
+  },
+  "dq_clothing_kitty_pyjamas_1": {
+    "name": "Kitty Pyjamas #1"
+  },
+  "dq_clothing_leggings_1": {
+    "name": "Leggings #1"
+  },
+  "dq_clothing_pantyhose_1": {
+    "name": "Pantyhose #1"
+  },
+  "dq_clothing_pink_bloomers_1": {
+    "name": "Pink Bloomers #1"
+  },
+  "dq_clothing_yoga_pants_1": {
+    "name": "Yoga Pants #1"
+  },
+  "dq_clothing_a_b_c_shortalls_1": {
+    "name": "A B C Shortalls #1"
+  },
+  "dq_clothing_apron_1": {
+    "name": "Apron #1"
+  },
+  "dq_clothing_babydoll_top_1": {
+    "name": "Babydoll Top #1"
+  },
+  "dq_clothing_baby_frilly_1": {
+    "name": "Baby Frilly #1"
+  },
+  "dq_clothing_bear_dress_1": {
+    "name": "Bear Dress #1"
+  },
+  "dq_clothing_bitch_top_1": {
+    "name": "Bitch Top #1"
+  },
+  "dq_clothing_black_clubbing_dress_1": {
+    "name": "Black Clubbing Dress #1"
+  },
+  "dq_clothing_blouse_1": {
+    "name": "Blouse #1"
+  },
+  "dq_clothing_blouse_pink_1": {
+    "name": "Blouse Pink #1"
+  },
+  "dq_clothing_blue_clubbing_dress_1": {
+    "name": "Blue Clubbing Dress #1"
+  },
+  "dq_clothing_blue_dungarees_1": {
+    "name": "Blue Dungarees #1"
+  },
+  "dq_clothing_bondage_ribbons_1": {
+    "name": "Bondage Ribbons #1"
+  },
+  "dq_clothing_bunny_dress_1": {
+    "name": "Bunny Dress #1"
+  },
+  "dq_clothing_bunny_outfit_1": {
+    "name": "Bunny Outfit #1"
+  },
+  "dq_clothing_business_dress_pinstripe_1": {
+    "name": "Business Dress Pinstripe #1"
+  },
+  "dq_clothing_business_dress_polka_1": {
+    "name": "Business Dress Polka #1"
+  },
+  "dq_clothing_butterfly_wings_1": {
+    "name": "Butterfly Wings #1"
+  },
+  "dq_clothing_cafe_maid_dress_1": {
+    "name": "Cafe Maid Dress #1"
+  },
+  "dq_clothing_chainmail_top_1": {
+    "name": "Chainmail Top #1"
+  },
+  "dq_clothing_cheerleader_1": {
+    "name": "Cheerleader #1"
+  },
+  "dq_clothing_cheerleader_longsleeved_1": {
+    "name": "Cheerleader Longsleeved #1"
+  },
+  "dq_clothing_cheerleader_skirt_1": {
+    "name": "Cheerleader Skirt #1"
+  },
+  "dq_clothing_cheerleader_top_1": {
+    "name": "Cheerleader Top #1"
+  },
+  "dq_clothing_christmas_dress_1": {
+    "name": "Christmas Dress #1"
+  },
+  "dq_clothing_christmas_dress_8": {
+    "name": "Christmas Dress #8"
+  },
+  "dq_clothing_christmas_naughty_1": {
+    "name": "Christmas Naughty #1"
+  },
+  "dq_clothing_christmas_nice_1": {
+    "name": "Christmas Nice #1"
+  },
+  "dq_clothing_commando_outfit_1": {
+    "name": "Commando Outfit #1"
+  },
+  "dq_clothing_crop_top_1": {
+    "name": "Crop Top #1"
+  },
+  "dq_clothing_crop_top_8": {
+    "name": "Crop Top #8"
+  },
+  "dq_clothing_crop_top_9": {
+    "name": "Crop Top #9"
+  },
+  "dq_clothing_crop_top_10": {
+    "name": "Crop Top #10"
+  },
+  "dq_clothing_crop_top_12": {
+    "name": "Crop Top #12"
+  },
+  "dq_clothing_crop_top_13": {
+    "name": "Crop Top #13"
+  },
+  "dq_clothing_crop_top_15": {
+    "name": "Crop Top #15"
+  },
+  "dq_clothing_cultist_robe_1": {
+    "name": "Cultist Robe #1"
+  },
+  "dq_clothing_cupcake_onesie_1": {
+    "name": "Cupcake Onesie #1"
+  },
+  "dq_clothing_cupcake_onesie_8": {
+    "name": "Cupcake Onesie #8"
+  },
+  "dq_clothing_dainty_dress_1": {
+    "name": "Dainty Dress #1"
+  },
+  "dq_clothing_dinosaur_dress_1": {
+    "name": "Dinosaur Dress #1"
+  },
+  "dq_clothing_doll_dress_1": {
+    "name": "Doll Dress #1"
+  },
+  "dq_clothing_fetish_baby_dress_1": {
+    "name": "Fetish Baby Dress #1"
+  },
+  "dq_clothing_floofy_babydoll_1": {
+    "name": "Floofy Babydoll #1"
+  },
+  "dq_clothing_full_body_romper_1": {
+    "name": "Full Body Romper #1"
+  },
+  "dq_clothing_furry_hood_outfit_1": {
+    "name": "Furry Hood Outfit #1"
+  },
+  "dq_clothing_gingham_dress_1": {
+    "name": "Gingham Dress #1"
+  },
+  "dq_clothing_gris_monokini_1": {
+    "name": "Gris Monokini #1"
+  },
+  "dq_clothing_hex_dress_1": {
+    "name": "Hex Dress #1"
+  },
+  "dq_clothing_kimono_1": {
+    "name": "Kimono #1"
+  },
+  "dq_clothing_kimono_back_1": {
+    "name": "Kimono Back #1"
+  },
+  "dq_clothing_kimono_deception_1": {
+    "name": "Kimono Deception #1"
+  },
+  "dq_clothing_kimono_misdirection_1": {
+    "name": "Kimono Misdirection #1"
+  },
+  "dq_clothing_kitty_baby_dress_1": {
+    "name": "Kitty Baby Dress #1"
+  },
+  "dq_clothing_latex_dungarees_1": {
+    "name": "Latex Dungarees #1"
+  },
+  "dq_clothing_latex_jacket_1": {
+    "name": "Latex Jacket #1"
+  },
+  "dq_clothing_latex_shirt_1": {
+    "name": "Latex Shirt #1"
+  },
+  "dq_clothing_leotard_1": {
+    "name": "Leotard #1"
+  },
+  "dq_clothing_leotard_blue_8": {
+    "name": "Leotard Blue #8"
+  },
+  "dq_clothing_lolita_royal_dress_1": {
+    "name": "Lolita Royal Dress #1"
+  },
+  "dq_clothing_lolita_swimsuit_1": {
+    "name": "Lolita Swimsuit #1"
+  },
+  "dq_clothing_lollipop_dress_1": {
+    "name": "Lollipop Dress #1"
+  },
+  "dq_clothing_lycra_bodysuit_1": {
+    "name": "Lycra Bodysuit #1"
+  },
+  "dq_clothing_lycra_bodysuit_8": {
+    "name": "Lycra Bodysuit #8"
+  },
+  "dq_clothing_maid_dress_1": {
+    "name": "Maid Dress #1"
+  },
+  "dq_clothing_maid_sissy_dress_1": {
+    "name": "Maid Sissy Dress #1"
+  },
+  "dq_clothing_maid_waitress_dress_1": {
+    "name": "Maid Waitress Dress #1"
+  },
+  "dq_clothing_monokini_1": {
+    "name": "Monokini #1"
+  },
+  "dq_clothing_navy_tiny_clubbing_dress_1": {
+    "name": "Navy Tiny Clubbing Dress #1"
+  },
+  "dq_clothing_nightgown_1": {
+    "name": "Nightgown #1"
+  },
+  "dq_clothing_nightie_1": {
+    "name": "Nightie #1"
+  },
+  "dq_clothing_nursery_smock_1": {
+    "name": "Nursery Smock #1"
+  },
+  "dq_clothing_onesie_1": {
+    "name": "Onesie #1"
+  },
+  "dq_clothing_open_front_dress_1": {
+    "name": "Open Front Dress #1"
+  },
+  "dq_clothing_ornate_latex_dress_1": {
+    "name": "Ornate Latex Dress #1"
+  },
+  "dq_clothing_pink_babydoll_dress_1": {
+    "name": "Pink Babydoll Dress #1"
+  },
+  "dq_clothing_pink_clubbing_dress_1": {
+    "name": "Pink Clubbing Dress #1"
+  },
+  "dq_clothing_pink_floral_dress_1": {
+    "name": "Pink Floral Dress #1"
+  },
+  "dq_clothing_pink_latex_bodysuit_1": {
+    "name": "Pink Latex Bodysuit #1"
+  },
+  "dq_clothing_pink_latex_dress_1": {
+    "name": "Pink Latex Dress #1"
+  },
+  "dq_clothing_pink_nightie_1": {
+    "name": "Pink Nightie #1"
+  },
+  "dq_clothing_pink_slut_clubbing_dress_1": {
+    "name": "Pink Slut Clubbing Dress #1"
+  },
+  "dq_clothing_priestess_1": {
+    "name": "Priestess #1"
+  },
+  "dq_clothing_priestess_flowing_1": {
+    "name": "Priestess Flowing #1"
+  },
+  "dq_clothing_reins_purple_1": {
+    "name": "Reins Purple #1"
+  },
+  "dq_clothing_romper_10": {
+    "name": "Romper #10"
+  },
+  "dq_clothing_romper_blue_1": {
+    "name": "Romper Blue #1"
+  },
+  "dq_clothing_romper_cupcake_1": {
+    "name": "Romper Cupcake #1"
+  },
+  "dq_clothing_romper_pink_1": {
+    "name": "Romper Pink #1"
+  },
+  "dq_clothing_rope_harness_1": {
+    "name": "Rope Harness #1"
+  },
+  "dq_clothing_royal_baby_dress_1": {
+    "name": "Royal Baby Dress #1"
+  },
+  "dq_clothing_rubber_dress_1": {
+    "name": "Rubber Dress #1"
+  },
+  "dq_clothing_sailor_fleece_dress_1": {
+    "name": "Sailor Fleece Dress #1"
+  },
+  "dq_clothing_schoolgirl_top_1": {
+    "name": "Schoolgirl Top #1"
+  },
+  "dq_clothing_slave_dress_1": {
+    "name": "Slave Dress #1"
+  },
+  "dq_clothing_stripy_blue_dress_1": {
+    "name": "Stripy Blue Dress #1"
+  },
+  "dq_clothing_superheroine_1": {
+    "name": "Superheroine #1"
+  },
+  "dq_clothing_swimming_top_1": {
+    "name": "Swimming Top #1"
+  },
+  "dq_clothing_teddybear_dress_1": {
+    "name": "Teddybear Dress #1"
+  },
+  "dq_clothing_trashcan_1": {
+    "name": "Trashcan #1"
+  },
+  "dq_clothing_trick_or_treat_onesie_1": {
+    "name": "Trick Or Treat Onesie #1"
+  },
+  "dq_clothing_t_shirt_1": {
+    "name": "T Shirt #1"
+  },
+  "dq_clothing_t_shirt_15": {
+    "name": "T Shirt #15"
+  },
+  "dq_clothing_tubesuit_1": {
+    "name": "Tubesuit #1"
+  },
+  "dq_clothing_tubetop_1": {
+    "name": "Tubetop #1"
+  },
+  "dq_clothing_turtle_swimsuit_1": {
+    "name": "Turtle Swimsuit #1"
+  },
+  "dq_clothing_vest_1": {
+    "name": "Vest #1"
+  },
+  "dq_clothing_vest_dress_1": {
+    "name": "Vest Dress #1"
+  },
+  "dq_clothing_waddle_outfit_1": {
+    "name": "Waddle Outfit #1"
+  },
+  "dq_clothing_white_babydoll_1": {
+    "name": "White Babydoll #1"
+  },
+  "dq_clothing_white_clubbing_dress_1": {
+    "name": "White Clubbing Dress #1"
+  },
+  "dq_clothing_white_slut_clubbing_dress_1": {
+    "name": "White Slut Clubbing Dress #1"
+  },
+  "dq_clothing_yellow_babydoll_1": {
+    "name": "Yellow Babydoll #1"
+  },
+  "dq_clothing_yellow_baby_dress_1": {
+    "name": "Yellow Baby Dress #1"
+  },
+  "dq_clothing_bikini_2": {
+    "name": "Bikini #2"
+  },
+  "dq_clothing_bikini_3": {
+    "name": "Bikini #3"
+  },
+  "dq_clothing_bikini_4": {
+    "name": "Bikini #4"
+  },
+  "dq_clothing_bra_2": {
+    "name": "Bra #2"
+  },
+  "dq_clothing_bra_3": {
+    "name": "Bra #3"
+  },
+  "dq_clothing_bra_4": {
+    "name": "Bra #4"
+  },
+  "dq_clothing_bra_5": {
+    "name": "Bra #5"
+  },
+  "dq_clothing_bra_6": {
+    "name": "Bra #6"
+  },
+  "dq_clothing_bra_7": {
+    "name": "Bra #7"
+  },
+  "dq_clothing_christmas_dress_5_a": {
+    "name": "Christmas Dress #5 A"
+  },
+  "dq_clothing_christmas_dress_5_b": {
+    "name": "Christmas Dress #5 B"
+  },
+  "dq_clothing_christmas_dress_5_c": {
+    "name": "Christmas Dress #5 C"
+  },
+  "dq_clothing_christmas_dress_6_a": {
+    "name": "Christmas Dress #6 A"
+  },
+  "dq_clothing_christmas_dress_6_b": {
+    "name": "Christmas Dress #6 B"
+  },
+  "dq_clothing_christmas_dress_6_c": {
+    "name": "Christmas Dress #6 C"
+  },
+  "dq_clothing_christmas_dress_9_a": {
+    "name": "Christmas Dress #9 A"
+  },
+  "dq_clothing_christmas_dress_9_b": {
+    "name": "Christmas Dress #9 B"
+  },
+  "dq_clothing_christmas_dress_9_c": {
+    "name": "Christmas Dress #9 C"
+  },
+  "dq_clothing_christmas_dress_9_e": {
+    "name": "Christmas Dress #9 E"
+  },
+  "dq_clothing_pink_blue_latex_dress_1_a": {
+    "name": "Pink Blue Latex Dress #1 A"
+  },
+  "dq_clothing_pink_blue_latex_dress_1_b": {
+    "name": "Pink Blue Latex Dress #1 B"
+  },
+  "dq_clothing_shirt_3_a": {
+    "name": "Shirt #3 A"
+  },
+  "dq_clothing_shirt_3_b": {
+    "name": "Shirt #3 B"
+  },
+  "dq_clothing_trashcan_4_a": {
+    "name": "Trashcan #4 A"
+  },
+  "dq_clothing_trashcan_4_b": {
+    "name": "Trashcan #4 B"
+  },
+  "dq_clothing_trashcan_5_a": {
+    "name": "Trashcan #5 A"
+  },
+  "dq_clothing_trashcan_5_b": {
+    "name": "Trashcan #5 B"
+  },
+  "dq_clothing_t_shirt_2_a": {
+    "name": "T Shirt #2 A"
+  },
+  "scholars_notes": {
+    "name": "The Scholar's Notes"
+  },
+  "theta_scale_amulet": {
+    "name": "Theta's Scale"
+  },
+  "trail_rations": {
+    "name": "Trail Rations"
+  },
+  "dried_apple": {
+    "name": "Dried Apple Slices"
+  },
+  "cheese_sandwich": {
+    "name": "Cheese Sandwich"
+  },
+  "berry_tart": {
+    "name": "Berry Tart"
+  },
+  "herbal_tea": {
+    "name": "Herbal Tea"
+  },
+  "desert_electrolyte": {
+    "name": "Desert Electrolyte Flask"
+  },
+  "vesper_prayer_bead": {
+    "name": "Vesper's Bead"
+  }
+}

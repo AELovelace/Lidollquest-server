@@ -11,6 +11,30 @@ function fixture(){
  return {db,zones,act,command,advance:ms=>instant+=ms,as:(name,id=name)=>{owner=name;token=id;}};
 }
 
+test('older campaign revisions cannot restore consumed online inventory after a settled encounter',()=>{
+ const f=fixture();try{
+  const initial={player_info:{name:'Campaign name',playerHealth:60,playerHealthMax:100,str:10,def:4,level:2},inventory:[{item_id:'adult_food'}]};
+  let c=f.act('create',null,{name:'Old online name',creation:{name:'Campaign name',class_id:'fighter'}}).character;
+  c=f.act('enter',c,{zone:questZones[0].id,loadout:initial,online_revision:0}).character;const oldRevision=c.revision;
+  const committed=structuredClone(c.loadout);committed.inventory=[];committed.player_info.playerHealth=42;
+  c=f.act('loadout',c,{loadout:committed}).character;c=f.act('leave',c).character;
+  c=f.act('enter',c,{zone:questZones[0].id,loadout:initial,online_revision:oldRevision}).character;
+  assert.equal(c.name,'Campaign name');assert.equal(c.loadout.inventory.length,0);assert.equal(c.loadout.player_info.playerHealth,42);
+  assert.throws(()=>f.act('enter',c,{zone:questZones[0].id,online_revision:c.revision+1}),/revision/);
+ }finally{f.db.close();}
+});
+
+test('confirmed creation retries retain the original choices and identity after campaign-name reconciliation',()=>{
+ const f=fixture();try{
+  const input=f.command('create',null,{name:'Confirmed',avatar:'player',creation:{name:'Confirmed',class_id:'mage',hair_color:'Pink',str:3}});
+  let c=f.zones.act('token-a',input).character;assert.equal(f.zones.act('token-a',input).character.id,c.id);
+  c=f.act('enter',c,{zone:questZones[0].id,loadout:{player_info:{name:'Campaign rename'},inventory:[]}}).character;
+  const replay=f.zones.act('token-a',input).character;assert.equal(replay.id,c.id);assert.equal(replay.name,'Campaign rename');assert.equal(replay.revision,c.revision);
+  assert.throws(()=>f.zones.act('token-a',{...input,creation:{...input.creation,class_id:'fighter'}}),/different choices/);
+  assert.equal(f.zones.read('token-a').characters.length,1);
+ }finally{f.db.close();}
+});
+
 test('explicit owner takeover preserves a fight, rejects the old controller and remains replay-safe',()=>{
  const f=fixture();try{
   let c=f.act('create',null,{name:'Returning'}).character;

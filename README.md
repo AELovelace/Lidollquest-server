@@ -1,5 +1,25 @@
 # LiDollQuest server
 
+## Unified accounts and cloud campaigns
+
+Deploy the updated Little Log tracker/auth gateway and this service before the rebuilt game. Zone snapshots advertise `capabilities.unifiedCreation`, `inspection`, `friends` and `cloudSaves`; older currency-only grants continue to work for gameplay. New endpoints require explicit `social:read` or `saves:read/write` consent, validated through the wallet authority on every request.
+
+`create` optionally carries bounded regular-creator `creation` choices, protected by its durable creation request ID. Five characters per account remain the limit. The next campaign import reconciles the character name without replacing its ID. Little Log account display names are separate from character names.
+
+`GET /zones/inspect?character_id=...&target=...&controller=...` requires owned live presence and a live target in the same area; dungeon editions and room/corridor chat areas must match. The response contains only allowlisted appearance/status fields and known equipped item IDs/names, plus the Little Log relationship fetched through its social API. Export `server/profile-items.json` using the game's `python/export_online_profiles.py --server-root <checkout>` after item edits. Friend mutations remain entirely in Little Log.
+
+Cloud storage lives in this service's SQLite database. `GET /cloud` lists current previews. Add `character_id` to read current metadata, `history=1` for the three retained versions, or `revision` and zero-based `part` to download base64 chunks. `/cloud/action` accepts:
+
+1. `begin`: `character_id`, stable `request_id`, `base_revision`, assembled UTF-8 `bytes`, and lowercase SHA-1 `checksum`.
+2. `chunk`: the same character/request IDs, zero-based `part`, and base64 `data` (128 KiB decoded, except the final chunk).
+3. `commit`: the same IDs. Publication validates owner, format envelope, completeness and checksum in one transaction. Retries of a committed request return its receipt.
+
+The SHA-1 digest matches GameMaker's UTF-8 checksum primitive and detects transfer corruption; the browser computes it asynchronously with WebCrypto. Authorization comes from grants and ownership checks. One private staged upload per account is retained for at most 24 hours. A second device receives `cloud_upload_busy` and waits instead of erasing an active transfer. `QUEST_CLOUD_MAX_BYTES` defaults to 67108864. Each character retains its current save and two prior revisions. Revision divergence returns `cloud_conflict`; only an explicit user choice should retry against a newer base. Never merge room worlds automatically.
+
+Saves contain campaign worlds, quests, companions, difficulty, local gold and the ordinary migration version. They exclude credentials, shared balances and copied online rooms. `online_revision` on entry rejects future revisions and restores committed inventory/status when a restored campaign predates the last loadout change. Banks, fights, shop provenance, chests, rewards and payout tables are not part of cloud storage and cannot be restored from it. Back up the entire Quest database, including the new `quest_cloud_*` tables.
+
+Run `npm test` and the game checkout's `ps/Test-OnlineZones.ps1 -AccountsOnly`. The account fixture uses two linked users and a fresh browser context, inspection with different appearances, Little Log acceptance, cross-device restore, conflicting saves and recovery. Run the full arena/dungeon fixture and save/editor regressions for release.
+
 ## Weekly Dungeon Dive
 
 Scenery/loot v2 adds full campaign furniture footprints, one weighted potion and

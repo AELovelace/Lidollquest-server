@@ -9,6 +9,7 @@ export const DESERT_ZONE='dive-desert';
 export const desertData=JSON.parse(readFileSync(new URL('./desert-data.json',import.meta.url),'utf8'));
 import {createBank} from './bank.mjs';
 import {createItemOrigins} from './item-origins.mjs';
+import {inspectionProjection} from './inspection.mjs';
 
 export const questAvatars=Object.freeze(JSON.parse(readFileSync(new URL('./avatars.json',import.meta.url),'utf8')).map(Object.freeze)); // Generated from the game's NPC registry and authored object sprites.
 const avatarIds=new Set(questAvatars.map(a=>a.id));
@@ -101,16 +102,18 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   grant(secret,'wallet:write');
   dive.tick(); // Scheduled resets and enemy decisions precede command revision checks.
   if(!input||!identifier(input.request_id)||!identifier(input.controller))fail(400,'Supply a stable request ID and controller.');
-   if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance'].includes(k)))fail(400,'Unsupported zone input.');
+   if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance','creation','online_revision'].includes(k)))fail(400,'Unsupported zone input.');
   if(input.takeover!==undefined&&(input.action!=='enter'||typeof input.takeover!=='boolean'))fail(400,'Control can only be transferred by an explicit entry request.'); // Never let movement or a background heartbeat steal control.
   return atomic(()=>{
    identity(secret);
    if(input.action==='create'){
     const name=clean(input.name,24),appearance=avatar(input.avatar===undefined?'player':input.avatar);if(!name)fail(400,'Give your online character a name.');
     let c=db.prepare('SELECT * FROM quest_characters WHERE owner=? AND creation_id=?').get(i.owner,input.request_id);
-    if(c&&c.name!==name)fail(409,'This creation request already has another name.');
+    if(c&&(JSON.parse(c.state).creationName??c.name)!==name)fail(409,'This creation request already has another name.');
     if(c&&(JSON.parse(c.state).creationAvatar??'player')!==appearance)fail(409,'This creation request already has another appearance.');
-    if(!c){if(db.prepare('SELECT COUNT(*) AS n FROM quest_characters WHERE owner=?').get(i.owner).n>=5)fail(409,'This account already has five online characters.');const id=randomUUID();db.prepare('INSERT INTO quest_characters VALUES (?,?,?,?,0,?,?)').run(id,i.owner,name,now(),JSON.stringify({avatar:appearance,creationAvatar:appearance,wins:0,run:null,lastStart:0,lastResult:null}),input.request_id);c=character(i.owner,id);}
+    const creation=input.creation??null;if(creation!==null&&(typeof creation!=='object'||Array.isArray(creation)||Buffer.byteLength(JSON.stringify(creation))>8192))fail(400,'Invalid creation choices.');
+    if(c&&JSON.stringify(JSON.parse(c.state).creation??null)!==JSON.stringify(creation))fail(409,'This creation request already has different choices.');
+    if(!c){if(db.prepare('SELECT COUNT(*) AS n FROM quest_characters WHERE owner=?').get(i.owner).n>=5)fail(409,'This account already has five online characters.');const id=randomUUID();db.prepare('INSERT INTO quest_characters VALUES (?,?,?,?,0,?,?)').run(id,i.owner,name,now(),JSON.stringify({avatar:appearance,creationAvatar:appearance,creationName:name,creation,wins:0,run:null,lastStart:0,lastResult:null}),input.request_id);c=character(i.owner,id);}
     return snapshot(i,c);
    }
    const c=character(i.owner,input.character_id),fingerprint=createHash('sha256').update(JSON.stringify(Object.keys(input).sort().map(k=>[k,canonical(input[k])]))).digest('hex'); // Preserve legacy flat command fingerprints while stabilizing nested loadout data.
@@ -121,6 +124,10 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
    }
    if(!Number.isSafeInteger(input.revision)||input.revision!==c.revision)fail(409,'Character changed; refresh before choosing another action.');
    const state=JSON.parse(c.state);let p;
+   if(input.action==='enter'&&input.online_revision!==undefined){
+    if(!Number.isSafeInteger(input.online_revision)||input.online_revision<0||input.online_revision>c.revision)fail(409,'Refresh the saved character revision.');
+    if(state.loadout&&input.online_revision<(state.loadoutRevision??c.revision))input={...input,loadout:state.loadout}; // Older cloud/local campaigns cannot roll back committed online items and needs.
+   }
    if(state.pendingPurchase&&!['enter','chat'].includes(input.action))fail(409,'Your purchase is still settling. Reconnect to finish it.','purchase_pending');
    if(state.worldTurnDue&&!['world_turn','enter','chat'].includes(input.action))fail(409,'Finish your pending exploration turn first.');
    const divePresence=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
@@ -245,6 +252,8 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
    }
    if(state.run)syncRunHealth(state,state.run);
    origins.reconcile(c,state,JSON.parse(c.state)); // Strip forged/duplicate item markers on every imported loadout and persist equipment/bank transitions.
+   if(JSON.stringify(state.loadout)!==JSON.stringify(JSON.parse(c.state).loadout))state.loadoutRevision=c.revision+1;
+   if(input.loadout&&state.loadout?.player_info?.name){const name=clean(state.loadout.player_info.name,24);if(name){c.name=name;db.prepare('UPDATE quest_characters SET name=? WHERE id=?').run(name,c.id);}}
    c.revision++;c.state=JSON.stringify(state);db.prepare('UPDATE quest_characters SET revision=?,state=? WHERE id=?').run(c.revision,c.state,c.id);
    const receipt={request_id:input.request_id,revision:c.revision,action:input.action,result:state.lastResult};
    db.prepare('INSERT INTO quest_commands VALUES (?,?,?,?,?)').run(c.id,input.request_id,c.revision,fingerprint,JSON.stringify(receipt));
@@ -252,5 +261,12 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
    return {...snapshot(i,c),receipt};
   });
  }
- return {read,act,tick:dive.tick,completePurchase:purchases.complete};
+ function inspect(secret,id,target,controller){
+  const i=identity(secret);limit(i.owner);const c=character(i.owner,id),p=presence(i,c,controller);
+  const other=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(target),op=db.prepare('SELECT * FROM quest_presence WHERE character_id=? AND seen>?').get(target,now()-30000);
+  if(!other||!op||!enabled(other.owner)||op.zone!==p.zone)fail(404,'That player is no longer in this area.');
+  if(isDungeon(p.zone)){const a=JSON.parse(c.state).dive,b=JSON.parse(other.state).dive,area=dive.chatArea(c,p)?.id;if(!a||!b||!area||a.edition!==b.edition||area!==dive.chatArea(other,op)?.id)fail(404,'That player is no longer in this area.');}
+  return inspectionProjection(other);
+ }
+ return {read,act,inspect,tick:dive.tick,completePurchase:purchases.complete};
 } // Campaign stats and inventory are client-trusted; arena outcomes and shared-currency awards still belong to this simulation.
