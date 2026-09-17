@@ -34,7 +34,8 @@
         "assessment_scan"
       ],
       "spell_cast_chance": 0.3
-    }
+    },
+    "non_diaper_panties_per_floor": 1
   },
   "structure": {
     "min_partition": 6,

@@ -20,7 +20,8 @@
     "pursuit_steps": 6,
     "boss_id": "",
     "boss_coins": 0,
-    "inventory_capacity": 99
+    "inventory_capacity": 99,
+    "non_diaper_panties_per_floor": 1
   },
   "structure": {
     "fill_chance": 58,

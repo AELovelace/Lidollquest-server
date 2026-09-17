@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
 import {createQuestZones,questZones,questAvatars} from '../server/zones.mjs';
+import {DAILY_COIN_CAP} from '../server/hubs.mjs';
 function fixture(){
  const db=new DatabaseSync(':memory:');db.exec('CREATE TABLE wallet(owner TEXT PRIMARY KEY,coins INTEGER NOT NULL);CREATE TABLE awards(id TEXT PRIMARY KEY,owner TEXT,amount INTEGER)');let instant=1000000,owner='alice',token='token-a';
  const zones=createQuestZones(db,{now:()=>instant,roll:()=>0,grant:()=>({owner,id:token,client:'lidollquest'}),wallet:o=>({coins:db.prepare('SELECT coins FROM wallet WHERE owner=?').get(o)?.coins??0}),adjust:(o,asset,n,id)=>{db.prepare('INSERT INTO awards VALUES (?,?,?)').run(id,o,n);db.prepare('INSERT INTO wallet VALUES (?,?) ON CONFLICT(owner) DO UPDATE SET coins=coins+excluded.coins').run(o,n);}});
@@ -163,7 +164,7 @@ test('presence and chat are zone-scoped, expire, and enforce message limits',()=
 test('account-wide daily reward cap spans characters and zero rewards cannot be replayed tomorrow',()=>{
  const f=fixture();try{
   let c=f.act('create',null,{name:'Budget'}).character;c=f.act('enter',c,{zone:questZones[0].id}).character;
-  f.db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?)').run('alice',0,248);
+  f.db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?)').run('alice',0,DAILY_COIN_CAP-2); // Two coins of allowance left, whatever the configured cap is.
   c=f.act('start',c).character;while(c.run.phase==='fight')c=f.act('attack',c).character;
   const input=f.command('cashout',c);assert.equal(f.zones.act('token-a',input).coins,2);
   f.advance(86400000);assert.equal(f.zones.act('token-a',input).coins,2);

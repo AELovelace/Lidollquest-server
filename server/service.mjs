@@ -3,6 +3,7 @@ import {createServer} from 'node:http';
 import {createQuestZones} from './zones.mjs';
 import {createCloudSaves} from './cloud-saves.mjs';
 import {createCharacterManagement} from './character-management.mjs';
+import {DAILY_COIN_CAP} from './hubs.mjs';
 
 export function createQuestService({filename=':memory:',walletClient,now=Date.now,roll,log=console.warn}={}){
  const db=new DatabaseSync(filename);db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;');
@@ -11,7 +12,7 @@ export function createQuestService({filename=':memory:',walletClient,now=Date.no
  CREATE INDEX IF NOT EXISTS reward_delivery ON reward_outbox(owner,delivered);`);
  let identity=null; // The simulation below is synchronous; the HTTP layer never awaits while this identity is in use.
  const zones=createQuestZones(db,{now,roll,grant:()=>{if(!identity)throw Error('Missing request identity');return identity;},wallet:owner=>({coins:db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(owner)?.coins??0}),adjust:(owner,asset,amount,id,reason)=>{
-  if(asset!=='coins'||!Number.isSafeInteger(amount)||amount<1||amount>250)throw Error('Invalid server award');
+  if(asset!=='coins'||!Number.isSafeInteger(amount)||amount<1||amount>DAILY_COIN_CAP)throw Error('Invalid server award'); // A single entitlement can never exceed one day's whole allowance.
   db.prepare('INSERT INTO reward_outbox(id,owner,amount,reason) VALUES (?,?,?,?)').run(id,owner,amount,reason);
  }});
  const cloud=createCloudSaves(db,{now});
@@ -65,15 +66,17 @@ export function createQuestService({filename=':memory:',walletClient,now=Date.no
     res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));return;
    }
    await settlePurchases(verified.owner,token);
-   let result;identity=verified;try{result=req.method==='GET'?zones.read(token,url.searchParams.get('character_id')):zones.act(token,input);}catch(error){
+   const rawPage=url.searchParams.get('bank_page'); // The companion reads its own bank from anywhere and pages without disturbing the in-game drawer.
+   const view={companion:url.searchParams.get('view')==='companion',bankPage:/^\d{1,4}$/.test(rawPage??'')?Number(rawPage):null};
+   let result;identity=verified;try{result=req.method==='GET'?zones.read(token,url.searchParams.get('character_id'),view):zones.act(token,input);}catch(error){
     if(input?.action==='enter'&&error.status===409)log('quest_lobby_entry_conflict',error.message); // Fixed gameplay rejection text only: never log credentials, request bodies or inventories.
     throw error;
    }finally{identity=null;}
    await settlePurchases(verified.owner,token);
-   const receipt=result.receipt;identity=verified;try{result=zones.read(token,result.character?.id);if(receipt)result.receipt=receipt;}finally{identity=null;}
+   const receipt=result.receipt;identity=verified;try{result=zones.read(token,result.character?.id,{companion:input?.action==='bank_sell'});if(receipt)result.receipt=receipt;}finally{identity=null;}
    await flush(verified.owner,token);result.coins=db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(verified.owner).coins;
    result.pendingCoins=db.prepare('SELECT COALESCE(SUM(amount),0) AS n FROM reward_outbox WHERE owner=? AND delivered=0').get(verified.owner).n;
-   result.capabilities={unifiedCreation:true,inspection:true,friends:true,cloudSaves:true,saveManagement:true,characterManagement:true};
+   result.capabilities={unifiedCreation:true,inspection:true,friends:true,cloudSaves:true,saveManagement:true,characterManagement:true,companionBank:true,bankSales:true};
    res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));
   }finally{active--;const count=perToken.get(token)-1;if(count)perToken.set(token,count);else perToken.delete(token);}
  })().catch(error=>{if(res.destroyed)return;if(res.headersSent){res.destroy();return;}res.writeHead(error.status??503,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({error:error.code??'zone_request_failed',error_description:error.status?error.message:'Online zones are temporarily unavailable.'}));});});

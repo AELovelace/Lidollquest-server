@@ -3,8 +3,11 @@ import {createHash} from 'node:crypto';
 import {seeded} from './dive-generation.mjs';
 
 export const hubData=JSON.parse(readFileSync(new URL('./hub-data.json',import.meta.url),'utf8'));
+export const campaignDives=JSON.parse(readFileSync(new URL('./campaign-dives-data.json',import.meta.url),'utf8')).routes;
 const c=hubData.config;
 if(!Number.isInteger(c.stock_size)||c.stock_size<1||c.stock_size>24||!Number.isFinite(c.coin_price_multiplier)||c.coin_price_multiplier<=0||c.coin_price_multiplier>100||!Number.isInteger(c.inventory_capacity)||c.inventory_capacity<1||c.inventory_capacity>512||!Number.isInteger(c.rest_tick_ms)||c.rest_tick_ms<500)throw Error('Invalid online hub tuning');
+export const DAILY_COIN_CAP=c.daily_coin_cap??250;
+if(!Number.isInteger(DAILY_COIN_CAP)||DAILY_COIN_CAP<1||DAILY_COIN_CAP>100000)throw Error('Invalid daily coin cap'); // One account-wide UTC earnings allowance shared by arena payouts, dungeon bosses and item sales.
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'hub_conflict'});};
 const gardenWidth=c.garden_width??40,gardenHeight=c.garden_height??24;
 if(![gardenWidth,gardenHeight].every(n=>Number.isInteger(n)&&n>=20&&n<=80))throw Error('Invalid garden dimensions');
@@ -17,10 +20,8 @@ export function dungeonPortals(parent){
  const quarters={x:6,y:4,name:"Princess' Quarters",target:'dive-quarters',style:'warp'};
  const desert={x:14,y:4,name:'Dustbreak Desert',target:'dive-desert',style:'warp'};
  const tundra={x:14,y:4,name:'Frostveil Tundra',target:'dive-tundra',style:'warp'};
- if(parent==='princess-rose')return [quarters,tundra];
- if(parent==='honeydew-lantern')return [quarters,desert,{...tundra,x:10,y:6}];
- if(parent==='littlebig-clockwork')return [quarters,desert];
- return [];
+ const existing=parent==='princess-rose'?[quarters,tundra]:parent==='honeydew-lantern'?[quarters,desert,{...tundra,x:10,y:6}]:parent==='littlebig-clockwork'?[quarters,desert]:[];
+ return [...existing,...campaignDives.filter(d=>d.config.hub===parent).map(({config:c})=>({...c.pad,name:c.name,target:c.zone_id,style:'warp'}))];
 } // Only adjacent routes are offered; keep the two established pad positions stable.
 export const hubRooms=hubCatalog.flatMap(root=>['garden','beds','shops','dives'].map(kind=>({
  id:root.id+'-'+kind,parent:root.id,kind,hub:root.hub,theme:root.theme,

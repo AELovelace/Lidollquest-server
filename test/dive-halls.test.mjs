@@ -15,6 +15,7 @@ test('hall portals validate proximity, preserve inventory, restore on reconnect 
    act('enter',{zone:root,loadout:{player_info:{playerHealth:50,playerHealthMax:50},inventory:[{item_id:'adult_food'}]}});
    place(10,3);const hall=act('hub_visit',{zone:root+'-dives'});assert.equal(hall.zone,root+'-dives');
    for(const portal of hall.zones.find(z=>z.id===hall.zone).portals){
+    place(2,9); // Expanded halls can legitimately offer a pad next to their arrival tile.
     assert.throws(()=>act('dive_enter',{zone:portal.target}),/glowing portal/);
     place(portal.x,portal.y);const dungeon=act('dive_enter',{zone:portal.target});
     assert.equal(c.hubVisit,undefined);assert.equal(c.dive.origin,root);assert.equal(c.dive.returnZone,root+'-dives');

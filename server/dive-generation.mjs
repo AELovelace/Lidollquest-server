@@ -27,7 +27,7 @@ export function pathTo(f,start,target,limit=Infinity){
 export function generateFloor(data,edition,depth=1){
  const c=data.config,s=data.structure,rnd=seeded(`${c.route}:${edition}:${depth}:v${data.version}`);
  if(!Number.isInteger(c.width)||!Number.isInteger(c.height)||c.width<24||c.height<24||c.width>128||c.height>128||!Number.isInteger(c.enemies_per_room)||c.enemies_per_room<1||c.enemies_per_room>6||s.max_depth<1||s.max_depth>5)throw Error('Dive dimensions/density are outside supported bounds');
- if(!Array.isArray(c.themes)||c.themes.length!==1||c.themes[0]!=='princess_quarters')throw Error('Only the Quarters theme is available in this pilot');
+ if(!Array.isArray(c.themes)||c.themes.length!==1||!['princess_quarters','dungeon','nursery','school','forest','mansion','hospital'].includes(c.themes[0]))throw Error('Unsupported Dive theme');
  const f={route:c.route,edition,depth,theme:c.themes[(depth-1)%c.themes.length],generatorVersion:1,contentVersion:data.version,width:c.width,height:c.height,rooms:[],walls:Array.from({length:c.height},()=>Array(c.width).fill(1)),enemies:[],chests:[],decorations:[]};
  const carve=(x,y)=>{if(x>0&&y>0&&x<f.width-1&&y<f.height-1)f.walls[y][x]=0;};
  function hall(a,b){let x=a.cx,y=a.cy;while(x!==b.cx||y!==b.cy){for(let dy=-Math.floor(s.hall_width/2);dy<=Math.floor(s.hall_width/2);dy++)for(let dx=-Math.floor(s.hall_width/2);dx<=Math.floor(s.hall_width/2);dx++)carve(x+dx,y+dy);if(x!==b.cx)x+=Math.sign(b.cx-x);else y+=Math.sign(b.cy-y);}}
@@ -46,10 +46,15 @@ export function generateFloor(data,edition,depth=1){
  let far=f.rooms[1],distance=-1;
  for(let i=1;i<f.rooms.length;i++){const room=f.rooms[i],d=pathTo(f,f.entrance,{x:room.cx,y:room.cy})?.length??-1;if(d>distance){far=room;distance=d;}
   f.chests.push({id:`chest-${i}`,...free(room)});
-  for(let j=0;j<c.enemies_per_room;j++){const p=free(room),type=rnd(100)<60?'diaper_fairy':'teddy_mimic';f.enemies.push({id:`enemy-${i}-${j}`,type,...p,spawn:{...p},engaged:null,respawnAt:0});}
+  for(let j=0;j<c.enemies_per_room;j++){
+   const p=free(room),pool=data.enemy_types?.flatMap(e=>Array(e.weight).fill(e.enemy_id));
+   const type=pool?.length?pool[rnd(pool.length)]:(rnd(100)<60?'diaper_fairy':'teddy_mimic');
+   f.enemies.push({id:`enemy-${i}-${j}`,type,...p,spawn:{...p},engaged:null,respawnAt:0});
+  } // Authored route pools preserve the original Quarters random sequence when absent.
   for(let j=0;j<2&&data.decorations.length;j++)f.decorations.push({...free(room),sprite:data.decorations[rnd(data.decorations.length)]});
  }
- const boss=free(far);f.enemies.push({id:'iris',type:'dive_iris',...boss,spawn:{...boss},engaged:null,respawnAt:0});
+ const boss=free(far);f.bossId=c.boss_id??'iris';f.enemies.push({id:f.bossId,type:c.boss_enemy_id??'dive_iris',...boss,spawn:{...boss},engaged:null,respawnAt:0});
+ if(data.room_types?.length)f.rooms.forEach((room,index)=>room.type=data.room_types[index%data.room_types.length]); // Native painters receive room identities without firing campaign story events.
  dressFloor(data,f);addFood(data,f);validateFloor(f);return f;
 } // Generate one materialized floor; the route/edition/depth key is ready for later lazy descent.
 export function dressFloor(data,f,visitors=[]){
@@ -94,7 +99,7 @@ export function dressFloor(data,f,visitors=[]){
 export function validateFloor(f){
  if(f.rooms.length<2||!walkable(f,f.entrance.x,f.entrance.y))throw Error('Invalid entrance');
  const seen=new Set();for(const entity of [...f.enemies,...f.chests,...(f.pickups??[])]){const key=entity.x+','+entity.y;if(seen.has(key)||!pathTo(f,f.entrance,entity)||inside(f.rooms[0],entity.x,entity.y))throw Error('Unreachable or unsafe content');seen.add(key);}
- if(!f.enemies.some(e=>e.id==='iris'))throw Error('Missing guardian');
+ if(!f.enemies.some(e=>e.id===(f.bossId??'iris')))throw Error('Missing guardian');
  return true;
 }
 

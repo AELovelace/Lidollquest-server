@@ -2,7 +2,7 @@ import {randomUUID,randomInt,createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience} from './combat.mjs';
-import {hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog} from './hubs.mjs';
+import {hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog,campaignDives,DAILY_COIN_CAP} from './hubs.mjs';
 import {createDive,DIVE_ZONE} from './dive.mjs';
 import {generateDesert} from './desert-generation.mjs';
 export const DESERT_ZONE='dive-desert';
@@ -51,6 +51,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
  const desert=createDive(db,{now,roll,adjust,origins,data:desertData,generate:generateDesert,...desertOptions});
  const tundra=createDive(db,{now,roll,adjust,origins,data:tundraData,generate:generateDesert,...tundraOptions});
  const engines=new Map([[DIVE_ZONE,quarters],[DESERT_ZONE,desert],[TUNDRA_ZONE,tundra]]);
+ for(const data of campaignDives)engines.set(data.config.zone_id,createDive(db,{now,roll,adjust,origins,data})); // Each destination keeps its own editions, loot receipts and encounter locks.
  const isDungeon=id=>engines.has(id);
  const engine=id=>engines.get(id)??quarters; // No active visit still exposes the legacy Quarters summary.
  const dive={tick(){for(const route of engines.values())route.tick();},
@@ -72,7 +73,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   if(source.parent===destination.id&&['garden','beds'].includes(source.kind))spawn={x:source.kind==='garden'?1:18,y:6};
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE owner=?').run(destination.id,spawn.x,spawn.y,now(),i.owner);
  } // Enter just inside the matching wall opening, facing into the destination; a held movement key cannot immediately bounce back.
- function snapshot(i,c=null){
+ function snapshot(i,c=null,view={}){
   const p=c?db.prepare('SELECT * FROM quest_presence WHERE owner=? AND character_id=? AND seen>?').get(i.owner,c.id,now()-30000):null;
   const peers=p?db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT 64').all(p.zone,now()-30000).filter(r=>enabled(r.owner)).map(r=>({id:r.character_id,name:r.name,avatar:JSON.parse(r.state).avatar??'player',x:r.x,y:r.y,stage:JSON.parse(r.state).run?.stage??0,fighting:JSON.parse(r.state).run?.phase==='fight'})):[];
   const chatArea=isDungeon(p?.zone)?dive.chatArea(c,p):p?{id:p.zone,name:zone(p.zone).name}:null;
@@ -82,13 +83,13 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   if(dungeon.definition)definitions.push(dungeon.definition);
   const edition=c?JSON.parse(c.state).dive?.edition:null;
   const visiblePeers=isDungeon(p?.zone)?peers.filter(peer=>JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(peer.id).state).dive?.edition===edition):peers;
-  return {serverTime:now(),loadoutSupport:true,combatVersion:2,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,tundra:tundra.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,250-spent)};
+  return {dungeons:[...engines].map(([id,route])=>({id,enabled:route.snapshot(null,null).dive.enabled})),serverTime:now(),loadoutSupport:true,combatVersion:2,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,tundra:tundra.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null,view),...(view.companion&&c?{sheet:inspectionProjection(c)}:{}),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP};
  } // Snapshots expose only zone avatars and chat, never wallet credentials or account IDs.
- function read(secret,id){const i=identity(secret);limit(i.owner);dive.tick();return snapshot(i,id?character(i.owner,id):null);}
+ function read(secret,id,view={}){const i=identity(secret);limit(i.owner);dive.tick();return snapshot(i,id?character(i.owner,id):null,view);} // Only this read honours the companion view; every in-play snapshot keeps the beside-a-bank rule.
  function enemy(z,stage){return {name:z.enemies[Math.min(2,Math.floor((stage-1)/3))],hp:z.health+(stage-1)*5,maxHp:z.health+(stage-1)*5,turn:0};}
  function settle(i,c,state,run){
   const day=Math.floor(now()/86400000),used=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,day)?.coins??0;
-  const paid=Math.min(run.pot,Math.max(0,250-used));
+  const paid=Math.min(run.pot,Math.max(0,DAILY_COIN_CAP-used));
   if(paid){adjust(i.owner,'coins',paid,randomUUID(),'LiDollQuest arena: '+run.zone);db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=coins+excluded.coins').run(i.owner,day,paid);}
   syncRunHealth(state,run);state.lastResult={outcome:'banked',coins:paid,rounds:run.stage,zone:run.zone};state.wins+=run.stage;state.run=null;
  } // Reward amount comes only from committed combat state; the ledger and result commit in the same database transaction.
@@ -138,7 +139,18 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
    if(state.pendingPurchase&&!['enter','chat'].includes(input.action))fail(409,'Your purchase is still settling. Reconnect to finish it.','purchase_pending');
    if(state.worldTurnDue&&!['world_turn','enter','chat'].includes(input.action))fail(409,'Finish your pending exploration turn first.');
    const divePresence=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
-   if(input.action==='world_turn'){
+   if(input.action==='bank_sell'){ // Companion sale: account storage needs no zone presence, controller lease or shop fixture, but keeps every economy rule.
+    if(state.run)fail(409,'Leave combat before selling.');
+    const {stored,index,item}=bank.locate(c,input.bank_item),row=origins.sale(c,item);
+    if(!row||row.id!==input.item_instance)fail(409,'Only tracked online loot and purchases can be sold.');
+    const day=Math.floor(now()/86400000),used=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,day)?.coins??0;
+    if(row.price>Math.max(0,DAILY_COIN_CAP-used))fail(409,'Daily coin limit reached. Keep this item and sell it after the UTC reset.');
+    stored.splice(index,1);bank.commit(c,stored);
+    db.prepare("UPDATE quest_item_origins SET status='sold' WHERE id=?").run(row.id);
+    adjust(i.owner,'coins',row.price,'sale-'+row.id,'LiDollQuest bank sale'); // Storage removal, one payout entitlement and its receipt commit atomically.
+    db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=coins+excluded.coins').run(i.owner,day,row.price);
+    state.hubNotice='Sold '+(JSON.parse(row.item).name??item.item_id)+' from your bank for '+row.price+' LiDollCoins.';state.hubNoticeAt=now();
+   }else if(input.action==='world_turn'){
     presence(i,c,input.controller);
     if(!state.worldTurnDue||state.worldTurnDue.id!==input.world_turn_id||state.run)fail(409,'That exploration turn is no longer pending.');
     const next=importLoadout(input.loadout);next.player_info.companions=state.loadout?.player_info.companions??{};
@@ -173,7 +185,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
      const inventory=state.loadout.inventory,item=Number.isInteger(input.slot)?inventory[input.slot]:null,row=origins.sale(c,item);
      if(!row||row.id!==input.item_instance)fail(409,'Only tracked online loot and purchases can be sold.');
      const day=Math.floor(now()/86400000),used=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,day)?.coins??0;
-     if(row.price>Math.max(0,250-used))fail(409,'Daily coin limit reached. Keep this item and sell it after the UTC reset.');
+     if(row.price>Math.max(0,DAILY_COIN_CAP-used))fail(409,'Daily coin limit reached. Keep this item and sell it after the UTC reset.');
      inventory.splice(input.slot,1);db.prepare("UPDATE quest_item_origins SET status='sold' WHERE id=?").run(row.id);
      adjust(i.owner,'coins',row.price,'sale-'+row.id,'LiDollQuest item sale'); // Item removal, one payout entitlement and its receipt commit atomically.
      db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=coins+excluded.coins').run(i.owner,day,row.price);

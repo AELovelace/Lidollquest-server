@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
 import {createQuestZones} from '../server/zones.mjs';
+import {DAILY_COIN_CAP} from '../server/hubs.mjs';
 import {diveData,DIVE_ZONE} from '../server/dive.mjs';
 import {generateFloor,validateFloor,weeklyWindow,pathTo,walkable,dressFloor} from '../server/dive-generation.mjs';
 
@@ -148,7 +149,7 @@ test('both lobbies share a floor; personal chest claims survive replay, inventor
 test('shared encounter locks, authored stats, class combat, respawns and weekly reward cap',()=>{
  const f=fixture();try{const a=f.player(),b=f.player('bob');f.as('alice');let s=f.engage(a);assert.equal(s.character.run.enemy.hp,100);assert.equal(s.character.run.enemy.str,8);
   f.as('bob');f.near(b,f.snap(b).dive.enemies.find(e=>e.id==='iris'));assert.throws(()=>f.act(b,'dive_engage',{encounter:'iris'}),/not available/);
-  f.as('alice');const day=Math.floor(Date.parse('2026-09-16T12:00:00Z')/86400000);f.db.prepare('INSERT INTO quest_reward_days VALUES (?,?,240)').run('alice',day);
+  f.as('alice');const day=Math.floor(Date.parse('2026-09-16T12:00:00Z')/86400000);f.db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?)').run('alice',day,DAILY_COIN_CAP-10); // Ten coins left, so the 50-coin boss payout is partially capped.
   s=f.win(a);assert.equal(s.character.run,null);assert.equal(s.dive.completed,true);assert.equal(s.dive.claimableCoins,40);assert.equal(f.awards.reduce((n,a)=>n+a.n,0),10);assert.equal(f.act(a,'dive_claim_reward').dive.claimableCoins,40);
   f.setTime('2026-09-17T12:00:00Z');f.act(a,'enter',{zone:DIVE_ZONE});assert.equal(f.act(a,'dive_claim_reward').dive.claimableCoins,0);assert.equal(f.awards.reduce((n,a)=>n+a.n,0),50);
   for(const cls of ['mage','diplomat']){let l=f.snap(a).character.loadout;l.player_info.class_id=cls;f.act(a,'loadout',{loadout:l});f.engage(a);s=f.win(a);assert.equal(s.character.run,null);assert.equal(f.awards.reduce((n,a)=>n+a.n,0),50);f.advance(301000);f.act(a,'enter',{zone:DIVE_ZONE});}

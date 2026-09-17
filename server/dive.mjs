@@ -1,9 +1,10 @@
+import {createDiveLootRoller} from './dive-loot.mjs';
 import {readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {generateFloor,dressFloor,addFood,weeklyWindow,seeded,pathTo,walkable,inside} from './dive-generation.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience} from './combat.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
-import {dungeonPortals,hubRooms,hubCatalog} from './hubs.mjs';
+import {dungeonPortals,hubRooms,hubCatalog,DAILY_COIN_CAP} from './hubs.mjs';
 
 export const diveData=JSON.parse(readFileSync(new URL('./dive-data.json',import.meta.url),'utf8'));
 export const DIVE_ZONE='dive-quarters';
@@ -13,6 +14,7 @@ const seconds=1000,minutes=60000;
 
 export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn}){
  const config=data.config,route=config.route,zoneId=config.zone_id??DIVE_ZONE,theme=config.theme??'princess_quarters',name=config.name??"Princess' Quarters - Dungeon Dive",bossId=config.boss_id??'iris';
+ const rollLoot=createDiveLootRoller(data); // One policy covers every online route and its personal floor progress.
  const owns=visit=>visit?.route===route; // Each route maintains only its own visits and encounter locks.
  const safe=(floor,x,y)=>(floor.safeRooms??[floor.rooms[0]]).some(r=>inside(r,x,y));
  const entry=(floor,origin)=>floor.entries?.[origin]??floor.entrance;
@@ -70,7 +72,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(!record||now()>=record.ends+(grace?10*minutes:0)&&record.edition!==latest())return 0;
   const p=progress(c,record.edition);if(!p.completed||p.coinsPaid>=config.boss_coins)return 0;
   const day=Math.floor(now()/86400000),used=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(c.owner,day)?.coins??0;
-  const amount=Math.min(config.boss_coins-p.coinsPaid,Math.max(0,250-used));
+  const amount=Math.min(config.boss_coins-p.coinsPaid,Math.max(0,DAILY_COIN_CAP-used));
   if(amount){adjust(c.owner,'coins',amount,randomUUID(),'Dungeon Dive: '+record.edition);db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=coins+excluded.coins').run(c.owner,day,amount);p.coinsPaid+=amount;saveProgress(c,record.edition,p);}
   return amount;
  }
@@ -128,11 +130,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function claim(c,state,record,chest,automatic=false){
   const personal=progress(c,record.edition);if(personal.claimed.includes(chest.id)){if(automatic)return;fail('You already claimed this treasure this week.');}
   if(state.loadout.inventory.length>=config.inventory_capacity){if(automatic){state.dive.lootNotice='Inventory full. Treasure remains here.';state.dive.lootNoticeAt=now();return;}fail('Inventory full. This treasure remains unclaimed.');}
-  if(!personal.rolls[chest.id]){
-   const rnd=seeded(`${route}:${record.edition}:1:${c.id}:${chest.id}`),items=chest.kind==='food'?data.food_pool:chest.kind==='potion'?data.potion_pool:(data.item_pool??Object.keys(data.items).sort()),item=clone(data.items[items[rnd(items.length)]]);
-   if(item.atk_min!==undefined){item.atk=item.atk_min+rnd(item.atk_max-item.atk_min+1);if(typeof item.desc==='string')item.desc=item.desc.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}
-   personal.rolls[chest.id]=item;
-  }
+  if(!personal.rolls[chest.id])personal.rolls[chest.id]=rollLoot(record.edition,c.id,chest,personal.rolls); // Capacity was checked first; only successful claims consume the allowance.
   const item=clone(personal.rolls[chest.id]);if(origins)origins.mint(c.id,item);state.loadout.inventory.push(item);personal.claimed.push(chest.id);saveProgress(c,record.edition,personal);
   state.dive.lootNotice='Found '+(item.name??item.item_id)+'.';state.dive.lootNoticeAt=now();
  } // Inventory, deterministic item roll and personal claim commit together inside the zone transaction.

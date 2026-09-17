@@ -59,7 +59,7 @@ At weekly reset, idle visitors return to their entrance lobby; active fights
 have a maximum ten-minute grace, including settlement of their earned reward.
 
 Each character claims each chest once per edition. The first Iris victory earns
-50 coins within the existing account-wide 250-coin UTC daily cap. Any capped
+50 coins within the existing account-wide 1000-coin UTC daily cap. Any capped
 remainder stays explicitly claimable until edition retirement. Delivered rewards
 use the existing transactional outbox and stable wallet receipt IDs.
 
@@ -106,8 +106,11 @@ Each zone has a shared lobby with synchronized avatars and chat. Arena runs are
 individual, eight-round progressive fights: attack, guard or use inventory; bank after a
 win or accept a random handicap and continue. Defeat/forfeit loses the unbanked
 pot. Round eight automatically banks it. Each cleared round adds `5 × round`
-coins to the pot. Banking is capped at **250 coins per account per UTC day** across
-all characters/zones; runs can still be played after the cap. New runs have a
+coins to the pot. Banking is capped at **1000 coins per account per UTC day** across
+all characters/zones; runs can still be played after the cap. The allowance is
+`config.daily_coin_cap` in `server/hub-data.json` (exported as `DAILY_COIN_CAP`
+from `server/hubs.mjs`), shared by arena banking, dungeon bosses and item sales,
+and it also bounds any single wallet entitlement. New runs have a
 one-minute entry cooldown per character.
 
 The service imports client-trusted campaign HP, stats, equipment, inventory and MP.
@@ -335,9 +338,47 @@ Banks expose 16 stored items per response, plus `page`, `pages` and `pageSize`. 
 
 Deploy this service before the rebuilt game. Startup adds `quest_item_origins` without resetting saves. Only new paid purchases and dungeon loot receive sale identities; existing or imported untracked items remain unsellable. `shop_sell` takes `fixture`, committed inventory `slot`, and `item_instance` plus the standard controller, revision and request ID. The server determines the price: half authored value (floor, minimum 1), cursed items 1, never above the original paid purchase price. Quest/zero-value items receive no sale right.
 
-Sales use the account-wide 250-coin UTC daily earnings allowance and require room for the entire quote; rejection leaves the item intact. Inventory removal, retired identity, cap accounting and durable wallet outbox entry commit together. Payment transport failures retry the same outbox entitlement after reconnect/restart. Tokens are character-bound, price edits are ignored, and sold/consumed/duplicated/banked tokens cannot be imported to mint another sale. Reconciliation retains identities through bank transfers and normal online equipment changes, including dresses and identical-copy swaps. Old clients remain compatible; stock or loot predating this update is not retroactively certified.
+Sales use the account-wide 1000-coin UTC daily earnings allowance and require room for the entire quote; rejection leaves the item intact. Inventory removal, retired identity, cap accounting and durable wallet outbox entry commit together. Payment transport failures retry the same outbox entitlement after reconnect/restart. Tokens are character-bound, price edits are ignored, and sold/consumed/duplicated/banked tokens cannot be imported to mint another sale. Reconciliation retains identities through bank transfers and normal online equipment changes, including dresses and identical-copy swaps. Old clients remain compatible; stock or loot predating this update is not retroactively certified.
 
 Run `npm test` for provenance, sales, cap, retry and restart coverage; the game checkout's `ps/Test-OnlineZones.ps1 -SalesOnly` exercises real Buy/Sell panels against this service and the tracker wallet.
+
+## Companion view and bank sales
+
+A companion client (the **LidollQuest-Companion** page, served by the tracker at
+`{base}companion/` and reached from its Games tab) shows a character and her bank
+between sessions, without a zone, a controller lease or any in-game presence. It
+is hosted on the tracker rather than the bot because the tracker's browser wallet
+gateway is same-origin only and its bearer path is locked to
+`client_id=lidollquest`; nothing in this service needs to change for it.
+
+`GET /zones?character_id=ID&view=companion` returns the usual snapshot with two
+differences: `bank.items` is populated wherever the character is standing, and
+`bank.companion` is `true`. Add `&bank_page=N` (zero-based) to read a further
+page. Companion paging never writes the stored `bankPage`, so it cannot move the
+drawer an in-game client has open. Ordinary requests are unchanged: without
+`view=companion` a client still receives item payloads only while beside a bank
+fixture. With `view=companion` the snapshot also carries `sheet`: the existing
+`inspectionProjection` for the requested character, giving name, level, class and
+resolved equipment names while still excluding raw inventory and private survival
+fields. It rides along deliberately, because `GET /zones/inspect` calls
+`presence()` and a companion never holds a zone, controller lease or presence
+row; ordinary reads receive no `sheet`.
+
+`POST /zones/action` accepts `bank_sell` with `bank_item` (the server-issued
+storage entry id), `item_instance` (its sale right) and the standard
+`character_id`, `revision`, `controller` and `request_id`. Unlike `shop_sell`
+it needs no `fixture` and no presence, so a banked item can be sold from
+anywhere; it is handled before the dungeon router, so it also works while the
+character is parked in a dive. Every other rule is the shop's: the server sets
+the price, the whole quote must fit the account's remaining UTC daily allowance
+(rejection leaves the item in storage), and storage removal, the retired sale
+identity, cap accounting and the durable outbox entitlement commit together, so
+a replayed `request_id` pays once. Selling during combat is refused. A
+`bank_sell` response carries the companion-visible bank, so no second request is
+needed. `capabilities` advertises `companionBank` and `bankSales`.
+
+Run `npm test` for companion read, paging, presence-free sales, cap rejection,
+forged-token rejection and replay coverage.
 
 ## Player needs and exploration
 
@@ -350,3 +391,17 @@ The rebuilt game restores ordinary Quick Actions, places online services behind 
 The Dustbreak Desert is a second weekly route (dustbreak-crossing / dive-desert), connecting both online lobbies. It uses the same Monday 04:00 America/Los_Angeles schedule, personal loot, combat and reset/recovery system as the Quarters, with route-isolated state. No additional coin boss reward is added. Config and authored pools are exported from the game with python/export_online_desert.py into server/desert-data.json. Deploy this service/content before the new game. npm test covers deterministic Desert generation, crossings, route isolation, reset, reconnects and all classes. See the game checkout ONLINE_DESERT_GUIDE.md for editor settings and the two-player browser regression.
 
 Shared hubs now include Dive Halls with Quarters/Desert floor portals. Gardens default to 40x24 tiles (four times the former area); garden_width/garden_height are exported from online_hubs.json. Definitions include authoritative width/height, spawn, exit and portal style. Garden uses a left-wall gap and Beds a right-wall gap in each lobby (y=5–6). `style: gap` includes width/height and side metadata; `move` atomically transfers characters on contact, with matching right/left return openings and safe interior arrival tiles. These boundary cells are ordinary floor. Dive Hall retains its doorway and Shops its stairs. A dungeon visit keeps both its parent origin hub and returnZone hall; crossing the Desert returns to the other hub hall. Direct lobby dive_enter remains supported for old clients during service-first rollout.
+
+## Additional campaign Dives
+
+The hub catalog now offers Dungeon from Rose Court; Auto-Nursery, Regression School and Haunted Forest from Lantern Court; Haunted Mansion and Regression Research Hospital from Clockwork Coliseum. Existing Quarters, Desert and Tundra pads and route IDs remain. New route IDs are dungeon-weekly, nursery-weekly, school-weekly, forest-weekly, mansion-weekly and hospital-weekly, with corresponding dive-* zone IDs.
+
+Export the game catalog with `python/export_online_campaign_dives.py` to `server/campaign-dives-data.json` and deploy it with the service before the rebuilt client. Each route uses independent weekly editions, claims, room chat and existing combat; no campaign story callbacks or new boss coin rewards execute. Snapshots add a compact `dungeons` availability catalog and include only the active route's floor. Never delete existing databases or weekly editions to apply content changes.
+
+`test/campaign-dives.test.mjs` exercises 600 deterministic maps, route adjacency, reconnects, claims, interrupted combat and the 256 KiB gateway response budget. The full suite also retains existing Quarters, Desert, Tundra, bank, companion and daily coin-limit coverage.
+
+## Online underwear loot balance
+
+`non_diaper_panties_per_floor` defaults to 1 (integer 0-99). Across each character's chests and loose treasure on a weekly floor, surplus non-diaper panty rolls become eligible diapers from the route's existing loot pool. All other seeded items and weapon stats retain their original rolls. Existing saved rolls are preserved; no map reset or database migration is needed. Capacity is checked before rolling, and personal progress retains the allowance across reconnects and inventory changes. Campaign loot and NPC rewards are unaffected.
+
+`server/dive-loot.mjs` supplies the shared roller. `test/dive-loot.test.mjs` checks 72,000 seeded rolls across all nine routes; `test/dive-loot-claims.test.mjs` covers full bags, duplicate commands, reconnects and independent character allowances through the real claim API. Export the matching game-side online settings when tuning the limit. No client protocol change is required.

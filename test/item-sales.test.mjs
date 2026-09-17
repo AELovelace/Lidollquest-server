@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
 import {createQuestZones} from '../server/zones.mjs';
+import {DAILY_COIN_CAP} from '../server/hubs.mjs';
 import {createItemOrigins} from '../server/item-origins.mjs';
 import {createQuestService} from '../server/service.mjs';
 import {mkdtempSync,mkdirSync} from 'node:fs';
@@ -34,7 +35,7 @@ test('sales require server-issued rights, ignore forged prices, replay once and 
   const command=f.body('shop_sell',{fixture:f.merchant.id,slot:1,item_instance:item.online_item});f.send(command);f.send(command);
   assert.equal(f.paid.length,1);assert.equal(f.paid[0][2],item.online_sell_price);
   f.act('loadout',{loadout:modified});assert.equal(f.c.loadout.inventory.some(i=>i.online_item),false,'sold rights cannot be imported again');
-  const second=f.buy();f.db.prepare('UPDATE quest_reward_days SET coins=250 WHERE owner=?').run('alice');
+  const second=f.buy();f.db.prepare('UPDATE quest_reward_days SET coins=? WHERE owner=?').run(DAILY_COIN_CAP,'alice');
   assert.throws(()=>f.act('shop_sell',{fixture:f.merchant.id,slot:f.c.loadout.inventory.length-1,item_instance:second.online_item}),/Daily coin limit/);
   assert.equal(f.refresh().loadout.inventory.at(-1).online_item,second.online_item);assert.equal(f.paid.length,1);
   f.nextDay();f.act('enter',{zone:'honeydew-lantern-shops'});f.place(f.merchant.x,f.merchant.y+1);
@@ -53,6 +54,53 @@ test('bank rights survive transfers; imported bank copies and consumed/cross-cha
   f.place(f.merchant.x,f.merchant.y+1);const another=f.buy();
   f.owner('bob');f.act('create',{name:'Other owner'});f.act('enter',{zone:'honeydew-lantern-shops',loadout:{player_info:{},inventory:[another]}});
   assert.equal(f.c.loadout.inventory[0].online_item,undefined);
+ }finally{f.db.close();}
+});
+
+test('the companion reads its own bank anywhere, pages without moving the in-game drawer, and needs no game session',()=>{
+ const f=fixture();try{
+  const item=f.buy();f.place(16,9);f.act('bank_deposit',{fixture:'bank',slot:1});
+  const stored=f.zones.read('token',f.c.id).bank.items[0];
+  f.place(1,1); // Walk away from the bank fixture.
+  const ingame=f.zones.read('token',f.c.id).bank;
+  assert.equal(ingame.available,false);assert.equal(ingame.count,1);assert.deepEqual(ingame.items,[],'an ordinary client still loses the payload away from a bank');
+  const companion=f.zones.read('token',f.c.id,{companion:true}).bank;
+  assert.equal(companion.available,false);assert.equal(companion.companion,true);assert.equal(companion.count,1);
+  assert.deepEqual(companion.items.map(entry=>entry.id),[stored.id]);
+  assert.equal(companion.items[0].item.online_sell_price,item.online_sell_price,'sale prices travel with the companion listing');
+  f.db.prepare('DELETE FROM quest_presence WHERE character_id=?').run(f.c.id); // No zone, no controller lease: exactly what a companion request looks like.
+  assert.equal(f.zones.read('token',f.c.id,{companion:true}).bank.count,1);
+  const sheet=f.zones.read('token',f.c.id,{companion:true}).sheet; // The character half must not need a presence row either.
+  assert.equal(sheet.character_id,f.c.id);assert.ok(sheet.level>=1);assert.ok(['fighter','mage','diplomat'].includes(sheet.class_id));
+  assert.ok(sheet.equipment.length>0);assert.equal(sheet.player_info.inventory,undefined,'the companion sheet never carries raw inventory');
+  assert.equal(f.zones.read('token',f.c.id).sheet,undefined,'an ordinary read still sends no sheet');
+  const paged=f.zones.read('token',f.c.id,{companion:true,bankPage:5}).bank;
+  assert.equal(paged.page,0,'an out-of-range companion page clamps to the last page');
+  assert.equal(JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(f.c.id).state).bankPage??0,0,'companion paging never writes the stored bank page');
+ }finally{f.db.close();}
+});
+
+test('bank sales pay once from anywhere, respect the daily cap, and reject forged or foreign tokens',()=>{
+ const f=fixture();try{
+  const item=f.buy();f.place(16,9);f.act('bank_deposit',{fixture:'bank',slot:1});
+  const stored=f.zones.read('token',f.c.id).bank.items[0];
+  f.place(1,1);f.db.prepare('DELETE FROM quest_presence WHERE character_id=?').run(f.c.id);
+  assert.throws(()=>f.act('bank_sell',{bank_item:stored.id,item_instance:'fake'}),/tracked online/);
+  assert.throws(()=>f.act('bank_sell',{bank_item:'missing',item_instance:item.online_item}),/no longer in your bank/);
+  const day=Math.floor(Date.UTC(2026,8,16)/86400000),spend=amount=>f.db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=excluded.coins').run('alice',day,amount);
+  spend(DAILY_COIN_CAP); // Nothing has been earned today yet, so the allowance row has to be created.
+  assert.throws(()=>f.act('bank_sell',{bank_item:stored.id,item_instance:item.online_item}),/Daily coin limit/);
+  assert.equal(f.zones.read('token',f.c.id,{companion:true}).bank.count,1,'a capped sale leaves the item in storage');
+  assert.equal(f.paid.length,0);
+  spend(0);
+  const command=f.body('bank_sell',{bank_item:stored.id,item_instance:item.online_item});
+  const sale=f.send(command);f.send(command); // The same request ID must never pay twice.
+  assert.equal(f.paid.length,1);assert.equal(f.paid[0][2],item.online_sell_price);
+  assert.equal(f.paid[0][3],'sale-'+item.online_item);
+  assert.match(sale.character.hubNotice,/from your bank/);
+  assert.equal(f.zones.read('token',f.c.id,{companion:true}).bank.count,0);
+  assert.equal(f.db.prepare('SELECT coins FROM quest_reward_days WHERE owner=?').get('alice').coins,item.online_sell_price);
+  assert.equal(f.db.prepare('SELECT status FROM quest_item_origins WHERE id=?').get(item.online_item).status,'sold');
  }finally{f.db.close();}
 });
 
