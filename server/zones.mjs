@@ -85,7 +85,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   const spent=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,Math.floor(now()/86400000))?.coins??0;
   const dungeon=dive.snapshot(c,p),definitions=[...questZones,...hubRooms].map(base=>{
    const z=zone(base.id),definition=hubDefinition(z,now());
-   if(z.district&&p?.zone!==z.id){const {floors,rooms,...summary}=definition;return {...summary,fixtures:[],walls:[]};} // Only the visited district sends its full monthly map.
+   if(z.district&&p?.zone!==z.id){const {floors,wallTiles,rooms,blocks,axes,...summary}=definition;return {...summary,fixtures:[],walls:[]};} // Only the visited district sends its full monthly map.
    return {...definition,walls:z.walls??Array.from({length:z.height??12},(_,y)=>Array.from({length:z.width??20},(_,x)=>blocked({...z,fixtures:[]},x,y)?1:0))};
   });
   if(dungeon.definition)definitions.push(dungeon.definition);

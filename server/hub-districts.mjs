@@ -1,3 +1,4 @@
+import {districtLayout} from './district-layouts.mjs';
 import {readFileSync} from 'node:fs';
 import {seeded} from './dive-generation.mjs';
 
@@ -20,49 +21,51 @@ export function reachableDistrict(f){
 }
 export function generateDistrict(definition,window,data=districtData){
  const {width,height}=data;if(width!==50||height!==50||!Number.isInteger(data.scenery_count)||data.scenery_count<12||data.scenery_count>100)throw Error('Monthly districts require 50x50 maps and 12-100 scenery pieces.');
- const rnd=seeded(`${definition.hub}:${window.edition}:district:${data.version}`),cx=25,cy=25,castle=definition.style==='castle',city=definition.style==='nightlife';
- const f={width,height,name:definition.name,spawn:{x:48,y:25},exit:{x:49,y:24,w:1,h:2,style:'gap',side:'right'},district:{edition:window.edition,resetsAt:window.ends,style:definition.style,tileset:definition.tileset},walls:Array.from({length:height},(_,y)=>Array.from({length:width},(_,x)=>castle||x===0||y===0||x===49||y===49?1:0)),floors:Array.from({length:height},()=>Array(width).fill(0)),fixtures:[],rooms:[]};
- const carve=(x,y)=>{if(x>0&&y>0&&x<49&&y<49)f.walls[y][x]=0;};
- if(castle){
-  for(const ry of [10,25,40])for(const rx of [10,25,40]){const w=9+rnd(5),h=9+rnd(5),r={x:rx-Math.floor(w/2),y:ry-Math.floor(h/2),w,h};f.rooms.push(r);for(let y=r.y;y<r.y+h;y++)for(let x=r.x;x<r.x+w;x++)carve(x,y);}
-  for(const axis of [10,25,40])for(let n=10;n<=40;n++)for(let d=-1;d<=1;d++){carve(axis+d,n);carve(n,axis+d);}
- }
- for(let x=39;x<49;x++)for(let y=23;y<=26;y++)carve(x,y);
- f.walls[24][49]=0;f.walls[25][49]=0;
- for(let y=0;y<50;y++)for(let x=0;x<50;x++){
-  const road=[10,25,40].some(n=>Math.abs(x-n)<=1||Math.abs(y-n)<=1),plaza=Math.abs(x-cx)<6&&Math.abs(y-cy)<6;
-  f.floors[y][x]=castle?(road?2:[1,1,3,5][rnd(4)]):city?(road?1:plaza?6:4+rnd(2)):(road||plaza?8:[3,3,5][rnd(3)]);
- }
- const occupied=new Set(),safe=p=>Math.abs(p.x-48)+Math.abs(p.y-25)<5;
+ const rnd=seeded(`${definition.hub}:${window.edition}:district:${data.version}`),layout=districtLayout(definition,rnd);
+ const {protectedCells,paths,...geometry}=layout;
+ const f={...geometry,width,height,name:definition.name,spawn:{x:48,y:25},exit:{x:49,y:24,w:1,h:2,style:'gap',side:'right'},district:{edition:window.edition,layoutVersion:data.version,layoutKey:`${window.edition}:v${data.version}`,resetsAt:window.ends,style:definition.style,tileset:definition.tileset,source:definition.source_zone,model:{castle:'bsp-rooms',market:'woodland-clearings',nightlife:'city-blocks'}[definition.style],routeCount:paths.length},fixtures:[]};
+ const occupied=new Set(),safe=p=>p.x>=42&&p.y>=22&&p.y<=27;
  function place(profile,index,npc=false){
-  for(let tries=0;tries<400;tries++){
-   const x=npc&&index===0?44:2+rnd(45),y=npc&&index===0?23:2+rnd(45),p={...profile,x,y,id:(npc?'npc-':'scenery-')+index,kind:npc?'npc':'scenery',name:profile.name??'',span_w:profile.span_w??1,span_h:profile.span_h??1};
-   const cells=footprint(p);if(cells.some(c=>c.x>=48||c.y>=48||f.walls[c.y][c.x]||occupied.has(c.x+','+c.y)||safe(c)))continue;
-   if(!npc&&cells.some(c=>[10,25,40].some(n=>Math.abs(c.x-n)<=1||Math.abs(c.y-n)<=1)))continue;
+  for(let tries=0;tries<500;tries++){
+   const region=f.rooms[(index+Math.floor(tries/20))%f.rooms.length];
+   let x=2+rnd(45),y=2+rnd(45);
+   if(npc&&index===0){x=44;y=23;}
+   else if(tries<300&&(definition.style!=='nightlife'||npc||index%4===0)){
+    if(region.r){x=region.cx-region.r+1+rnd(Math.max(1,2*region.r-1));y=region.cy-region.r+1+rnd(Math.max(1,2*region.r-1));}
+    else {x=region.x+rnd(Math.max(1,region.w-(profile.span_w??1)+1));y=region.y+rnd(Math.max(1,region.h-(profile.span_h??1)+1));
+     if(!npc&&tries%2===0)y=region.y; // Castle furnishings and city courtyard details gather against edges, preserving open room centres.
+    }
+   }
+   const p={...profile,x,y,id:(npc?'npc-':'scenery-')+index,kind:npc?'npc':'scenery',name:profile.name??'',span_w:profile.span_w??1,span_h:profile.span_h??1};
+   const cells=footprint(p);
+   if(cells.some(c=>c.x<1||c.y<1||c.x>=48||c.y>=48||f.walls[c.y][c.x]||occupied.has(c.x+','+c.y)))continue;
+   if(!(npc&&index===0)&&cells.some(c=>safe(c)||protectedCells.has(c.x+','+c.y)))continue;
    f.fixtures.push(p);const seen=reachableDistrict(f),count=f.walls.flat().filter(v=>v===0).length-new Set(f.fixtures.filter(p=>p.solid!==false).flatMap(footprint).map(p=>p.x+','+p.y)).size;
-   if(seen.size!==count){f.fixtures.pop();continue;}
+   if(seen.size!==count||f.fixtures.some(n=>n.kind==='npc'&&![[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>seen.has((n.x+dx)+','+(n.y+dy))))){f.fixtures.pop();continue;}
    for(const c of cells)occupied.add(c.x+','+c.y);return true;
   }return false;
  }
  definition.npcs.forEach((npc,i)=>{if(!place({...npc,solid:true},i,true))throw Error('No reachable place for district NPC');});
- for(let i=0;i<data.scenery_count;i++)place(definition.scenery[rnd(definition.scenery.length)],i);
+ // Building mass now comes from LittleBig City's block topology; freestanding facade sprites must not occupy its streets.
+ const profiles=definition.scenery.filter(p=>definition.style!=='nightlife'||!p.sprite.includes('Facade'));
+ for(let i=0;i<data.scenery_count;i++)place(profiles[rnd(profiles.length)],i);
  if(f.fixtures.filter(p=>p.kind==='scenery').length<12)throw Error('District scenery is too sparse');
  return f;
-} // Native castle rooms and town/city streets share connected, safe entrances and inert monthly fixtures.
+} // Host-specific geometry replaces the old universal path lattice; ordinary movement and monthly resets remain shared.
 
 export function createHubDistricts(db,{now=Date.now,data=districtData}={}){
  db.exec('CREATE TABLE IF NOT EXISTS hub_district_editions(zone TEXT NOT NULL,edition TEXT NOT NULL,content TEXT NOT NULL,PRIMARY KEY(zone,edition)); CREATE TABLE IF NOT EXISTS hub_district_current(zone TEXT PRIMARY KEY,edition TEXT NOT NULL);');
  const cache=new Map();
  function ensure(def){
-  const id=def.hub+'-garden',window=monthlyWindow(now(),data.reset_hour),cached=cache.get(id);if(cached?.district.edition===window.edition)return cached;
-  const row=db.prepare('SELECT content FROM hub_district_editions WHERE zone=? AND edition=?').get(id,window.edition);
+  const id=def.hub+'-garden',window=monthlyWindow(now(),data.reset_hour),layoutKey=`${window.edition}:v${data.version}`,cached=cache.get(id);if(cached?.district.layoutKey===layoutKey)return cached;
+  const row=db.prepare('SELECT content FROM hub_district_editions WHERE zone=? AND edition=?').get(id,layoutKey);
   const f=row?JSON.parse(row.content):generateDistrict(def,window,data);
-  if(!row)db.prepare('INSERT INTO hub_district_editions VALUES (?,?,?)').run(id,window.edition,JSON.stringify(f));
+  if(!row)db.prepare('INSERT INTO hub_district_editions VALUES (?,?,?)').run(id,layoutKey,JSON.stringify(f));
   const current=db.prepare('SELECT edition FROM hub_district_current WHERE zone=?').get(id);
-  if(current?.edition!==window.edition){
+  if(current?.edition!==layoutKey){
    db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE zone=?').run(f.spawn.x,f.spawn.y,now(),id);
-   db.prepare('INSERT INTO hub_district_current VALUES (?,?) ON CONFLICT(zone) DO UPDATE SET edition=excluded.edition').run(id,window.edition);
-  } // Move visitors to the unchanged entry path when the month changes, preserving their character, inventory and needs turn.
+   db.prepare('INSERT INTO hub_district_current VALUES (?,?) ON CONFLICT(zone) DO UPDATE SET edition=excluded.edition').run(id,layoutKey);
+  } // Move visitors to the unchanged entry path when the month or layout version changes, preserving their character, inventory and needs turn.
   cache.set(id,f);return f;
  }
  function refresh(){for(const d of data.districts)ensure(d);}

@@ -13,8 +13,8 @@ test('monthly reset uses the first at 04:00 Pacific, including daylight-saving m
  const march=monthlyWindow(Date.parse('2026-03-17T12:00:00Z'));
  assert.equal(march.ends-march.starts,31*86400000-3600000);
 });
-test('120 monthly maps retain connected native scenery, accessible NPCs and safe exits',()=>{
- for(const def of districtData.districts)for(let n=0;n<40;n++){
+test('300 monthly maps retain connected native scenery, accessible NPCs and safe exits',()=>{
+ for(const def of districtData.districts)for(let n=0;n<100;n++){
   const window={edition:'seed-'+n,ends:n},f=generateDistrict(def,window),seen=reachableDistrict(f),occupied=new Set();
   assert.equal(f.width,50);assert.equal(f.height,50);assert.ok(seen.has('49,25'));assert.equal(districtBlocked(f,48,25),false);
   assert.equal(f.fixtures.filter(p=>p.kind==='npc').length,def.npcs.length);assert.ok(f.fixtures.filter(p=>p.kind==='scenery').length>=12);

@@ -1,6 +1,6 @@
 {
-  "_comment": "Safe monthly replacements for the online gardens. Export with python/export_online_districts.py. Existing garden IDs remain stable for saves.",
-  "version": 1,
+  "_comment": "Safe 50x50 monthly host-zone layouts. Version changes replace the active layout on deployment and return visitors to the entrance; old editions remain archived. Export with python/export_online_districts.py.",
+  "version": 2,
   "width": 50,
   "height": 50,
   "reset_hour": 4,
@@ -104,7 +104,15 @@
           "name": "Hall Steward",
           "line": "No battles in these halls. This is a place to meet your friends between adventures."
         }
-      ]
+      ],
+      "layout": {
+        "min_partition": 10,
+        "min_room": 6,
+        "max_depth": 3,
+        "hall_width": 3,
+        "extra_halls": 2
+      },
+      "source_zone": "princess_quarters"
     },
     {
       "hub": "honeydew-lantern",
@@ -211,7 +219,20 @@
           "name": "Tea Stall Host",
           "line": "Pull up beside a friend and enjoy the village bustle. There are no monsters to interrupt you here."
         }
-      ]
+      ],
+      "layout": {
+        "fill_chance": 52,
+        "smooth_passes": 5,
+        "birth_limit": 5,
+        "death_limit": 3,
+        "num_clearings": 7,
+        "min_clearing": 3,
+        "max_clearing": 5,
+        "village_square_radius": 7,
+        "path_width": 3,
+        "building_min_gap": 2
+      },
+      "source_zone": "town"
     },
     {
       "hub": "littlebig-clockwork",
@@ -311,7 +332,16 @@
           "name": "Night Porter",
           "line": "These streets are a safe place to gather. Leave the arena battles inside the Coliseum."
         }
-      ]
+      ],
+      "layout": {
+        "avenue_spacing": 14,
+        "road_spacing_jitter": 3,
+        "avenue_width": 3,
+        "boulevard_width": 5,
+        "park_block_count": 2,
+        "village_square_radius": 5
+      },
+      "source_zone": "littlebig_city"
     }
   ]
 }
