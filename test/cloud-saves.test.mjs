@@ -38,7 +38,7 @@ test('private uploads survive a database restart and reject oversized, credentia
   const input=begin('resume',save);db.close();db=new DatabaseSync(filename);api=createCloudSaves(db,{maxBytes:CLOUD_CHUNK});assert.equal(api.read('owner',{}).saves.length,0);
   assert.deepEqual(api.act('owner',input).parts,[0]);assert.equal(api.act('owner',{...input,action:'commit'}).revision,1);
   assert.throws(()=>api.act('owner',{...input,request_id:'oversized',bytes:CLOUD_CHUNK+1,base_revision:1}),/metadata/);
-  db.prepare('DELETE FROM quest_cloud_versions').run();
+  db.prepare('DELETE FROM quest_cloud_versions').run();db.prepare('DELETE FROM quest_cloud_heads').run(); // Corrupt-envelope fixtures start with an empty cloud history and revision clock.
   for(const [id,value] of [['secret',{...save,access_token:'secret'}],['wrong-owner',{...save,online_account:'someone-else'}],['invalid',{...save,inventory:null}],['shared-room',{...save,current_room:'rmOnlineDive'}]]){
    const bad=begin(id,value);assert.throws(()=>api.act('owner',{...bad,action:'commit'}),e=>e.status===400);assert.equal(api.read('owner',{}).saves.length,0);
    db.exec('DELETE FROM quest_cloud_chunks; DELETE FROM quest_cloud_uploads'); // Each corrupt-file scenario starts with its own private transfer.

@@ -2,6 +2,16 @@
 
 ## Unified accounts and cloud campaigns
 
+### Character and save management
+
+`POST /characters/action` requires `saves:write`, owned `character_id`, current character `revision` and a stable `request_id`. Actions are `rename` with `name` (5 stars), `appearance` with an allowlisted paperdoll `appearance` object (1 star), and `delete` with `confirm` equal to the current character name. Paid actions require `stars:write`. Class/stats/equipment and NPC world sprites are excluded from makeovers; the existing sprite-change action stays free. Exit shared rooms and finish pending encounters/turns/shop purchases before management.
+
+`quest_management` freezes validated requests before wallet debits, blocks character gameplay during settlement and retries the same operation after reconnect/restart. Names and paperdoll appearance are locked after the first campaign import, then changed only through paid management. Character deletion removes its bank, provenance, personal dungeon progress, cloud versions and staged uploads. Tombstones prevent old creation requests from resurrecting it. Account currencies, friendships, reward caps, financial receipts and earned outbox payouts remain intact.
+
+Cloud management uses `/cloud/action` with `base_revision` equal to `head_revision`, stable `request_id` and owned `character_id`: `rename` takes version `revision` and a 1–48 character `label`; `delete` takes the version revision; `clear`, `pause` and `resume` operate on the whole character history/sync setting. Clearing the last version pauses uploads until explicitly resumed. Labels are free metadata and never rewrite campaign blobs. Deleting the newest version promotes the newest survivor; `head_revision` still advances. Downloads and history expose this head separately from the immutable version revision. Empty histories return `empty: true` metadata instead of a download. List responses include per-character `settings` for pause status and head revision.
+
+Management changes invalidate staged chunks. Monotonic heads and persistent upload receipts prevent stale devices and retries from republishing removed versions. Three retained versions are counted independently of revision gaps. Back up `quest_cloud_heads`, `quest_cloud_receipts`, `quest_management` and `quest_deleted_characters` along with the existing database. No new environment variables are required. Deploy the tracker gateway first, then this service, then the rebuilt game. Snapshots advertise `saveManagement` and `characterManagement` capabilities.
+
 Deploy the updated Little Log tracker/auth gateway and this service before the rebuilt game. Zone snapshots advertise `capabilities.unifiedCreation`, `inspection`, `friends` and `cloudSaves`; older currency-only grants continue to work for gameplay. New endpoints require explicit `social:read` or `saves:read/write` consent, validated through the wallet authority on every request.
 
 `create` optionally carries bounded regular-creator `creation` choices, protected by its durable creation request ID. Five characters per account remain the limit. The next campaign import reconciles the character name without replacing its ID. Little Log account display names are separate from character names.

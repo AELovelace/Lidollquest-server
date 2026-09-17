@@ -2,6 +2,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {createServer} from 'node:http';
 import {createQuestZones} from './zones.mjs';
 import {createCloudSaves} from './cloud-saves.mjs';
+import {createCharacterManagement} from './character-management.mjs';
 
 export function createQuestService({filename=':memory:',walletClient,now=Date.now,roll,log=console.warn}={}){
  const db=new DatabaseSync(filename);db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;');
@@ -14,6 +15,7 @@ export function createQuestService({filename=':memory:',walletClient,now=Date.no
   db.prepare('INSERT INTO reward_outbox(id,owner,amount,reason) VALUES (?,?,?,?)').run(id,owner,amount,reason);
  }});
  const cloud=createCloudSaves(db,{now});
+ const management=createCharacterManagement(db,{walletClient,cloud,now,log});
  const deliveries=new Map();
  async function flush(owner,token){
   if(deliveries.has(owner))return deliveries.get(owner);
@@ -37,7 +39,7 @@ export function createQuestService({filename=':memory:',walletClient,now=Date.no
   if(!req.url?.startsWith('/')||req.url.startsWith('//')||req.url.includes('\\'))throw Object.assign(Error('Invalid request target.'),{status:400});
   const url=new URL(req.url,'http://localhost');
   if(url.pathname==='/health'&&req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});res.end('{"ok":true}');return;}
-  const methods={'/zones':'GET','/zones/action':'POST','/zones/inspect':'GET','/cloud':'GET','/cloud/action':'POST'};
+  const methods={'/zones':'GET','/zones/action':'POST','/zones/inspect':'GET','/cloud':'GET','/cloud/action':'POST','/characters/action':'POST'};
   if(methods[url.pathname]!==req.method)throw Object.assign(Error('Endpoint not found.'),{status:404});
   if(req.headers.origin)throw Object.assign(Error('Use the authenticated game gateway.'),{status:403});
   const token=/^Bearer ([A-Za-z0-9_-]{20,100})$/.exec(req.headers.authorization??'')?.[1];if(!token)throw Object.assign(Error('A linked account is required.'),{status:401});
@@ -49,6 +51,11 @@ export function createQuestService({filename=':memory:',walletClient,now=Date.no
     try{input=JSON.parse(Buffer.concat(chunks));}catch{throw Object.assign(Error('Invalid JSON.'),{status:400});}
    }
    const verified=await walletClient.authenticate(token);db.prepare('INSERT INTO wallet_cache VALUES (?,?) ON CONFLICT(owner) DO UPDATE SET coins=excluded.coins').run(verified.owner,verified.coins);
+   if(String(verified.scope??'').split(' ').includes('stars:write'))await management.recover(verified.owner,token); // Finish an already-authorized debit before accepting gameplay after reconnect.
+   if(url.pathname==='/characters/action'){
+    const scopes=String(verified.scope??'').split(' ');if(!scopes.includes('saves:write')||(input?.action!=='delete'&&!scopes.includes('stars:write')))throw Object.assign(Error('Reconnect and approve character management access.'),{status:403,code:'insufficient_scope'});
+    const result=await management.act(verified.owner,token,input);res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));return;
+   }
    if(url.pathname.startsWith('/cloud')||url.pathname==='/zones/inspect'){
     const scope=url.pathname.startsWith('/cloud')?(req.method==='GET'?'saves:read':'saves:write'):'social:read';
     if(!String(verified.scope??'').split(' ').includes(scope))throw Object.assign(Error('Reconnect and approve social and cloud save access.'),{status:403,code:'insufficient_scope'});
@@ -66,7 +73,7 @@ export function createQuestService({filename=':memory:',walletClient,now=Date.no
    const receipt=result.receipt;identity=verified;try{result=zones.read(token,result.character?.id);if(receipt)result.receipt=receipt;}finally{identity=null;}
    await flush(verified.owner,token);result.coins=db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(verified.owner).coins;
    result.pendingCoins=db.prepare('SELECT COALESCE(SUM(amount),0) AS n FROM reward_outbox WHERE owner=? AND delivered=0').get(verified.owner).n;
-   result.capabilities={unifiedCreation:true,inspection:true,friends:true,cloudSaves:true};
+   result.capabilities={unifiedCreation:true,inspection:true,friends:true,cloudSaves:true,saveManagement:true,characterManagement:true};
    res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));
   }finally{active--;const count=perToken.get(token)-1;if(count)perToken.set(token,count);else perToken.delete(token);}
  })().catch(error=>{if(res.destroyed)return;if(res.headersSent){res.destroy();return;}res.writeHead(error.status??503,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({error:error.code??'zone_request_failed',error_description:error.status?error.message:'Online zones are temporarily unavailable.'}));});});

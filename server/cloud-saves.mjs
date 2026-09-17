@@ -6,19 +6,24 @@ export function createCloudSaves(db,{now=Date.now,maxBytes=Number(process.env.QU
  if(!Number.isSafeInteger(maxBytes)||maxBytes<CLOUD_CHUNK||maxBytes>256*1024*1024)throw Error('Invalid cloud save size limit');
  db.exec(`CREATE TABLE IF NOT EXISTS quest_cloud_versions(character_id TEXT NOT NULL,revision INTEGER NOT NULL,owner TEXT NOT NULL,request_id TEXT NOT NULL,checksum TEXT NOT NULL,preview TEXT NOT NULL,created INTEGER NOT NULL,data BLOB NOT NULL,PRIMARY KEY(character_id,revision),UNIQUE(owner,request_id));
  CREATE TABLE IF NOT EXISTS quest_cloud_uploads(owner TEXT PRIMARY KEY,id TEXT NOT NULL,character_id TEXT NOT NULL,base_revision INTEGER NOT NULL,checksum TEXT NOT NULL,bytes INTEGER NOT NULL,created INTEGER NOT NULL);
- CREATE TABLE IF NOT EXISTS quest_cloud_chunks(owner TEXT NOT NULL,upload_id TEXT NOT NULL,part INTEGER NOT NULL,data BLOB NOT NULL,PRIMARY KEY(owner,upload_id,part));`);
+ CREATE TABLE IF NOT EXISTS quest_cloud_chunks(owner TEXT NOT NULL,upload_id TEXT NOT NULL,part INTEGER NOT NULL,data BLOB NOT NULL,PRIMARY KEY(owner,upload_id,part));
+ CREATE TABLE IF NOT EXISTS quest_cloud_heads(character_id TEXT PRIMARY KEY,revision INTEGER NOT NULL,paused INTEGER NOT NULL DEFAULT 0);
+ CREATE TABLE IF NOT EXISTS quest_cloud_receipts(owner TEXT NOT NULL,request_id TEXT NOT NULL,fingerprint TEXT NOT NULL,result TEXT NOT NULL,PRIMARY KEY(owner,request_id));
+ INSERT OR IGNORE INTO quest_cloud_heads SELECT character_id,MAX(revision),0 FROM quest_cloud_versions GROUP BY character_id;`);
  const character=(owner,id)=>{if(!key(id))fail(400,'Choose a character.');const c=db.prepare('SELECT * FROM quest_characters WHERE owner=? AND id=?').get(owner,id);if(!c)fail(404,'Character not found.');return c;};
- const current=id=>db.prepare('SELECT COALESCE(MAX(revision),0) AS revision FROM quest_cloud_versions WHERE character_id=?').get(id).revision;
+ const current=id=>db.prepare('SELECT revision FROM quest_cloud_heads WHERE character_id=?').get(id)?.revision??0;
+ const paused=id=>Boolean(db.prepare('SELECT paused FROM quest_cloud_heads WHERE character_id=?').get(id)?.paused);
+ const advance=(id,revision,pause=paused(id))=>db.prepare('INSERT INTO quest_cloud_heads VALUES (?,?,?) ON CONFLICT(character_id) DO UPDATE SET revision=excluded.revision,paused=excluded.paused').run(id,revision,Number(pause)); // Never reuse revisions after deleting the current version or all history.
  const clear=owner=>{db.prepare('DELETE FROM quest_cloud_chunks WHERE owner=?').run(owner);db.prepare('DELETE FROM quest_cloud_uploads WHERE owner=?').run(owner);};
  const info=r=>r?{revision:r.revision,checksum:r.checksum,bytes:r.bytes??r.data?.length,created:r.created,preview:JSON.parse(r.preview)}:null;
  function prune(){for(const r of db.prepare('SELECT owner FROM quest_cloud_uploads WHERE created<=?').all(now()-86400000))clear(r.owner);}
  function read(owner,q){
-  prune();const id=q.character_id;if(!id)return {saves:db.prepare('SELECT v.character_id,v.revision,v.checksum,v.preview,v.created,length(v.data) AS bytes FROM quest_cloud_versions v WHERE owner=? AND revision=(SELECT MAX(revision) FROM quest_cloud_versions x WHERE x.character_id=v.character_id)').all(owner).map(r=>({character_id:r.character_id,...info(r)}))};
+  prune();const id=q.character_id;if(!id)return {saves:db.prepare('SELECT v.character_id,v.revision,v.checksum,v.preview,v.created,length(v.data) AS bytes FROM quest_cloud_versions v WHERE owner=? AND revision=(SELECT MAX(revision) FROM quest_cloud_versions x WHERE x.character_id=v.character_id)').all(owner).map(r=>({character_id:r.character_id,...info(r),head_revision:current(r.character_id)})),settings:db.prepare('SELECT c.id AS character_id,COALESCE(h.revision,0) AS revision,COALESCE(h.paused,0) AS paused FROM quest_characters c LEFT JOIN quest_cloud_heads h ON h.character_id=c.id WHERE c.owner=?').all(owner)};
   const c=character(owner,id);
-  if(q.history==='1')return {versions:db.prepare('SELECT revision,checksum,preview,created,length(data) AS bytes FROM quest_cloud_versions WHERE character_id=? ORDER BY revision DESC').all(id).map(info)};
-  const revision=q.revision===undefined?current(id):Number(q.revision),r=db.prepare('SELECT revision,checksum,preview,created,length(data) AS bytes FROM quest_cloud_versions WHERE character_id=? AND revision=?').get(id,revision);
-  if(!r)fail(404,'No cloud save yet.');
-  if(q.part===undefined)return {...info(r),character_id:id,online_revision:c.revision};
+  if(q.history==='1')return {versions:db.prepare('SELECT revision,checksum,preview,created,length(data) AS bytes FROM quest_cloud_versions WHERE character_id=? ORDER BY revision DESC').all(id).map(info),head_revision:current(id),paused:paused(id)};
+  const revision=q.revision===undefined?db.prepare('SELECT MAX(revision) AS revision FROM quest_cloud_versions WHERE character_id=?').get(id).revision:Number(q.revision),r=db.prepare('SELECT revision,checksum,preview,created,length(data) AS bytes FROM quest_cloud_versions WHERE character_id=? AND revision=?').get(id,revision??-1);
+  if(!r){if(q.revision===undefined&&q.part===undefined)return {empty:true,character_id:id,revision:current(id),head_revision:current(id),paused:paused(id)};fail(404,'Cloud version no longer exists.');}
+  if(q.part===undefined)return {...info(r),character_id:id,online_revision:c.revision,head_revision:current(id),paused:paused(id)};
   const part=Number(q.part);if(!Number.isSafeInteger(part)||part<0||part>=Math.ceil(r.bytes/CLOUD_CHUNK))fail(400,'Invalid save chunk.');
   const chunk=db.prepare('SELECT substr(data,?,?) AS data FROM quest_cloud_versions WHERE character_id=? AND revision=?').get(part*CLOUD_CHUNK+1,CLOUD_CHUNK,id,revision);
   return {revision,part,data:Buffer.from(chunk.data).toString('base64')}; // Read only the requested slice, not a full 64 MiB world for every chunk.
@@ -28,8 +33,12 @@ export function createCloudSaves(db,{now=Date.now,maxBytes=Number(process.env.QU
   db.exec('BEGIN IMMEDIATE');try{const result=change(owner,input);db.exec('COMMIT');return result;}catch(e){db.exec('ROLLBACK');throw e;}
  }
  function change(owner,i){
+  if(['rename','delete','clear','resume','pause'].includes(i.action))return manage(owner,i);
   const c=character(owner,i.character_id),saved=db.prepare('SELECT character_id,revision,checksum,preview,created,length(data) AS bytes FROM quest_cloud_versions WHERE owner=? AND request_id=?').get(owner,i.request_id);
+  const receipt=db.prepare('SELECT result FROM quest_cloud_receipts WHERE owner=? AND request_id=?').get(owner,i.request_id);
+  if(receipt){const result=JSON.parse(receipt.result);if(result.character_id!==c.id||!result.committed||(i.checksum&&i.checksum!==result.checksum))fail(409,'Cloud request ID already used.');return result;}
   if(saved){if(saved.character_id!==c.id||(i.checksum&&i.checksum!==saved.checksum))fail(409,'Cloud request ID already used.');return {...info(saved),committed:true};}
+  if(paused(c.id))fail(409,'Cloud sync is paused for this character. Resume it from Manage.','cloud_paused');
   if(i.action==='begin'){
    if(!Number.isSafeInteger(i.bytes)||i.bytes<2||i.bytes>maxBytes||!Number.isSafeInteger(i.base_revision)||i.base_revision<0||!/^[a-f0-9]{40}$/.test(i.checksum??''))fail(400,'Invalid cloud save metadata.');
    const old=db.prepare('SELECT * FROM quest_cloud_uploads WHERE owner=?').get(owner);
@@ -57,8 +66,27 @@ export function createCloudSaves(db,{now=Date.now,maxBytes=Number(process.env.QU
   if(save.current_room.startsWith('rmOnline')||Object.keys(save.room_data).some(room=>room.startsWith('rmOnline')))fail(400,'Shared rooms resume from the service, not a campaign snapshot.');
   const preview={name:String(save.player_info.name??c.name).slice(0,24),level:Number(save.player_info.level)||1,room:save.current_room.slice(0,100),version:save.version,timestamp:String(save.timestamp??'').slice(0,64)};
   const revision=u.base_revision+1;db.prepare('INSERT INTO quest_cloud_versions VALUES (?,?,?,?,?,?,?,?)').run(c.id,revision,owner,u.id,u.checksum,JSON.stringify(preview),now(),data);
-  db.prepare('DELETE FROM quest_cloud_versions WHERE character_id=? AND revision<?').run(c.id,revision-2);clear(owner);
-  return {revision,checksum:u.checksum,preview,committed:true};
+  advance(c.id,revision);db.prepare('DELETE FROM quest_cloud_versions WHERE character_id=? AND revision NOT IN (SELECT revision FROM quest_cloud_versions WHERE character_id=? ORDER BY revision DESC LIMIT 3)').run(c.id,c.id);clear(owner);
+  const result={character_id:c.id,revision,checksum:u.checksum,preview,committed:true};
+  db.prepare('INSERT INTO quest_cloud_receipts VALUES (?,?,?,?)').run(owner,i.request_id,'upload',JSON.stringify(result));return result;
  } // Staging and publication are transactional; restoring a campaign never writes authoritative gameplay state.
- return {read,act,prune};
+ function manage(owner,i){
+  const c=character(owner,i.character_id),fingerprint=JSON.stringify([i.action,c.id,i.base_revision,i.revision??null,i.label??null]);
+  const old=db.prepare('SELECT * FROM quest_cloud_receipts WHERE owner=? AND request_id=?').get(owner,i.request_id);
+  if(old){if(old.fingerprint!==fingerprint)fail(409,'Cloud request ID already used.');return JSON.parse(old.result);}
+  if(!Number.isSafeInteger(i.base_revision)||i.base_revision!==current(c.id))fail(409,'Cloud saves changed. Refresh before managing them.','cloud_management_conflict');
+  if(['rename','delete'].includes(i.action)){
+   const row=db.prepare('SELECT preview FROM quest_cloud_versions WHERE character_id=? AND revision=?').get(c.id,Number.isSafeInteger(i.revision)?i.revision:-1);if(!row)fail(404,'Cloud version no longer exists.');
+   if(i.action==='rename'){
+    if(typeof i.label!=='string'||!i.label.trim()||i.label.length>48||/[\x00-\x1f\x7f]/.test(i.label))fail(400,'Use a save label of 1 to 48 characters.');
+    const preview=JSON.parse(row.preview);preview.label=i.label.trim();db.prepare('UPDATE quest_cloud_versions SET preview=? WHERE character_id=? AND revision=?').run(JSON.stringify(preview),c.id,i.revision);
+   }else db.prepare('DELETE FROM quest_cloud_versions WHERE character_id=? AND revision=?').run(c.id,i.revision);
+  }else if(i.action==='clear')db.prepare('DELETE FROM quest_cloud_versions WHERE character_id=?').run(c.id);
+  const revision=current(c.id)+1,noVersions=!db.prepare('SELECT 1 FROM quest_cloud_versions WHERE character_id=?').get(c.id);
+  advance(c.id,revision,i.action==='resume'?false:['clear','pause'].includes(i.action)||(i.action==='delete'&&noVersions)?true:paused(c.id));
+  const staging=db.prepare('SELECT owner FROM quest_cloud_uploads WHERE character_id=?').get(c.id);if(staging)clear(staging.owner); // Cancel pre-management chunks; stale clients cannot silently republish deleted data.
+  const result={character_id:c.id,revision,paused:paused(c.id),managed:i.action};db.prepare('INSERT INTO quest_cloud_receipts VALUES (?,?,?,?)').run(owner,i.request_id,fingerprint,JSON.stringify(result));return result;
+ }
+ function deleteCharacter(id){const staging=db.prepare('SELECT owner FROM quest_cloud_uploads WHERE character_id=?').get(id);if(staging)clear(staging.owner);db.prepare('DELETE FROM quest_cloud_versions WHERE character_id=?').run(id);db.prepare('DELETE FROM quest_cloud_heads WHERE character_id=?').run(id);} // Caller owns the transaction that also removes the online character.
+ return {read,act,prune,deleteCharacter};
 }

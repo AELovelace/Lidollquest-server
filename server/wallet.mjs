@@ -11,7 +11,7 @@ export function createWalletClient({baseUrl,key,fetcher=fetch}={}){
   const response=await fetcher(url,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json','X-Reward-Signature':signature}:{})},body:body?JSON.stringify(body):undefined,redirect:'error',signal:AbortSignal.timeout(5000)});
   const chunks=[];let size=0;for await(const chunk of response.body){size+=chunk.length;if(size>32768)throw Error('Wallet response too large');chunks.push(Buffer.from(chunk));}
   const data=JSON.parse(Buffer.concat(chunks));
-  if(!response.ok&&body?.kind==='debit'&&response.status===409&&data.error_description==='Insufficient balance or account balance limit reached.')throw Object.assign(Error('Not enough LiDollCoins.'),{status:409,code:'insufficient_balance'});
+  if(!response.ok&&body?.kind==='debit'&&response.status===409&&data.error_description==='Insufficient balance or account balance limit reached.')throw Object.assign(Error(body.asset==='stars'?'Not enough stars.':'Not enough LiDollCoins.'),{status:409,code:'insufficient_balance'});
   if(!response.ok)throw Object.assign(Error(response.status===401?'Reconnect your linked account.':'The wallet is temporarily unavailable.'),{status:response.status,code:'wallet_unavailable'});return data;
  }
  return {
@@ -21,6 +21,7 @@ export function createWalletClient({baseUrl,key,fetcher=fetch}={}){
    return {owner:data.account_id,id:createHash('sha256').update(token).digest('hex'),client:'lidollquest',coins:data.balance,scope:data.scope??''};
   },
   async credit(token,body){const result=await request(token,body);if(result.request_id!==body.request_id||result.currency!=='LiDollCoin'||result.amount!==body.amount||!Number.isSafeInteger(result.balance)||result.balance<0)throw Error('Invalid reward receipt');return result;},
+  async stars(token,body){const result=await request(token,body);if(result.request_id!==body.request_id||result.currency!=='Stars'||result.kind!=='debit'||result.amount!==body.amount||!Number.isSafeInteger(result.balance)||result.balance<0)throw Error('Invalid star receipt');return result;}, // Prices and stable request IDs come from character management.
   async profile(token,account){const url=new URL('social',base);url.searchParams.set('client_id','lidollquest');url.searchParams.set('account_id',account);const response=await fetcher(url,{headers:{Authorization:'Bearer '+token},redirect:'error',signal:AbortSignal.timeout(5000)});if(!response.ok)throw Object.assign(Error('Account profile unavailable.'),{status:response.status});return response.json();},
  };
 } // Secrets stay on the service. Only verified arena entitlements reach the shared wallet.

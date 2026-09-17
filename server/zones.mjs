@@ -10,6 +10,7 @@ export const desertData=JSON.parse(readFileSync(new URL('./desert-data.json',imp
 import {createBank} from './bank.mjs';
 import {createItemOrigins} from './item-origins.mjs';
 import {inspectionProjection} from './inspection.mjs';
+import {managementSchema,appearanceFields} from './character-management.mjs';
 
 export const questAvatars=Object.freeze(JSON.parse(readFileSync(new URL('./avatars.json',import.meta.url),'utf8')).map(Object.freeze)); // Generated from the game's NPC registry and authored object sprites.
 const avatarIds=new Set(questAvatars.map(a=>a.id));
@@ -41,6 +42,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
  CREATE INDEX IF NOT EXISTS quest_chat_zone ON quest_chat(zone,seq);
  CREATE TABLE IF NOT EXISTS quest_reward_days(owner TEXT NOT NULL,day INTEGER NOT NULL,coins INTEGER NOT NULL,PRIMARY KEY(owner,day));
  CREATE TABLE IF NOT EXISTS quest_request_limits(owner TEXT PRIMARY KEY,started INTEGER NOT NULL,count INTEGER NOT NULL);`);
+ managementSchema(db);
  const origins=createItemOrigins(db);
  const purchases=createHubPurchases(db,{now,origins});
  const bank=createBank(db);
@@ -107,6 +109,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   return atomic(()=>{
    identity(secret);
    if(input.action==='create'){
+    if(db.prepare('SELECT 1 FROM quest_deleted_characters WHERE owner=? AND creation_id=?').get(i.owner,input.request_id))fail(410,'This character was deleted. Start a new character.');
     const name=clean(input.name,24),appearance=avatar(input.avatar===undefined?'player':input.avatar);if(!name)fail(400,'Give your online character a name.');
     let c=db.prepare('SELECT * FROM quest_characters WHERE owner=? AND creation_id=?').get(i.owner,input.request_id);
     if(c&&(JSON.parse(c.state).creationName??c.name)!==name)fail(409,'This creation request already has another name.');
@@ -117,6 +120,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
     return snapshot(i,c);
    }
    const c=character(i.owner,input.character_id),fingerprint=createHash('sha256').update(JSON.stringify(Object.keys(input).sort().map(k=>[k,canonical(input[k])]))).digest('hex'); // Preserve legacy flat command fingerprints while stabilizing nested loadout data.
+   if(db.prepare("SELECT 1 FROM quest_management WHERE character_id=? AND status='pending'").get(c.id))fail(409,'Your character change is still settling.','character_change_pending');
    const old=db.prepare('SELECT * FROM quest_commands WHERE character_id=? AND request_id=?').get(c.id,input.request_id);
    if(old){if(old.fingerprint!==fingerprint)fail(409,'This request ID already describes another action.');return {...snapshot(i,c),receipt:JSON.parse(old.result)};}
    if(input.action==='heartbeat'){
@@ -252,8 +256,12 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
    }
    if(state.run)syncRunHealth(state,state.run);
    origins.reconcile(c,state,JSON.parse(c.state)); // Strip forged/duplicate item markers on every imported loadout and persist equipment/bank transitions.
+   if(input.loadout&&state.loadout?.player_info?.name&&!state.nameLocked){const name=clean(state.loadout.player_info.name,24);if(name){c.name=name;state.nameLocked=true;db.prepare('UPDATE quest_characters SET name=? WHERE id=?').run(name,c.id);}} // Reconcile legacy campaign names once; subsequent renames use the paid management action.
+   if(state.loadout?.player_info){
+    if(!state.profileAppearance){const initial={gender:'Female',hair_style:1,hair_color:'Brown',has_breasts:false,nipple_style:0,penis_style:0,pubes_style:0};for(const key of appearanceFields)if(state.loadout.player_info[key]!==undefined)initial[key]=state.loadout.player_info[key];state.profileAppearance=initial;}
+    Object.assign(state.loadout.player_info,{name:c.name},state.profileAppearance);
+   } // Preserve the first imported paperdoll; subsequent changes require the paid makeover, including legacy-client imports.
    if(JSON.stringify(state.loadout)!==JSON.stringify(JSON.parse(c.state).loadout))state.loadoutRevision=c.revision+1;
-   if(input.loadout&&state.loadout?.player_info?.name){const name=clean(state.loadout.player_info.name,24);if(name){c.name=name;db.prepare('UPDATE quest_characters SET name=? WHERE id=?').run(name,c.id);}}
    c.revision++;c.state=JSON.stringify(state);db.prepare('UPDATE quest_characters SET revision=?,state=? WHERE id=?').run(c.revision,c.state,c.id);
    const receipt={request_id:input.request_id,revision:c.revision,action:input.action,result:state.lastResult};
    db.prepare('INSERT INTO quest_commands VALUES (?,?,?,?,?)').run(c.id,input.request_id,c.revision,fingerprint,JSON.stringify(receipt));
