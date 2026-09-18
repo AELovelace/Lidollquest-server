@@ -50,12 +50,12 @@ export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progres
  function projection(e,a){const enemy=e.enemies.find(v=>v.data.hp>0)??e.enemies[0];return {...a.run,enemy:clone(enemy.data),sharedEncounter:e.id,combatVersion:3,cycle:a.cycle,readyAt:a.readyAt,duration:a.duration,turnReady:a.prepared,phase:'fight',status:a.status,turn:a.cycle,log:e.events.map(v=>v.text)};}
  function persist(e,rows,caller=null){for(const {a,c,s} of rows){if(!e.finished){s.run=projection(e,a);syncRunHealth(s,a.run);}if(c.id!==caller?.id)saveCharacter(c,s);}write(e);}
  function reset(a,s){a.cycle++;a.prepared=false;a.duration=actionDelay(s.loadout.player_info.dex);a.readyAt=now()+a.duration;a.run.turn=a.cycle;a.run.turnReady=false;}
- function out(e,a,enemy,outcome){a.status=outcome;a.defeatEnemy=clone(enemy);a.prepared=false;message(e,a.name+' '+(outcome==='defeat'?'is down.':outcome==='flee'?'retreats from the fight.':'is out of the fight.'));}
+ function out(e,a,enemy,outcome){a.status=outcome;a.defeatEnemy=clone(enemy);a.prepared=false;a.downedAt=now();message(e,a.name+' '+(outcome==='defeat'?'is down.':outcome==='flee'?'retreats from the fight.':'is out of the fight.'));} // Recovery time starts when this member goes down, not when the survivors finish fighting.
  function start(c,state,record,foe){
   const members=parties?.members(c.id)??[],people=members.length?members:[c];
-  const rows=people.map(other=>({c:other,s:other.id===c.id?state:JSON.parse(other.state)}));
+  const rows=people.map(other=>({c:other,s:other.id===c.id?state:JSON.parse(other.state)})).filter(({s})=>!s.pendingDefeat&&s.dive?.edition===record.edition&&s.dive?.route===route); // Downed or elsewhere members retain membership but do not enter this encounter.
+  if(!rows.some(row=>row.c.id===c.id))fail('Finish recovering before entering combat.');
   for(const {c:other,s} of rows){
-   if(s.pendingDefeat)fail(other.name+' must finish their defeat scene before the party can fight.'); // Check every member before reserving enemies or creating any participant.
    if(s.run||s.worldTurnDue||s.pendingPurchase||!s.loadout||s.loadout.player_info.stat_points>0||s.loadout.player_info.playerHealth<=0||s.dive?.edition!==record.edition||s.dive?.route!==route)fail(other.name+' must finish preparing before the party can fight.');
   }
   const e={id:randomUUID(),edition:record.edition,zone,route,origin:{x:foe.x,y:foe.y},created:now(),sequence:0,events:[],players:[],enemies:[]};
@@ -75,7 +75,7 @@ export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progres
    if(bossDown){const p=progress(c,record.edition);p.completed=true;saveProgress(c,record.edition,p);}
    const coins=bossDown?pay(c,s,record,true):0,outcome=a.status==='active'?(win?'win':'abandoned'):a.status;
    s.lastResult={outcome,coins,rounds:1,zone,log:e.events.map(v=>v.text),...defeatPresentation(a.run,outcome)};s.wins=(s.wins??0)+(win?1:0);s.run=null;
-   if(s.dive)relocate(c,s,win?e.origin:entry(record.floor,s.dive.origin),s.lastResult.defeatScene);
+   if(s.dive)relocate(c,s,win&&!s.lastResult.defeatScene?e.origin:entry(record.floor,s.dive.origin),s.lastResult.defeatScene,a.downedAt); // A defeated member returns to their own gate even when the survivors win.
    if(force)back(c,s);
   }saveFloor(record);return true;
  } // All participants, enemy locks and reward entitlements settle in the caller's single database transaction.

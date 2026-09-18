@@ -50,10 +50,18 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   try{const floor=generate(data,window.edition);addPinkMist(floor);db.prepare('INSERT OR IGNORE INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(route,window.edition,window.start,window.ends,JSON.stringify(floor),now());log('dive_generation_ready',route,window.edition);}
   catch(error){retryAt=now()+minutes;log('dive_generation_failed',route,String(error));}
  } // Never replace a valid edition until its successor is fully generated and validated.
- function relocate(c,state,position,scene){ // Hold the committed encounter position until this player's final dialogue acknowledgement.
-  if(state.deferDefeatReturn&&scene){state.pendingDefeat={id:scene.id,position:{...position}};return;}
+ function relocate(c,state,position,scene,downedAt=now()){ // Recovery needs both the completed scene and one real minute since defeat.
+  if(state.deferDefeatReturn&&scene){state.pendingDefeat={id:scene.id,position:{...position},readyAt:downedAt+60000,sceneComplete:false};return;}
   state.dive.position={...position};state.dive.safeUntil=now()+10000;
   db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(position.x,position.y,c.id);
+ }
+ function recover(c,state,record){
+  const pending=state.pendingDefeat;
+  if(!pending?.sceneComplete||now()<(pending.readyAt??0))return false;
+  delete state.pendingDefeat; // Only this character recovers; party members may already be in another encounter or room.
+  if(pending.returnToHub||record.edition!==latest())back(c,state);
+  else relocate(c,state,pending.position);
+  return true;
  }
  function back(c,state,destination){
   if(state.pendingDefeat){state.pendingDefeat.returnToHub=true;return;} // Weekly reset may retire the floor, but never interrupts its unread defeat scene.
@@ -110,6 +118,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   for(const c of db.prepare('SELECT * FROM quest_characters WHERE state LIKE ?').all('%"dive":{%')){
    const state=JSON.parse(c.state);if(!owns(state.dive))continue;
    const old=state.dive.edition!==active.edition,record=getFloor(state.dive.edition),run=state.run,p=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
+   if(state.pendingDefeat&&record&&recover(c,state,record)){saveCharacter(c,state);continue;} // Tick the durable wall-clock timer even when no gameplay command is submitted.
    if(run?.kind==='dive'&&!run.sharedEncounter&&((!p||p.seen<now()-2*minutes)||run.acted<now()-5*minutes||old&&now()>=record.ends+10*minutes)){
     finish(c,state,record,'abandoned');log('dive_encounter_abandoned',c.id,run.encounter);saveCharacter(c,state);
    }
@@ -124,7 +133,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const rnd=seeded(active.edition+':'+Math.floor(now()/seconds));
   for(const foe of f.enemies){
    if(foe.engaged||foe.respawnAt>now()||!enemyRoams(data,foe))continue;
-   const targets=players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return !v.pendingDefeat&&!v.run&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0&&!v.loadout?.player_info.stat_points;});return ready&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.worldTurnDue&&!(s.loadout?.player_info.stat_points>0)&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);});
+   const targets=players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return v.pendingDefeat||v.dive?.route!==route||v.dive?.edition!==active.edition||(!v.run&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0&&!v.loadout?.player_info.stat_points);});return ready&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.worldTurnDue&&!(s.loadout?.player_info.stat_points>0)&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);}); // Roaming enemies can engage survivors without enrolling downed party members.
    let target=null,best=null;
    for(const p of targets){const path=pathTo(f,foe,p,config.pursuit_steps);if(path&&(!best||path.length<best.length)){target=p;best=path;}}
    if(best?.length===0||best?.length===1){const c={id:target.character_id,owner:target.owner,revision:target.revision},s=JSON.parse(target.state);if(s.loadout?.player_info.playerHealth>0){start(c,s,active,foe);saveCharacter(c,s);target.state=c.state;target.revision=c.revision;}continue;}
@@ -183,9 +192,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(action==='defeat_complete'){
    const pending=state.pendingDefeat;
    if(!pending||input.scene!==pending.id)fail('That defeat scene is no longer pending.');
-   delete state.pendingDefeat; // Clear and relocate atomically; durable command receipts make retries harmless.
-   if(pending.returnToHub||record.edition!==latest())back(c,state);
-   else relocate(c,state,pending.position);
+   pending.sceneComplete=true;recover(c,state,record); // Acknowledgement records reading once; an unfinished timer continues without repeated client commands.
    return;
   }
   if(action==='dive_exit'||action==='leave'){if(state.run)fail('Finish or flee from the current fight first.');

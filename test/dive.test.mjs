@@ -223,6 +223,7 @@ test('defeat scenes retain the authored opponent across duplicate commands, reco
     for(const action of ['move','dive_exit','dive_engage','loadout','companion_equip'])assert.throws(()=>f.act(id,action),/defeat dialogue/);
     assert.throws(()=>f.act(id,'defeat_complete',{scene:'wrong'}),/no longer pending/);
     f.advance(11000);f.tick();assert.equal(f.snap(id).character.run,null,'recovered player cannot be attacked while reading');
+    f.advance(50000);f.act(id,'enter',{zone:DIVE_ZONE,combat_version:2,defeat_version:1}); // Reading can outlast the minute; acknowledgement then returns immediately.
     const done=f.command(id,'defeat_complete',{scene:run.id}),returned=f.raw(done);
     assert.deepEqual(returned.position,s.character.pendingDefeat.position);
     assert.equal(returned.character.pendingDefeat,undefined);

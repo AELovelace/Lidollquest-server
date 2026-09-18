@@ -50,7 +50,7 @@ export function createParties(db,{now}) {
    const leader=invite&&db.prepare('SELECT c.* FROM quest_parties p JOIN quest_characters c ON c.id=p.leader WHERE p.id=?').get(invite.party_id);
    if(!leader||!sameArea(c,leader))fail('This invitation has expired or the party moved.');
    const roster=members(leader.id);if(roster.length>=3)fail('That party is full.');
-   for(const other of roster)available(other);
+   for(const other of roster)if(!JSON.parse(other.state).pendingDefeat)available(other); // A recovering member does not prevent survivors from filling an empty party slot.
    db.prepare('INSERT INTO quest_party_members VALUES (?,?,?)').run(c.id,invite.party_id,now());db.prepare('DELETE FROM quest_party_invites WHERE target=?').run(c.id);return;
   }
   if(!p)fail('You are not in a party.');
@@ -63,11 +63,13 @@ export function createParties(db,{now}) {
  }
  function snapshot(c){
   if(!c)return {party:null,partyInvitations:[]};const p=party(c.id);
-  return {party:p?{id:p.id,leader:p.leader,members:members(c.id).map(other=>{const s=JSON.parse(other.state),pos=presence(other.id);return {id:other.id,name:other.name,avatar:s.avatar??'player',connected:(pos?.seen??0)>now()-30000,zone:pos?.zone??null,fighting:!!s.run};})}:null,
+  return {party:p?{id:p.id,leader:p.leader,members:members(c.id).map(other=>{const s=JSON.parse(other.state),pos=presence(other.id);return {id:other.id,name:other.name,avatar:s.avatar??'player',connected:(pos?.seen??0)>now()-30000,zone:pos?.zone??null,fighting:!!s.run,recovering:!!s.pendingDefeat};})}:null,
    partyInvitations:db.prepare('SELECT i.id,i.expires,c.name AS name FROM quest_party_invites i JOIN quest_characters c ON c.id=i.sender WHERE i.target=? AND i.expires>? ORDER BY i.expires LIMIT 8').all(c.id,now())};
  } // Roster views disclose only social status, never other members' loadouts or needs.
  function transfer(c,state,before,after){
-  const roster=members(c.id);if(roster.length<2||!before||!after||before.zone===after.zone)return;
+  if(!before||!after||before.zone===after.zone)return;
+  const roster=members(c.id).filter(other=>!JSON.parse(other.state).pendingDefeat&&(other.id===c.id||presence(other.id)?.zone===before.zone)); // Survivors can travel while a downed member remains at the defeat location.
+  if(roster.length<2)return;
   for(const other of roster){available(other);const pos=other.id===c.id?before:presence(other.id);if(!pos||pos.zone!==before.zone)fail(other.name+' is no longer in the same area.');}
   const ids=roster.map(m=>m.id),occupied=db.prepare('SELECT character_id FROM quest_presence WHERE zone=? AND seen>?').all(after.zone,now()-30000).filter(p=>!ids.includes(p.character_id)).length;
   if(occupied+roster.length>64)fail('The destination has no room for the whole party.');

@@ -23,40 +23,85 @@ function fixture(){
  return {db,ids,awards,loadout,player,join,snap,act,command,place,engage,advance,win,raw:(name,input)=>zones.act(name,input),restart:setup,close:()=>db.close()};
 }
 
-test('one party member finishing defeat cannot move or re-engage another reader',()=>{
+function recoveringParty(f){ // One member loses while the survivor finishes the real shared encounter.
+ for(const name of ['alice','bob']){f.player(name);f.act(name,'enter',{zone:'princess-rose',combat_version:3,defeat_version:1});}
+ f.join('bob');f.act('alice','dive_enter',{zone:'dive-quarters'});f.engage();
+ f.act('bob','submit');f.win('alice');
+ return f.snap('bob').character.pendingDefeat;
+}
+
+test('survivors start new battles without a downed member, who cannot act or finish recovery early',()=>{
  const f=fixture();try{
-  for(const name of ['alice','bob']){f.player(name);f.act(name,'enter',{zone:'princess-rose',combat_version:3,defeat_version:1});}
-  f.join('bob');f.act('alice','dive_enter',{zone:'dive-quarters'});f.engage();
-  const bob=f.snap('bob').position;
-  f.act('alice','submit');f.act('bob','submit');
-  const pending=f.snap('alice').character.pendingDefeat;
-  assert.deepEqual(f.act('alice','defeat_complete',{scene:pending.id}).position,pending.position);
-  assert.deepEqual(f.snap('bob').position,bob);assert.ok(f.snap('bob').character.pendingDefeat);
-  assert.throws(()=>f.act('alice','dive_exit'),/bob must finish/);
-  assert.throws(()=>f.engage(),/bob must finish their defeat scene/);
-  assert.equal(f.snap('alice').character.run,null);
-  const visit=f.snap('alice').character.dive;
-  const record=f.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=?').get(visit.route,visit.edition),floor=JSON.parse(record.content);
-  const roaming=floor.enemies.find(e=>e.id!=='iris'),position={x:roaming.x,y:roaming.y};
+  const pending=recoveringParty(f),before=f.snap('bob').position;
+  const foe=f.snap('alice').dive.enemies.find(e=>!e.engaged&&e.respawnAt<=f.snap('alice').serverTime);
+  const fight=f.engage('alice',foe.id);
+  assert.deepEqual(fight.encounter.players.map(p=>p.id),[f.ids.alice]);
+  for(const action of ['attack','dive_engage','loadout','dive_exit'])assert.throws(()=>f.act('bob',action),/defeat dialogue/);
+  const ack=f.command('bob','defeat_complete',{scene:pending.id}),waiting=f.raw('bob',ack);
+  assert.equal(waiting.character.pendingDefeat.sceneComplete,true);
+  assert.deepEqual(waiting.position,before);assert.equal(waiting.character.run,null);
+  assert.deepEqual(f.raw('bob',ack).receipt,waiting.receipt,'duplicate acknowledgement never shortens the timer');
+  assert.equal(f.snap('alice').encounter.id,fight.encounter.id,'the survivor keeps their current encounter');
+  f.advance(61000);f.act('bob','enter',{zone:'dive-quarters',combat_version:3,defeat_version:1});
+  f.act('alice','enter',{zone:'dive-quarters',combat_version:3,defeat_version:1});
+  assert.equal(f.snap('bob').character.pendingDefeat,undefined);
+  assert.deepEqual(f.snap('bob').position,pending.position);
+  assert.equal(f.snap('bob').character.run,null,'recovery never inserts the member into an ongoing fight');
+  assert.equal(f.snap('alice').encounter.id,fight.encounter.id);
+  assert.deepEqual(f.snap('alice').encounter.players.map(p=>p.id),[f.ids.alice]);
+  f.win('alice');
+  assert.deepEqual(f.snap('bob').position,pending.position,'the survivor settlement cannot move the recovered member');
+  const nextFoe=f.snap('alice').dive.enemies.find(e=>!e.engaged&&e.respawnAt<=f.snap('alice').serverTime);
+  assert.deepEqual(new Set(f.engage('alice',nextFoe.id).encounter.players.map(p=>p.id)),new Set([f.ids.alice,f.ids.bob]));
+ }finally{f.close();}
+});
+
+test('recovery waits for both one minute and the scene, preserving its deadline across restart',()=>{
+ for(const readEarly of [true,false]){
+  const f=fixture();try{
+   f.player('alice');f.act('alice','enter',{zone:'princess-rose',combat_version:3,defeat_version:1});f.act('alice','dive_enter',{zone:'dive-quarters'});f.engage();
+   const lost=f.act('alice','submit'),pending=lost.character.pendingDefeat,position=lost.position;
+   assert.equal(pending.readyAt-lost.serverTime,60000);
+   if(readEarly)f.act('alice','defeat_complete',{scene:pending.id});
+   f.restart();f.advance(pending.readyAt-f.snap('alice').serverTime-1);
+   assert.ok(f.snap('alice').character.pendingDefeat,'59.999 seconds is still downed');
+   assert.deepEqual(f.snap('alice').character.dive.position,position);
+   f.advance(1001);
+   if(!readEarly)assert.ok(f.snap('alice').character.pendingDefeat,'time alone cannot skip an unread scene');
+   f.act('alice','enter',{zone:'dive-quarters',combat_version:3,defeat_version:1});
+   if(!readEarly)f.act('alice','defeat_complete',{scene:pending.id});
+   assert.equal(f.snap('alice').character.pendingDefeat,undefined);
+   assert.deepEqual(f.snap('alice').position,pending.position);
+  }finally{f.close();}
+ }
+});
+
+test('survivors can leave a dive without moving the recovering member or blocking their gate return',()=>{
+ const f=fixture();try{
+  const pending=recoveringParty(f),before=f.snap('bob').position;
+  assert.equal(f.act('alice','dive_exit').zone,'princess-rose');
+  assert.equal(f.snap('bob').zone,'dive-quarters');assert.deepEqual(f.snap('bob').position,before);
+  f.act('bob','defeat_complete',{scene:pending.id});f.advance(61000);
+  f.act('bob','enter',{zone:'dive-quarters',combat_version:3,defeat_version:1});
+  f.act('alice','enter',{zone:'princess-rose',combat_version:3,defeat_version:1});
+  assert.deepEqual(f.snap('bob').position,pending.position);assert.equal(f.snap('alice').zone,'princess-rose');
+  assert.equal(f.snap('bob').party.members.length,2,'recovery never removes party membership');
+ }finally{f.close();}
+});
+
+test('roaming enemies engage survivors while an unread member stays downed',()=>{
+ const f=fixture();try{
+  const pending=recoveringParty(f),visit=f.snap('alice').character.dive;
+  const floor=JSON.parse(f.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=?').get(visit.route,visit.edition).content);
+  const foe=floor.enemies.find(e=>e.id!=='iris'&&e.respawnAt===0),position={x:foe.x,y:foe.y};
   f.place('alice',position.x,position.y);
-  const aliceState=JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(f.ids.alice).state);
-  aliceState.dive.safeUntil=0;f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(aliceState),f.ids.alice);
-  function approach(){ // Put a live roaming enemy on the ready member's tile; only the unread scene should prevent group aggro.
-   const current=JSON.parse(f.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=?').get(visit.route,visit.edition).content);
-   for(const enemy of current.enemies)enemy.roaming=false;
-   Object.assign(current.enemies.find(e=>e.id===roaming.id),position,{roaming:true,respawnAt:0});
-   f.db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=?').run(JSON.stringify(current),visit.route,visit.edition);
-  }
-  approach();f.advance(11000);
-  assert.equal(f.snap('alice').character.run,null,'roaming contact cannot pull the party into combat during the scene');
-  assert.equal(f.snap('bob').character.run,null);
-  const bobPending=f.snap('bob').character.pendingDefeat;
-  assert.deepEqual(f.act('bob','defeat_complete',{scene:bobPending.id}).position,bobPending.position);
-  assert.equal(f.snap('alice').party.members.length,2);
-  approach();f.advance(1001);
-  const next=f.snap('alice');assert.ok(next.encounter,'the same roaming contact works after the final acknowledgement');
-  assert.deepEqual(new Set(next.encounter.players.map(p=>p.id)),new Set([f.ids.alice,f.ids.bob]));
-  assert.equal(f.snap('bob').character.run.sharedEncounter,next.encounter.id,'the reader rejoins only after finishing');
+  const state=JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(f.ids.alice).state);
+  state.dive.safeUntil=0;f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),f.ids.alice);
+  for(const enemy of floor.enemies)enemy.roaming=enemy.id===foe.id;
+  f.db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=?').run(JSON.stringify(floor),visit.route,visit.edition);
+  f.advance(1100);const fight=f.snap('alice');
+  assert.deepEqual(fight.encounter.players.map(p=>p.id),[f.ids.alice]);
+  assert.equal(f.snap('bob').character.run,null);assert.equal(f.snap('bob').character.pendingDefeat.id,pending.id);
  }finally{f.close();}
 });
 
