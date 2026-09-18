@@ -3,7 +3,7 @@ import {createHubDistricts} from './hub-districts.mjs';
 import {randomUUID,randomInt,createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
-import {beginRound,clearEffects,readyTurn,combatAction,awardExperience} from './combat.mjs';
+import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation} from './combat.mjs';
 import {hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog,campaignDives,DAILY_COIN_CAP} from './hubs.mjs';
 import {createDive,DIVE_ZONE} from './dive.mjs';
 import {generateDesert} from './desert-generation.mjs';
@@ -114,7 +114,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
    r.log.push('Round cleared. Bank '+r.pot+' coins or continue with a handicap.');if(r.stage===8)settle(i,c,state,r);
   }else if(['defeat','charm_backfire'].includes(result)){
    clearEffects(state);r.hp=Math.max(1,Math.ceil(r.maxHp*0.25));syncRunHealth(state,r);
-   state.lastResult={outcome:result,coins:0,rounds:r.stage-1,zone:z.id,log:r.log};state.run=null;
+   state.lastResult={outcome:result,coins:0,rounds:r.stage-1,zone:z.id,log:r.log,...defeatPresentation(r,result)};state.run=null;
   }
  }
  function act(secret,input){
@@ -237,7 +237,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
       r.log=['Used campaign inventory.'];
       if(r.combatVersion===2){if(r.phase==='fight')combatResult(i,c,state,z,combatAction(state,input,z,roll));}
       else if(r.phase==='fight'){r.enemy.turn++;let hit=z.attack+r.stage+roll(3);if(z.theme==='clockwork'&&r.enemy.turn%3===0)hit+=5;hit=Math.max(1,hit-(r.defense??0));r.hp=Math.max(0,r.hp-hit);r.log.push(r.enemy.name+' dealt '+hit+' damage.');}
-      syncRunHealth(state,r);if(!r.hp){state.lastResult={outcome:'defeat',coins:0,rounds:r.stage-1,zone:z.id};state.run=null;}
+      syncRunHealth(state,r);if(!r.hp){state.lastResult={outcome:'defeat',coins:0,rounds:r.stage-1,zone:z.id,...defeatPresentation(r,'defeat')};state.run=null;}
      }
     }
     else if(input.action==='leave'){delete state.hubVisit;if(state.run)fail(409,'Bank your completed rounds or forfeit before leaving.');db.prepare('DELETE FROM quest_presence WHERE owner=?').run(i.owner);}
@@ -262,7 +262,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
      if(state.loadout){applyRunLoadout(state.run,state.loadout);state.run.heals=0;} // Imported characters heal with their own consumables.
      if(input.combat_version===2){if(!state.loadout)fail(400,'Import a campaign character first.');beginRound(state,z,roll);}
     }else if(input.action==='flee'||input.action==='submit'){
-     if(!state.run)fail(409,'No active run.');if(state.run.combatVersion===2)clearEffects(state);syncRunHealth(state,state.run);state.lastResult={outcome:input.action==='submit'?'submitted':'forfeit',coins:0,rounds:state.run.stage-1,zone:z.id};state.run=null;
+     if(!state.run)fail(409,'No active run.');if(state.run.combatVersion===2)clearEffects(state);syncRunHealth(state,state.run);state.lastResult={outcome:input.action==='submit'?'submitted':'forfeit',coins:0,rounds:state.run.stage-1,zone:z.id,...defeatPresentation(state.run,input.action)};state.run=null;
     }else{
      const r=state.run;if(!r||r.zone!==z.id)fail(409,'Start an arena run first.');
      if(input.action==='cashout'){if(r.phase!=='interval')fail(409,'Finish the round before banking.');settle(i,c,state,r);}
@@ -282,7 +282,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
       if(r.enemy.hp===0){r.pot+=r.stage*5;r.phase='interval';r.hp=Math.min(r.maxHp,r.hp+z.recovery);r.log.push('Round cleared. Bank '+r.pot+' coins or continue with a handicap.');if(r.stage===8)settle(i,c,state,r);}
       else{r.enemy.turn++;let hit=z.attack+r.stage+roll(3);if(z.theme==='clockwork'&&r.enemy.turn%3===0)hit+=5;if(z.theme==='mirror')hit+=r.enemy.turn%2===0?5:-2;hit=Math.max(1,hit-(r.defense??0));if(guarded)hit=Math.max(1,Math.floor(hit/3));if(z.theme==='bramble'&&input.action==='attack')hit+=2;r.hp=Math.max(0,r.hp-hit);r.log.push(r.enemy.name+' dealt '+hit+' damage.');
        syncRunHealth(state,r);
-       if(!r.hp){state.lastResult={outcome:'defeat',coins:0,rounds:r.stage-1,zone:z.id};state.run=null;}
+       if(!r.hp){state.lastResult={outcome:'defeat',coins:0,rounds:r.stage-1,zone:z.id,...defeatPresentation(r,'defeat')};state.run=null;}
       }
      }else fail(400,'Unknown zone action.');
     }

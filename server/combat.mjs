@@ -8,6 +8,11 @@ const fail=message=>{throw Object.assign(Error(message),{status:409,code:'combat
 const playerTypes=new Set(['heal','cure','buff','offense','debuff']);
 export const playerSpells=Object.keys(combatData.spells).filter(id=>!combatData.spells[id].enemy_only&&playerTypes.has(combatData.spells[id].type));
 
+export function defeatPresentation(run,outcome){ // Preserve the settled opponent before the run is discarded; polling/retries keep one stable scene ID.
+ if(!['defeat','charm_backfire','submit','submitted'].includes(outcome))return {};
+ return {defeatScene:{id:run.id,enemy_id:run.kind==='dive'?(run.enemy.enemy_id??''):'',name:run.enemy.name}};
+} // Arena templates have no campaign identity; never mislabel their placeholder goblin stats as authored goblin scenes.
+
 export function classId(loadout){return ['fighter','mage','diplomat'].includes(loadout.player_info.class_id)?loadout.player_info.class_id:'fighter';} // Older saves without a class retain the original fighter actions.
 export function mageScaling(loadout){ // Match scrSpellSystem's childish/shame affinity and absorbed-protection bonus.
  const p=loadout.player_info,mage=classId(loadout)==='mage';

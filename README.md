@@ -318,7 +318,7 @@ A fight alternates a journaled `turn_ready` (`loadout`, boolean `forfeit`) and o
 
 Combat rules live in server/combat.mjs. Regenerate server/combat-data.json from the game with python/export_online_combat.py after changing spells, magic_tree.json or enemy charm profiles. The catalog is deployment data, never a client-supplied ruleset. Player data remains intentionally trusted; only the server determines enemy outcomes and bounded shared-currency rewards. `childish` joins the loadout for mage/charm formulas.
 
-The arena has one opponent per round, no companions, and its existing recovery/handicap rules. Later rounds can cast enemy spells. Physical damage, MP, magic scaling, status effects, charm pressure/backfire, XP and level rewards follow campaign rules. Enemy-specific campaign story/defeat scripts and world quest progress are not invoked. Run npm test before deployment, then use the full-game browser fixture from the game checkout.
+The arena has one opponent per round, no companions, and its existing recovery/handicap rules. Later rounds can cast enemy spells. Physical damage, MP, magic scaling, status effects, charm pressure/backfire, XP and level rewards follow campaign rules. Settled losses and submissions include `lastResult.defeatScene` with the stable run ID, authored enemy ID and name. The client reuses campaign defeat dialogue and aftermath as private presentation; campaign penalties, story callbacks and world quest progress are not invoked. Arena templates leave the campaign enemy ID blank and use the generic recovery scene. Run npm test before deployment, then use the full-game browser fixture from the game checkout.
 # Shared hub annexes and shops
 
 Both arena lobbies now expose Garden, Beds and Shops portals in zone definitions. Annexes isolate shared chat/presence by zone ID. `hub_visit` validates adjacency and preserves committed loadouts; `hub_rest` accepts trusted campaign bed effects with lease/revision/proximity/cadence checks. `hubVisit` resumes annex inventory on reconnect. Companions remain excluded by the game.
@@ -449,3 +449,15 @@ GET /zones?view=companion retains that view through the final settlement re-read
 server/companion.mjs adds bounded inventory entries, equipped item details, stats, appearance and Tush Status. Active gameplay, unfinished Dives/fights and pending turns use committed online state. An offline cloud preview may be used only when its online_revision is at least the committed loadout revision. Reads never mutate loadouts or renew/take over presence. Public inspection remains unchanged. Full 512-item sheets stay within the 256 KiB gateway budget.
 
 Export companion-items.json with the game's python/export_companion_assets.py and deploy the service before the matching Little Log companion assets. Preserve all databases and bank-sale receipts. test/companion.test.mjs exercises the actual HTTP response, selected/default characters, paging, ownership, cloud freshness and response bounds. The game's companion_browser.mjs verifies the full UI and real bank sales.
+
+
+Deploy defeat-scene metadata before the rebuilt game client. Older clients ignore this additive field; no databases, command receipts or weekly editions are reset. Completed scenes are remembered per character on each device; interrupted scenes can restart from the settled result.
+
+
+## Shared Pink Mist
+
+`dive-mist.mjs` adds a deterministic `floor.mist` layer once per weekly edition, including existing floors that lack it. Compact rows are included only in the visited Dive definition. Safe entrance rooms and portal margins remain clear; geometry, scenery, claims and encounter locks are preserved. Later policy edits affect new editions.
+
+Export `datafiles/generation/online_mist.json` with the game checkout's `python/export_online_mist.py`. The defaults match campaign probabilities (Forest and Tundra default to zero). The client reuses campaign crawling effects and visuals; `worldTurnDue.mist` pins exposure for the existing recoverable needs commit. Heartbeats never apply effects. Deploy service and policy before the rebuilt game in the same content push; older clients ignore mist. No database reset or schema migration is required.
+
+Tests: `test/dive-mist.test.mjs` checks 900 generated floors and bounded spread; `test/dive.test.mjs` covers additive installation, pending-turn replay/reconnect and snapshot size.

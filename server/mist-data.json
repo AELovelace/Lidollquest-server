@@ -1,0 +1,20 @@
+{
+  "_comment": "Shared weekly Pink Mist placement. Existing editions gain a layer once; later tuning applies to new editions. Effects reuse campaign crawling rules.",
+  "version": 1,
+  "enabled": true,
+  "room_fraction_min": 0.25,
+  "room_fraction_max": 0.5,
+  "hall_spread": 6,
+  "entrance_radius": 3,
+  "zone_chances": {
+    "princess_quarters": 0.3,
+    "dungeon": 0.4,
+    "nursery": 0.5,
+    "school": 0.55,
+    "forest": 0,
+    "mansion": 0.58,
+    "hospital": 0.6,
+    "desert_dungeon": 0.2,
+    "tundra": 0
+  }
+}

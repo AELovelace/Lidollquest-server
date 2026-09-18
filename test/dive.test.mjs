@@ -195,3 +195,55 @@ test('ten-minute reset grace ends even an active encounter and suspended clients
   f.advance(31000);assert.equal(f.act(a,'enter',{zone:DIVE_ZONE}).zone,'honeydew-lantern');
  }finally{f.close();}
 });
+
+
+test('defeat scenes retain the authored opponent across duplicate commands, reconnects and service restarts',()=>{
+ let charmAttempt=false;const f=fixture({roll:n=>charmAttempt?0:n-1});try{
+  const id=f.player(),foe=f.snap(id).dive.enemies.find(e=>e.type==='diaper_fairy');assert.ok(foe);
+  for(const outcome of ['defeat','submit','charm_backfire','flee']){
+   let loadout=structuredClone(f.snap(id).character.loadout);
+   Object.assign(loadout.player_info,{playerHealth:1,str:1,cha:0,stat_points:0});f.act(id,'loadout',{loadout});
+   f.engage(id,foe.id);let s=f.snap(id),run=structuredClone(s.character.run);
+   if(outcome==='defeat'||outcome==='charm_backfire')s=f.act(id,'turn_ready',{loadout:s.character.loadout,forfeit:false});
+   if(outcome==='charm_backfire'){
+    const row=f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(id),state=JSON.parse(row.state);
+    charmAttempt=true;state.run.charmLimit=1;f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),id);
+   } // Force only the random failure threshold; the real command still resolves charm and settlement.
+   f.advance(350);const command=f.command(id,outcome==='defeat'?'attack':outcome==='charm_backfire'?'charm':outcome);
+   s=f.raw(command);assert.equal(s.character.run,null);assert.equal(s.character.lastResult.outcome,outcome);
+   const result=structuredClone(s.character.lastResult),settled=structuredClone(s.character.loadout);
+   if(outcome==='flee')assert.equal(result.defeatScene,undefined);
+   else assert.deepEqual(result.defeatScene,{id:run.id,enemy_id:'diaper_fairy',name:run.enemy.name});
+   assert.deepEqual(f.raw(command).character.lastResult,result);assert.deepEqual(f.snap(id).character.loadout,settled);
+   f.restart();s=f.act(id,'enter',{zone:DIVE_ZONE});assert.deepEqual(s.character.lastResult,result);assert.deepEqual(s.character.loadout,settled);
+  }
+ }finally{f.close();}
+});
+
+
+test('mist upgrades preserve editions and combat; reserved exposure survives reconnect and duplicate needs commits',()=>{
+ const f=fixture();try{
+  const id=f.player(),ch=f.snap(id).dive.chests[0];f.near(id,ch);f.act(id,'dive_claim',{chest:ch.id});f.engage(id);
+  const before=f.snap(id),visit=before.character.dive,record=f.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=?').get(visit.route,visit.edition),floor=JSON.parse(record.content);
+  delete floor.mist;for(const foe of floor.enemies)foe.roaming=false;
+  f.db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=?').run(JSON.stringify(floor),visit.route,visit.edition);
+  f.advance(1100);f.tick();let s=f.snap(id);
+  assert.ok(s.zones.at(-1).mist);assert.deepEqual(s.character.run,before.character.run);assert.deepEqual(s.character.loadout,before.character.loadout);assert.equal(s.dive.claimed,1);
+  const upgraded=JSON.parse(f.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=?').get(visit.route,visit.edition).content);
+  delete upgraded.mist;assert.deepEqual(upgraded,floor,'the additive layer preserves the entire locked encounter and existing floor');
+  f.act(id,'flee');
+  const destination=floor.chests.find(c=>c.id!==ch.id);f.near(id,destination);s=f.snap(id);
+  const pos=s.position,dx=Math.sign(destination.x-pos.x),dy=Math.sign(destination.y-pos.y),direction=dx>0?'east':dx<0?'west':dy>0?'south':'north';
+  const target={x:pos.x+dx,y:pos.y+dy};
+  const current=JSON.parse(f.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=?').get(visit.route,visit.edition).content);
+  const row=current.mist.rows[target.y].split('');row[target.x]='1';current.mist.rows[target.y]=row.join('');
+  f.db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=?').run(JSON.stringify(current),visit.route,visit.edition);
+  s=f.act(id,'move',{direction,world_step:true});assert.equal(s.character.worldTurnDue.mist,true);const due=s.character.worldTurnDue.id;
+  f.restart();s=f.act(id,'enter',{zone:DIVE_ZONE});assert.equal(s.character.worldTurnDue.id,due);assert.equal(s.character.worldTurnDue.mist,true);
+  const next=structuredClone(s.character.loadout);next.player_info.wet=32;next.player_info.tum=22;next.player_info.excitement=12;
+  const command=f.command(id,'world_turn',{world_turn_id:due,loadout:next});s=f.raw(command);const committed=structuredClone(s.character.loadout);
+  assert.equal(s.character.worldTurnDue,undefined);assert.deepEqual(f.raw(command).character.loadout,committed);
+  assert.deepEqual(f.snap(id).zones.at(-1).mist,current.mist,'restart and replay preserve the shared mist layer');
+  assert.ok(Buffer.byteLength(JSON.stringify(s))<262144,'a fully populated mist snapshot fits the gateway response budget');
+ }finally{f.close();}
+});

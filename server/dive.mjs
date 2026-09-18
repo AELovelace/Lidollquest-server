@@ -1,8 +1,9 @@
+import {addPinkMist,mistAt} from './dive-mist.mjs';
 import {createDiveLootRoller} from './dive-loot.mjs';
 import {readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {generateFloor,dressFloor,addFood,weeklyWindow,seeded,pathTo,walkable,inside} from './dive-generation.mjs';
-import {beginRound,clearEffects,readyTurn,combatAction,awardExperience} from './combat.mjs';
+import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation} from './combat.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
 import {dungeonPortals,hubRooms,hubCatalog,DAILY_COIN_CAP} from './hubs.mjs';
 
@@ -43,7 +44,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function ensure(){
   if(!config.enabled)return;
   const window=weeklyWindow(now());if(getFloor(window.edition)||now()<retryAt)return;
-  try{const floor=generate(data,window.edition);db.prepare('INSERT OR IGNORE INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(route,window.edition,window.start,window.ends,JSON.stringify(floor),now());log('dive_generation_ready',route,window.edition);}
+  try{const floor=generate(data,window.edition);addPinkMist(floor);db.prepare('INSERT OR IGNORE INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(route,window.edition,window.start,window.ends,JSON.stringify(floor),now());log('dive_generation_ready',route,window.edition);}
   catch(error){retryAt=now()+minutes;log('dive_generation_failed',route,String(error));}
  } // Never replace a valid edition until its successor is fully generated and validated.
  function back(c,state,destination){
@@ -64,7 +65,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    if(['defeat','charm_backfire'].includes(outcome))run.hp=Math.max(1,Math.ceil(run.maxHp/4));
    if(record){state.dive.position={...entry(record.floor,state.dive.origin)};db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(state.dive.position.x,state.dive.position.y,c.id);}
   }
-  syncRunHealth(state,run);state.lastResult={outcome,coins:0,rounds:1,zone:zoneId,log:run.log};state.run=null;
+  syncRunHealth(state,run);state.lastResult={outcome,coins:0,rounds:1,zone:zoneId,log:run.log,...defeatPresentation(run,outcome)};state.run=null;
   if(state.dive)state.dive.safeUntil=now()+10*seconds;
   if(record)saveFloor(record);
  } // Combat settlement is independent of arena rounds, pots and handicaps.
@@ -86,6 +87,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  }
  function maintain(){
   ensure();let active=current();if(!active)return;
+  if(addPinkMist(active.floor))saveFloor(active); // Install a layer on existing editions once, preserving every room, enemy lock and personal claim.
   if(zoneId===DIVE_ZONE&&((active.floor.dressingVersion??0)<(data.dressing_version??2)||(active.floor.foodVersion??0)<(data.food_version??0))&&now()>=dressingRetryAt){
    try{
     const visitors=db.prepare('SELECT state FROM quest_characters WHERE state LIKE ?').all('%"dive":{%').map(c=>JSON.parse(c.state).dive).filter(d=>owns(d)&&d.edition===active.edition).map(d=>d.position);
@@ -125,7 +127,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const summary={enabled:config.enabled&&!!record,version:1,route,zone:zoneId,name,boss:bossId,edition:record?.edition??'',resetsAt:record?.ends??weeklyWindow(now()).ends,completed:personal?.completed??false,claimed:record?.floor.chests.filter(ch=>personal?.claimed.includes(ch.id)).length??0,total:record?.floor.chests.length??0,pickupsClaimed:(record?.floor.pickups??[]).filter(ch=>personal?.claimed.includes(ch.id)).length,pickupsTotal:record?.floor.pickups?.length??0,claimableCoins:personal?.completed?Math.max(0,config.boss_coins-personal.coinsPaid):0};
   if(!record||p?.zone!==zoneId||!owns(state?.dive))return {dive:summary};
   const f=record.floor;
-  return {dive:{...summary,depth:1,origin:state.dive.origin,explored:personal.explored,enemies:f.enemies.map(e=>({...e,name:data.enemies[e.type].name,sprite:data.enemies[e.type].sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",exits:f.exits??[],theme,walls:f.walls,props:f.props,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,decorations:f.decorations}};
+  return {dive:{...summary,depth:1,origin:state.dive.origin,explored:personal.explored,enemies:f.enemies.map(e=>({...e,name:data.enemies[e.type].name,sprite:data.enemies[e.type].sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",exits:f.exits??[],theme,mist:f.mist,walls:f.walls,props:f.props,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,decorations:f.decorations}};
  } // Snapshots expose claim status but never another character's inventory or chest rolls.
  function claim(c,state,record,chest,automatic=false){
   const personal=progress(c,record.edition);if(personal.claimed.includes(chest.id)){if(automatic)return;fail('You already claimed this treasure this week.');}
@@ -190,7 +192,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    const entranceReturn=!(f.exits?.length)&&x===f.entrance.x&&y===f.entrance.y;
    if(exit||entranceReturn){back(c,state,exit?.zone);return;} // Stepping onto any return portal commits the transfer; spawning/reconnecting on it never triggers a bounce.
    db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(x,y,now(),c.id);reveal(c,state,f,x,y);
-   if(input.world_step===true)state.worldTurnDue={id:randomUUID()}; // Loot commits first; the needs tick resumes from that inventory rather than overwriting the grant.
+   if(input.world_step===true)state.worldTurnDue={id:randomUUID(),mist:mistAt(f,x,y)}; // Loot commits first; the needs tick resumes from that inventory rather than overwriting the grant.
    const pickup=[...f.chests,...(f.pickups??[])].find(ch=>ch.x===x&&ch.y===y);if(pickup)claim(c,state,record,pickup,true);return; // Walking onto either a room chest or a loose pickup commits the same personal claim as Interact.
   }
   const z={id:zoneId,theme,recovery:0};let result;

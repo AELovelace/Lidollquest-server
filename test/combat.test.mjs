@@ -99,7 +99,7 @@ test('failed casts roll back; snapshots and reconnect preserve active spells and
 test('accident forfeits resolve a single enemy turn, and submission clears buffs without payment',()=>{
  const f=service();try{
   const prep=f.input('turn_ready',{loadout:f.character().loadout,forfeit:true});f.send(prep);assert.equal(f.character().run.hp,74);assert.equal(f.character().run.turn,2);f.send(prep);assert.equal(f.character().run.hp,74);
-  f.ready();f.act('cast',{spell:'fortify'});f.act('submit');assert.equal(f.character().loadout.player_info.def,4);assert.equal(f.character().lastResult.outcome,'submitted');assert.equal(f.character().lastResult.coins,0);
+  f.ready();f.act('cast',{spell:'fortify'});f.act('submit');assert.equal(f.character().loadout.player_info.def,4);assert.equal(f.character().lastResult.outcome,'submitted');assert.equal(f.character().lastResult.defeatScene.enemy_id,'');assert.equal(f.character().lastResult.defeatScene.name,'Moss Sprite');assert.equal(f.character().lastResult.coins,0);
  }finally{f.db.close();}
 });
 
