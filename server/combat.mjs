@@ -54,14 +54,14 @@ export function readyTurn(state,forfeit,z,roll){ // The shared game routine supp
  return 'ready';
 }
 
-function cast(state,id){ // Definitions are exported from the same spell JSON used by the game and modding editor.
+function cast(state,id,target=state){ // Support spells use the caster's scaling and MP while applying effects to the selected ally.
  const r=state.run,l=state.loadout,p=l.player_info,s=combatData.spells[id];
  if(classId(l)==='diplomat'||!playerSpells.includes(id)||!l.player_spells.includes(id))fail('Choose a learned player spell.');
  if(l.player_mp<s.mp_cost)fail('Not enough MP.');
  l.player_mp-=s.mp_cost;const intelligence=p.int,m=mageScaling(l);r.log.push('You cast '+s.name+'.');
- if(s.type==='heal'){const n=Math.floor((s.power+intelligence*2)*m.magic)+m.flat;r.hp=clamp(r.hp+n,0,r.maxHp);r.log.push('Restored '+n+' HP.');}
- if(s.type==='cure'){const n=Math.abs(s.stat_amount)+Math.floor(intelligence*1.5);statEffect(p,s.stat_effect,s.stat_effect==='stamina'?n:-n);}
- if(s.type==='buff')addBuff(r,p,s,s.stat_amount+Math.floor(intelligence/3));
+ if(s.type==='heal'){const n=Math.floor((s.power+intelligence*2)*m.magic)+m.flat;target.run.hp=clamp(target.run.hp+n,0,target.run.maxHp);r.log.push('Restored '+n+' HP.');}
+ if(s.type==='cure'){const n=Math.abs(s.stat_amount)+Math.floor(intelligence*1.5);statEffect(target.loadout.player_info,s.stat_effect,s.stat_effect==='stamina'?n:-n);}
+ if(s.type==='buff')addBuff(target.run,target.loadout.player_info,s,s.stat_amount+Math.floor(intelligence/3));
  if(s.type==='offense'){
   const n=Math.max(1,Math.floor((s.power+intelligence*3)*m.magic)+m.flat-r.enemy.def);r.enemy.hp=Math.max(0,r.enemy.hp-n);r.log.push(r.enemy.name+' takes '+n+' damage.');
   if(s.dot_turns>0&&s.dot_damage>0)r.dots.push({spell_id:id,damage:Math.floor((s.dot_damage+Math.floor(intelligence/2))*m.magic)+m.flat,turns_left:s.dot_turns});
@@ -71,6 +71,7 @@ function cast(state,id){ // Definitions are exported from the same spell JSON us
   r.debuffs.push({spell_id:id,stat_key:key,amount:r.enemy[key]-before,turns_left:s.dot_turns});
  }
  syncRunHealth(state,r);
+ if(target!==state)syncRunHealth(target,target.run);
 }
 
 function charm(state,action,roll){
@@ -100,22 +101,31 @@ function enemySpell(state,s){ // Enemy spell effects share the player's serializ
  }
 }
 
+export function enemyAction(state,z,roll){ // One enemy acts independently in shared Dives; legacy rounds call the same authored attack routine.
+ const r=state.run;r.enemy.turn++;
+ const spells=(r.enemy.enemy_spells??[]).filter(id=>combatData.spells[id]?.enemy_only);
+ if(spells.length&&roll(10000)<r.enemy.spell_cast_chance*10000)enemySpell(state,combatData.spells[spells[roll(spells.length)]]);
+ else{let hit=Math.max(1,r.enemy.str-1);if(z.theme==='clockwork'&&r.enemy.turn%3===0)hit+=5;r.hp=Math.max(0,r.hp-hit);r.log.push(r.enemy.name+' dealt '+hit+' damage.');}
+ syncRunHealth(state,r);
+ return r.hp<=0?'defeat':'continue';
+}
+
+export function tickEnemyEffects(r){ // Enemy DOTs and debuffs advance on that enemy's own action cycle.
+ for(const dot of r.dots){r.enemy.hp=Math.max(0,r.enemy.hp-dot.damage);r.log.push(r.enemy.name+' takes '+dot.damage+' ongoing damage.');}
+ tick(r.dots,()=>{});tick(r.debuffs,d=>{r.enemy[d.stat_key]-=d.amount;});
+}
+
 export function finishTurn(state,z,roll){ // Resolve DOTs, enemy debuffs, one enemy response and the next turn atomically.
  const r=state.run;
  if(r.enemy.hp<=0)return 'win';
  for(const dot of r.dots){r.enemy.hp=Math.max(0,r.enemy.hp-dot.damage);r.log.push(r.enemy.name+' takes '+dot.damage+' ongoing damage.');}
  tick(r.dots,()=>{});tick(r.debuffs,d=>{r.enemy[d.stat_key]-=d.amount;});
  if(r.enemy.hp<=0)return 'win';
- r.enemy.turn++;
- const spells=r.enemy.enemy_spells.filter(id=>combatData.spells[id]?.enemy_only);
- if(spells.length&&roll(10000)<r.enemy.spell_cast_chance*10000)enemySpell(state,combatData.spells[spells[roll(spells.length)]]);
- else{let hit=Math.max(1,r.enemy.str-1);if(z.theme==='clockwork'&&r.enemy.turn%3===0)hit+=5;r.hp=Math.max(0,r.hp-hit);r.log.push(r.enemy.name+' dealt '+hit+' damage.');}
- syncRunHealth(state,r);
- if(r.hp<=0)return 'defeat';
+ if(enemyAction(state,z,roll)==='defeat')return 'defeat';
  r.turn++;r.turnReady=false;return 'continue';
 }
 
-export function combatAction(state,input,z,roll){
+export function combatAction(state,input,z,roll,supportTarget=state){
  const r=state.run;if(r.phase!=='fight'||!r.turnReady)fail('Wait for the next player turn.');
  r.log=[];
  if(input.action==='attack'){
@@ -123,11 +133,11 @@ export function combatAction(state,input,z,roll){
   const weakened=r.handicaps.filter(h=>h==='Weakened strikes').length;
   const damage=Math.max(1,Math.floor(Math.max(1,state.loadout.player_info.str*2-r.enemy.def)*mageScaling(state.loadout).physical)-weakened);
   r.enemy.hp=Math.max(0,r.enemy.hp-damage);r.log.push('You slap '+r.enemy.name+' for '+damage+' damage.');
- }else if(input.action==='cast')cast(state,input.spell);
+ }else if(input.action==='cast')cast(state,input.spell,supportTarget);
  else if(['charm','allure'].includes(input.action)){const result=charm(state,input.action,roll);if(result!=='continue')return result;}
  else if(input.action==='use_item')r.log.push('Used campaign inventory.');
  else fail('Choose a class action.');
- return finishTurn(state,z,roll);
+ return z.activeTime?(r.enemy.hp<=0?'win':'continue'):finishTurn(state,z,roll); // Live gauges schedule the enemy separately.
 }
 
 export function awardExperience(state,roll){ // Arena XP follows the campaign level curve; coins still come only from zone settlement.

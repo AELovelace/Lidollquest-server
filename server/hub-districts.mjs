@@ -1,3 +1,4 @@
+import {addDistrictResidents,moveDistrictResidents} from './district-residents.mjs';
 import {districtLayout} from './district-layouts.mjs';
 import {readFileSync} from 'node:fs';
 import {seeded} from './dive-generation.mjs';
@@ -45,22 +46,27 @@ export function generateDistrict(definition,window,data=districtData){
    for(const c of cells)occupied.add(c.x+','+c.y);return true;
   }return false;
  }
- definition.npcs.forEach((npc,i)=>{if(!place({...npc,solid:true},i,true))throw Error('No reachable place for district NPC');});
+ definition.npcs.filter(npc=>!npc.roaming).forEach((npc,i)=>{if(!place({...npc,solid:true},i,true))throw Error('No reachable place for district NPC');});
  // Building mass now comes from LittleBig City's block topology; freestanding facade sprites must not occupy its streets.
  const profiles=definition.scenery.filter(p=>definition.style!=='nightlife'||!p.sprite.includes('Facade'));
  for(let i=0;i<data.scenery_count;i++)place(profiles[rnd(profiles.length)],i);
  if(f.fixtures.filter(p=>p.kind==='scenery').length<12)throw Error('District scenery is too sparse');
+ addDistrictResidents(f,definition,data); // Add wanderers after scenery so the original four residents and geometry keep their seeded positions.
  return f;
 } // Host-specific geometry replaces the old universal path lattice; ordinary movement and monthly resets remain shared.
 
 export function createHubDistricts(db,{now=Date.now,data=districtData}={}){
  db.exec('CREATE TABLE IF NOT EXISTS hub_district_editions(zone TEXT NOT NULL,edition TEXT NOT NULL,content TEXT NOT NULL,PRIMARY KEY(zone,edition)); CREATE TABLE IF NOT EXISTS hub_district_current(zone TEXT PRIMARY KEY,edition TEXT NOT NULL);');
  const cache=new Map();
+ const visitors=id=>db.prepare('SELECT x,y FROM quest_presence WHERE zone=? AND seen>?').all(id,now()-30000);
+ const upgrade=(id,f,def)=>{if((f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)))persist(id,f);};
+ const persist=(id,f)=>db.prepare('UPDATE hub_district_editions SET content=? WHERE zone=? AND edition=?').run(JSON.stringify(f),id,f.district.layoutKey);
  function ensure(def){
-  const id=def.hub+'-garden',window=monthlyWindow(now(),data.reset_hour),layoutKey=`${window.edition}:v${data.version}`,cached=cache.get(id);if(cached?.district.layoutKey===layoutKey)return cached;
+  const id=def.hub+'-garden',window=monthlyWindow(now(),data.reset_hour),layoutKey=`${window.edition}:v${data.version}`,cached=cache.get(id);if(cached?.district.layoutKey===layoutKey){upgrade(id,cached,def);return cached;}
   const row=db.prepare('SELECT content FROM hub_district_editions WHERE zone=? AND edition=?').get(id,layoutKey);
   const f=row?JSON.parse(row.content):generateDistrict(def,window,data);
   if(!row)db.prepare('INSERT INTO hub_district_editions VALUES (?,?,?)').run(id,layoutKey,JSON.stringify(f));
+  else upgrade(id,f,def); // A resident-only update does not replace the layout or send visitors back to the entrance.
   const current=db.prepare('SELECT edition FROM hub_district_current WHERE zone=?').get(id);
   if(current?.edition!==layoutKey){
    db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE zone=?').run(f.spawn.x,f.spawn.y,now(),id);
@@ -70,5 +76,6 @@ export function createHubDistricts(db,{now=Date.now,data=districtData}={}){
  }
  function refresh(){for(const d of data.districts)ensure(d);}
  function resolve(base){const def=data.districts.find(d=>base.id===d.hub+'-garden');return def?{...base,...ensure(def)}:base;}
- return {refresh,resolve};
+ function tick(){for(const def of data.districts){const id=def.hub+'-garden',players=visitors(id);if(!players.length)continue;const f=ensure(def);if(moveDistrictResidents(f,players,now(),data))persist(id,f);}}
+ return {refresh,resolve,tick};
 } // Materialized monthly editions survive service restarts and mid-month content deployments.

@@ -364,6 +364,14 @@ fields. It rides along deliberately, because `GET /zones/inspect` calls
 `presence()` and a companion never holds a zone, controller lease or presence
 row; ordinary reads receive no `sheet`.
 
+Each `sheet.inventory` entry carries `category`, and `is_drink` when the item is
+a bottled consumable — those use `category: "food"` but belong on the
+companion's Drinks tab, which mirrors the game's own item viewer. `is_drink`
+comes from the item catalog exported by the game's
+`python/export_companion_assets.py`, so regenerate `server/companion-items.json`
+there rather than editing it by hand. No other tab needs a field: the companion
+groups everything else by `category` alone.
+
 `POST /zones/action` accepts `bank_sell` with `bank_item` (the server-issued
 storage entry id), `item_instance` (its sale right) and the standard
 `character_id`, `revision`, `controller` and `request_id`. Unlike `shop_sell`
@@ -472,3 +480,21 @@ Deploy the service and regenerated `campaign-dives-data.json` together, then res
 ### Rose-only Quarters entry and client text shadows
 
 `dungeonPortals` offers Quarters only at Rose Court (6,4). Lantern and Clockwork no longer accept new Quarters entries, including legacy direct-lobby requests; their other pads retain their coordinates. Existing Quarters visits reconnect and return to their stored hall normally, preserving editions and progress. Deploy this service before the rebuilt client, whose world labels and Dive status use the HUD shadow color instead of black plates. No database migration or floor reset is needed. `test/rose-hall-access.test.mjs` covers exact rosters, forged entry and legacy visit recovery.
+
+### Ordinary beverage supply pickups
+
+All nine routes now split food-kind supply pickups evenly between meals and six existing ordinary drinks: water, milk, sippy juice, juice boxes, formula and Ghost Milk. Potion pools and pickup counts are unchanged. The game editor exposes beverage_pool in the Items tab for Dungeon Dive, Online Desert and Online Tundra; the six campaign Dives inherit the Quarters export. Re-export Quarters before campaign Dives, then both crossings. Deploy these four data files together and restart the service. Existing personal rolls/claims and maps remain intact; unrolled pickups use the new pools without a reset or client rebuild. test/dive-beverages.test.mjs exercises 9,000 deterministic supply rolls and existing receipts.
+
+### Wandering district residents
+
+Each monthly district now has four stationary residents and four additional named wanderers. resident_version upgrades append the new residents with an independent seed, preserving current layouts, stationary fixtures and visitor positions. district-residents.mjs moves residents on the shared service clock about once every three seconds within eight cells of home, leaving the east entrance clear. They pause within two cells of players, avoid walls/scenery/other NPCs and remain passable. Movement is persisted; empty districts do not wander or catch up after a restart. E/click conversations remain private native NPC dialogue, and player chat stays in the action log. Deploy service/content before the rebuilt client for walking sprites and pass-through input. No layout version increase, database migration or reset is required.
+
+### Shared Dive battles and three-person parties
+
+New clients negotiate `combat_version: 3` on entry. Snapshots advertise `diveCombatVersion: 3` and `partySupport`, and include private `partyInvitations`, a minimal `party` roster, and the current `encounter`. New Dive fights use persisted shared actors, stable enemy IDs, individual action deadlines and cycle tokens. Existing fights and solo arenas retain their older flow. Old clients cannot take over a party or shared encounter.
+
+Party actions are `party_invite`, `party_accept`, `party_decline`, `party_leave`, `party_kick` and `party_disband`, using `member` or `invitation` IDs. Combat actions include `battle`, `cycle`, and `target`; needs acknowledgments and self item uses send scoped `patch` operations. Numeric changes apply as deltas and inventory splices verify the original changed entries. Receipts still make every command replay-safe; shared combat accepts valid actor-cycle commands independently of other actors' revisions.
+
+Online door transfers update every member atomically. Campaign departure removes only its caller. Membership survives two minutes after the ordinary thirty-second presence lease expires; saved destinations follow group travel. Shared battles retain their original participants until settlement and preserve personal rewards, claims, item provenance and daily coin caps.
+
+Run `node --test test/*.test.mjs`; `test/parties.test.mjs` covers reinforcement seeds/probabilities, all nine routes, invitations, atomic travel, ally healing, stale commands, large inventories/snapshots, reconnects and reset grace. Export `generation/combat_tuning.json` with the game's `python/export_online_combat.py`. The game-side `ONLINE_PARTIES_GUIDE.md` documents controls, tuning and rollout. Deploy compatible service/content before the new client; retain all databases and weekly editions.

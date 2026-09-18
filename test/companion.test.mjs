@@ -29,6 +29,8 @@ test('HTTP companion retains the selected private sheet, bank page and active de
   const saved={online_revision:second.revision,player_info:{str:27,equipped_panties:'cotton_panties'},inventory:[{item_id:'water_bottle'}],player_mp:5,player_mp_max:10};
   service.db.prepare('INSERT INTO quest_cloud_versions VALUES (?,?,?,?,?,?,?,?)').run(second.id,1,owner,'cloud-test','a'.repeat(40),'{}',now,Buffer.from(JSON.stringify(saved)));
   read=await get('&character_id='+second.id);assert.equal(read.data.sheet.source,'cloud');assert.equal(read.data.sheet.player_info.str,27);assert.equal(read.data.sheet.inventory[0].item_id,'water_bottle');
+  assert.equal(read.data.sheet.inventory[0].category,'food');assert.equal(read.data.sheet.inventory[0].is_drink,true,'bottled food must keep the flag that files it under the companion Drinks tab');
+  assert.equal(read.data.sheet.equipment.find(slot=>slot.slot==='panties')?.item?.is_drink,undefined,'only bottled consumables carry the drink flag');
   saved.online_revision=0;service.db.prepare('UPDATE quest_cloud_versions SET data=? WHERE character_id=?').run(Buffer.from(JSON.stringify(saved)),second.id);
   assert.equal((await get('&character_id='+second.id)).data.sheet.source,'online','older cloud inventory cannot replace committed online state');
   const row=service.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(first.id),state=JSON.parse(row.state);

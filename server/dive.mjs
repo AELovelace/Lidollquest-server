@@ -1,3 +1,4 @@
+import {createDiveEncounters} from './dive-encounters.mjs';
 import {addPinkMist,mistAt} from './dive-mist.mjs';
 import {createDiveLootRoller} from './dive-loot.mjs';
 import {readFileSync} from 'node:fs';
@@ -13,7 +14,7 @@ const fail=(message,code='dive_conflict')=>{throw Object.assign(Error(message),{
 const clone=structuredClone;
 const seconds=1000,minutes=60000;
 
-export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn}){
+export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties}){
  const config=data.config,route=config.route,zoneId=config.zone_id??DIVE_ZONE,theme=config.theme??'princess_quarters',name=config.name??"Princess' Quarters - Dungeon Dive",bossId=config.boss_id??'iris';
  const rollLoot=createDiveLootRoller(data); // One policy covers every online route and its personal floor progress.
  const owns=visit=>visit?.route===route; // Each route maintains only its own visits and encounter locks.
@@ -21,6 +22,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  const entry=(floor,origin)=>floor.entries?.[origin]??floor.entrance;
  db.exec(`CREATE TABLE IF NOT EXISTS dive_editions(route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,starts INTEGER NOT NULL,ends INTEGER NOT NULL,content TEXT NOT NULL,updated INTEGER NOT NULL,PRIMARY KEY(route,edition,depth));
  CREATE TABLE IF NOT EXISTS dive_progress(character_id TEXT NOT NULL,route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,state TEXT NOT NULL,PRIMARY KEY(character_id,route,edition,depth));`);
+ const encounters=createDiveEncounters(db,{now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter});
  let lastTick=-Infinity,retryAt=0,dressingRetryAt=0;
  const getFloor=edition=>{const row=db.prepare('SELECT * FROM dive_editions WHERE route=? AND edition=? AND depth=1').get(route,edition);return row?{...row,floor:JSON.parse(row.content)}:null;};
  const latest=()=>db.prepare('SELECT edition FROM dive_editions WHERE route=? ORDER BY starts DESC LIMIT 1').get(route)?.edition;
@@ -80,6 +82,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function start(c,state,record,foe){
   if(state.run||state.loadout?.player_info.stat_points>0||state.loadout?.player_info.playerHealth<=0||!foe||foe.engaged||foe.respawnAt>now())fail('That encounter is not available.');
   if(!state.loadout)fail('Import your character before entering.');
+  if(state.diveCombatVersion===3){encounters.start(c,state,record,foe);return;} // New clients share an encounter; unfinished legacy fights keep their original path.
   foe.engaged=c.id;const enemy=clone(data.enemies[foe.type]);enemy.maxHp=enemy.hp;enemy.turn=0;
   state.lastResult=null;state.run={kind:'dive',id:randomUUID(),zone:zoneId,edition:record.edition,encounter:foe.id,stage:1,phase:'fight',hp:state.loadout.player_info.playerHealth,maxHp:state.loadout.player_info.playerHealthMax,heals:0,pot:0,handicaps:[],enemy,acted:now(),log:[enemy.name+' approaches.']};
   beginRound(state,{theme,attack:0},roll,enemy); // Keep authored encounter stats rather than the arena's progressive template.
@@ -97,11 +100,12 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   for(const c of db.prepare('SELECT * FROM quest_characters WHERE state LIKE ?').all('%"dive":{%')){
    const state=JSON.parse(c.state);if(!owns(state.dive))continue;
    const old=state.dive.edition!==active.edition,record=getFloor(state.dive.edition),run=state.run,p=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
-   if(run?.kind==='dive'&&((!p||p.seen<now()-2*minutes)||run.acted<now()-5*minutes||old&&now()>=record.ends+10*minutes)){
+   if(run?.kind==='dive'&&!run.sharedEncounter&&((!p||p.seen<now()-2*minutes)||run.acted<now()-5*minutes||old&&now()>=record.ends+10*minutes)){
     finish(c,state,record,'abandoned');log('dive_encounter_abandoned',c.id,run.encounter);saveCharacter(c,state);
    }
    if(old&&!state.run){back(c,state);saveCharacter(c,state);}
   }
+  encounters.tick(getFloor);
   // Expired editions are retained for audit and receipt replay, but cannot accept new exploration.
   active=current(); // Settlement above may have released locks; never overwrite it with the earlier floor copy.
   if(now()-active.updated<seconds)return;
@@ -110,7 +114,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const rnd=seeded(active.edition+':'+Math.floor(now()/seconds));
   for(const foe of f.enemies){
    if(foe.engaged||foe.respawnAt>now()||!enemyRoams(data,foe))continue;
-   const targets=players.filter(p=>{const s=JSON.parse(p.state);return s.dive?.edition===active.edition&&!s.run&&!s.worldTurnDue&&!(s.loadout?.player_info.stat_points>0)&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);});
+   const targets=players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return !v.run&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0&&!v.loadout?.player_info.stat_points;});return ready&& s.dive?.edition===active.edition&&!s.run&&!s.worldTurnDue&&!(s.loadout?.player_info.stat_points>0)&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);});
    let target=null,best=null;
    for(const p of targets){const path=pathTo(f,foe,p,config.pursuit_steps);if(path&&(!best||path.length<best.length)){target=p;best=path;}}
    if(best?.length===0||best?.length===1){const c={id:target.character_id,owner:target.owner,revision:target.revision},s=JSON.parse(target.state);if(s.loadout?.player_info.playerHealth>0){start(c,s,active,foe);saveCharacter(c,s);target.state=c.state;target.revision=c.revision;}continue;}
@@ -161,6 +165,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,?,?,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=excluded.x,y=excluded.y,seen=excluded.seen,moved=0').run(i.owner,c.id,zoneId,i.id,input.controller,position.x,position.y,now());
    reveal(c,state,record.floor,position.x,position.y);return;
   }
+  if(state.run?.sharedEncounter&&!['enter','chat'].includes(action)){encounters.act(c,state,input,getFloor(state.dive.edition));return;}
   if(!owns(state.dive))fail('Re-enter the dungeon from its lobby.');
   const record=getFloor(state.dive.edition),f=record.floor;
   if(input.edition!==record.edition)fail('The dungeon edition changed. Refresh before acting.');
@@ -218,5 +223,5 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    if(record.edition!==latest())back(c,state);
   }
  }
- return {tick,snapshot,handles,act,chatArea};
+ return {tick,snapshot,handles,act,chatArea,encounterSnapshot:state=>encounters.snapshot(state)};
 } // All mutations run inside the zone command transaction; scheduled simulation owns its own transaction.

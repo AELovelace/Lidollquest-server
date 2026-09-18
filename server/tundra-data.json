@@ -14,6 +14,14 @@
     "enemies_per_room": 2,
     "potions_per_room": 1,
     "food_per_room": 1,
+    "beverage_pool": [
+      "water_bottle",
+      "bottle",
+      "sippy_juice",
+      "nanny_juice_box",
+      "formula_bottle_an",
+      "ghost_milk"
+    ],
     "treasures_per_room": 1,
     "enemy_respawn_seconds": 600,
     "boss_respawn_seconds": 600,
@@ -21,6 +29,7 @@
     "boss_id": "",
     "boss_coins": 0,
     "inventory_capacity": 99,
+    "non_diaper_panties_per_floor": 1,
     "endpoints": [
       {
         "zone": "princess-rose",
@@ -30,8 +39,7 @@
         "zone": "honeydew-lantern",
         "name": "Honeydew Village"
       }
-    ],
-    "non_diaper_panties_per_floor": 1
+    ]
   },
   "structure": {
     "fill_chance": 58,
@@ -161,6 +169,27 @@
       "value": 18,
       "childish": 0
     },
+    "bottle": {
+      "item_id": "bottle",
+      "category": "food",
+      "is_drink": true,
+      "name": "Milk Bottle",
+      "desc": "A warm bottle of milk. Restores 15 HP.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 15,
+      "value": 12,
+      "childish": 7,
+      "hunger_restore": 20,
+      "thirst_restore": 167,
+      "wet_instant": 3,
+      "tum_instant": 2,
+      "pressure_turns": 4,
+      "wet_per_turn": 5,
+      "tum_per_turn": 1,
+      "wet_target_gain": 20,
+      "tum_target_gain": 4
+    },
     "cotton_panties": {
       "item_id": "cotton_panties",
       "category": "panties",
@@ -210,6 +239,45 @@
       "tum_per_turn": 4,
       "tum_target_gain": 12
     },
+    "formula_bottle_an": {
+      "item_id": "formula_bottle_an",
+      "category": "food",
+      "is_drink": true,
+      "name": "Auto-Nursery Formula",
+      "desc": "Warm enriched baby formula in a big bottle with a soft nipple top. Restores 18 HP but the nutrients... do things. Wet meter +15 after digestion.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 18,
+      "value": 8,
+      "childish": 10,
+      "wet_bonus": 15,
+      "hunger_restore": 30,
+      "thirst_restore": 167,
+      "wet_instant": 4,
+      "tum_instant": 3,
+      "pressure_turns": 5,
+      "wet_per_turn": 4,
+      "tum_per_turn": 2,
+      "wet_target_gain": 20,
+      "tum_target_gain": 6
+    },
+    "ghost_milk": {
+      "item_id": "ghost_milk",
+      "category": "food",
+      "is_drink": true,
+      "name": "Ghost Milk",
+      "desc": "A bottle of shimmering spectral milk. It's ice-cold and slightly see-through. Restores 20 HP.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 20,
+      "value": 14,
+      "childish": 8,
+      "thirst_restore": 167,
+      "wet_instant": 3,
+      "pressure_turns": 5,
+      "wet_per_turn": 4,
+      "wet_target_gain": 20
+    },
     "hair_bow": {
       "item_id": "hair_bow",
       "category": "head",
@@ -220,6 +288,45 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 8
+    },
+    "nanny_juice_box": {
+      "item_id": "nanny_juice_box",
+      "category": "food",
+      "is_drink": true,
+      "name": "Nanny's Juice Box",
+      "desc": "A tiny juice box with a foil straw. Extremely sugary. Restores 12 HP and Tum +25 from all the sugar. You shouldn't have had three.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 12,
+      "value": 6,
+      "childish": 9,
+      "tum_bonus": 25,
+      "thirst_restore": 167,
+      "wet_instant": 3,
+      "tum_instant": 5,
+      "pressure_turns": 5,
+      "wet_per_turn": 4,
+      "tum_per_turn": 4,
+      "wet_target_gain": 20,
+      "tum_target_gain": 20
+    },
+    "sippy_juice": {
+      "item_id": "sippy_juice",
+      "category": "food",
+      "is_drink": true,
+      "name": "Sippy Cup of Juice",
+      "desc": "A bright, overfull sippy cup of fruit juice. Restores some health, but it goes right through you.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 8,
+      "value": 7,
+      "childish": 10,
+      "stamina_restore": 5,
+      "thirst_restore": 167,
+      "wet_instant": 4,
+      "pressure_turns": 6,
+      "wet_per_turn": 4,
+      "wet_target_gain": 20
     },
     "stamina_potion": {
       "item_id": "stamina_potion",
@@ -347,13 +454,38 @@
     "diaper",
     "ankle_socks",
     "boots",
-    "hair_bow"
+    "hair_bow",
+    "bottle",
+    "sippy_juice",
+    "nanny_juice_box",
+    "formula_bottle_an",
+    "ghost_milk"
   ],
   "food_pool": [
     "adult_food",
     "baby_food",
     "trail_rations",
-    "dried_apple"
+    "dried_apple",
+    "adult_food",
+    "baby_food",
+    "trail_rations",
+    "dried_apple",
+    "adult_food",
+    "baby_food",
+    "trail_rations",
+    "dried_apple",
+    "water_bottle",
+    "bottle",
+    "sippy_juice",
+    "nanny_juice_box",
+    "formula_bottle_an",
+    "ghost_milk",
+    "water_bottle",
+    "bottle",
+    "sippy_juice",
+    "nanny_juice_box",
+    "formula_bottle_an",
+    "ghost_milk"
   ],
   "potion_pool": [
     "stamina_potion"

@@ -64,7 +64,7 @@ test('food is reachable in every non-entry room and upgrading preserves furnitur
   assert.equal(addFood(diveData,floor),true);assert.deepEqual(floor.decorations,furniture);assert.deepEqual(floor.pickups.filter(p=>p.kind!=='food'),old);
   assert.equal(addFood(diveData,floor),false);assert.equal(validateFloor(floor),true);
  }
- assert.ok(diveData.food_pool.every(id=>hubData.items[id]?.category==='food'));
+ assert.ok(diveData.food_pool.every(id=>diveData.items[id]?.category==='food')); // Dive supplies may include authored drinks outside the curated merchant stock.
 });
 
 test('annex presence and chat are shared within a room and isolated across rooms and hubs',()=>{

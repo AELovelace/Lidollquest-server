@@ -9,7 +9,9 @@ function itemView(item,index){
  for(const key of ['atk','def','bulk','bulk_threshold','childish','hp_restore','mp_restore','count','quantity']){
   const value=item?.[key]??base[key];if(finite(value))out[key]=Math.max(-1000000,Math.min(1000000,value));
  }
- out.cursed=item?.cursed===true||base.cursed===true;return out;
+ out.cursed=item?.cursed===true||base.cursed===true;
+ if(item?.is_drink===true||base.is_drink===true)out.is_drink=true; // Bottled "food" belongs on the Drinks tab; without this flag the companion would file it under Food.
+ return out;
 } // Preserve individual rolled items without exporting arbitrary nested inventory payloads.
 
 export function companionSheet(db,c,p){

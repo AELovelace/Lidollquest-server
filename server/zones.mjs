@@ -1,3 +1,4 @@
+import {createParties} from './parties.mjs';
 import {publishPlayerActivity} from './player-activity.mjs';
 import {createHubDistricts} from './hub-districts.mjs';
 import {randomUUID,randomInt,createHash} from 'node:crypto';
@@ -47,19 +48,20 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
  CREATE TABLE IF NOT EXISTS quest_reward_days(owner TEXT NOT NULL,day INTEGER NOT NULL,coins INTEGER NOT NULL,PRIMARY KEY(owner,day));
  CREATE TABLE IF NOT EXISTS quest_request_limits(owner TEXT PRIMARY KEY,started INTEGER NOT NULL,count INTEGER NOT NULL);`);
  managementSchema(db);
+ const parties=createParties(db,{now});
  const districts=createHubDistricts(db,{now});
  const zone=id=>districts.resolve(baseZone(id));
  const origins=createItemOrigins(db);
  const purchases=createHubPurchases(db,{now,origins});
  const bank=createBank(db);
- const quarters=createDive(db,{now,roll,adjust,origins,...diveOptions});
- const desert=createDive(db,{now,roll,adjust,origins,data:desertData,generate:generateDesert,...desertOptions});
- const tundra=createDive(db,{now,roll,adjust,origins,data:tundraData,generate:generateDesert,...tundraOptions});
+ const quarters=createDive(db,{now,roll,adjust,origins,parties,...diveOptions});
+ const desert=createDive(db,{now,roll,adjust,origins,parties,data:desertData,generate:generateDesert,...desertOptions});
+ const tundra=createDive(db,{now,roll,adjust,origins,parties,data:tundraData,generate:generateDesert,...tundraOptions});
  const engines=new Map([[DIVE_ZONE,quarters],[DESERT_ZONE,desert],[TUNDRA_ZONE,tundra]]);
- for(const data of campaignDives)engines.set(data.config.zone_id,createDive(db,{now,roll,adjust,origins,data})); // Each destination keeps its own editions, loot receipts and encounter locks.
+ for(const data of campaignDives)engines.set(data.config.zone_id,createDive(db,{now,roll,adjust,origins,parties,data})); // Each destination keeps its own editions, loot receipts and encounter locks.
  const isDungeon=id=>engines.has(id);
  const engine=id=>engines.get(id)??quarters; // No active visit still exposes the legacy Quarters summary.
- const dive={tick(){for(const route of engines.values())route.tick();},
+ const dive={tick(){atomic(()=>parties.tick());for(const route of engines.values())route.tick();},
   snapshot(c,p){return engine(p?.zone??(c?JSON.parse(c.state).dive?.zone:null)).snapshot(c,p);},
   chatArea(c,p){return engine(p.zone).chatArea(c,p);},
   handles(input,p){return [...engines.values()].some(route=>route.handles(input,p));},
@@ -90,13 +92,14 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
    dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP}; // The private companion needs no dungeon geometry, peer records or duplicate raw loadout.
   const dungeon=dive.snapshot(c,p),definitions=[...questZones,...hubRooms].map(base=>{
    const z=zone(base.id),definition=hubDefinition(z,now());
+   if(c&&JSON.parse(c.state).diveCombatVersion===3&&p?.zone!==z.id){const {id,name,kind,parent,theme,width,height,spawn,exit,portals}=definition;return {id,name,kind,parent,theme,width,height,spawn,exit,portals,fixtures:[],walls:[]};} // New clients load full room geometry only after arrival, leaving room for large inventories and six-actor encounters.
    if(z.district&&p?.zone!==z.id){const {floors,wallTiles,rooms,blocks,axes,...summary}=definition;return {...summary,fixtures:[],walls:[]};} // Only the visited district sends its full monthly map.
    return {...definition,walls:z.walls??Array.from({length:z.height??12},(_,y)=>Array.from({length:z.width??20},(_,x)=>blocked({...z,fixtures:[]},x,y)?1:0))};
   });
   if(dungeon.definition)definitions.push(dungeon.definition);
   const edition=c?JSON.parse(c.state).dive?.edition:null;
   const visiblePeers=isDungeon(p?.zone)?peers.filter(peer=>JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(peer.id).state).dive?.edition===edition):peers;
-  return {dungeons:[...engines].map(([id,route])=>({id,enabled:route.snapshot(null,null).dive.enabled})),serverTime:now(),loadoutSupport:true,combatVersion:2,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,tundra:tundra.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null,view),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP};
+  return {dungeons:[...engines].map(([id,route])=>({id,enabled:route.snapshot(null,null).dive.enabled})),serverTime:now(),loadoutSupport:true,combatVersion:2,diveCombatVersion:3,partySupport:true,...parties.snapshot(c),encounter:c?engine(p?.zone).encounterSnapshot(JSON.parse(c.state)):null,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,tundra:tundra.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null,view),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP};
  } // Snapshots expose only zone avatars and chat, never wallet credentials or account IDs.
  function read(secret,id,view={}){const i=identity(secret);limit(i.owner);districts.refresh();dive.tick();if(view.companion&&!id)id=db.prepare('SELECT character_id FROM quest_presence WHERE owner=? ORDER BY seen DESC LIMIT 1').get(i.owner)?.character_id??db.prepare('SELECT id FROM quest_characters WHERE owner=? ORDER BY created DESC,id LIMIT 1').get(i.owner)?.id;
   return snapshot(i,id?character(i.owner,id):null,view);} // Only this read honours the companion view; every in-play snapshot keeps the beside-a-bank rule.
@@ -123,7 +126,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   districts.refresh(); // Materialize monthly maps before the command transaction, keeping rollback and cached geometry consistent.
   dive.tick(); // Scheduled resets and enemy decisions precede command revision checks.
   if(!input||!identifier(input.request_id)||!identifier(input.controller))fail(400,'Supply a stable request ID and controller.');
-   if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance','item_id','creation','online_revision'].includes(k)))fail(400,'Unsupported zone input.');
+   if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance','item_id','creation','online_revision','member','invitation','battle','target','cycle','patch'].includes(k)))fail(400,'Unsupported zone input.');
   if(input.takeover!==undefined&&(input.action!=='enter'||typeof input.takeover!=='boolean'))fail(400,'Control can only be transferred by an explicit entry request.'); // Never let movement or a background heartbeat steal control.
   return atomic(()=>{
    identity(secret);
@@ -145,8 +148,11 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
    if(input.action==='heartbeat'){
     presence(i,c,input.controller);db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);return snapshot(i,c);
    }
-   if(!Number.isSafeInteger(input.revision)||input.revision!==c.revision)fail(409,'Character changed; refresh before choosing another action.');
+   if((!JSON.parse(c.state).run?.sharedEncounter||!['turn_ready','attack','cast','charm','allure','use_item','flee','submit'].includes(input.action))&&(!Number.isSafeInteger(input.revision)||input.revision!==c.revision))fail(409,'Character changed; refresh before choosing another action.');
    const state=JSON.parse(c.state);let p;
+   if(input.action==='enter'&&input.combat_version!==3){if(state.run?.sharedEncounter||parties.party(c.id))fail(409,'Update the game before controlling this party or shared battle.');state.diveCombatVersion=2;}
+   if(input.action==='enter'&&input.combat_version===3)state.diveCombatVersion=3; // Explicit capability negotiation keeps old clients on the legacy encounter protocol.
+   if(input.action==='enter'&&state.diveCombatVersion===3&&state.dive)input={...input,zone:state.dive.zone??DIVE_ZONE}; // A group transfer can overtake the disconnected client's cached destination.
    if(input.action==='enter'&&input.online_revision!==undefined){
     if(!Number.isSafeInteger(input.online_revision)||input.online_revision<0||input.online_revision>c.revision)fail(409,'Refresh the saved character revision.');
     if(state.loadout&&input.online_revision<(state.loadoutRevision??c.revision))input={...input,loadout:state.loadout}; // Older cloud/local campaigns cannot roll back committed online items and needs.
@@ -154,7 +160,8 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
    if(state.pendingPurchase&&!['enter','chat'].includes(input.action))fail(409,'Your purchase is still settling. Reconnect to finish it.','purchase_pending');
    if(state.worldTurnDue&&!['world_turn','enter','chat'].includes(input.action))fail(409,'Finish your pending exploration turn first.');
    const divePresence=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
-   if(input.action==='bank_sell'){ // Companion sale: account storage needs no zone presence, controller lease or shop fixture, but keeps every economy rule.
+   if(input.action.startsWith('party_')){presence(i,c,input.controller);parties.act(c,input);}
+   else if(input.action==='bank_sell'){ // Companion sale: account storage needs no zone presence, controller lease or shop fixture, but keeps every economy rule.
     if(state.run)fail(409,'Leave combat before selling.');
     const {stored,index,item}=bank.locate(c,input.bank_item),row=origins.sale(c,item);
     if(!row||row.id!==input.item_instance)fail(409,'Only tracked online loot and purchases can be sold.');
@@ -182,7 +189,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
     if(state.run&&state.run.zone!==z.id)fail(409,'Finish or forfeit the current arena run before changing zones.');
     if(input.loadout!==undefined&&!state.run&&!state.hubVisit&&!state.pendingPurchase&&!state.worldTurnDue&&!(input.takeover===true&&state.loadout))state.loadout=importLoadout(input.loadout); // Resume committed turns before importing another campaign inventory.
     if(z.parent)state.hubVisit=z.id; // Explicit annex entry also resumes committed inventory after reconnect.
-    if(input.combat_version===2&&state.run&&state.run.combatVersion!==2&&state.loadout)beginRound(state,z,roll); // Preserve the old opponent, HP and pot while upgrading an unfinished run.
+    if(input.combat_version>=2&&state.run&&state.run.combatVersion!==2&&state.loadout)beginRound(state,z,roll); // Preserve the old opponent, HP and pot while upgrading an unfinished run.
     if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(z.id,now()-30000,i.owner).n>=64)fail(429,'This zone is full. Try again shortly.');
     const spawn=z.spawn??{x:10,y:9};db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,?,?,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=excluded.x,y=excluded.y,seen=excluded.seen,moved=0').run(i.owner,c.id,z.id,i.id,input.controller,spawn.x,spawn.y,now());
    }else{
@@ -260,7 +267,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
      if(state.loadout&&state.loadout.player_info.playerHealth<=0)fail(409,'Recover HP with an item before starting another run.');
      state.lastStart=now();state.lastResult=null;state.run={id:randomUUID(),zone:z.id,stage:1,phase:'fight',hp:70,maxHp:70,heals:3,pot:0,attack:11,handicaps:[],enemy:enemy(z,1),acted:0,log:['Round 1 begins.']};
      if(state.loadout){applyRunLoadout(state.run,state.loadout);state.run.heals=0;} // Imported characters heal with their own consumables.
-     if(input.combat_version===2){if(!state.loadout)fail(400,'Import a campaign character first.');beginRound(state,z,roll);}
+     if(input.combat_version>=2){if(!state.loadout)fail(400,'Import a campaign character first.');beginRound(state,z,roll);}
     }else if(input.action==='flee'||input.action==='submit'){
      if(!state.run)fail(409,'No active run.');if(state.run.combatVersion===2)clearEffects(state);syncRunHealth(state,state.run);state.lastResult={outcome:input.action==='submit'?'submitted':'forfeit',coins:0,rounds:state.run.stage-1,zone:z.id,...defeatPresentation(state.run,input.action)};state.run=null;
     }else{
@@ -288,6 +295,9 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
     }
     if(input.action!=='leave')db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);
    }
+   const afterPresence=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
+   parties.transfer(c,state,divePresence,afterPresence); // Validate and commit all other members after the initiating portal has been checked.
+   if(input.action==='leave'&&!afterPresence)parties.remove(c.id); // Campaign return leaves only this member.
    if(state.run)syncRunHealth(state,state.run);
    origins.reconcile(c,state,JSON.parse(c.state)); // Strip forged/duplicate item markers on every imported loadout and persist equipment/bank transitions.
    if(input.loadout&&state.loadout?.player_info?.name&&!state.nameLocked){const name=clean(state.loadout.player_info.name,24);if(name){c.name=name;state.nameLocked=true;db.prepare('UPDATE quest_characters SET name=? WHERE id=?').run(name,c.id);}} // Reconcile legacy campaign names once; subsequent renames use the paid management action.
@@ -314,5 +324,5 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   if(isDungeon(p.zone)){const a=JSON.parse(c.state).dive,b=JSON.parse(other.state).dive,area=dive.chatArea(c,p)?.id;if(!a||!b||!area||a.edition!==b.edition||area!==dive.chatArea(other,op)?.id)fail(404,'That player is no longer in this area.');}
   return inspectionProjection(other);
  }
- return {read,act,inspect,tick:dive.tick,completePurchase:purchases.complete};
+ return {read,act,inspect,tick(){districts.tick();dive.tick();},completePurchase:purchases.complete}; // The service timer also moves shared social residents without requiring player commands.
 } // Campaign stats and inventory are client-trusted; arena outcomes and shared-currency awards still belong to this simulation.

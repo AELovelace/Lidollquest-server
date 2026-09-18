@@ -1,4 +1,13 @@
 {
+  "online_combat": {
+    "base_delay_ms": 4000,
+    "dexterity_step_ms": 100,
+    "min_delay_ms": 1500,
+    "max_delay_ms": 6000,
+    "player_initial_fill": 0.5,
+    "second_enemy_chance": 0.5,
+    "third_enemy_chance": 0.25
+  },
   "magic_tree": {
     "version": 1,
     "mage_starting_spell": "fireball",
@@ -1218,6 +1227,18 @@
       "cute_preference": "cute",
       "success": "Theta's tentacles slow. Its bioluminescence shifts to a warm amber — it recognizes something gentle in you. The singing stops. It watches you go, lights fading like a lullaby reaching its end.",
       "failure": "The lullaby grows louder. You feel your thoughts go soft and cottony, your limbs heavy and compliant, before Theta's embrace becomes inescapable."
+    },
+    "frost_slime": {
+      "cute_preference": "neutral",
+      "sexy_preference": "neutral"
+    },
+    "snow_hare": {
+      "cute_preference": "neutral",
+      "sexy_preference": "neutral"
+    },
+    "rime_sprite": {
+      "cute_preference": "neutral",
+      "sexy_preference": "neutral"
     }
   }
 }

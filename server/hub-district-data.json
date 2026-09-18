@@ -103,6 +103,34 @@
           "avatar": "objNPCGuard",
           "name": "Hall Steward",
           "line": "No battles in these halls. This is a place to meet your friends between adventures."
+        },
+        {
+          "id": "castle-page",
+          "avatar": "objNPCJuniperVale",
+          "name": "Pip, Palace Page",
+          "line": "I've delivered this invitation twice already. The first time I found the right room, but the wrong tea party. A very good tea party, though.",
+          "roaming": true
+        },
+        {
+          "id": "castle-librarian",
+          "avatar": "objNPCLibrarian",
+          "name": "Celia, Wandering Librarian",
+          "line": "I'm collecting books people left in the parlours. If the bookmark is a biscuit, I assume they're coming back.",
+          "roaming": true
+        },
+        {
+          "id": "castle-tuner",
+          "avatar": "objNPCInnkeeper",
+          "name": "Orin, Music-Box Tuner",
+          "line": "Hear that little tune? One of the music boxes is half a note flat. I keep following it, and somebody keeps winding a different one.",
+          "roaming": true
+        },
+        {
+          "id": "castle-gardener",
+          "avatar": "objNPCSableCartographer",
+          "name": "Fern, Rose Tender",
+          "line": "The roses get a little turn in the light every afternoon. Sometimes I take the long way round. They deserve to see the castle too.",
+          "roaming": true
         }
       ],
       "layout": {
@@ -218,6 +246,34 @@
           "avatar": "objNPCBarmaid",
           "name": "Tea Stall Host",
           "line": "Pull up beside a friend and enjoy the village bustle. There are no monsters to interrupt you here."
+        },
+        {
+          "id": "market-taster",
+          "avatar": "objNPCInnkeeper",
+          "name": "Bram, Bread Enthusiast",
+          "line": "I'm comparing the smells from all the bread stalls. It's serious work. I may need a second lap before I reach a conclusion.",
+          "roaming": true
+        },
+        {
+          "id": "market-courier",
+          "avatar": "objNPCJuniperVale",
+          "name": "Tansy, Village Courier",
+          "line": "A letter for the ribbon seller, a parcel for the tea stall, and a very firm instruction not to squash either. I like a manageable adventure.",
+          "roaming": true
+        },
+        {
+          "id": "market-busker",
+          "avatar": "objLBCCivicNPC10",
+          "name": "Merri, Humming Busker",
+          "line": "I'm trying out a tune with no sad verses. Hum along if you like; I haven't decided how the middle goes yet.",
+          "roaming": true
+        },
+        {
+          "id": "market-browser",
+          "avatar": "objNPCSableCartographer",
+          "name": "Wren, Window Shopper",
+          "line": "I came for one spool of thread. So far I've found a lovely cup, three ribbons, and absolutely no thread.",
+          "roaming": true
         }
       ],
       "layout": {
@@ -331,6 +387,34 @@
           "avatar": "objNPCGuard",
           "name": "Night Porter",
           "line": "These streets are a safe place to gather. Leave the arena battles inside the Coliseum."
+        },
+        {
+          "id": "night-lamplighter",
+          "avatar": "objLBCCivicNPC15",
+          "name": "Ellis, Lamplighter",
+          "line": "The lamps nearest the benches get checked twice. People linger there, and a good conversation shouldn't have to end just because the light does.",
+          "roaming": true
+        },
+        {
+          "id": "night-performer",
+          "avatar": "objLBCCivicNPC30",
+          "name": "Vesper, Off-Duty Performer",
+          "line": "My next set isn't for a while. I'm giving my feet a little walk before I ask them to dance again.",
+          "roaming": true
+        },
+        {
+          "id": "night-florist",
+          "avatar": "objLBCCivicNPC48",
+          "name": "Nell, Night Florist",
+          "line": "These flowers open after sunset. Late bloomers, all of us. There's no prize for having your best evening before supper.",
+          "roaming": true
+        },
+        {
+          "id": "night-poet",
+          "avatar": "objLBCCivicNPC28",
+          "name": "Rowan, Pavement Poet",
+          "line": "I've got a rhyme for lantern, almost. I'm walking until the next line arrives. At this rate it may be a rather long poem.",
+          "roaming": true
         }
       ],
       "layout": {
@@ -343,5 +427,8 @@
       },
       "source_zone": "littlebig_city"
     }
-  ]
+  ],
+  "resident_version": 1,
+  "roam_interval_ms": 3000,
+  "roam_radius": 8
 }
