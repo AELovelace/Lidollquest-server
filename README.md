@@ -498,3 +498,8 @@ Party actions are `party_invite`, `party_accept`, `party_decline`, `party_leave`
 Online door transfers update every member atomically. Campaign departure removes only its caller. Membership survives two minutes after the ordinary thirty-second presence lease expires; saved destinations follow group travel. Shared battles retain their original participants until settlement and preserve personal rewards, claims, item provenance and daily coin caps.
 
 Run `node --test test/*.test.mjs`; `test/parties.test.mjs` covers reinforcement seeds/probabilities, all nine routes, invitations, atomic travel, ally healing, stale commands, large inventories/snapshots, reconnects and reset grace. Export `generation/combat_tuning.json` with the game's `python/export_online_combat.py`. The game-side `ONLINE_PARTIES_GUIDE.md` documents controls, tuning and rollout. Deploy compatible service/content before the new client; retain all databases and weekly editions.
+
+
+## Market dumpsters
+
+Every hub market now advertises a solid `dumpster` at (34,20), approached from (34,21). `item_discard` requires the normal controller, character revision and durable request ID, plus `fixture`, committed inventory `slot`, `item_id` and `item_instance` (empty for untracked items). It checks proximity and exact item identity, removes one carried item, and retires its sale provenance atomically. No coins are awarded; equipment, bank contents and quest items are excluded. Combat, pending needs and unsettled purchases block disposal. Deploy the service before the rebuilt client; no schema migration or database replacement is needed. The client advertises disposal only when the fixture is present and confirms each removal. Regression coverage: `node --test test/item-discard.test.mjs`.

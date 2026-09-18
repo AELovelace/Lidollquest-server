@@ -205,6 +205,15 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
      const npc=nearbyFixture(z,p,input.fixture,'npc');state.hubNotice=npc.name+': '+npc.line;state.hubNoticeAt=now();
     }else if(input.action==='curse_remove'){purchases.prepareCurse(i,c,state,z,p,input);}
     else if(input.action==='shop_buy'){purchases.prepare(i,c,state,z,p,input);}
+    else if(input.action==='item_discard'){ // Carried items only: commit removal and retire provenance inside the durable command transaction.
+     if(state.run||!state.loadout)fail(409,'Leave combat before discarding items.');
+     nearbyFixture(z,p,input.fixture,'dumpster');
+     const inventory=state.loadout.inventory,item=Number.isInteger(input.slot)?inventory[input.slot]:null;
+     if(!item||item.item_id!==input.item_id||(item.online_item??'')!==input.item_instance)fail(409,'That item changed. Choose it again.');
+     if(item.category==='quest_item'||item.quest_item)fail(409,'Quest items cannot be thrown away.');
+     inventory.splice(input.slot,1); // Equipment and bank storage are never disposal sources; reconciliation marks missing sale rights spent.
+     state.hubNotice='Threw away '+(item.name??item.item_id)+'.';state.hubNoticeAt=now();
+    }
     else if(input.action==='shop_sell'){
      if(state.run||!state.loadout)fail(409,'Leave combat before selling.');
      nearbyFixture(z,p,input.fixture,'shop');
