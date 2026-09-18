@@ -39,7 +39,7 @@ function canonical(value,depth=0){ // Nested loadout property order may change w
  return value;
 }
 
-export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Date.now,roll=randomInt,diveOptions={},desertOptions={},tundraOptions={}}={}) {
+export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Date.now,roll=randomInt,diveOptions={},desertOptions={},tundraOptions={},onPresence=()=>{}}={}) {
  db.exec(`CREATE TABLE IF NOT EXISTS quest_characters(id TEXT PRIMARY KEY,owner TEXT NOT NULL,name TEXT NOT NULL,created INTEGER NOT NULL,revision INTEGER NOT NULL DEFAULT 0,state TEXT NOT NULL,creation_id TEXT NOT NULL,UNIQUE(owner,creation_id));
  CREATE INDEX IF NOT EXISTS quest_character_owner ON quest_characters(owner);
  CREATE TABLE IF NOT EXISTS quest_presence(owner TEXT PRIMARY KEY,character_id TEXT NOT NULL UNIQUE,zone TEXT NOT NULL,grant_id TEXT NOT NULL,controller TEXT NOT NULL,x INTEGER NOT NULL,y INTEGER NOT NULL,seen INTEGER NOT NULL,moved INTEGER NOT NULL);
@@ -127,7 +127,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   districts.refresh(); // Materialize monthly maps before the command transaction, keeping rollback and cached geometry consistent.
   dive.tick(); // Scheduled resets and enemy decisions precede command revision checks.
   if(!input||!identifier(input.request_id)||!identifier(input.controller))fail(400,'Supply a stable request ID and controller.');
-   if(Object.keys(input).some(k=>!['equipment_version','action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance','item_id','creation','online_revision','member','invitation','battle','target','cycle','patch'].includes(k)))fail(400,'Unsupported zone input.');
+   if(Object.keys(input).some(k=>!['defeat_version','scene','equipment_version','action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance','item_id','creation','online_revision','member','invitation','battle','target','cycle','patch'].includes(k)))fail(400,'Unsupported zone input.');
   if(input.takeover!==undefined&&(input.action!=='enter'||typeof input.takeover!=='boolean'))fail(400,'Control can only be transferred by an explicit entry request.'); // Never let movement or a background heartbeat steal control.
   return atomic(()=>{
    identity(secret);
@@ -151,6 +151,12 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
    }
    if((!JSON.parse(c.state).run?.sharedEncounter||!['turn_ready','attack','cast','charm','allure','use_item','flee','submit','stand'].includes(input.action))&&(!Number.isSafeInteger(input.revision)||input.revision!==c.revision))fail(409,'Character changed; refresh before choosing another action.');
    const state=JSON.parse(c.state);let p;
+   if(state.pendingDefeat&&!['enter','chat','defeat_complete'].includes(input.action))fail(409,'Finish the defeat dialogue before continuing.');
+   if(input.action==='enter'){
+    if(state.pendingDefeat&&input.defeat_version!==1)fail(409,'Update the game to finish this defeat dialogue.');
+    state.deferDefeatReturn=input.defeat_version===1; // Older clients retain their existing settlement protocol.
+    if(state.pendingDefeat&&state.dive)input={...input,zone:state.dive.zone??DIVE_ZONE};
+   }
    if(input.action==='enter'&&input.combat_version!==3){if(state.run?.sharedEncounter||parties.party(c.id))fail(409,'Update the game before controlling this party or shared battle.');state.diveCombatVersion=2;}
    if(input.action==='enter'&&input.combat_version===3)state.diveCombatVersion=3; // Explicit capability negotiation keeps old clients on the legacy encounter protocol.
    if(input.action==='enter'&&state.diveCombatVersion===3&&state.dive)input={...input,zone:state.dive.zone??DIVE_ZONE}; // A group transfer can overtake the disconnected client's cached destination.
@@ -309,7 +315,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
     if(input.action!=='leave')db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);
    }
    const afterPresence=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
-   parties.transfer(c,state,divePresence,afterPresence); // Validate and commit all other members after the initiating portal has been checked.
+   if(input.action!=='defeat_complete')parties.transfer(c,state,divePresence,afterPresence); // Portal transfers remain grouped; defeat acknowledgement returns only its reader.
    if(input.action==='leave'&&!afterPresence)parties.remove(c.id); // Campaign return leaves only this member.
    if(state.run)syncRunHealth(state,state.run);
    origins.reconcile(c,state,JSON.parse(c.state)); // Strip forged/duplicate item markers on every imported loadout and persist equipment/bank transitions.
@@ -327,6 +333,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
    const receipt={request_id:input.request_id,revision:c.revision,action:input.action,result:state.lastResult};
    db.prepare('INSERT INTO quest_commands VALUES (?,?,?,?,?)').run(c.id,input.request_id,c.revision,fingerprint,JSON.stringify(receipt));
    db.prepare('DELETE FROM quest_commands WHERE character_id=? AND revision<?').run(c.id,c.revision-128);
+   onPresence(c,afterPresence); // Publish only committed, authenticated presence; a failed command rolls its event back too.
    return {...snapshot(i,c),receipt};
   });
  }
@@ -334,7 +341,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   const i=identity(secret);limit(i.owner);const c=character(i.owner,id),p=presence(i,c,controller);
   const other=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(target),op=db.prepare('SELECT * FROM quest_presence WHERE character_id=? AND seen>?').get(target,now()-30000);
   if(!other||!op||!enabled(other.owner)||op.zone!==p.zone)fail(404,'That player is no longer in this area.');
-  if(isDungeon(p.zone)){const a=JSON.parse(c.state).dive,b=JSON.parse(other.state).dive,area=dive.chatArea(c,p)?.id;if(!a||!b||!area||a.edition!==b.edition||area!==dive.chatArea(other,op)?.id)fail(404,'That player is no longer in this area.');}
+  if(isDungeon(p.zone)){const a=JSON.parse(c.state).dive,b=JSON.parse(other.state).dive;if(!a||!b||a.route!==b.route||a.depth!==b.depth||a.edition!==b.edition)fail(404,'That player is no longer in this area.');} // Inspection follows displayed peers on the same weekly floor; chat room boundaries never make a visible player unclickable.
   return inspectionProjection(other);
  }
  return {read,act,inspect,tick(){districts.tick();dive.tick();},completePurchase:purchases.complete}; // The service timer also moves shared social residents without requiring player commands.

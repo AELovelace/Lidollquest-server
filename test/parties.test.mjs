@@ -23,6 +23,63 @@ function fixture(){
  return {db,ids,awards,loadout,player,join,snap,act,command,place,engage,advance,win,raw:(name,input)=>zones.act(name,input),restart:setup,close:()=>db.close()};
 }
 
+test('one party member finishing defeat cannot move or re-engage another reader',()=>{
+ const f=fixture();try{
+  for(const name of ['alice','bob']){f.player(name);f.act(name,'enter',{zone:'princess-rose',combat_version:3,defeat_version:1});}
+  f.join('bob');f.act('alice','dive_enter',{zone:'dive-quarters'});f.engage();
+  const bob=f.snap('bob').position;
+  f.act('alice','submit');f.act('bob','submit');
+  const pending=f.snap('alice').character.pendingDefeat;
+  assert.deepEqual(f.act('alice','defeat_complete',{scene:pending.id}).position,pending.position);
+  assert.deepEqual(f.snap('bob').position,bob);assert.ok(f.snap('bob').character.pendingDefeat);
+  assert.throws(()=>f.act('alice','dive_exit'),/bob must finish/);
+  assert.throws(()=>f.engage(),/bob must finish their defeat scene/);
+  assert.equal(f.snap('alice').character.run,null);
+  const visit=f.snap('alice').character.dive;
+  const record=f.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=?').get(visit.route,visit.edition),floor=JSON.parse(record.content);
+  const roaming=floor.enemies.find(e=>e.id!=='iris'),position={x:roaming.x,y:roaming.y};
+  f.place('alice',position.x,position.y);
+  const aliceState=JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(f.ids.alice).state);
+  aliceState.dive.safeUntil=0;f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(aliceState),f.ids.alice);
+  function approach(){ // Put a live roaming enemy on the ready member's tile; only the unread scene should prevent group aggro.
+   const current=JSON.parse(f.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=?').get(visit.route,visit.edition).content);
+   for(const enemy of current.enemies)enemy.roaming=false;
+   Object.assign(current.enemies.find(e=>e.id===roaming.id),position,{roaming:true,respawnAt:0});
+   f.db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=?').run(JSON.stringify(current),visit.route,visit.edition);
+  }
+  approach();f.advance(11000);
+  assert.equal(f.snap('alice').character.run,null,'roaming contact cannot pull the party into combat during the scene');
+  assert.equal(f.snap('bob').character.run,null);
+  const bobPending=f.snap('bob').character.pendingDefeat;
+  assert.deepEqual(f.act('bob','defeat_complete',{scene:bobPending.id}).position,bobPending.position);
+  assert.equal(f.snap('alice').party.members.length,2);
+  approach();f.advance(1001);
+  const next=f.snap('alice');assert.ok(next.encounter,'the same roaming contact works after the final acknowledgement');
+  assert.deepEqual(new Set(next.encounter.players.map(p=>p.id)),new Set([f.ids.alice,f.ids.bob]));
+  assert.equal(f.snap('bob').character.run.sharedEncounter,next.encounter.id,'the reader rejoins only after finishing');
+ }finally{f.close();}
+});
+
+test('party defeat holds each reader through restart and weekly reset until their own acknowledgement',()=>{
+ const f=fixture();try{
+  for(const name of ['alice','bob']){f.player(name);f.act(name,'enter',{zone:'princess-rose',combat_version:3,defeat_version:1});}
+  f.join('bob');f.act('alice','dive_enter',{zone:'dive-quarters'});f.engage();
+  const before=Object.fromEntries(['alice','bob'].map(n=>[n,f.snap(n).position]));
+  f.act('alice','submit');f.act('bob','submit');
+  for(const name of ['alice','bob']){assert.deepEqual(f.snap(name).position,before[name]);assert.ok(f.snap(name).character.pendingDefeat);}
+  assert.throws(()=>f.act('alice','dive_exit'),/defeat dialogue/);
+  f.restart();f.advance(7*86400000);
+  for(const name of ['alice','bob']){
+   const s=f.act(name,'enter',{zone:'dive-quarters',combat_version:3,defeat_version:1});
+   assert.deepEqual(s.position,before[name]);assert.equal(s.zone,'dive-quarters');
+  }
+  const pending=f.snap('alice').character.pendingDefeat;
+  const done=f.act('alice','defeat_complete',{scene:pending.id});assert.equal(done.zone,'princess-rose');
+  assert.deepEqual(f.snap('bob').position,before.bob);assert.ok(f.snap('bob').character.pendingDefeat);
+  assert.equal(f.act('bob','defeat_complete',{scene:f.snap('bob').character.pendingDefeat.id}).zone,'princess-rose');
+ }finally{f.close();}
+});
+
 test('shared Stand Up needs no enemy target, spends one gauge cycle and retries cannot repeat it',()=>{
  const f=fixture();try{
   f.player('alice');f.player('bob');f.join('bob');

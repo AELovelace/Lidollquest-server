@@ -11,7 +11,7 @@ export function createParties(db,{now}) {
  const presence=id=>db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(id);
  function available(c){ // Joining and group transfers never bypass an unfinished inventory or needs transaction.
   const s=JSON.parse(c.state);
-  if(s.run||s.worldTurnDue||s.pendingPurchase||db.prepare("SELECT 1 FROM quest_management WHERE character_id=? AND status='pending'").get(c.id))fail(c.name+' must finish their current action first.');
+  if(s.pendingDefeat||s.run||s.worldTurnDue||s.pendingPurchase||db.prepare("SELECT 1 FROM quest_management WHERE character_id=? AND status='pending'").get(c.id))fail(c.name+' must finish their current action first.');
   return s;
  }
  function sameArea(a,b){const ap=presence(a.id),bp=presence(b.id),as=JSON.parse(a.state),bs=JSON.parse(b.state);

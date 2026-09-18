@@ -23,7 +23,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  const entry=(floor,origin)=>floor.entries?.[origin]??floor.entrance;
  db.exec(`CREATE TABLE IF NOT EXISTS dive_editions(route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,starts INTEGER NOT NULL,ends INTEGER NOT NULL,content TEXT NOT NULL,updated INTEGER NOT NULL,PRIMARY KEY(route,edition,depth));
  CREATE TABLE IF NOT EXISTS dive_progress(character_id TEXT NOT NULL,route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,state TEXT NOT NULL,PRIMARY KEY(character_id,route,edition,depth));`);
- const encounters=createDiveEncounters(db,{now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter});
+ const encounters=createDiveEncounters(db,{now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate});
  let lastTick=-Infinity,retryAt=0,dressingRetryAt=0;
  const getFloor=edition=>{const row=db.prepare('SELECT * FROM dive_editions WHERE route=? AND edition=? AND depth=1').get(route,edition);return row?{...row,floor:JSON.parse(row.content)}:null;};
  const latest=()=>db.prepare('SELECT edition FROM dive_editions WHERE route=? ORDER BY starts DESC LIMIT 1').get(route)?.edition;
@@ -50,7 +50,13 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   try{const floor=generate(data,window.edition);addPinkMist(floor);db.prepare('INSERT OR IGNORE INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(route,window.edition,window.start,window.ends,JSON.stringify(floor),now());log('dive_generation_ready',route,window.edition);}
   catch(error){retryAt=now()+minutes;log('dive_generation_failed',route,String(error));}
  } // Never replace a valid edition until its successor is fully generated and validated.
+ function relocate(c,state,position,scene){ // Hold the committed encounter position until this player's final dialogue acknowledgement.
+  if(state.deferDefeatReturn&&scene){state.pendingDefeat={id:scene.id,position:{...position}};return;}
+  state.dive.position={...position};state.dive.safeUntil=now()+10000;
+  db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(position.x,position.y,c.id);
+ }
  function back(c,state,destination){
+  if(state.pendingDefeat){state.pendingDefeat.returnToHub=true;return;} // Weekly reset may retire the floor, but never interrupts its unread defeat scene.
   const origin=destination?(state.dive?.returnZone?.endsWith('-dives')?destination+'-dives':destination):(state.dive?.returnZone??state.dive?.origin??'honeydew-lantern');
   const destinationRoom=[...hubRooms,...hubCatalog].find(z=>z.id===origin);
   const arrival=hubArrival(destinationRoom,origin.endsWith('-dives')?zoneId:origin+'-dives');
@@ -69,7 +75,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   }else{
    if(foe){foe.engaged=null;foe.respawnAt=0;foe.x=foe.spawn.x;foe.y=foe.spawn.y;}
    if(['defeat','charm_backfire'].includes(outcome))run.hp=Math.max(1,Math.ceil(run.maxHp/4));
-   if(record){state.dive.position={...entry(record.floor,state.dive.origin)};db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(state.dive.position.x,state.dive.position.y,c.id);}
+   if(record)relocate(c,state,entry(record.floor,state.dive.origin),defeatPresentation(run,outcome).defeatScene);
   }
   syncRunHealth(state,run);state.lastResult={outcome,coins:0,rounds:1,zone:zoneId,log:run.log,...defeatPresentation(run,outcome)};state.run=null;
   if(state.dive)state.dive.safeUntil=now()+10*seconds;
@@ -84,7 +90,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   return amount;
  }
  function start(c,state,record,foe){
-  if(state.run||state.loadout?.player_info.stat_points>0||state.loadout?.player_info.playerHealth<=0||!foe||foe.engaged||foe.respawnAt>now())fail('That encounter is not available.');
+  if(state.pendingDefeat||state.run||state.loadout?.player_info.stat_points>0||state.loadout?.player_info.playerHealth<=0||!foe||foe.engaged||foe.respawnAt>now())fail('That encounter is not available.');
   if(!state.loadout)fail('Import your character before entering.');
   if(state.diveCombatVersion===3){encounters.start(c,state,record,foe);return;} // New clients share an encounter; unfinished legacy fights keep their original path.
   foe.engaged=c.id;const enemy=clone(data.enemies[foe.type]);enemy.maxHp=enemy.hp;enemy.turn=0;
@@ -107,7 +113,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    if(run?.kind==='dive'&&!run.sharedEncounter&&((!p||p.seen<now()-2*minutes)||run.acted<now()-5*minutes||old&&now()>=record.ends+10*minutes)){
     finish(c,state,record,'abandoned');log('dive_encounter_abandoned',c.id,run.encounter);saveCharacter(c,state);
    }
-   if(old&&!state.run){back(c,state);saveCharacter(c,state);}
+   if(old&&!state.run&&!state.pendingDefeat){back(c,state);saveCharacter(c,state);}
   }
   encounters.tick(getFloor);
   // Expired editions are retained for audit and receipt replay, but cannot accept new exploration.
@@ -118,7 +124,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const rnd=seeded(active.edition+':'+Math.floor(now()/seconds));
   for(const foe of f.enemies){
    if(foe.engaged||foe.respawnAt>now()||!enemyRoams(data,foe))continue;
-   const targets=players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return !v.run&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0&&!v.loadout?.player_info.stat_points;});return ready&& s.dive?.edition===active.edition&&!s.run&&!s.worldTurnDue&&!(s.loadout?.player_info.stat_points>0)&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);});
+   const targets=players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return !v.pendingDefeat&&!v.run&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0&&!v.loadout?.player_info.stat_points;});return ready&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.worldTurnDue&&!(s.loadout?.player_info.stat_points>0)&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);});
    let target=null,best=null;
    for(const p of targets){const path=pathTo(f,foe,p,config.pursuit_steps);if(path&&(!best||path.length<best.length)){target=p;best=path;}}
    if(best?.length===0||best?.length===1){const c={id:target.character_id,owner:target.owner,revision:target.revision},s=JSON.parse(target.state);if(s.loadout?.player_info.playerHealth>0){start(c,s,active,foe);saveCharacter(c,s);target.state=c.state;target.revision=c.revision;}continue;}
@@ -174,6 +180,14 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(!owns(state.dive))fail('Re-enter the dungeon from its lobby.');
   const record=getFloor(state.dive.edition),f=record.floor;
   if(input.edition!==record.edition)fail('The dungeon edition changed. Refresh before acting.');
+  if(action==='defeat_complete'){
+   const pending=state.pendingDefeat;
+   if(!pending||input.scene!==pending.id)fail('That defeat scene is no longer pending.');
+   delete state.pendingDefeat; // Clear and relocate atomically; durable command receipts make retries harmless.
+   if(pending.returnToHub||record.edition!==latest())back(c,state);
+   else relocate(c,state,pending.position);
+   return;
+  }
   if(action==='dive_exit'||action==='leave'){if(state.run)fail('Finish or flee from the current fight first.');
    if(input.zone){const exit=f.exits?.find(e=>e.zone===input.zone);if(!exit||Math.abs(exit.x-p.x)+Math.abs(exit.y-p.y)>1)fail('Stand beside that hub exit.');}
    back(c,state,input.zone);return;} // Escape returns to the entry hub; a nearby marked exit crosses to its destination.

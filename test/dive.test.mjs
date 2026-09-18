@@ -200,10 +200,11 @@ test('ten-minute reset grace ends even an active encounter and suspended clients
 test('defeat scenes retain the authored opponent across duplicate commands, reconnects and service restarts',()=>{
  let charmAttempt=false;const f=fixture({roll:n=>charmAttempt?0:n-1});try{
   const id=f.player(),foe=f.snap(id).dive.enemies.find(e=>e.type==='diaper_fairy');assert.ok(foe);
+  f.act(id,'enter',{zone:DIVE_ZONE,combat_version:2,defeat_version:1});
   for(const outcome of ['defeat','submit','charm_backfire','flee']){
    let loadout=structuredClone(f.snap(id).character.loadout);
    Object.assign(loadout.player_info,{playerHealth:1,str:1,cha:0,stat_points:0});f.act(id,'loadout',{loadout});
-   f.engage(id,foe.id);let s=f.snap(id),run=structuredClone(s.character.run);
+   f.engage(id,foe.id);let s=f.snap(id),run=structuredClone(s.character.run),position=structuredClone(s.position);
    if(outcome==='defeat'||outcome==='charm_backfire')s=f.act(id,'turn_ready',{loadout:s.character.loadout,forfeit:false});
    if(outcome==='charm_backfire'){
     const row=f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(id),state=JSON.parse(row.state);
@@ -215,7 +216,19 @@ test('defeat scenes retain the authored opponent across duplicate commands, reco
    if(outcome==='flee')assert.equal(result.defeatScene,undefined);
    else assert.deepEqual(result.defeatScene,{id:run.id,enemy_id:'diaper_fairy',name:run.enemy.name});
    assert.deepEqual(f.raw(command).character.lastResult,result);assert.deepEqual(f.snap(id).character.loadout,settled);
-   f.restart();s=f.act(id,'enter',{zone:DIVE_ZONE});assert.deepEqual(s.character.lastResult,result);assert.deepEqual(s.character.loadout,settled);
+   f.restart();s=f.act(id,'enter',{zone:DIVE_ZONE,combat_version:2,defeat_version:1});assert.deepEqual(s.character.lastResult,result);assert.deepEqual(s.character.loadout,settled);
+   if(outcome!=='flee'){
+    assert.deepEqual(s.position,position,'settlement and reconnect retain the fight location');
+    assert.equal(s.character.pendingDefeat.id,run.id);
+    for(const action of ['move','dive_exit','dive_engage','loadout','companion_equip'])assert.throws(()=>f.act(id,action),/defeat dialogue/);
+    assert.throws(()=>f.act(id,'defeat_complete',{scene:'wrong'}),/no longer pending/);
+    f.advance(11000);f.tick();assert.equal(f.snap(id).character.run,null,'recovered player cannot be attacked while reading');
+    const done=f.command(id,'defeat_complete',{scene:run.id}),returned=f.raw(done);
+    assert.deepEqual(returned.position,s.character.pendingDefeat.position);
+    assert.equal(returned.character.pendingDefeat,undefined);
+    assert.deepEqual(returned.character.loadout,settled);
+    assert.deepEqual(f.raw(done).receipt,returned.receipt,'duplicate completion does not move or settle twice');
+   }
   }
  }finally{f.close();}
 });

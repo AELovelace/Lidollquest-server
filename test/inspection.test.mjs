@@ -17,9 +17,17 @@ test('inspection isolates committed appearance, validates live area and never ex
   assert.equal(api.inspect('alice',chars.alice.id,chars.bob.id,'alice').character_id,chars.bob.id);
   const room=entered.zones.find(z=>z.id==='dive-quarters').rooms[1];
   db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(room.x,room.y,chars.bob.id);
-  assert.throws(()=>api.inspect('alice',chars.alice.id,chars.bob.id,'alice'),/no longer/,'different rooms deny inspection');
+  const aliceView=api.read('alice',chars.alice.id),bobView=api.read('bob',chars.bob.id);
+  assert.notEqual(aliceView.chatArea.id,bobView.chatArea.id,'room chat remains separate');
+  assert.ok(aliceView.peers.some(peer=>peer.id===chars.bob.id),'the other room player is displayed on this floor');
+  assert.equal(api.inspect('alice',chars.alice.id,chars.bob.id,'alice').character_id,chars.bob.id,'displayed dive players remain inspectable across room boundaries');
   const same=db.prepare('SELECT x,y FROM quest_presence WHERE character_id=?').get(chars.alice.id);db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(same.x,same.y,chars.bob.id);
-  const state=JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(chars.bob.id).state);state.dive.edition='retired-edition';db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),chars.bob.id);
+  const state=JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(chars.bob.id).state);
+  for(const [key,value] of [['route','other-route'],['depth',2]]){
+   const original=state.dive[key];state.dive[key]=value;db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),chars.bob.id);
+   assert.throws(()=>api.inspect('alice',chars.alice.id,chars.bob.id,'alice'),/no longer/,'another '+key+' cannot be inspected');state.dive[key]=original;
+  }
+  state.dive.edition='retired-edition';db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),chars.bob.id);
   assert.throws(()=>api.inspect('alice',chars.alice.id,chars.bob.id,'alice'),/no longer/,'different editions deny inspection even at matching coordinates');
   now+=31000;assert.throws(()=>api.inspect('alice',chars.alice.id,chars.bob.id,'alice'),/connection/);
  }finally{db.close();}

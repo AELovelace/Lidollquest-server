@@ -39,7 +39,7 @@ export function applyCombatPatch(loadout,patch){
  }return importLoadout(result);
 } // Numeric deltas preserve intervening attacks/heals; structural item edits require an unchanged baseline.
 
-export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter}){
+export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate}){
  const config=data.config,zone=config.zone_id??'dive-quarters',route=config.route,boss=config.boss_id??'iris',z={theme:config.theme??'princess_quarters',activeTime:true};
  db.exec('CREATE TABLE IF NOT EXISTS quest_dive_encounters(id TEXT PRIMARY KEY,route TEXT NOT NULL,edition TEXT NOT NULL,state TEXT NOT NULL,updated INTEGER NOT NULL)');
  db.exec("CREATE INDEX IF NOT EXISTS quest_open_dive_encounters ON quest_dive_encounters(route) WHERE json_extract(state,'$.finished') IS NOT 1"); // Retain history without scanning every settled fight on each simulation tick.
@@ -54,7 +54,10 @@ export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progres
  function start(c,state,record,foe){
   const members=parties?.members(c.id)??[],people=members.length?members:[c];
   const rows=people.map(other=>({c:other,s:other.id===c.id?state:JSON.parse(other.state)}));
-  for(const {c:other,s} of rows){if(s.run||s.worldTurnDue||s.pendingPurchase||!s.loadout||s.loadout.player_info.stat_points>0||s.loadout.player_info.playerHealth<=0||s.dive?.edition!==record.edition||s.dive?.route!==route)fail(other.name+' must finish preparing before the party can fight.');}
+  for(const {c:other,s} of rows){
+   if(s.pendingDefeat)fail(other.name+' must finish their defeat scene before the party can fight.'); // Check every member before reserving enemies or creating any participant.
+   if(s.run||s.worldTurnDue||s.pendingPurchase||!s.loadout||s.loadout.player_info.stat_points>0||s.loadout.player_info.playerHealth<=0||s.dive?.edition!==record.edition||s.dive?.route!==route)fail(other.name+' must finish preparing before the party can fight.');
+  }
   const e={id:randomUUID(),edition:record.edition,zone,route,origin:{x:foe.x,y:foe.y},created:now(),sequence:0,events:[],players:[],enemies:[]};
   for(const selected of selectEncounterEnemies(record.floor,foe,data,roll,now())){selected.engaged=e.id;const enemy=clone(data.enemies[selected.type]);enemy.maxHp=enemy.hp;enemy.turn=0;e.enemies.push({id:selected.id,data:enemy,duration:actionDelay(enemy.dex??0),readyAt:now()+actionDelay(enemy.dex??0),dots:[],debuffs:[]});}
   for(const row of rows){const {c:other,s}=row,enemy=clone(e.enemies[0].data);s.lastResult=null;s.run={kind:'dive',id:e.id,sharedEncounter:e.id,zone,edition:record.edition,encounter:foe.id,stage:1,phase:'fight',hp:s.loadout.player_info.playerHealth,maxHp:s.loadout.player_info.playerHealthMax,heals:0,pot:0,handicaps:[],enemy,acted:now(),log:[]};beginRound(s,z,roll,enemy);
@@ -65,14 +68,14 @@ export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progres
  function settle(e,rows,record,force=false){
   const win=e.enemies.every(v=>v.data.hp<=0);if(!force&&!win&&e.players.some(a=>a.status==='active'))return false;
   const xp=e.enemies.filter(v=>v.data.hp<=0).reduce((n,v)=>n+(v.data.exp??0),0),bossDown=e.enemies.some(v=>v.id===boss&&v.data.hp<=0);
-  e.finished=true;message(e,win?'The encounter is cleared.':'The party returns to the entrance.');
+  e.finished=true;message(e,win?'The encounter is cleared.':'The encounter is over.');
   for(const enemy of e.enemies){const foe=record.floor.enemies.find(v=>v.id===enemy.id);if(!foe)continue;foe.engaged=null;foe.respawnAt=enemy.data.hp<=0?now()+(foe.id===boss?config.boss_respawn_seconds:config.enemy_respawn_seconds)*1000:0;Object.assign(foe,foe.spawn);}
   for(const {a,c,s} of rows){s.run=a.run;clearEffects(s);if(['defeat','charm_backfire'].includes(a.status))a.run.hp=Math.max(1,Math.ceil(a.run.maxHp/4));
    const enemy=a.defeatEnemy??e.enemies[0].data;a.run.enemy={...enemy,exp:xp};if(xp)awardExperience(s,roll);syncRunHealth(s,a.run);
    if(bossDown){const p=progress(c,record.edition);p.completed=true;saveProgress(c,record.edition,p);}
    const coins=bossDown?pay(c,s,record,true):0,outcome=a.status==='active'?(win?'win':'abandoned'):a.status;
    s.lastResult={outcome,coins,rounds:1,zone,log:e.events.map(v=>v.text),...defeatPresentation(a.run,outcome)};s.wins=(s.wins??0)+(win?1:0);s.run=null;
-   if(s.dive){const pos=win?e.origin:entry(record.floor,s.dive.origin);s.dive.position={...pos};s.dive.safeUntil=now()+10000;db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(pos.x,pos.y,c.id);}
+   if(s.dive)relocate(c,s,win?e.origin:entry(record.floor,s.dive.origin),s.lastResult.defeatScene);
    if(force)back(c,s);
   }saveFloor(record);return true;
  } // All participants, enemy locks and reward entitlements settle in the caller's single database transaction.

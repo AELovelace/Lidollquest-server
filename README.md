@@ -1,5 +1,31 @@
 # LiDollQuest server
 
+## MommyBot online announcements
+
+Set a dedicated `MOMMYBOT_ONLINE_TOKEN` (32-128 URL-safe random characters) to
+enable `GET /integrations/mommybot/joins?after=0&limit=20`. Only server-to-server
+Bearer authentication with this secret is accepted; game wallet tokens and
+browser Origin requests are rejected. The feed returns a persistent `stream`
+UUID, ascending `events` (`id`, `name`, `joined_at`, numeric `online`),
+`latest_cursor`, `next_cursor` and `has_more`. Names are character names; no
+account IDs, credentials, chat, inventory or care events are exposed.
+
+Authenticated gameplay commits record account arrivals atomically with presence.
+Heartbeats, room changes, character switches and reconnects within two minutes
+do not repeat announcements. Companion/cloud reads and character creation do not
+announce. Events persist for seven days. Disabled configuration emits no events.
+No GameMaker client rebuild is required.
+
+Configure MommyBot with `LIDOLLMMO_ONLINE_ENABLED=true`, the same token,
+`LIDOLLMMO_ONLINE_URL=http://127.0.0.1:4191/integrations/mommybot/joins` (or this
+server's private LAN address), and channel `1550612967253352528`. Restart both
+services. The bot starts at future arrivals, checks every ten seconds, skips
+offline/stale joins, pings the destination server's **lidollmmo** role, and saves delivery progress. See MommyBot's
+`MMO_ONLINE_GUIDE.md` for setup, permissions and limitations.
+
+Run `node --test test/online-feed.test.mjs test/service.test.mjs` to verify the
+protected feed, signed-in joins, command replay, heartbeats and reconnects.
+
 Crawling now persists as a recoverable stance. Hub and Dive movement enforce a 400 ms minimum while crawling (200 ms standing); shared NPC clocks remain unchanged. Physical damage is reduced 25%, with a minimum of one. The `stand` action costs one ordinary combat turn or shared action-gauge cycle and needs no enemy target. Exhaustion or equipped `forces_crawl` definitions reject standing without spending an action. The campaign client supplies its two-stamina crawl recovery during the existing prepared-turn needs commit.
 
 Enemy `enemy_stat` spells can apply `stat_effect: "crawling"`; combo effects accept `type: "crawling"`. The game exporter adds `crawl_equipment` to `combat-data.json`, including the opt-in Cursed Crawling Anklets example. Deploy refreshed combat, campaign-Dive and hub definitions with the service and rebuilt client. Existing save flags/receipts are reused; no database migration is required. Combat, party and world tests cover recovery, replay and movement boundaries.
