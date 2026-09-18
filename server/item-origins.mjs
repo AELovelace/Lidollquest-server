@@ -21,6 +21,10 @@ export function createItemOrigins(db){
   if(bank){const stored=JSON.parse(bank.items);for(const entry of stored)accept(entry.item);db.prepare('UPDATE quest_bank SET items=? WHERE character_id=?').run(JSON.stringify(stored),c.id);}
   for(const item of next)accept(item);
   const equipment={};
+  for(const key of slots){const item=pi.equipped_item_data?.[key.slice(9)];
+   if(item&&item.item_id===pi[key]&&accept(item))equipment[key]=item.online_item;
+  } // Only existing, unclaimed provenance survives; mirrored dresses retain one right.
+
   const prior=previous.loadout?.inventory??[],oldPi=previous.loadout?.player_info??{};
   const returned=new Map(); // Only newly returned untagged items may regain a removed piece of equipment's identity.
   for(const item of prior)if(!item.online_item)returned.set(item.item_id,(returned.get(item.item_id)??0)+1);

@@ -1,4 +1,16 @@
 {
+  "temporary_continence_potion": {
+    "name": "Temporary Continence Potion"
+  },
+  "permanent_continence_potion": {
+    "name": "Permanent Continence Potion"
+  },
+  "temporary_incontinence_potion": {
+    "name": "Temporary Incontinence Potion"
+  },
+  "permanent_incontinence_potion": {
+    "name": "Permanent Incontinence Potion"
+  },
   "rattle_1": {
     "name": "Baby Rattle"
   },
@@ -4132,5 +4144,8 @@
   },
   "vesper_prayer_bead": {
     "name": "Vesper's Bead"
+  },
+  "cursed_crawling_anklets": {
+    "name": "Cursed Crawling Anklets"
   }
 }

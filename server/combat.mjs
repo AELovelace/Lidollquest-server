@@ -1,3 +1,4 @@
+import {isCrawling,syncCrawl,standBlockReason,setCrawling} from './crawl.mjs';
 import {readFileSync} from 'node:fs';
 import {applyRunLoadout,syncRunHealth} from './loadout.mjs';
 
@@ -21,6 +22,7 @@ export function mageScaling(loadout){ // Match scrSpellSystem's childish/shame a
 }
 
 export function beginRound(state,z,roll,authoredEnemy=null){ // Arena rounds and authored dungeon encounters share turn/effect initialization.
+ syncCrawl(state.loadout); // A crawling entrant retains the normal first player action.
  const r=state.run;r.combatVersion=2;r.turn=(r.turn??0)+1;r.turnReady=false;r.buffs=[];r.debuffs=[];r.dots=[];
  r.charmFailures=0;r.charmLimit=1+roll(5);r.charmPressure=0;
  Object.assign(r.enemy,authoredEnemy??{str:z.attack+r.stage+1,def:Math.floor((r.stage-1)/2),exp:r.stage*5,enemy_id:'goblin',enemy_spells:r.stage>=3?[z.theme==='clockwork'?'assessment_scan':'haunting_urge']:[],spell_cast_chance:0.35});
@@ -91,17 +93,20 @@ function charm(state,action,roll){
 
 function enemySpell(state,s){ // Enemy spell effects share the player's serialized modifier timers.
  const r=state.run,p=state.loadout.player_info,defense=p.def-r.handicaps.filter(h=>h==='Reduced armor').length;r.log.push(r.enemy.name+' casts '+s.name+'.');
- if(s.type==='enemy_stat')statEffect(p,s.stat_effect,s.stat_amount);
+ if(s.type==='enemy_stat'&&s.stat_effect==='crawling'){if(s.stat_amount>0){setCrawling(state.loadout,true);r.log.push('Knocked down! Physical damage -25%; Stand Up costs one action.');}}
+ else if(s.type==='enemy_stat')statEffect(p,s.stat_effect,s.stat_amount);
  if(s.type==='enemy_damage')r.hp=Math.max(0,r.hp-Math.max(1,s.power-defense));
  if(s.type==='enemy_debuff')addBuff(r,p,s,s.stat_amount);
  if(s.type==='enemy_combo')for(const e of s.combo_effects??[]){
   if(e.type==='damage')r.hp=Math.max(0,r.hp-Math.max(1,e.power-defense));
   else if(e.type==='debuff')addBuff(r,p,{...s,stat_effect:e.stat,dot_turns:e.turns},e.amount);
+  else if(e.type==='crawling'&&e.amount>0){setCrawling(state.loadout,true);r.log.push('Knocked down! Stand Up costs one action.');}
   else statEffect(p,e.type,e.amount);
  }
 }
 
 export function enemyAction(state,z,roll){ // One enemy acts independently in shared Dives; legacy rounds call the same authored attack routine.
+ syncCrawl(state.loadout);
  const r=state.run;r.enemy.turn++;
  const spells=(r.enemy.enemy_spells??[]).filter(id=>combatData.spells[id]?.enemy_only);
  if(spells.length&&roll(10000)<r.enemy.spell_cast_chance*10000)enemySpell(state,combatData.spells[spells[roll(spells.length)]]);
@@ -131,8 +136,13 @@ export function combatAction(state,input,z,roll,supportTarget=state){
  if(input.action==='attack'){
   if(classId(state.loadout)==='diplomat')fail('Diplomats use Allure.');
   const weakened=r.handicaps.filter(h=>h==='Weakened strikes').length;
-  const damage=Math.max(1,Math.floor(Math.max(1,state.loadout.player_info.str*2-r.enemy.def)*mageScaling(state.loadout).physical)-weakened);
+  const base=Math.max(1,Math.floor(Math.max(1,state.loadout.player_info.str*2-r.enemy.def)*mageScaling(state.loadout).physical)-weakened);
+  const damage=isCrawling(state.loadout)?Math.max(1,Math.floor(base*0.75)):base; // Match campaign rounding and preserve minimum damage.
   r.enemy.hp=Math.max(0,r.enemy.hp-damage);r.log.push('You slap '+r.enemy.name+' for '+damage+' damage.');
+ }else if(input.action==='stand'){
+  if(!isCrawling(state.loadout))fail('You are already standing.');
+  const reason=standBlockReason(state.loadout);if(reason)fail(reason);
+  setCrawling(state.loadout,false);r.log.push('You spend your action standing up.');
  }else if(input.action==='cast')cast(state,input.spell,supportTarget);
  else if(['charm','allure'].includes(input.action)){const result=charm(state,input.action,roll);if(result!=='continue')return result;}
  else if(input.action==='use_item')r.log.push('Used campaign inventory.');

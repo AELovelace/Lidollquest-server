@@ -1,3 +1,4 @@
+import {movementDelay} from './crawl.mjs';
 import {createDiveEncounters} from './dive-encounters.mjs';
 import {addPinkMist,mistAt} from './dive-mist.mjs';
 import {createDiveLootRoller} from './dive-loot.mjs';
@@ -6,7 +7,7 @@ import {randomUUID} from 'node:crypto';
 import {generateFloor,dressFloor,addFood,weeklyWindow,seeded,pathTo,walkable,inside,enemyRoams} from './dive-generation.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation} from './combat.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
-import {dungeonPortals,hubRooms,hubCatalog,DAILY_COIN_CAP} from './hubs.mjs';
+import {hubArrival,dungeonPortals,hubRooms,hubCatalog,DAILY_COIN_CAP} from './hubs.mjs';
 
 export const diveData=JSON.parse(readFileSync(new URL('./dive-data.json',import.meta.url),'utf8'));
 export const DIVE_ZONE='dive-quarters';
@@ -50,9 +51,12 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   catch(error){retryAt=now()+minutes;log('dive_generation_failed',route,String(error));}
  } // Never replace a valid edition until its successor is fully generated and validated.
  function back(c,state,destination){
-  const origin=destination?(state.dive?.returnZone?.endsWith('-dives')?destination+'-dives':destination):(state.dive?.returnZone??state.dive?.origin??'honeydew-lantern');db.prepare('UPDATE quest_presence SET zone=?,x=10,y=9,moved=? WHERE character_id=?').run(origin,now(),c.id);
+  const origin=destination?(state.dive?.returnZone?.endsWith('-dives')?destination+'-dives':destination):(state.dive?.returnZone??state.dive?.origin??'honeydew-lantern');
+  const destinationRoom=[...hubRooms,...hubCatalog].find(z=>z.id===origin);
+  const arrival=hubArrival(destinationRoom,origin.endsWith('-dives')?zoneId:origin+'-dives');
+  db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(origin,arrival.x,arrival.y,now(),c.id);
   if(origin.endsWith('-dives'))state.hubVisit=origin;else delete state.hubVisit; // Reconnect after a warp restores the destination hall rather than the previous hub.
-  state.dive=null;state.diveReturned=origin;
+  state.dive=null;state.diveReturned=origin;state.diveReturnedPosition=arrival;
  }
  function finish(c,state,record,outcome){
   const run=state.run;if(!run||run.kind!=='dive')return;
@@ -149,7 +153,8 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    const existing=db.prepare('SELECT * FROM quest_presence WHERE owner=?').get(i.owner);
    if(existing&&existing.seen>now()-30000&&(existing.controller!==input.controller||existing.character_id!==c.id||existing.grant_id!==i.id)&&input.takeover!==true)fail('This account is active in another window.','zone_controller_conflict'); // Explicit re-entry can recover this character without discarding its dungeon fight or items.
    if(action==='enter'&&!state.dive&&state.diveReturned){
-    db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,10,9,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=10,y=9,seen=excluded.seen,moved=0').run(i.owner,c.id,state.diveReturned,i.id,input.controller,now());return;
+    const arrival=state.diveReturnedPosition??hubArrival([...hubRooms,...hubCatalog].find(z=>z.id===state.diveReturned),state.diveReturned.endsWith('-dives')?zoneId:state.diveReturned+'-dives');
+    db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,?,?,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=excluded.x,y=excluded.y,seen=excluded.seen,moved=0').run(i.owner,c.id,state.diveReturned,i.id,input.controller,arrival.x,arrival.y,now());return;
    } // A browser suspended across reset resumes in its lobby instead of retrying a retired floor forever.
    if(state.run&&state.run.kind!=='dive')fail('Finish your arena run before diving.');
    if(state.dive&&!owns(state.dive))fail('Leave your current dungeon before entering another route.');
@@ -157,7 +162,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
     const portal=dungeonPortals(hall?.parent??p.zone).find(v=>v.target===zoneId);
     if(!portal||hall&&Math.abs(p.x-portal.x)+Math.abs(p.y-portal.y)>1)fail('Stand on or beside that glowing portal.'); // Legacy lobby entry remains accepted only for routes connected to that hub.
     if(input.loadout)state.loadout=importLoadout(input.loadout);if(!state.loadout)fail('Import your character first.');
-    const record=current(),origin=hall?.parent??p.zone;if(!record)fail('The weekly floor is not ready.');state.dive={route,zone:zoneId,edition:record.edition,depth:1,origin,returnZone:p.zone,position:{...entry(record.floor,origin)},safeUntil:now()+10*seconds};state.diveReturned=null;delete state.hubVisit;
+    const record=current(),origin=hall?.parent??p.zone;if(!record)fail('The weekly floor is not ready.');state.dive={route,zone:zoneId,edition:record.edition,depth:1,origin,returnZone:p.zone,position:{...entry(record.floor,origin)},safeUntil:now()+10*seconds};state.diveReturned=null;delete state.diveReturnedPosition;delete state.hubVisit;
    }
    const record=getFloor(state.dive.edition),position=state.dive.position;
    if(!record)fail('The weekly floor is unavailable.');
@@ -190,7 +195,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(action==='move'||action==='dive_engage'){
    if(state.run||state.loadout.player_info.stat_points>0)fail('Finish combat and spend level-up points first.');
    if(action==='dive_engage'){const foe=f.enemies.find(e=>e.id===input.encounter);if(!foe||Math.abs(foe.x-p.x)+Math.abs(foe.y-p.y)>1)fail('Approach that enemy first.');start(c,state,record,foe);return;}
-   if(now()-p.moved<200)fail('Movement is too fast.');const d={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];if(!d)fail('Choose a direction.');
+   if(now()-p.moved<movementDelay(state.loadout))fail('Movement is too fast.');const d={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];if(!d)fail('Choose a direction.');
    const x=p.x+d[0],y=p.y+d[1];if(!walkable(f,x,y))fail('That tile is blocked.');const foe=f.enemies.find(e=>e.x===x&&e.y===y&&e.respawnAt<=now());
    if(foe){start(c,state,record,foe);return;}
    const exit=f.exits?.find(e=>e.x===x&&e.y===y);
@@ -210,7 +215,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    if(['flee','submit'].includes(action)){finish(c,state,record,action);return;}
    if(action==='turn_ready'){
     if(typeof input.forfeit!=='boolean'||state.run.turnReady)fail('No unprepared turn.');state.loadout=importLoadout(input.loadout);state.run.acted=now();result=readyTurn(state,input.forfeit,z,roll); // An acknowledged accident/forfeit turn is combat activity, unlike a heartbeat.
-   }else if(['attack','cast','charm','allure'].includes(action)){if(now()-state.run.acted<300)fail('Wait for the current turn.');state.run.acted=now();result=combatAction(state,input,z,roll);}
+   }else if(['attack','cast','charm','allure','stand'].includes(action)){if(now()-state.run.acted<300)fail('Wait for the current turn.');state.run.acted=now();result=combatAction(state,input,z,roll);}
    else fail('Unknown dungeon action.');
   }
   if(['win','defeat','charm_backfire'].includes(result)){

@@ -1,16 +1,18 @@
+import {equippedItem} from './companion-equipment.mjs';
 import {mageScaling} from './combat.mjs';
 export const curseSlots=['weapon','head','mouth','torso','pants','panties','socks','shoes','plug','gloves','bra','diaper_cover','special','accessory_1','accessory_2','accessory_3'];
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'hub_conflict'});};
 const number=value=>Number.isFinite(value)?value:0;
 
 export function removeCursedGear(loadout,slot,itemId,catalog,capacity){
- const next=structuredClone(loadout),p=next.player_info,item=catalog[itemId];
+ const next=structuredClone(loadout),p=next.player_info,item=equippedItem(p,slot,catalog);
  if(!curseSlots.includes(slot)||!item?.cursed||p['equipped_'+slot]!==itemId)fail('Choose a currently equipped cursed item.');
  if(slot==='pants'&&item.category==='dress'&&p.equipped_torso===itemId)slot='torso'; // A dress occupies two slots but is one paid removal.
  const dispose=slot==='panties'&&item.is_diaper&&(p.slot_wet_panties||p.diaper_wet_absorbed>0||p.diaper_tum_absorbed>0);
  if(!dispose&&next.inventory.length>=capacity)fail('Inventory full. Make room before removing this item. No coins were charged.');
  for(const [field,stat] of [['atk','str'],['def','def'],['atk_mod','str'],['def_mod','def'],['dex_mod','dex'],['int_mod','int'],['cha_mod','cha'],['wet_resist','wet_resist'],['tum_resist','tum_resist'],['hp_regen','hp_regen']])if(item[field])p[stat]=number(p[stat])-number(item[field]);
  if(item.shame_delta)p.shame=Math.max(0,Math.min(1024,number(p.shame)-item.shame_delta));
+ if(p.equipped_item_data){delete p.equipped_item_data[slot];if(item.category==='dress'){delete p.equipped_item_data.torso;delete p.equipped_item_data.pants;}}
  p['equipped_'+slot]='';p['slot_wet_'+slot]=false;
  if(slot==='torso'&&item.category==='dress'&&p.equipped_pants===itemId){p.equipped_pants='';p.slot_wet_pants=false;}
  if(slot==='panties'){

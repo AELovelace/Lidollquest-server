@@ -1,3 +1,5 @@
+import {syncCrawl} from './crawl.mjs';
+
 const fail=message=>{throw Object.assign(Error(message),{status:400,code:'invalid_loadout'});};
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const currencies=new Set(['gold','coins','diamonds','wallet','balance','lidollcoins','lidollcoin']);
@@ -17,6 +19,7 @@ export function importLoadout(input) { // Campaign data is intentionally client-
  }
  const result=copy({player_info:input.player_info,inventory:input.inventory,...(object(input.world)?{world:input.world}:{}),childish:number(input.childish,0,0,10),player_spells:input.player_spells??[],player_mp:input.player_mp??0,player_mp_max:input.player_mp_max??0,attack:input.attack??Math.max(1,number(input.player_info.str,0)*2)});
  const p=result.player_info;
+ syncCrawl(result); // Create forced legacy stance before filling the client's required world fields.
  if(result.world){const w=result.world;result.world={turn_count:number(w.turn_count,0),crawling:w.crawling===true,wet_only_mode:w.wet_only_mode===true,pending_popup_turns:number(w.pending_popup_turns,0,0,10000),pending_popup_title:typeof w.pending_popup_title==='string'?w.pending_popup_title.slice(0,500):'',pending_popup_text:typeof w.pending_popup_text==='string'?w.pending_popup_text.slice(0,20000):''};} // Persist only known needs-runtime fields, never arbitrary global state.
  p.playerHealthMax=number(p.playerHealthMax,70,1);p.playerHealth=number(p.playerHealth,p.playerHealthMax,0,p.playerHealthMax);
  for(const key of ['str','def','dex','int','cha'])p[key]=number(p[key],0,-1000000); // Preserve campaign curse/equipment penalties as well as bonuses.

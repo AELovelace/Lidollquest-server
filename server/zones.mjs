@@ -1,3 +1,4 @@
+import {movementDelay} from './crawl.mjs';
 import {createParties} from './parties.mjs';
 import {publishPlayerActivity} from './player-activity.mjs';
 import {createHubDistricts} from './hub-districts.mjs';
@@ -5,7 +6,7 @@ import {randomUUID,randomInt,createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation} from './combat.mjs';
-import {hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog,campaignDives,DAILY_COIN_CAP} from './hubs.mjs';
+import {hubArrival,hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog,campaignDives,DAILY_COIN_CAP} from './hubs.mjs';
 import {createDive,DIVE_ZONE} from './dive.mjs';
 import {generateDesert} from './desert-generation.mjs';
 export const DESERT_ZONE='dive-desert';
@@ -15,6 +16,7 @@ export const tundraData=JSON.parse(readFileSync(new URL('./tundra-data.json',imp
 import {createBank} from './bank.mjs';
 import {createItemOrigins} from './item-origins.mjs';
 import {inspectionProjection} from './inspection.mjs';
+import {companionEquipment} from './companion-equipment.mjs';
 import {companionSheet} from './companion.mjs';
 import {managementSchema,appearanceFields} from './character-management.mjs';
 
@@ -76,8 +78,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   if(state.run)fail(409,'Finish or forfeit your arena run before visiting another room.');
   if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>?').get(destination.id,now()-30000).n>=64)fail(429,'This room is full.');
   if(destination.parent)state.hubVisit=destination.id;else delete state.hubVisit;
-  let spawn=destination.spawn??{x:10,y:9};
-  if(source.parent===destination.id&&['garden','beds'].includes(source.kind))spawn={x:source.kind==='garden'?1:18,y:6};
+  const spawn=hubArrival(destination,source.id);
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE owner=?').run(destination.id,spawn.x,spawn.y,now(),i.owner);
  } // Enter just inside the matching wall opening, facing into the destination; a held movement key cannot immediately bounce back.
  function snapshot(i,c=null,view={}){
@@ -126,7 +127,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
   districts.refresh(); // Materialize monthly maps before the command transaction, keeping rollback and cached geometry consistent.
   dive.tick(); // Scheduled resets and enemy decisions precede command revision checks.
   if(!input||!identifier(input.request_id)||!identifier(input.controller))fail(400,'Supply a stable request ID and controller.');
-   if(Object.keys(input).some(k=>!['action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance','item_id','creation','online_revision','member','invitation','battle','target','cycle','patch'].includes(k)))fail(400,'Unsupported zone input.');
+   if(Object.keys(input).some(k=>!['equipment_version','action','request_id','controller','character_id','revision','name','zone','direction','text','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance','item_id','creation','online_revision','member','invitation','battle','target','cycle','patch'].includes(k)))fail(400,'Unsupported zone input.');
   if(input.takeover!==undefined&&(input.action!=='enter'||typeof input.takeover!=='boolean'))fail(400,'Control can only be transferred by an explicit entry request.'); // Never let movement or a background heartbeat steal control.
   return atomic(()=>{
    identity(secret);
@@ -148,7 +149,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
    if(input.action==='heartbeat'){
     presence(i,c,input.controller);db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);return snapshot(i,c);
    }
-   if((!JSON.parse(c.state).run?.sharedEncounter||!['turn_ready','attack','cast','charm','allure','use_item','flee','submit'].includes(input.action))&&(!Number.isSafeInteger(input.revision)||input.revision!==c.revision))fail(409,'Character changed; refresh before choosing another action.');
+   if((!JSON.parse(c.state).run?.sharedEncounter||!['turn_ready','attack','cast','charm','allure','use_item','flee','submit','stand'].includes(input.action))&&(!Number.isSafeInteger(input.revision)||input.revision!==c.revision))fail(409,'Character changed; refresh before choosing another action.');
    const state=JSON.parse(c.state);let p;
    if(input.action==='enter'&&input.combat_version!==3){if(state.run?.sharedEncounter||parties.party(c.id))fail(409,'Update the game before controlling this party or shared battle.');state.diveCombatVersion=2;}
    if(input.action==='enter'&&input.combat_version===3)state.diveCombatVersion=3; // Explicit capability negotiation keeps old clients on the legacy encounter protocol.
@@ -161,6 +162,9 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
    if(state.worldTurnDue&&!['world_turn','enter','chat'].includes(input.action))fail(409,'Finish your pending exploration turn first.');
    const divePresence=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
    if(input.action.startsWith('party_')){presence(i,c,input.controller);parties.act(c,input);}
+   else if(['companion_equip','companion_unequip'].includes(input.action)){
+    companionEquipment(db,c,state,divePresence?.seen>now()-30000?divePresence:null,input,hubData.equipment,hubData.config.inventory_capacity,now());
+   }
    else if(input.action==='bank_sell'){ // Companion sale: account storage needs no zone presence, controller lease or shop fixture, but keeps every economy rule.
     if(state.run)fail(409,'Leave combat before selling.');
     const {stored,index,item}=bank.locate(c,input.bank_item),row=origins.sale(c,item);
@@ -191,7 +195,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
     if(z.parent)state.hubVisit=z.id; // Explicit annex entry also resumes committed inventory after reconnect.
     if(input.combat_version>=2&&state.run&&state.run.combatVersion!==2&&state.loadout)beginRound(state,z,roll); // Preserve the old opponent, HP and pot while upgrading an unfinished run.
     if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(z.id,now()-30000,i.owner).n>=64)fail(429,'This zone is full. Try again shortly.');
-    const spawn=z.spawn??{x:10,y:9};db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,?,?,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=excluded.x,y=excluded.y,seen=excluded.seen,moved=0').run(i.owner,c.id,z.id,i.id,input.controller,spawn.x,spawn.y,now());
+    const spawn=divePresence?.zone===z.id?{x:divePresence.x,y:divePresence.y}:(z.spawn??{x:10,y:9});db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,?,?,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=excluded.x,y=excluded.y,seen=excluded.seen,moved=0').run(i.owner,c.id,z.id,i.id,input.controller,spawn.x,spawn.y,now());
    }else{
     p=presence(i,c,input.controller);const z=zone(p.zone);
     if(input.action==='hub_visit'){
@@ -259,7 +263,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
     else if(input.action==='leave'){delete state.hubVisit;if(state.run)fail(409,'Bank your completed rounds or forfeit before leaving.');db.prepare('DELETE FROM quest_presence WHERE owner=?').run(i.owner);}
     else if(input.action==='move'){
      if(state.run?.phase==='fight')fail(409,'Finish this round before moving.');
-     if(now()-p.moved<200)fail(429,'Movement is too fast.');
+     if(now()-p.moved<movementDelay(state.loadout))fail(429,'Movement is too fast.');
      const directions={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]},d=Object.hasOwn(directions,input.direction)?directions[input.direction]:null;if(!d)fail(400,'Choose a movement direction.');
      const x=p.x+d[0],y=p.y+d[1];if(blocked(z,x,y))fail(409,'That tile is blocked.');
      const gap=hubGaps(z).find(g=>inHubGap(g,x,y));
@@ -288,7 +292,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
       if(handicap===0)r.attack=Math.max(state.loadout?1:5,r.attack-1);else if(handicap===1){r.maxHp=Math.max(state.loadout?1:25,r.maxHp-5);r.hp=Math.min(r.hp,r.maxHp);}else if(state.loadout)r.defense--;else r.heals=Math.max(0,r.heals-1);
       r.stage++;r.enemy=enemy(z,r.stage);r.phase='fight';r.log=['Round '+r.stage+'. '+r.handicaps.at(-1)+'.'];
       if(r.combatVersion===2){syncRunHealth(state,r);beginRound(state,z,roll);}
-     }else if(r.combatVersion===2&&['attack','cast','charm','allure'].includes(input.action)){
+     }else if(r.combatVersion===2&&['attack','cast','charm','allure','stand'].includes(input.action)){
       if(now()-r.acted<300)fail(429,'Wait for the current turn.');r.acted=now();combatResult(i,c,state,z,combatAction(state,input,z,roll));
      }else if(r.combatVersion!==2&&['attack','guard','heal'].includes(input.action)){
       if(r.phase!=='fight')fail(409,'Choose bank or continue.');if(now()-r.acted<300)fail(429,'Wait for the current turn.');r.acted=now();

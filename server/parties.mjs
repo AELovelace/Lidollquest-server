@@ -72,7 +72,7 @@ export function createParties(db,{now}) {
   const ids=roster.map(m=>m.id),occupied=db.prepare('SELECT character_id FROM quest_presence WHERE zone=? AND seen>?').all(after.zone,now()-30000).filter(p=>!ids.includes(p.character_id)).length;
   if(occupied+roster.length>64)fail('The destination has no room for the whole party.');
   for(const other of roster){if(other.id===c.id)continue;const s=JSON.parse(other.state);
-   s.dive=state.dive?structuredClone(state.dive):null;s.diveReturned=state.diveReturned??null;
+   s.dive=state.dive?structuredClone(state.dive):null;s.diveReturned=state.diveReturned??null;s.diveReturnedPosition=state.diveReturnedPosition?structuredClone(state.diveReturnedPosition):null;
    if(!s.dive)s.hubVisit=after.zone;else delete s.hubVisit;
    db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(after.zone,after.x,after.y,now(),other.id);
    db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(s),other.id);

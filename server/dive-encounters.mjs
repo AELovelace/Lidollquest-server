@@ -93,7 +93,7 @@ export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progres
     if(!a.prepared)fail('Finish this action cycle’s needs first.');
     const support=input.action==='cast'&&['heal','cure','buff'].includes(combatData.spells[input.spell]?.type);
     const target=support?rows.find(v=>v.a.id===(input.target??a.id)&&v.a.status==='active'):null;
-    const enemy=e.enemies.find(v=>v.id===(support?e.enemies.find(v=>v.data.hp>0)?.id:input.target)&&v.data.hp>0);
+    const enemy=e.enemies.find(v=>v.id===((support||input.action==='stand')?e.enemies.find(v=>v.data.hp>0)?.id:input.target)&&v.data.hp>0);
     if(support&&!target||!support&&!enemy)fail('Choose an active target.');
     const foe=enemy??e.enemies.find(v=>v.data.hp>0);a.run.enemy=foe.data;a.run.dots=foe.dots;a.run.debuffs=foe.debuffs;a.run.turnReady=true;
     if(input.action==='use_item'){state.loadout=applyCombatPatch(state.loadout,input.patch??[]);applyRunLoadout(a.run,state.loadout);}

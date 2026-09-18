@@ -94,3 +94,14 @@ export function createHubPurchases(db,{now,origins}){
  } // The existing durable wallet debit and inventory lock also protect this paid service.
  return {prepare,prepareCurse,complete};
 }
+
+export function hubArrival(destination, source) {
+ const z=hubDefinition(destination,0),portal=z.portals.find(p=>p.target===source)??(z.parent===source?z.exit:null);
+ if(!portal)return {...z.spawn}; // First entry has no prior doorway to match.
+ const x=portal.x,y=portal.y+(portal.h??1)-1;
+ const offsets=portal.side==='left'?[[1,0]]:portal.side==='right'?[[-1,0]]:portal===z.exit?[[0,-1],[1,0],[-1,0],[0,1]]:[[0,1],[1,0],[-1,0],[0,-1]];
+ for(const [dx,dy] of offsets){const px=x+dx,py=y+dy;
+  if(px>0&&py>0&&px<z.width-1&&py<z.height-1&&!z.walls?.[py]?.[px]&&!hubBlocked(z,px,py)&&![...z.portals,z.exit].some(p=>inHubGap(p,px,py)))return {x:px,y:py};
+ }
+ throw Error('No walkable arrival beside '+source+' in '+z.id); // Bad authored topology must not silently teleport a player elsewhere.
+}

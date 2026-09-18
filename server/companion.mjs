@@ -1,3 +1,4 @@
+import {companionSource,equipmentSlot,equipmentLocked,equippedItem} from './companion-equipment.mjs';
 import {readFileSync} from 'node:fs';
 import {inspectionProjection} from './inspection.mjs';
 const items=JSON.parse(readFileSync(new URL('./companion-items.json',import.meta.url),'utf8'));
@@ -15,22 +16,14 @@ function itemView(item,index){
 } // Preserve individual rolled items without exporting arbitrary nested inventory payloads.
 
 export function companionSheet(db,c,p){
- const state=JSON.parse(c.state);let loadout=state.loadout,source=loadout?'online':null,updatedAt=p?.seen??null;
- if(!p&&!state.run&&!state.worldTurnDue&&!state.dive&&db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='quest_cloud_versions'").get()){
-  const saved=db.prepare(`SELECT revision,created,json_extract(CAST(data AS TEXT),'$.online_revision') AS online_revision,
-   json_object('player_info',json_extract(CAST(data AS TEXT),'$.player_info'),'inventory',json_extract(CAST(data AS TEXT),'$.inventory'),
-   'player_mp',json_extract(CAST(data AS TEXT),'$.player_mp'),'player_mp_max',json_extract(CAST(data AS TEXT),'$.player_mp_max'),
-   'childish',json_extract(CAST(data AS TEXT),'$.childish')) AS loadout
-   FROM quest_cloud_versions WHERE character_id=? AND owner=? ORDER BY revision DESC LIMIT 1`).get(c.id,c.owner);
-  if(saved&&(!loadout||saved.online_revision>=(state.loadoutRevision??c.revision))){loadout=JSON.parse(saved.loadout);source='cloud';updatedAt=saved.created;}
- } // Prefer active gameplay; only a cloud save at least as current as committed online inventory may replace its preview.
+ const state=JSON.parse(c.state),selected=companionSource(db,c,p),{loadout,source,updatedAt}=selected;
  const info=loadout?.player_info??{},sheet=inspectionProjection({...c,state:JSON.stringify({...state,loadout:{player_info:info}})});
- sheet.available=Boolean(loadout);sheet.source=source;sheet.updatedAt=updatedAt;sheet.online=Boolean(p);
+ sheet.available=Boolean(loadout);sheet.source=source;sheet.updatedAt=updatedAt;sheet.online=Boolean(p);sheet.equipment_version=selected.version;sheet.equipmentEditable=Boolean(loadout)&&!state.run&&!state.worldTurnDue&&!state.pendingPurchase;
  for(const key of numeric)if(finite(info[key]))sheet.player_info[key]=Math.max(-1000000,Math.min(1000000,info[key]));
  for(const key of ['player_mp','player_mp_max','childish'])if(finite(loadout?.[key]))sheet[key]=loadout[key];
  if(state.run){sheet.player_info.playerHealth=state.run.hp;sheet.player_info.playerHealthMax=state.run.maxHp;}
- sheet.inventory=(Array.isArray(loadout?.inventory)?loadout.inventory:[]).slice(0,512).map(itemView);
- sheet.equipment=sheet.equipment.map(slot=>({...slot,...(slot.item_id?{item:itemView({item_id:slot.item_id},0)}:{})}));
+ sheet.inventory=(Array.isArray(loadout?.inventory)?loadout.inventory:[]).slice(0,512).map((item,index)=>({...itemView(item,index),equippable:Boolean(equipmentSlot({...items[item.item_id],...item},info))}));
+ sheet.equipment=sheet.equipment.map(slot=>({...slot,...(slot.item_id?{item:itemView(equippedItem(info,slot.slot,items),0),locked:equipmentLocked(info,equippedItem(info,slot.slot,items))}:{})}));
  const underwear=items[info.equipped_panties]??{},wet=Math.max(0,Number(info.diaper_wet_absorbed)||0),mess=Math.max(0,Number(info.diaper_tum_absorbed)||0);
  sheet.tush={item_id:label(info.equipped_panties,80),name:underwear.name??'No undergarment',is_diaper:underwear.is_diaper===true,
   status:!info.equipped_panties?'No undergarment':underwear.is_diaper?(wet&&mess?'Very Used':mess?'Messy':wet?'Damp':'Clean'):(info.slot_wet_panties?'Wet':'Clean'),

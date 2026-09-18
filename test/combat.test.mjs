@@ -14,6 +14,37 @@ function battle(cls='mage'){
 }
 function next(state){readyTurn(state,false,z,zero);}
 
+test('crawling permits fighting with reduced physical damage and Stand Up spends exactly one turn',()=>{
+ for(const cls of ['fighter','mage','diplomat']){
+  const s=battle(cls);s.loadout.world={crawling:true};
+  assert.equal(s.run.phase,'fight');assert.equal(s.run.turnReady,true);
+  if(cls!=='diplomat'){
+   const normal=battle(cls);combatAction(normal,{action:'attack'},z,zero);
+   combatAction(s,{action:'attack'},z,zero);
+   assert.equal(1000-s.run.enemy.hp,Math.max(1,Math.floor((1000-normal.run.enemy.hp)*0.75)));next(s);
+  }
+  const enemyTurn=s.run.enemy.turn,hp=s.run.enemy.hp;
+  combatAction(s,{action:'stand'},z,zero);
+  assert.equal(s.loadout.world.crawling,false);assert.equal(s.run.enemy.turn,enemyTurn+1);
+  assert.equal(s.run.enemy.hp,hp);assert.equal(s.run.turnReady,false);
+  assert.throws(()=>combatAction(s,{action:'stand'},z,zero),/next player turn/);
+ }
+});
+
+test('knockdown persists through serialization and restraining gear blocks recovery until removed',()=>{
+ let s=battle('fighter');s.run.enemy.enemy_spells=['sweeping_trip'];s.run.enemy.spell_cast_chance=1;
+ combatAction(s,{action:'attack'},z,zero);assert.equal(s.loadout.world.crawling,true);assert.equal(s.run.hp,80);
+ assert.equal(s.loadout.world.turn_count,0);assert.equal(s.loadout.world.pending_popup_title,'','legacy knockdowns supply the complete client world shape');
+ s=JSON.parse(JSON.stringify(s));s.run.enemy.enemy_spells=[];next(s);
+ s.loadout.player_info.equipped_accessory_1='cursed_crawling_anklets';
+ assert.throws(()=>combatAction(s,{action:'stand'},z,zero),/prevents standing/);assert.equal(s.run.turnReady,true);assert.equal(s.run.enemy.turn,1);
+ s.loadout.player_info.equipped_accessory_1='';s.loadout.player_info.stamina=0;
+ assert.throws(()=>combatAction(s,{action:'stand'},z,zero),/exhausted/);
+ s.loadout.player_info.stamina=2;combatAction(s,{action:'stand'},z,zero);assert.equal(s.loadout.world.crawling,false);
+ const imported=importLoadout({...hero(),player_info:{...hero().player_info,equipped_accessory_2:'cursed_crawling_anklets'},world:{crawling:false}});
+ assert.equal(imported.world.crawling,true,'equipped restrictions also apply to legacy/imported characters');
+});
+
 test('every player spell resolves with its campaign MP cost and one enemy turn',()=>{
  for(const id of playerSpells){const s=battle();const mp=s.loadout.player_mp;combatAction(s,{action:'cast',spell:id},z,zero);assert.equal(s.loadout.player_mp,mp-combatData.spells[id].mp_cost,id);assert.equal(s.run.enemy.turn,1,id);assert.equal(s.run.turnReady,false,id);assert.deepEqual(s.loadout.player_info.companions,{friend:{hp:12}},id);}
 });

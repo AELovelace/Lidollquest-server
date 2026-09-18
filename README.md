@@ -1,5 +1,9 @@
 # LiDollQuest server
 
+Crawling now persists as a recoverable stance. Hub and Dive movement enforce a 400 ms minimum while crawling (200 ms standing); shared NPC clocks remain unchanged. Physical damage is reduced 25%, with a minimum of one. The `stand` action costs one ordinary combat turn or shared action-gauge cycle and needs no enemy target. Exhaustion or equipped `forces_crawl` definitions reject standing without spending an action. The campaign client supplies its two-stamina crawl recovery during the existing prepared-turn needs commit.
+
+Enemy `enemy_stat` spells can apply `stat_effect: "crawling"`; combo effects accept `type: "crawling"`. The game exporter adds `crawl_equipment` to `combat-data.json`, including the opt-in Cursed Crawling Anklets example. Deploy refreshed combat, campaign-Dive and hub definitions with the service and rebuilt client. Existing save flags/receipts are reused; no database migration is required. Combat, party and world tests cover recovery, replay and movement boundaries.
+
 ## Unified accounts and cloud campaigns
 
 ### Character and save management
@@ -503,3 +507,6 @@ Run `node --test test/*.test.mjs`; `test/parties.test.mjs` covers reinforcement 
 ## Market dumpsters
 
 Every hub market now advertises a solid `dumpster` at (34,20), approached from (34,21). `item_discard` requires the normal controller, character revision and durable request ID, plus `fixture`, committed inventory `slot`, `item_id` and `item_instance` (empty for untracked items). It checks proximity and exact item identity, removes one carried item, and retires its sale provenance atomically. No coins are awarded; equipment, bank contents and quest items are excluded. Combat, pending needs and unsettled purchases block disposal. Deploy the service before the rebuilt client; no schema migration or database replacement is needed. The client advertises disposal only when the fixture is present and confirms each removal. Regression coverage: `node --test test/item-discard.test.mjs`.
+
+
+Companion equipment: `companion_equip` takes inventory `slot`, `item_id`, and the private sheet `equipment_version`; `companion_unequip` takes equipment slot name instead. Both require the standard character revision, request ID and owner grant. Commands preserve the game lease, follow equipment rules, and create a new cloud version for offline cloud-backed characters. `test/companion-equipment.test.mjs` covers atomicity, save preservation and every hub/portal arrival. Permanent continence potions use ±200 internal units (20 percentage points). Temporary potions use continence_set 0 or 1000 for full continence/incontinence for 250 turns; the latest dose replaces the previous temporary potion.

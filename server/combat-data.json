@@ -1,4 +1,7 @@
 {
+  "crawl_equipment": {
+    "cursed_crawling_anklets": "Cursed Crawling Anklets"
+  },
   "online_combat": {
     "base_delay_ms": 4000,
     "dexterity_step_ms": 100,
@@ -965,6 +968,21 @@
           "amount": 25
         }
       ]
+    },
+    "sweeping_trip": {
+      "spell_id": "sweeping_trip",
+      "name": "Sweeping Trip",
+      "description": "Knocks the target into crawling. Stand Up spends one action; physical damage is reduced 25% until then.",
+      "type": "enemy_stat",
+      "target": "enemy",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "crawling",
+      "stat_amount": 1,
+      "enemy_only": true
     }
   },
   "charms": {

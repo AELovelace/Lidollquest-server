@@ -23,6 +23,23 @@ function fixture(){
  return {db,ids,awards,loadout,player,join,snap,act,command,place,engage,advance,win,raw:(name,input)=>zones.act(name,input),restart:setup,close:()=>db.close()};
 }
 
+test('shared Stand Up needs no enemy target, spends one gauge cycle and retries cannot repeat it',()=>{
+ const f=fixture();try{
+  f.player('alice');f.player('bob');f.join('bob');
+  f.act('alice','loadout',{loadout:{...f.loadout(),world:{crawling:true}}});
+  f.act('alice','dive_enter',{zone:'dive-quarters'});f.engage();f.advance(2000);
+  f.act('alice','turn_ready',{patch:[],forfeit:false});
+  const before=f.snap('alice'),req=f.command('alice','stand'),after=f.raw('alice',req);
+  assert.equal(after.character.loadout.world.crawling,false);
+  assert.equal(after.character.run.cycle,before.character.run.cycle+1);
+  assert.equal(after.character.run.turnReady,false);
+  assert.deepEqual(after.encounter.enemies.map(e=>e.hp),before.encounter.enemies.map(e=>e.hp));
+  assert.equal(f.snap('bob').character.run.cycle,1,'standing only spends the acting player gauge');
+  assert.deepEqual(f.raw('alice',req).receipt,after.receipt);
+  assert.equal(f.snap('alice').character.run.cycle,after.character.run.cycle);
+ }finally{f.close();}
+});
+
 test('reinforcements reproduce the HP gate and conditional chances across 100 deterministic floors',()=>{
  for(let i=0;i<100;i++){const floor=generateFloor(diveData,'party-'+i),foe=floor.enemies.find(e=>e.id==='iris'),selected=selectReinforcements(floor,foe,diveData,seeded('selection-'+i),0);assert.ok(selected.length>=1&&selected.length<=3);assert.equal(new Set(selected.map(e=>e.id)).size,selected.length);assert.ok(selected.every(e=>diveData.enemies[e.type].hp<=diveData.enemies[foe.type].hp));assert.deepEqual(selected,selectReinforcements(floor,foe,diveData,seeded('selection-'+i),0));}
  const floor=generateFloor(diveData,'chance'),foe=floor.enemies[0];let one=0,two=0,three=0;for(let i=0;i<10000;i++){const n=selectReinforcements(floor,foe,diveData,seeded('chance-'+i),0).length;if(n===1)one++;else if(n===2)two++;else three++;}assert.ok(one>4700&&one<5300);assert.ok(two>3400&&two<4100);assert.ok(three>1000&&three<1500);
