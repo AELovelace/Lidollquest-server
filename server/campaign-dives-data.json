@@ -44850,7 +44850,7 @@
         "hub": "honeydew-lantern",
         "pad": {
           "x": 10,
-          "y": 8
+          "y": 4
         },
         "boss_enemy_id": "school_principal",
         "scenery": [
