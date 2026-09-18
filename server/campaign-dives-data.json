@@ -19,6 +19,7 @@
         "pursuit_steps": 6,
         "boss_coins": 0,
         "inventory_capacity": 99,
+        "non_diaper_panties_per_floor": 1,
         "route": "dungeon-weekly",
         "zone_id": "dive-dungeon",
         "name": "Dungeon",
@@ -37,8 +38,7 @@
         "themes": [
           "dungeon"
         ],
-        "boss_id": "guardian",
-        "non_diaper_panties_per_floor": 1
+        "boss_id": "guardian"
       },
       "structure": {
         "min_partition": 6,
@@ -100,6 +100,7 @@
         "bottle_slime": {
           "enemy_id": "bottle_slime",
           "name": "Bottle Slime",
+          "roaming": true,
           "hp": 40.0,
           "str": 4.0,
           "def": 3.0,
@@ -114,6 +115,7 @@
         "crib_mimic": {
           "enemy_id": "crib_mimic",
           "name": "Crib Mimic",
+          "roaming": false,
           "hp": 72.0,
           "str": 9.0,
           "def": 5.0,
@@ -129,6 +131,7 @@
         "diaper_fairy": {
           "enemy_id": "diaper_fairy",
           "name": "Diaper Fairy",
+          "roaming": true,
           "hp": 25.0,
           "str": 3.0,
           "def": 1.0,
@@ -144,6 +147,7 @@
         "diaper_hugger": {
           "enemy_id": "diaper_hugger",
           "name": "Diaper-Hugger",
+          "roaming": true,
           "hp": 62.0,
           "str": 6.0,
           "def": 4.0,
@@ -159,6 +163,7 @@
         "goblin": {
           "enemy_id": "goblin",
           "name": "Goblin",
+          "roaming": true,
           "hp": 30.0,
           "str": 4.0,
           "def": 1.0,
@@ -171,6 +176,7 @@
         "goblin_brute": {
           "enemy_id": "goblin_brute",
           "name": "Goblin Brute",
+          "roaming": false,
           "hp": 50.0,
           "str": 8.0,
           "def": 3.0,
@@ -183,6 +189,7 @@
         "lullaby_siren": {
           "enemy_id": "lullaby_siren",
           "name": "Lullaby Siren",
+          "roaming": true,
           "hp": 46.0,
           "str": 6.0,
           "def": 2.0,
@@ -198,6 +205,7 @@
         "nanny_golem": {
           "enemy_id": "nanny_golem",
           "name": "Nanny Golem",
+          "roaming": true,
           "hp": 70.0,
           "str": 10.0,
           "def": 5.0,
@@ -213,6 +221,7 @@
         "nursery_witch": {
           "enemy_id": "nursery_witch",
           "name": "Nursery Witch",
+          "roaming": true,
           "hp": 45.0,
           "str": 6.0,
           "def": 2.0,
@@ -228,6 +237,7 @@
         "pacifier_wraith": {
           "enemy_id": "pacifier_wraith",
           "name": "Pacifier Wraith",
+          "roaming": true,
           "hp": 38.0,
           "str": 5.0,
           "def": 2.0,
@@ -243,6 +253,7 @@
         "teddy_mimic": {
           "enemy_id": "teddy_mimic",
           "name": "Teddy Mimic",
+          "roaming": true,
           "hp": 35.0,
           "str": 5.0,
           "def": 2.0,
@@ -22378,6 +22389,7 @@
         "pursuit_steps": 6,
         "boss_coins": 0,
         "inventory_capacity": 99,
+        "non_diaper_panties_per_floor": 1,
         "route": "nursery-weekly",
         "zone_id": "dive-nursery",
         "name": "Auto-Nursery",
@@ -22395,8 +22407,7 @@
         "themes": [
           "nursery"
         ],
-        "boss_id": "guardian",
-        "non_diaper_panties_per_floor": 1
+        "boss_id": "guardian"
       },
       "structure": {
         "min_partition": 6,
@@ -22457,6 +22468,7 @@
         "auto_strapper": {
           "enemy_id": "auto_strapper",
           "name": "Auto-Strapper Unit",
+          "roaming": true,
           "hp": 75.0,
           "str": 8.0,
           "def": 5.0,
@@ -22471,6 +22483,7 @@
         "cradle_golem": {
           "enemy_id": "cradle_golem",
           "name": "Cradle Golem",
+          "roaming": true,
           "hp": 75.0,
           "str": 9.0,
           "def": 6.0,
@@ -22486,6 +22499,7 @@
         "diaper_dispenser": {
           "enemy_id": "diaper_dispenser",
           "name": "Diaper Dispenser Bot",
+          "roaming": true,
           "hp": 30.0,
           "str": 4.0,
           "def": 1.0,
@@ -22500,6 +22514,7 @@
         "formula_feeder_bot": {
           "enemy_id": "formula_feeder_bot",
           "name": "Formula Feeder Bot",
+          "roaming": true,
           "hp": 45.0,
           "str": 5.0,
           "def": 2.0,
@@ -22514,6 +22529,7 @@
         "matron_rosalind_boss": {
           "enemy_id": "matron_rosalind_boss",
           "name": "Matron Rosalind",
+          "roaming": false,
           "hp": 140.0,
           "str": 14.0,
           "def": 9.0,
@@ -22530,6 +22546,7 @@
         "nanny_bot": {
           "enemy_id": "nanny_bot",
           "name": "NannyBot Mk.I",
+          "roaming": true,
           "hp": 60.0,
           "str": 5.0,
           "def": 3.0,
@@ -22545,6 +22562,7 @@
         "nanny_sentinel": {
           "enemy_id": "nanny_sentinel",
           "name": "Nanny Sentinel MkIII",
+          "roaming": true,
           "hp": 90.0,
           "str": 12.0,
           "def": 7.0,
@@ -22560,6 +22578,7 @@
         "potty_trainer_bot": {
           "enemy_id": "potty_trainer_bot",
           "name": "Potty Trainer Bot",
+          "roaming": true,
           "hp": 35.0,
           "str": 4.0,
           "def": 2.0,
@@ -44688,6 +44707,7 @@
         "pursuit_steps": 6,
         "boss_coins": 0,
         "inventory_capacity": 99,
+        "non_diaper_panties_per_floor": 1,
         "route": "school-weekly",
         "zone_id": "dive-school",
         "name": "Regression School",
@@ -44706,8 +44726,7 @@
         "themes": [
           "school"
         ],
-        "boss_id": "guardian",
-        "non_diaper_panties_per_floor": 1
+        "boss_id": "guardian"
       },
       "structure": {
         "min_partition": 6,
@@ -44764,6 +44783,7 @@
         "school_janitor": {
           "enemy_id": "school_janitor",
           "name": "School Janitor",
+          "roaming": true,
           "hp": 120.0,
           "str": 12.0,
           "def": 6.0,
@@ -44778,6 +44798,7 @@
         "school_nurse": {
           "enemy_id": "school_nurse",
           "name": "Head Nurse",
+          "roaming": true,
           "hp": 240.0,
           "str": 17.0,
           "def": 11.0,
@@ -44794,6 +44815,7 @@
         "school_principal": {
           "enemy_id": "school_principal",
           "name": "The Principal",
+          "roaming": false,
           "hp": 190.0,
           "str": 17.0,
           "def": 10.0,
@@ -44809,6 +44831,7 @@
         "school_teacher": {
           "enemy_id": "school_teacher",
           "name": "Strict Teacher",
+          "roaming": true,
           "hp": 135.0,
           "str": 13.0,
           "def": 5.0,
@@ -44824,6 +44847,7 @@
         "teachers_pet": {
           "enemy_id": "teachers_pet",
           "name": "Teacher's Pet",
+          "roaming": true,
           "hp": 95.0,
           "str": 8.0,
           "def": 4.0,
@@ -66959,6 +66983,7 @@
         "pursuit_steps": 6,
         "boss_coins": 0,
         "inventory_capacity": 99,
+        "non_diaper_panties_per_floor": 1,
         "route": "forest-weekly",
         "zone_id": "dive-forest",
         "name": "Haunted Forest",
@@ -66978,8 +67003,7 @@
         "themes": [
           "forest"
         ],
-        "boss_id": "guardian",
-        "non_diaper_panties_per_floor": 1
+        "boss_id": "guardian"
       },
       "structure": {
         "min_partition": 6,
@@ -67035,6 +67059,7 @@
         "bloated_slime": {
           "enemy_id": "bloated_slime",
           "name": "Bloated Bottle Slime",
+          "roaming": true,
           "hp": 70.0,
           "str": 8.0,
           "def": 5.0,
@@ -67049,6 +67074,7 @@
         "diaper_fairy": {
           "enemy_id": "diaper_fairy",
           "name": "Diaper Fairy",
+          "roaming": true,
           "hp": 25.0,
           "str": 3.0,
           "def": 1.0,
@@ -67064,6 +67090,7 @@
         "elder_witch": {
           "enemy_id": "elder_witch",
           "name": "Elder Nursery Witch",
+          "roaming": false,
           "hp": 80.0,
           "str": 10.0,
           "def": 4.0,
@@ -67079,6 +67106,7 @@
         "goblin": {
           "enemy_id": "goblin",
           "name": "Goblin",
+          "roaming": true,
           "hp": 30.0,
           "str": 4.0,
           "def": 1.0,
@@ -67091,6 +67119,7 @@
         "goblin_brute": {
           "enemy_id": "goblin_brute",
           "name": "Goblin Brute",
+          "roaming": true,
           "hp": 50.0,
           "str": 8.0,
           "def": 3.0,
@@ -67103,6 +67132,7 @@
         "nanny_golem": {
           "enemy_id": "nanny_golem",
           "name": "Nanny Golem",
+          "roaming": true,
           "hp": 70.0,
           "str": 10.0,
           "def": 5.0,
@@ -67118,6 +67148,7 @@
         "nursery_witch": {
           "enemy_id": "nursery_witch",
           "name": "Nursery Witch",
+          "roaming": true,
           "hp": 45.0,
           "str": 6.0,
           "def": 2.0,
@@ -67133,6 +67164,7 @@
         "shadow_fairy": {
           "enemy_id": "shadow_fairy",
           "name": "Shadow Diaper Fairy",
+          "roaming": true,
           "hp": 45.0,
           "str": 7.0,
           "def": 3.0,
@@ -67148,6 +67180,7 @@
         "teddy_mimic": {
           "enemy_id": "teddy_mimic",
           "name": "Teddy Mimic",
+          "roaming": true,
           "hp": 35.0,
           "str": 5.0,
           "def": 2.0,
@@ -89290,6 +89323,7 @@
         "pursuit_steps": 6,
         "boss_coins": 0,
         "inventory_capacity": 99,
+        "non_diaper_panties_per_floor": 1,
         "route": "mansion-weekly",
         "zone_id": "dive-mansion",
         "name": "Haunted Mansion",
@@ -89307,8 +89341,7 @@
         "themes": [
           "mansion"
         ],
-        "boss_id": "guardian",
-        "non_diaper_panties_per_floor": 1
+        "boss_id": "guardian"
       },
       "structure": {
         "min_partition": 8,
@@ -89368,6 +89401,7 @@
         "chest_mimic": {
           "enemy_id": "chest_mimic",
           "name": "Chest Mimic",
+          "roaming": false,
           "hp": 35.0,
           "str": 9.0,
           "def": 1.0,
@@ -89382,6 +89416,7 @@
         "cultist_excess": {
           "enemy_id": "cultist_excess",
           "name": "Cultist of Excess",
+          "roaming": true,
           "hp": 75.0,
           "str": 9.0,
           "def": 5.0,
@@ -89396,6 +89431,7 @@
         "cultist_excite": {
           "enemy_id": "cultist_excite",
           "name": "Cultist of Excite",
+          "roaming": true,
           "hp": 45.0,
           "str": 8.0,
           "def": 1.0,
@@ -89410,6 +89446,7 @@
         "cultist_tum": {
           "enemy_id": "cultist_tum",
           "name": "Cultist of Tum",
+          "roaming": true,
           "hp": 55.0,
           "str": 6.0,
           "def": 3.0,
@@ -89424,6 +89461,7 @@
         "cultist_wet": {
           "enemy_id": "cultist_wet",
           "name": "Cultist of Wet",
+          "roaming": true,
           "hp": 50.0,
           "str": 5.0,
           "def": 2.0,
@@ -89438,6 +89476,7 @@
         "ghost": {
           "enemy_id": "ghost",
           "name": "Wandering Ghost",
+          "roaming": true,
           "hp": 45.0,
           "str": 7.0,
           "def": 2.0,
@@ -89453,6 +89492,7 @@
         "hypnotist_adept": {
           "enemy_id": "hypnotist_adept",
           "name": "Adept Hypnotist",
+          "roaming": true,
           "hp": 55.0,
           "str": 7.0,
           "def": 3.0,
@@ -89468,6 +89508,7 @@
         "hypnotist_master": {
           "enemy_id": "hypnotist_master",
           "name": "Master Hypnotist",
+          "roaming": false,
           "hp": 80.0,
           "str": 10.0,
           "def": 5.0,
@@ -89483,6 +89524,7 @@
         "hypnotist_novice": {
           "enemy_id": "hypnotist_novice",
           "name": "Novice Hypnotist",
+          "roaming": true,
           "hp": 35.0,
           "str": 4.0,
           "def": 2.0,
@@ -89497,6 +89539,7 @@
         "mansion_slime": {
           "enemy_id": "mansion_slime",
           "name": "Ectoplasm Slime",
+          "roaming": true,
           "hp": 60.0,
           "str": 5.0,
           "def": 3.0,
@@ -111625,6 +111668,7 @@
         "pursuit_steps": 6,
         "boss_coins": 0,
         "inventory_capacity": 99,
+        "non_diaper_panties_per_floor": 1,
         "route": "hospital-weekly",
         "zone_id": "dive-hospital",
         "name": "Regression Research Hospital",
@@ -111644,8 +111688,7 @@
         "themes": [
           "hospital"
         ],
-        "boss_id": "guardian",
-        "non_diaper_panties_per_floor": 1
+        "boss_id": "guardian"
       },
       "structure": {
         "min_partition": 6,
@@ -111716,6 +111759,7 @@
         "hospital_doctor": {
           "enemy_id": "hospital_doctor",
           "name": "Chrysalis Doctor",
+          "roaming": true,
           "hp": 250.0,
           "str": 18.0,
           "def": 9.0,
@@ -111730,6 +111774,7 @@
         "hospital_nurse": {
           "enemy_id": "hospital_nurse",
           "name": "Research Nurse",
+          "roaming": true,
           "hp": 200.0,
           "str": 15.0,
           "def": 7.0,
@@ -111744,6 +111789,7 @@
         "hospital_orderly": {
           "enemy_id": "hospital_orderly",
           "name": "Hospital Orderly",
+          "roaming": true,
           "hp": 150.0,
           "str": 14.0,
           "def": 6.0,
@@ -111759,6 +111805,7 @@
         "hospital_researcher": {
           "enemy_id": "hospital_researcher",
           "name": "Mind Researcher",
+          "roaming": true,
           "hp": 175.0,
           "str": 17.0,
           "def": 5.0,
@@ -111773,6 +111820,7 @@
         "hospital_security": {
           "enemy_id": "hospital_security",
           "name": "Chrysalis Security",
+          "roaming": true,
           "hp": 180.0,
           "str": 16.0,
           "def": 12.0,
@@ -111787,6 +111835,7 @@
         "hospital_surgeon": {
           "enemy_id": "hospital_surgeon",
           "name": "Chief Surgeon",
+          "roaming": true,
           "hp": 300.0,
           "str": 20.0,
           "def": 10.0,
@@ -111802,6 +111851,7 @@
         "research_director": {
           "enemy_id": "research_director",
           "name": "Research Director",
+          "roaming": false,
           "hp": 400.0,
           "str": 25.0,
           "def": 15.0,

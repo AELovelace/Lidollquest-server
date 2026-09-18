@@ -2,7 +2,7 @@ import {addPinkMist,mistAt} from './dive-mist.mjs';
 import {createDiveLootRoller} from './dive-loot.mjs';
 import {readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
-import {generateFloor,dressFloor,addFood,weeklyWindow,seeded,pathTo,walkable,inside} from './dive-generation.mjs';
+import {generateFloor,dressFloor,addFood,weeklyWindow,seeded,pathTo,walkable,inside,enemyRoams} from './dive-generation.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation} from './combat.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
 import {dungeonPortals,hubRooms,hubCatalog,DAILY_COIN_CAP} from './hubs.mjs';
@@ -109,7 +109,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const occupied=new Set(f.enemies.filter(e=>e.respawnAt<=now()).map(e=>e.x+','+e.y));
   const rnd=seeded(active.edition+':'+Math.floor(now()/seconds));
   for(const foe of f.enemies){
-   if(foe.engaged||foe.respawnAt>now()||!(foe.roaming??foe.type==='diaper_fairy'))continue;
+   if(foe.engaged||foe.respawnAt>now()||!enemyRoams(data,foe))continue;
    const targets=players.filter(p=>{const s=JSON.parse(p.state);return s.dive?.edition===active.edition&&!s.run&&!s.worldTurnDue&&!(s.loadout?.player_info.stat_points>0)&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);});
    let target=null,best=null;
    for(const p of targets){const path=pathTo(f,foe,p,config.pursuit_steps);if(path&&(!best||path.length<best.length)){target=p;best=path;}}

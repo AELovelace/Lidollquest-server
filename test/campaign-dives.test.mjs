@@ -11,7 +11,7 @@ test('six authored weekly destinations retain connected content and collision ov
   const floor=generateFloor(data,'campaign-'+seed);assert.ok(validateFloor(floor));
   assert.deepEqual(floor,generateFloor(data,'campaign-'+seed));
   assert.equal(floor.theme,data.config.theme);assert.equal(floor.enemies.filter(e=>e.id==='guardian').length,1);
-  for(const enemy of floor.enemies)assert.ok(data.enemies[enemy.type]?.sprite);
+  for(const enemy of floor.enemies){assert.ok(data.enemies[enemy.type]?.sprite);assert.equal(enemy.roaming,enemy.id!=='guardian'&&data.enemies[enemy.type].roaming);}
   for(const detail of floor.decorations)for(let y=detail.y;y<detail.y+detail.span_h;y++)for(let x=detail.x;x<detail.x+detail.span_w;x++)assert.equal(floor.props[y][x],1);
  }
 });

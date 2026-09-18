@@ -24,6 +24,10 @@ export function pathTo(f,start,target,limit=Infinity){
   for(const [dx,dy] of dirs){const x=p.x+dx,y=p.y+dy,key=x+','+y;if(walkable(f,x,y)&&!seen.has(key)){seen.add(key);queue.push({x,y,path:[...p.path,{x,y}]});}}
  }return null;
 } // The same cardinal topology validates generation and drives shared enemy pursuit.
+export function enemyRoams(data,foe){ // Resolve legacy editions from authored metadata without rebuilding their enemies or resetting progress.
+ if(foe.id===(data.config.boss_id??'iris'))return false;
+ return foe.roaming??data.enemies[foe.type]?.roaming??(foe.type==='diaper_fairy');
+} // Explicit stationary flags win; Quarters keeps its original fairy/mimic behavior and crossings keep their existing roaming flags.
 export function generateFloor(data,edition,depth=1){
  const c=data.config,s=data.structure,rnd=seeded(`${c.route}:${edition}:${depth}:v${data.version}`);
  if(!Number.isInteger(c.width)||!Number.isInteger(c.height)||c.width<24||c.height<24||c.width>128||c.height>128||!Number.isInteger(c.enemies_per_room)||c.enemies_per_room<1||c.enemies_per_room>6||s.max_depth<1||s.max_depth>5)throw Error('Dive dimensions/density are outside supported bounds');
@@ -49,11 +53,11 @@ export function generateFloor(data,edition,depth=1){
   for(let j=0;j<c.enemies_per_room;j++){
    const p=free(room),pool=data.enemy_types?.flatMap(e=>Array(e.weight).fill(e.enemy_id));
    const type=pool?.length?pool[rnd(pool.length)]:(rnd(100)<60?'diaper_fairy':'teddy_mimic');
-   f.enemies.push({id:`enemy-${i}-${j}`,type,...p,spawn:{...p},engaged:null,respawnAt:0});
+   f.enemies.push({id:`enemy-${i}-${j}`,type,...p,spawn:{...p},roaming:enemyRoams(data,{type}),engaged:null,respawnAt:0});
   } // Authored route pools preserve the original Quarters random sequence when absent.
   for(let j=0;j<2&&data.decorations.length;j++)f.decorations.push({...free(room),sprite:data.decorations[rnd(data.decorations.length)]});
  }
- const boss=free(far);f.bossId=c.boss_id??'iris';f.enemies.push({id:f.bossId,type:c.boss_enemy_id??'dive_iris',...boss,spawn:{...boss},engaged:null,respawnAt:0});
+ const boss=free(far);f.bossId=c.boss_id??'iris';f.enemies.push({id:f.bossId,type:c.boss_enemy_id??'dive_iris',...boss,spawn:{...boss},roaming:false,engaged:null,respawnAt:0});
  if(data.room_types?.length)f.rooms.forEach((room,index)=>room.type=data.room_types[index%data.room_types.length]); // Native painters receive room identities without firing campaign story events.
  dressFloor(data,f);addFood(data,f);validateFloor(f);return f;
 } // Generate one materialized floor; the route/edition/depth key is ready for later lazy descent.

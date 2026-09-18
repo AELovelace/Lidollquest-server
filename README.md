@@ -461,3 +461,10 @@ Deploy defeat-scene metadata before the rebuilt game client. Older clients ignor
 Export `datafiles/generation/online_mist.json` with the game checkout's `python/export_online_mist.py`. The defaults match campaign probabilities (Forest and Tundra default to zero). The client reuses campaign crawling effects and visuals; `worldTurnDue.mist` pins exposure for the existing recoverable needs commit. Heartbeats never apply effects. Deploy service and policy before the rebuilt game in the same content push; older clients ignore mist. No database reset or schema migration is required.
 
 Tests: `test/dive-mist.test.mjs` checks 900 generated floors and bounded spread; `test/dive.test.mjs` covers additive installation, pending-turn replay/reconnect and snapshot size.
+
+
+## Campaign Dive movement compatibility
+
+Campaign enemy definitions export `roaming` from their source zone's `stationary` setting. Normal enemies in Dungeon, Nursery, School, Forest, Mansion and Hospital roam and pursue; authored stationary mimics and route guardians remain fixed. Newly generated floors store explicit movement flags. `enemyRoams` resolves missing flags on existing editions from the exported definition, preserving explicit flags, locks, respawns, geometry, mist and claims. Quarters and the two crossings retain their established policies.
+
+Deploy the service and regenerated `campaign-dives-data.json` together, then restart the service. No client rebuild, database migration or weekly-floor reset is required. `test/dive-movement.test.mjs` exercises all nine routes with new and legacy floor records; the game browser fixture `--movement-only` checks two-client Mansion synchronization and pursuit.
