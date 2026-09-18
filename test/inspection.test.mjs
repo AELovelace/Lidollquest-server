@@ -12,6 +12,7 @@ test('inspection isolates committed appearance, validates live area and never ex
   const p=api.inspect('alice',chars.alice.id,chars.bob.id,'alice');assert.equal(p.name,'bob campaign');assert.equal(p.player_info.diaper_wet_absorbed,2);assert.equal(p.player_info.hunger,undefined);assert.equal(p.player_info.shame,undefined);assert.equal(p.player_info.companions,undefined);assert.equal(p.inventory,undefined);
   assert.throws(()=>api.inspect('alice',chars.bob.id,chars.alice.id,'alice'),/not found/);
   act('bob','enter',{zone:'littlebig-clockwork'});assert.throws(()=>api.inspect('alice',chars.alice.id,chars.bob.id,'alice'),/no longer/);
+  for(const who of ['alice','bob'])act(who,'enter',{zone:'princess-rose'}); // Quarters is shared through Rose Court alone.
   act('alice','dive_enter');const entered=act('bob','dive_enter');
   assert.equal(api.inspect('alice',chars.alice.id,chars.bob.id,'alice').character_id,chars.bob.id);
   const room=entered.zones.find(z=>z.id==='dive-quarters').rooms[1];

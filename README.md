@@ -44,7 +44,7 @@ Loot remains independent per character; full inventories leave it unclaimed.
 Room chests and loose pickups both collect on movement contact; adjacent Interact
 remains available. Replaying a move or stepping on a claimed chest cannot grant it twice.
 
-Both arena lobbies now lead to one shared Princess' Quarters pilot. The server
+Rose Court alone offers the shared Princess' Quarters pilot. The server
 generates a validated floor on Monday at **04:00 America/Los_Angeles**, respecting
 DST. Generation catches up after downtime without creating skipped editions.
 The pilot ends with Guardian Iris; route/edition/depth keys support later themed
@@ -394,7 +394,7 @@ Shared hubs now include Dive Halls with Quarters/Desert floor portals. The forme
 
 ## Additional campaign Dives
 
-The hub catalog now offers Dungeon from Rose Court; Auto-Nursery, Regression School and Haunted Forest from Lantern Court; Haunted Mansion and Regression Research Hospital from Clockwork Coliseum. Existing Quarters, Desert and Tundra pads and route IDs remain. New route IDs are dungeon-weekly, nursery-weekly, school-weekly, forest-weekly, mansion-weekly and hospital-weekly, with corresponding dive-* zone IDs.
+The hub catalog now offers Dungeon from Rose Court; Auto-Nursery, Regression School and Haunted Forest from Lantern Court; Haunted Mansion and Regression Research Hospital from Clockwork Coliseum. Princess' Quarters is exclusive to Rose Court; the crossing pads and all route IDs remain stable. New route IDs are dungeon-weekly, nursery-weekly, school-weekly, forest-weekly, mansion-weekly and hospital-weekly, with corresponding dive-* zone IDs.
 
 Export the game catalog with `python/export_online_campaign_dives.py` to `server/campaign-dives-data.json` and deploy it with the service before the rebuilt client. Each route uses independent weekly editions, claims, room chat and existing combat; no campaign story callbacks or new boss coin rewards execute. Snapshots add a compact `dungeons` availability catalog and include only the active route's floor. Never delete existing databases or weekly editions to apply content changes.
 
@@ -468,3 +468,7 @@ Tests: `test/dive-mist.test.mjs` checks 900 generated floors and bounded spread;
 Campaign enemy definitions export `roaming` from their source zone's `stationary` setting. Normal enemies in Dungeon, Nursery, School, Forest, Mansion and Hospital roam and pursue; authored stationary mimics and route guardians remain fixed. Newly generated floors store explicit movement flags. `enemyRoams` resolves missing flags on existing editions from the exported definition, preserving explicit flags, locks, respawns, geometry, mist and claims. Quarters and the two crossings retain their established policies.
 
 Deploy the service and regenerated `campaign-dives-data.json` together, then restart the service. No client rebuild, database migration or weekly-floor reset is required. `test/dive-movement.test.mjs` exercises all nine routes with new and legacy floor records; the game browser fixture `--movement-only` checks two-client Mansion synchronization and pursuit.
+
+### Rose-only Quarters entry and client text shadows
+
+`dungeonPortals` offers Quarters only at Rose Court (6,4). Lantern and Clockwork no longer accept new Quarters entries, including legacy direct-lobby requests; their other pads retain their coordinates. Existing Quarters visits reconnect and return to their stored hall normally, preserving editions and progress. Deploy this service before the rebuilt client, whose world labels and Dive status use the HUD shadow color instead of black plates. No database migration or floor reset is needed. `test/rose-hall-access.test.mjs` covers exact rosters, forged entry and legacy visit recovery.

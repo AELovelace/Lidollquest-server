@@ -32,7 +32,7 @@ test('server clock pursues and engages on every route, including existing editio
  try{
   act('create',{name:'Walker'});
   for(const data of routes){
-   const hub=data.config.hub??'honeydew-lantern',zone=data.config.zone_id??'dive-quarters';
+   const hub=data.config.hub??(data.config.zone_id==='dive-desert'?'honeydew-lantern':'princess-rose'),zone=data.config.zone_id??'dive-quarters';
    act('enter',{zone:hub,loadout:{player_info:{playerHealth:100,playerHealthMax:100,stat_points:0},inventory:[]}});
    place(10,3);const hall=act('hub_visit',{zone:hub+'-dives'}),pad=hall.zones.find(z=>z.id===hall.zone).portals.find(p=>p.target===zone);
    assert.ok(pad);place(pad.x,pad.y);act('dive_enter',{zone});

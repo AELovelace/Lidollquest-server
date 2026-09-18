@@ -23,9 +23,9 @@ export function dungeonPortals(parent){
  const quarters={x:6,y:4,name:"Princess' Quarters",target:'dive-quarters',style:'warp'};
  const desert={x:14,y:4,name:'Dustbreak Desert',target:'dive-desert',style:'warp'};
  const tundra={x:14,y:4,name:'Frostveil Tundra',target:'dive-tundra',style:'warp'};
- const existing=parent==='princess-rose'?[quarters,tundra]:parent==='honeydew-lantern'?[quarters,desert,{...tundra,x:10,y:6}]:parent==='littlebig-clockwork'?[quarters,desert]:[];
+ const existing=parent==='princess-rose'?[quarters,tundra]:parent==='honeydew-lantern'?[desert,{...tundra,x:10,y:6}]:parent==='littlebig-clockwork'?[desert]:[];
  return [...existing,...campaignDives.filter(d=>d.config.hub===parent).map(({config:c})=>({...c.pad,name:c.name,target:c.zone_id,style:'warp'}))];
-} // Only adjacent routes are offered; keep the two established pad positions stable.
+} // Princess' Quarters belongs only to Rose Court; all remaining pads keep their established positions.
 export const hubRooms=hubCatalog.flatMap(root=>['garden','beds','shops','dives'].map(kind=>({
  id:root.id+'-'+kind,parent:root.id,kind,hub:root.hub,theme:root.theme,
  name:kind==='garden'?districtData.districts.find(d=>d.hub===root.id).name:root.prefix+' '+({garden:'Garden',beds:'Resting Hall',shops:'Market Hall',dives:'Dive Hall'})[kind],

@@ -15,7 +15,7 @@ function fixture(options={}){
  const snap=id=>zones.read('',id);
  function command(id,action,extra={}){const s=snap(id);return {action,request_id:randomUUID(),controller:'window',character_id:id,revision:s.character?.revision,...(s.zone===DIVE_ZONE?{edition:s.dive.edition}:{}),...extra};}
  function act(id,action,extra={}){time+=350;return zones.act('',command(id,action,extra));}
- function player(name='alice',hub='honeydew-lantern'){owner=name;const c=zones.act('',{action:'create',name,request_id:randomUUID(),controller:'window'}).character;act(c.id,'enter',{zone:hub,loadout,combat_version:2});return act(c.id,'dive_enter',{loadout}).character.id;}
+ function player(name='alice',hub='princess-rose'){owner=name;const c=zones.act('',{action:'create',name,request_id:randomUUID(),controller:'window'}).character;act(c.id,'enter',{zone:hub,loadout,combat_version:2});return act(c.id,'dive_enter',{loadout}).character.id;}
  function place(id,target){const row=db.prepare('SELECT state FROM quest_characters WHERE id=?').get(id),s=JSON.parse(row.state);s.dive.position={x:target.x,y:target.y};s.dive.safeUntil=time+600000;db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(s),id);db.prepare('UPDATE quest_presence SET x=?,y=?,seen=? WHERE character_id=?').run(target.x,target.y,time,id);}
  function near(id,entity){const s=snap(id),f=s.zones.find(z=>z.id===DIVE_ZONE);const path=pathTo(f,f.entrance,entity);place(id,path.length>1?path.at(-2):f.entrance);}
  function engage(id,foe='iris'){const e=snap(id).dive.enemies.find(e=>e.id===foe);near(id,e);return act(id,'dive_engage',{encounter:foe});}
@@ -37,7 +37,7 @@ test('area chat follows individual rooms and corridors, survives reconnect and e
   const corridor=pathTo(floor,floor.entrance,room).find(p=>!floor.rooms.some(r=>p.x>=r.x&&p.x<r.x+r.w&&p.y>=r.y&&p.y<r.y+r.h));
   assert.ok(corridor);f.place(a,corridor);assert.equal(f.snap(a).chat.length,0);assert.match(f.snap(a).chatArea.name,/corridors/);
   f.act(a,'chat',{text:'Hallway'});f.as('bob');f.place(b,corridor);assert.equal(f.snap(b).chat[0].text,'Hallway');
-  f.as('alice');f.setTime('2026-09-21T11:00:01Z');f.tick();f.act(a,'enter',{zone:'honeydew-lantern'});f.act(a,'dive_enter',{loadout:f.loadout});
+  f.as('alice');f.setTime('2026-09-21T11:00:01Z');f.tick();f.act(a,'enter',{zone:'princess-rose'});f.act(a,'dive_enter',{loadout:f.loadout});
   const next=f.snap(a).zones.find(z=>z.id===DIVE_ZONE);f.place(a,next.rooms[1]);assert.notEqual(f.snap(a).chatArea.id,area);assert.equal(f.snap(a).chat.length,0);
  }finally{f.close();}
 });
@@ -118,7 +118,7 @@ test('potions and treasure are personal, persistent, replay-safe and remain avai
   assert.ok(diveData.potion_pool.includes(item.item_id));assert.equal(s.dive.pickupsClaimed,1);assert.equal(s.dive.claimed,0);
   assert.ok(item.online_item);assert.ok(item.online_sell_price>0); // Actual dungeon grants, not only shop purchases, receive durable provenance.
   assert.deepEqual(f.raw(input).character.loadout.inventory,[item]);f.restart();assert.deepEqual(f.snap(a).character.loadout.inventory,[item]);
-  const b=f.player('bob','littlebig-clockwork');assert.equal(f.snap(b).dive.pickupsClaimed,0);f.near(b,p);const bp=f.snap(b).position;
+  const b=f.player('bob','princess-rose');assert.equal(f.snap(b).dive.pickupsClaimed,0);f.near(b,p);const bp=f.snap(b).position;
   const walked=f.act(b,'move',{direction:p.x>bp.x?'east':p.x<bp.x?'west':p.y>bp.y?'south':'north'});assert.equal(walked.dive.pickupsClaimed,1);assert.ok(diveData.potion_pool.includes(walked.character.loadout.inventory[0].item_id));
   const treasure=walked.dive.pickups.find(p=>p.kind==='treasure');f.near(b,treasure);assert.equal(f.act(b,'dive_claim',{chest:treasure.id}).dive.pickupsClaimed,2);assert.equal(f.awards.length,0);
  }finally{f.close();}
@@ -142,8 +142,8 @@ test('both lobbies share a floor; personal chest claims survive replay, inventor
   const input=f.command(a,'dive_claim',{chest:ch.id}),claimed=f.raw(input);assert.equal(claimed.character.loadout.inventory.length,1);assert.equal(f.raw(input).character.loadout.inventory.length,1);
   f.advance(31000);let resumed=f.act(a,'enter',{zone:DIVE_ZONE,loadout:{...f.loadout,inventory:[]}});assert.equal(resumed.character.loadout.inventory.length,1);assert.equal(resumed.dive.claimed,1);
   const second=resumed.dive.chests[1];f.near(a,second);const full=structuredClone(resumed.character.loadout);full.inventory=Array.from({length:99},()=>({item_id:'hair_bow'}));f.act(a,'loadout',{loadout:full});assert.throws(()=>f.act(a,'dive_claim',{chest:second.id}),/Inventory full/);assert.equal(f.snap(a).dive.claimed,1);
-  f.act(a,'dive_exit');assert.equal(f.snap(a).zone,'honeydew-lantern');
-  const b=f.player('bob','littlebig-clockwork'),bs=f.snap(b);assert.equal(bs.dive.edition,first.dive.edition);assert.equal(bs.dive.claimed,0);assert.deepEqual(bs.zones.at(-1).walls,first.zones.at(-1).walls);f.near(b,ch);assert.equal(f.act(b,'dive_claim',{chest:ch.id}).dive.claimed,1);assert.equal(f.act(b,'dive_exit').zone,'littlebig-clockwork');
+  f.act(a,'dive_exit');assert.equal(f.snap(a).zone,'princess-rose');
+  const b=f.player('bob','princess-rose'),bs=f.snap(b);assert.equal(bs.dive.edition,first.dive.edition);assert.equal(bs.dive.claimed,0);assert.deepEqual(bs.zones.at(-1).walls,first.zones.at(-1).walls);f.near(b,ch);assert.equal(f.act(b,'dive_claim',{chest:ch.id}).dive.claimed,1);assert.equal(f.act(b,'dive_exit').zone,'princess-rose');
  }finally{f.close();}
 });
 test('shared encounter locks, authored stats, class combat, respawns and weekly reward cap',()=>{
@@ -162,7 +162,7 @@ test('encounter expiry restores enemies and keeps committed inventory; restart p
 });
 test('weekly reset returns idle visitors, grants active fights grace and rejects stale editions',()=>{
  const f=fixture();try{const a=f.player();f.setTime('2026-09-21T10:59:50Z');f.act(a,'enter',{zone:DIVE_ZONE});f.engage(a);const old=f.snap(a).dive.edition;
-  f.setTime('2026-09-21T11:00:01Z');let s=f.act(a,'heartbeat');assert.equal(s.zone,DIVE_ZONE);assert.equal(s.dive.edition,old);s=f.win(a);assert.equal(s.zone,'honeydew-lantern');assert.equal(f.awards.reduce((n,a)=>n+a.n,0),50);
+  f.setTime('2026-09-21T11:00:01Z');let s=f.act(a,'heartbeat');assert.equal(s.zone,DIVE_ZONE);assert.equal(s.dive.edition,old);s=f.win(a);assert.equal(s.zone,'princess-rose');assert.equal(f.awards.reduce((n,a)=>n+a.n,0),50);
   s=f.act(a,'dive_enter');assert.notEqual(s.dive.edition,old);assert.equal(s.dive.claimed,0);assert.throws(()=>f.act(a,'move',{direction:'east',edition:old}),/edition changed/);
   f.setTime('2026-10-05T11:00:01Z');f.tick();assert.equal(f.snap(a).character.dive,null);assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM dive_editions WHERE route='quarters-pilot'").get().n,3,'downtime creates only the currently due edition');
  }finally{f.close();}
@@ -191,8 +191,8 @@ test('ten-minute reset grace ends even an active encounter and suspended clients
  const f=fixture();try{const a=f.player();f.setTime('2026-09-21T10:59:59Z');f.act(a,'enter',{zone:DIVE_ZONE});f.engage(a);f.setTime('2026-09-21T11:09:59Z');
   // Keep the combat activity/lease current to isolate the hard reset deadline from idle expiry.
   const c=f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(a),state=JSON.parse(c.state);state.run.acted=Date.parse('2026-09-21T11:09:59Z');f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),a);f.db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(Date.parse('2026-09-21T11:09:59Z'),a);
-  f.tick();assert.ok(f.snap(a).character.run);f.setTime('2026-09-21T11:10:01Z');f.tick();assert.equal(f.snap(a).character.run,null);assert.equal(f.snap(a).zone,'honeydew-lantern');assert.equal(f.awards.length,0);
-  f.advance(31000);assert.equal(f.act(a,'enter',{zone:DIVE_ZONE}).zone,'honeydew-lantern');
+  f.tick();assert.ok(f.snap(a).character.run);f.setTime('2026-09-21T11:10:01Z');f.tick();assert.equal(f.snap(a).character.run,null);assert.equal(f.snap(a).zone,'princess-rose');assert.equal(f.awards.length,0);
+  f.advance(31000);assert.equal(f.act(a,'enter',{zone:DIVE_ZONE}).zone,'princess-rose');
  }finally{f.close();}
 });
 

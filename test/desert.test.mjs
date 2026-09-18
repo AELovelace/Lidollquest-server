@@ -38,7 +38,7 @@ test('both hub entrances share one Desert; loot, chat, replay and reconnect are 
   const room=f.floor(a).rooms[2];f.place(a,room);f.act(a,'chat',{text:'Desert friends'});
   f.as('bob');assert.equal(f.snap(b).dive.claimed,0);assert.equal(f.snap(b).chat.length,0);f.place(b,room);assert.equal(f.snap(b).chat[0].text,'Desert friends');f.near(b,chest);f.act(b,'dive_claim',{chest:chest.id});assert.equal(f.snap(b).dive.claimed,1);
   f.restart();assert.equal(f.snap(b).dive.claimed,1);assert.equal(f.snap(b).zone,DESERT_ZONE);
-  f.act(b,'dive_exit');assert.equal(f.snap(b).zone,'littlebig-clockwork');f.act(b,'dive_enter');assert.equal(f.snap(b).zone,'dive-quarters');assert.equal(f.snap(b).dive.claimed,0);
+  f.act(b,'dive_exit');assert.equal(f.snap(b).zone,'littlebig-clockwork');f.act(b,'enter',{zone:'princess-rose'});f.act(b,'dive_enter');assert.equal(f.snap(b).zone,'dive-quarters');assert.equal(f.snap(b).dive.claimed,0);
   f.as('alice');assert.equal(f.snap(a).zone,DESERT_ZONE);assert.equal(f.snap(a).dive.claimed,1);assert.equal(f.snap(a).peers.length,1);
   assert.throws(()=>f.act(a,'enter',{zone:'dive-quarters'}),/Leave your current dungeon/);
  }finally{f.db.close();}
@@ -58,7 +58,7 @@ test('crossing requires reaching the marked exit; Escape retains the original lo
 test('Desert reset and restart retain committed loot, isolate Quarters fights, and reject stale claims',()=>{
  const f=fixture();try{
   const a=f.player('alice','honeydew-lantern'),old=f.snap(a).dive.edition,chest=f.snap(a).dive.chests[0];f.near(a,chest);f.act(a,'dive_claim',{chest:chest.id});
-  const b=f.player('bob','littlebig-clockwork');f.act(b,'dive_exit');f.act(b,'dive_enter');const quarters=f.snap(b),iris=quarters.dive.enemies.find(e=>e.id==='iris'),qfloor=quarters.zones.find(z=>z.id==='dive-quarters'),path=pathTo(qfloor,qfloor.entrance,iris);f.place(b,path.at(-2));f.act(b,'dive_engage',{encounter:'iris'});
+  const b=f.player('bob','littlebig-clockwork');f.act(b,'dive_exit');f.act(b,'enter',{zone:'princess-rose'});f.act(b,'dive_enter');const quarters=f.snap(b),iris=quarters.dive.enemies.find(e=>e.id==='iris'),qfloor=quarters.zones.find(z=>z.id==='dive-quarters'),path=pathTo(qfloor,qfloor.entrance,iris);f.place(b,path.at(-2));f.act(b,'dive_engage',{encounter:'iris'});
   f.as('alice');f.time('2026-09-21T11:00:01Z');f.tick();f.act(a,'enter',{zone:DESERT_ZONE});assert.equal(f.snap(a).zone,'honeydew-lantern');
   f.act(a,'dive_enter',{zone:DESERT_ZONE});assert.notEqual(f.snap(a).dive.edition,old);assert.equal(f.snap(a).dive.claimed,0);assert.equal(f.snap(a).character.loadout.inventory.length,1);
   assert.throws(()=>f.act(a,'dive_claim',{edition:old,chest:chest.id}),/edition changed/);
