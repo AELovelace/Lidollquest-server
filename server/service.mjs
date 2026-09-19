@@ -31,7 +31,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
  }});
  db.prepare('INSERT OR IGNORE INTO mommybot_online_seen SELECT owner,seen FROM quest_presence').run(); // Seed existing sessions on rollout without announcing their next heartbeat as a fresh join.
  const cloud=createCloudSaves(db,{now});
- const sprites=createPrivateSprites(db,{walletClient,provider:spriteProvider,now});zones.setPrivateSprites(sprites);
+ const sprites=createPrivateSprites(db,{walletClient,provider:spriteProvider,now,log});zones.setPrivateSprites(sprites);
  const management=createCharacterManagement(db,{walletClient,cloud,sprites,now,log});
  const deliveries=new Map();
  async function flush(owner,token){

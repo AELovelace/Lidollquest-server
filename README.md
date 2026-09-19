@@ -7,6 +7,15 @@ Install Python 3.11+ and `pip install -r python/requirements.txt`; set the servi
 `PIXELLAB_API_TOKEN` and optionally `PIXELLAB_PYTHON` (default `python3`). Keep these
 secrets on the server. No key disables new generations without affecting saved art.
 
+If the game says **Generation is not configured yet**, add `PIXELLAB_API_TOKEN`
+to `/etc/lidollquest/server.env` using `sudoedit`, then restart
+`lidollquest-server` and reopen the private collection. The setting must be loaded
+by the quest service, not just an interactive shell or the tracker. Existing
+environment files are preserved on redeploy. `QUEST_COMPUTE_WORKERS` is independent.
+The Fedora installer ships `python/` and installs system Python, Requests and
+Pillow; use `PIXELLAB_PYTHON=/usr/bin/python3` with those packages. Older releases
+that omitted the worker folder need the corrected release as well as the token.
+
 `GET /sprites`, `GET /sprites/asset`, and `POST /sprites/action` use authenticated
 account ownership. Generations cost one diamond, reserve one of five per-character
 slots before payment, and run in one background worker. The shared Python client
@@ -22,6 +31,14 @@ live zone. Descriptions and saved collections stay private. Deleting a completed
 sprite frees its slot without refunding it. Existing browser grants need renewed
 consent for diamond spending. Test with `node --test test/private-sprites.test.mjs`;
 the GX fixture uses synthetic PNGs and never spends real provider credits.
+
+Generation failures log `quest_sprite_generation_failed` with an allowlisted
+code/stage and optional numeric `http_status`; provider response bodies, prompts,
+tokens and raw Python stderr remain private. Check `journalctl -u lidollquest-server`
+for `python_unavailable`, `worker_missing`, `python_dependency_missing`, or a
+provider HTTP error (401 token, 402 credits, 422 validation, 429 limit). Reopening
+the collection retries outstanding game-diamond refunds. Regression coverage:
+`node --test test/private-sprite-provider.test.mjs test/private-sprites.test.mjs`.
 
 ## Shared RP and admin journal
 

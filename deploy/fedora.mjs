@@ -90,7 +90,7 @@ async function main() { // Prepare configuration first; require a usable reward 
   const environment = validateEnvironment(readFileSync(envPath, 'utf8'));
   const release = join(ROOT, 'releases', `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`);
   mkdirSync(release, {mode: 0o755});
-  for (const name of ['package.json', 'README.md', 'server', 'deploy', 'test']) {
+  for (const name of ['package.json', 'README.md', 'server', 'deploy', 'test', 'python']) {
     regularTree(join(source, name)); cpSync(join(source, name), join(release, name), {recursive: true, errorOnExist: true, force: false});
   }
   run('/usr/bin/chown', ['-R', 'root:root', release]);

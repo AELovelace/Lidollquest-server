@@ -28,8 +28,8 @@ esac
 [[ -d /run/systemd/system ]] || { echo 'This installer requires running systemd.' >&2; exit 1; }
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-# The service has no npm dependencies; Fedora provides this versioned Node binary.
-dnf install -y nodejs24 ca-certificates util-linux shadow-utils policycoreutils
+# Fedora supplies Node plus the headless private-sprite worker's Python dependencies.
+dnf install -y nodejs24 ca-certificates util-linux shadow-utils policycoreutils python3 python3-requests python3-pillow
 [[ -x /usr/bin/node-24 ]] || { echo 'Fedora did not provide /usr/bin/node-24.' >&2; exit 1; }
 
 # A host-wide lock prevents two deployments from switching releases together.

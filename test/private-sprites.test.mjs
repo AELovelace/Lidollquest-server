@@ -6,19 +6,27 @@ import {createQuestZones} from '../server/zones.mjs';
 import {createQuestService} from '../server/service.mjs';
 import {randomUUID} from 'node:crypto';
 
-function fixture(provider){
+function fixture(provider,{log=()=>{}}={}){
  const db=new DatabaseSync(':memory:');let owner='alice',balance=10,lose=false,calls=0;
  const zones=createQuestZones(db,{grant:()=>({owner,id:owner,client:'lidollquest'}),wallet:()=>({coins:50}),adjust:()=>{},diveOptions:{log:()=>{}},desertOptions:{log:()=>{}}});
  const receipts=new Map(),png=Buffer.alloc(40);Buffer.from([137,80,78,71,13,10,26,10]).copy(png);png.writeUInt32BE(2304,16);png.writeUInt32BE(64,20);
  const output={frames:36,png:png.toString('base64')};
  const walletClient={diamonds:async(_token,b)=>{if(!receipts.has(b.request_id)){if(b.kind==='debit'&&balance<1)throw Object.assign(Error('Insufficient'),{code:'insufficient_balance'});balance+=b.kind==='debit'?-1:1;receipts.set(b.request_id,{balance});}if(lose){lose=false;throw Error('Lost receipt');}return receipts.get(b.request_id);}};
- const make=()=>createPrivateSprites(db,{walletClient,provider:provider??(async()=>{calls++;return output;})});
+ const make=()=>createPrivateSprites(db,{walletClient,log,provider:provider??(async()=>{calls++;return output;})});
  let sprites=make();zones.setPrivateSprites(sprites);
  const create=(avatar='player',request_id=randomUUID())=>zones.act('secret',{action:'create',name:'Doll',request_id,controller:'window',avatar}).character;
  const generate=(cid='',request_id=randomUUID())=>sprites.act(owner,'secret',{action:'generate',character_id:cid,request_id,prompt:'A knight in a violet coat'});
  return {db,zones,create,generate,receipts,output,get sprites(){return sprites;},get balance(){return balance;},get calls(){return calls;},set owner(v){owner=v;},lose(){lose=true;},empty(){balance=0;},restart(){sprites.close();sprites=make();zones.setPrivateSprites(sprites);},close(){sprites.close();db.close();}};
 }
 const until=async fn=>{for(let i=0;i<100;i++){if(fn())return;await new Promise(r=>setTimeout(r,5));}assert.fail('Generation did not settle');};
+
+test('failed generation logs sanitized diagnostics and still refunds exactly once',async()=>{
+ const logs=[],f=fixture(async()=>{throw Object.assign(Error('secret provider response'),{diagnostic:{code:'provider_http_error',stage:'create',http_status:402,body:'private prompt'}});},{log:(...args)=>logs.push(args)});
+ try{
+  await f.generate('','diagnostic');await until(()=>f.sprites.list('alice').sprites[0]?.status==='refunded');
+  assert.deepEqual(logs,[['quest_sprite_generation_failed',{code:'provider_http_error',stage:'create',http_status:402}]]);assert.equal(f.balance,10);assert.equal(f.receipts.size,2);
+ }finally{f.close();}
+});
 
 test('generation debits once, survives lost responses, claims drafts once, and enforces per-character privacy',async()=>{
  const f=fixture();try{
