@@ -90,7 +90,7 @@ test('every live hall route returns to its own pad, including crossing exits and
     const returned=act('dive_exit');assert.equal(returned.zone,hall.id);assert.deepEqual(returned.position,hubArrival(hall,pad.target));
     assert.deepEqual(act('enter',{zone:pad.target}).position,returned.position,'suspended dungeon reconnect retains its return pad');
     assert.deepEqual(act('enter',{zone:hall.id}).position,returned.position,'ordinary reconnect retains the same arrival');
-    for(const exit of exits){
+    for(const exit of exits.filter(e=>hubCatalog.some(h=>h.id===e.zone))){ // Wilderness branches have no hall pad; their reciprocal trail is covered by taiga.test.mjs.
      place(pad.x,pad.y+1);act('dive_enter',{zone:pad.target});place(exit.x,exit.y);
      const crossed=act('dive_exit',{zone:exit.zone}),target=hubRooms.find(r=>r.id===exit.zone+'-dives');
      assert.equal(crossed.zone,target.id);assert.deepEqual(crossed.position,hubArrival(target,pad.target));

@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>LiDollQuest Gamemaster</title>
+<style>
+:root{--bg:#160f1c;--panel:#221730;--edge:#3a2a4d;--ink:#f2e9f7;--dim:#a894b8;--rose:#ff8fc4;--mint:#7fe0c0;--amber:#ffc46b;--red:#ff7b8f;--radius:10px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Segoe UI",system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px 18px;background:var(--panel);border-bottom:2px solid var(--edge);position:sticky;top:0;z-index:5}
+h1{font-size:17px;margin:0 12px 0 0;color:var(--rose);letter-spacing:.3px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:0 0 10px}
+input,select,button{font:inherit;color:var(--ink);background:#1b1226;border:1px solid var(--edge);border-radius:6px;padding:6px 9px}
+input:focus,select:focus{outline:2px solid var(--rose);outline-offset:-1px}
+button{cursor:pointer;background:#2e2040}
+button:hover{background:#3b2a52}
+button.go{background:var(--rose);color:#2a0d1c;border-color:var(--rose);font-weight:600}
+button.bad{background:#4a1f2b;border-color:var(--red);color:var(--red)}
+button.sm{padding:3px 7px;font-size:12px}
+main{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;padding:14px;align-items:start}
+section{background:var(--panel);border:1px solid var(--edge);border-radius:var(--radius);padding:14px}
+section.wide{grid-column:1/-1}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim);padding:0 8px 6px 0;font-weight:600}
+td{padding:6px 8px 6px 0;border-top:1px solid var(--edge);vertical-align:top}
+tr.sel td{background:#2c1e3d}
+.tot{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:12px}
+.tot div{background:#1b1226;border:1px solid var(--edge);border-radius:var(--radius);padding:8px 14px;min-width:86px}
+.tot b{display:block;font-size:22px;color:var(--mint);line-height:1.2}
+.tot span{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim)}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid currentColor;margin-left:5px}
+.tag.mute{color:var(--amber)}.tag.susp{color:var(--red)}.tag.fight{color:var(--rose)}.tag.dive{color:var(--mint)}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:11px;color:var(--dim);word-break:break-all}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.row label{font-size:12px;color:var(--dim)}
+.grow{flex:1;min-width:120px}
+.log{max-height:340px;overflow-y:auto;border:1px solid var(--edge);border-radius:8px;padding:8px;background:#1b1226}
+.msg{padding:4px 0;border-bottom:1px solid #2a1d3a;display:flex;gap:8px;align-items:baseline}
+.msg:last-child{border-bottom:0}
+.msg .who{color:var(--rose);font-weight:600;white-space:nowrap}
+.msg.act .who{color:var(--mint);font-style:italic}
+.msg .when{margin-left:auto;font-size:11px;color:var(--dim);white-space:nowrap}
+.note{color:var(--dim);font-size:12px;margin:6px 0 0}
+.flash{padding:8px 12px;border-radius:8px;margin:0 14px;display:none}
+.flash.ok{display:block;background:#1d3a30;border:1px solid var(--mint);color:var(--mint)}
+.flash.err{display:block;background:#3d1c26;border:1px solid var(--red);color:var(--red)}
+.gate{max-width:420px;margin:60px auto;text-align:center}
+.empty{color:var(--dim);font-style:italic;padding:10px 0}
+</style>
+</head>
+<body>
+
+<div id="gate" class="gate">
+  <h1>LiDollQuest Gamemaster</h1>
+  <p class="note">Paste the staff token to begin. It is held in this tab's memory only and is never written to storage.</p>
+  <div class="row"><input id="token" class="grow" type="password" placeholder="Staff token" autocomplete="off"><button class="go" id="enter">Enter</button></div>
+  <div id="gateErr" class="flash"></div>
+</div>
+
+<div id="app" hidden>
+<header>
+  <h1>Gamemaster</h1>
+  <button id="refresh">Refresh</button>
+  <label><input type="checkbox" id="auto" checked> auto every 10s</label>
+  <span id="clock" class="mono"></span>
+  <button id="signout" style="margin-left:auto">Sign out</button>
+</header>
+<div id="flash" class="flash"></div>
+<main>
+
+  <section class="wide">
+    <h2>Live server</h2>
+    <div class="tot">
+      <div><b id="tOnline">0</b><span>online</span></div>
+      <div><b id="tAccounts">0</b><span>accounts</span></div>
+      <div><b id="tCharacters">0</b><span>characters</span></div>
+      <div><b id="tSanctions">0</b><span>sanctions</span></div>
+    </div>
+    <table><thead><tr><th>Player</th><th>Room</th><th>At</th><th>Idle</th><th>Actions</th></tr></thead><tbody id="players"></tbody></table>
+    <p id="noPlayers" class="empty" hidden>Nobody is in a shared room right now.</p>
+  </section>
+
+  <section>
+    <h2>Rooms</h2>
+    <table><thead><tr><th>Room</th><th>Kind</th><th>Here</th></tr></thead><tbody id="zones"></tbody></table>
+  </section>
+
+  <section>
+    <h2>Selected player</h2>
+    <div id="detail"><p class="empty">Pick a player above to see their characters, sanctions and recent messages.</p></div>
+  </section>
+
+  <section class="wide">
+    <h2>Area chat</h2>
+    <div class="row">
+      <label for="chatZone">Room</label><select id="chatZone"><option value="">Everywhere</option></select>
+      <label for="chatLimit">Show</label><input id="chatLimit" type="number" min="1" max="200" value="60" style="width:80px">
+      <button id="chatLoad">Load</button>
+    </div>
+    <div id="chat" class="log"></div>
+    <div class="row" style="margin:12px 0 0">
+      <select id="castZone"></select>
+      <input id="castName" placeholder="Gamemaster" style="width:130px" maxlength="24">
+      <input id="castText" class="grow" placeholder="Announcement to that room" maxlength="240">
+      <button class="go" id="cast">Announce</button>
+    </div>
+    <p class="note">Announcements post as an activity line, which clients already render apart from player speech.</p>
+  </section>
+
+  <section>
+    <h2>Sanctions in force</h2>
+    <table><thead><tr><th>Account</th><th>Kind</th><th>Until</th><th></th></tr></thead><tbody id="sanctions"></tbody></table>
+    <p id="noSanctions" class="empty" hidden>No mutes or suspensions are in place.</p>
+  </section>
+
+  <section>
+    <h2>Recent gamemaster actions</h2>
+    <div id="audit" class="log"></div>
+  </section>
+
+</main>
+</div>
+
+<script>
+(function(){
+ "use strict";
+ var token="",timer=null,state={zones:[],players:[]},selected=null; // The token lives only in this closure for the life of the tab.
+ var $=function(id){return document.getElementById(id);};
+
+ function el(tag,cls,text){var n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;} // textContent everywhere: player names and chat are untrusted input.
+ function clear(node){while(node.firstChild)node.removeChild(node.firstChild);}
+ function when(ms){return new Date(ms).toLocaleTimeString();}
+ function idle(ms){return ms<1000?"now":ms<60000?Math.round(ms/1000)+"s":Math.round(ms/60000)+"m";}
+ function until(row){return row.until?new Date(row.until).toLocaleString():"indefinite";}
+ function short(owner){return owner.length>14?owner.slice(0,10)+"…"+owner.slice(-4):owner;} // Account ids are long hashes; the full value stays in the title attribute.
+
+ function say(kind,text){var f=$("flash");f.className="flash "+kind;f.textContent=text;if(kind==="ok")setTimeout(function(){if(f.textContent===text)f.className="flash";},4000);}
+
+ function api(path,options){
+  options=options||{};
+  var init={method:options.method||"GET",headers:{Authorization:"Bearer "+token},cache:"no-store"};
+  if(options.body){init.headers["Content-Type"]="application/json";init.body=JSON.stringify(options.body);}
+  return fetch(path,init).then(function(response){
+   return response.json().catch(function(){return {error:"gm_unreadable_response"};}).then(function(payload){
+    if(!response.ok){var err=new Error(payload.error_description||payload.error||"Request failed");err.code=payload.error;err.status=response.status;throw err;}
+    return payload;
+   });
+  }); // Every rejection below is shown to the operator rather than swallowed.
+ }
+
+ function act(action,payload,label){
+  var body=Object.assign({action:action},payload);
+  return api("/gm/action",{method:"POST",body:body}).then(function(result){
+   say("ok",label||(action+" applied."));
+   refresh();
+   return result;
+  }).catch(function(error){say("err",error.message);});
+ }
+
+ function ask(question,fallback){var answer=window.prompt(question,fallback||"");return answer===null?null:answer;} // A null return means the operator cancelled, and nothing is sent.
+
+ function renderZones(){
+  var body=$("zones");clear(body);
+  state.zones.forEach(function(zone){
+   var tr=el("tr");
+   tr.appendChild(el("td",null,zone.name));
+   tr.appendChild(el("td",null,zone.kind));
+   var count=el("td",null,String(zone.players));
+   if(zone.players)count.style.color="var(--mint)";
+   tr.appendChild(count);
+   body.appendChild(tr);
+  });
+  ["chatZone","castZone"].forEach(function(id){
+   var select=$(id),keep=select.value;clear(select);
+   if(id==="chatZone")select.appendChild(el("option","", "Everywhere"));
+   state.zones.forEach(function(zone){
+    if(id==="castZone"&&!zone.warp)return; // Instanced dives have no stable room to announce into.
+    var option=el("option",null,zone.name+" ("+zone.players+")");option.value=zone.id;select.appendChild(option);
+   });
+   select.value=keep;
+  });
+ }
+
+ function renderPlayers(){
+  var body=$("players");clear(body);
+  $("noPlayers").hidden=state.players.length>0;
+  state.players.forEach(function(p){
+   var tr=el("tr");if(selected===p.owner)tr.className="sel";
+   var who=el("td");
+   who.appendChild(el("b",null,p.name));
+   if(p.muted)who.appendChild(el("span","tag mute","muted"));
+   if(p.suspended)who.appendChild(el("span","tag susp","suspended"));
+   if(p.fighting)who.appendChild(el("span","tag fight","in combat"));
+   if(p.dive)who.appendChild(el("span","tag dive","dive"));
+   var id=el("div","mono",short(p.owner));id.title=p.owner;who.appendChild(id);
+   tr.appendChild(who);
+   tr.appendChild(el("td",null,p.zoneName));
+   tr.appendChild(el("td","mono",p.x+","+p.y));
+   tr.appendChild(el("td",null,idle(p.idleMs)));
+
+   var tools=el("td");
+   tools.appendChild(button("Inspect","sm",function(){selected=p.owner;loadPlayer(p.owner);}));
+   tools.appendChild(button("Kick","sm bad",function(){
+    var reason=ask("Reason for kicking "+p.name+"?");if(reason===null)return;
+    act("kick",{owner:p.owner,reason:reason},p.name+" was returned to character select.");
+   }));
+   tools.appendChild(button(p.muted?"Unmute":"Mute","sm",function(){
+    if(p.muted)return act("unmute",{owner:p.owner},p.name+" may speak again.");
+    var minutes=ask("Mute "+p.name+" for how many minutes? (0 = indefinite)","30");if(minutes===null)return;
+    var reason=ask("Reason?");if(reason===null)return;
+    act("mute",{owner:p.owner,minutes:Number(minutes),reason:reason},p.name+" is muted.");
+   }));
+   tools.appendChild(button("Move","sm",function(){
+    var rooms=state.zones.filter(function(z){return z.warp;});
+    var pick=ask("Move "+p.name+" to which room?\n\n"+rooms.map(function(z){return z.id;}).join("\n"),rooms[0]&&rooms[0].id);
+    if(pick===null)return;
+    act("warp",{owner:p.owner,zone:pick.trim()},p.name+" was moved.");
+   }));
+   tools.appendChild(button("Suspend","sm bad",function(){
+    var minutes=ask("Suspend "+p.name+" from online play for how many minutes? (0 = indefinite)","1440");if(minutes===null)return;
+    var reason=ask("Reason?");if(reason===null)return;
+    act("suspend",{owner:p.owner,minutes:Number(minutes),reason:reason},p.name+" is suspended.");
+   }));
+   tr.appendChild(tools);
+   body.appendChild(tr);
+  });
+ }
+
+ function button(label,cls,handler){var b=el("button",cls,label);b.addEventListener("click",handler);return b;}
+
+ function renderSanctions(rows){
+  var body=$("sanctions");clear(body);
+  $("noSanctions").hidden=rows.length>0;
+  $("tSanctions").textContent=String(rows.length);
+  rows.forEach(function(row){
+   var tr=el("tr");
+   var account=el("td","mono",short(row.owner));account.title=row.owner;
+   tr.appendChild(account);
+   tr.appendChild(el("td",null,row.kind));
+   var cell=el("td",null,until(row));
+   if(row.reason)cell.title=row.reason;
+   tr.appendChild(cell);
+   var tools=el("td");
+   tools.appendChild(button("Lift","sm",function(){act("un"+row.kind,{owner:row.owner},"Lifted the "+row.kind+".");}));
+   tr.appendChild(tools);
+   body.appendChild(tr);
+  });
+ }
+
+ function renderAudit(rows){
+  var log=$("audit");clear(log);
+  if(!rows.length){log.appendChild(el("p","empty","Nothing has been actioned yet."));return;}
+  rows.forEach(function(row){
+   var line=el("div","msg");
+   line.appendChild(el("span","who",row.action));
+   var target=el("span",null,row.detail&&row.detail.text?row.detail.text:short(row.target));
+   target.title=row.target+(row.detail&&row.detail.reason?" — "+row.detail.reason:"");
+   line.appendChild(target);
+   line.appendChild(el("span","when",when(row.created)));
+   log.appendChild(line);
+  });
+ }
+
+ function renderChat(payload){
+  var log=$("chat");clear(log);
+  if(!payload.messages.length){log.appendChild(el("p","empty","No messages in that window."));return;}
+  payload.messages.forEach(function(m){
+   var line=el("div","msg"+(m.activity?" act":""));
+   line.appendChild(el("span","who",m.name));
+   line.appendChild(el("span",null,m.text));
+   var tools=el("span","when");
+   tools.appendChild(el("span",null,m.zoneName+" · "+when(m.created)+" "));
+   tools.appendChild(button("×","sm bad",function(){
+    var reason=ask("Reason for removing this message?");if(reason===null)return;
+    act("delete_chat",{seq:m.seq,reason:reason},"Message removed.").then(loadChat);
+   }));
+   line.appendChild(tools);
+   log.appendChild(line);
+  });
+  log.scrollTop=log.scrollHeight;
+ }
+
+ function renderDetail(payload){
+  var box=$("detail");clear(box);
+  var head=el("div","mono",payload.owner);head.style.marginBottom="8px";box.appendChild(head);
+  if(payload.presence)box.appendChild(el("p","note","In "+payload.presence.zoneName+" at "+payload.presence.x+","+payload.presence.y+" · idle "+idle(payload.presence.idleMs)));
+  else box.appendChild(el("p","note","Not in a shared room right now."));
+
+  payload.sanctions.forEach(function(row){
+   var line=el("p","note",row.kind+" until "+until(row)+(row.reason?" — "+row.reason:""));
+   line.style.color="var(--amber)";box.appendChild(line);
+  });
+
+  var table=el("table"),head2=el("thead"),hr=el("tr");
+  ["Character","Rev","Where","Run"].forEach(function(h){hr.appendChild(el("th",null,h));});
+  head2.appendChild(hr);table.appendChild(head2);
+  var tbody=el("tbody");
+  payload.characters.forEach(function(c){
+   var tr=el("tr");
+   tr.appendChild(el("td",null,c.name));
+   tr.appendChild(el("td",null,String(c.revision)));
+   tr.appendChild(el("td",null,c.dive?("dive "+(c.dive.zone||"")):(c.hubVisit||"—")));
+   tr.appendChild(el("td",null,c.run?("stage "+c.run.stage+" "+c.run.phase):"—"));
+   tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);box.appendChild(table);
+
+  box.appendChild(el("h2",null,"Their recent messages"));
+  var log=el("div","log");
+  if(!payload.chat.length)log.appendChild(el("p","empty","No recent messages."));
+  payload.chat.forEach(function(m){
+   var line=el("div","msg");
+   line.appendChild(el("span","who",m.name));
+   line.appendChild(el("span",null,m.text));
+   line.appendChild(el("span","when",m.zoneName+" · "+when(m.created)));
+   log.appendChild(line);
+  });
+  box.appendChild(log);
+ }
+
+ function loadPlayer(owner){
+  api("/gm/player?owner="+encodeURIComponent(owner)).then(renderDetail).catch(function(error){say("err",error.message);});
+ }
+ function loadChat(){
+  var zone=$("chatZone").value,limit=$("chatLimit").value;
+  api("/gm/chat?limit="+encodeURIComponent(limit)+(zone?"&zone="+encodeURIComponent(zone):"")).then(renderChat).catch(function(error){say("err",error.message);});
+ }
+
+ function refresh(){
+  return api("/gm/overview").then(function(payload){
+   state=payload;
+   $("tOnline").textContent=String(payload.totals.online);
+   $("tAccounts").textContent=String(payload.totals.accounts);
+   $("tCharacters").textContent=String(payload.totals.characters);
+   $("clock").textContent="server "+when(payload.serverTime);
+   renderZones();renderPlayers();renderSanctions(payload.sanctions);renderAudit(payload.audit);
+   if(selected)loadPlayer(selected);
+  }).catch(function(error){
+   say("err",error.message);
+   if(error.status===401)signOut(); // A rotated secret drops straight back to the token gate.
+  });
+ }
+
+ function schedule(){
+  if(timer)clearInterval(timer);
+  if($("auto").checked)timer=setInterval(function(){refresh();loadChat();},10000);
+ }
+
+ function signOut(){
+  token="";if(timer)clearInterval(timer);timer=null;selected=null;
+  $("app").hidden=true;$("gate").hidden=false;$("token").value="";$("token").focus();
+ }
+
+ $("enter").addEventListener("click",function(){
+  var value=$("token").value.trim();
+  if(!value){$("gateErr").className="flash err";$("gateErr").textContent="Paste the staff token first.";return;}
+  token=value;
+  api("/gm/overview").then(function(){
+   $("gate").hidden=true;$("app").hidden=false;$("gateErr").className="flash";
+   refresh();loadChat();schedule();
+  }).catch(function(error){
+   token="";$("gateErr").className="flash err";
+   $("gateErr").textContent=error.status===401?"That token was not accepted.":error.message;
+  });
+ });
+ $("token").addEventListener("keydown",function(e){if(e.key==="Enter")$("enter").click();});
+ $("refresh").addEventListener("click",function(){refresh();loadChat();});
+ $("auto").addEventListener("change",schedule);
+ $("signout").addEventListener("click",signOut);
+ $("chatLoad").addEventListener("click",loadChat);
+ $("chatZone").addEventListener("change",loadChat);
+ $("cast").addEventListener("click",function(){
+  var text=$("castText").value.trim(),zone=$("castZone").value;
+  if(!text||!zone){say("err","Choose a room and write an announcement.");return;}
+  act("broadcast",{zone:zone,text:text,speaker:$("castName").value.trim()},"Announced to that room.").then(function(){$("castText").value="";loadChat();});
+ });
+ $("castText").addEventListener("keydown",function(e){if(e.key==="Enter")$("cast").click();});
+ $("token").focus();
+})();
+</script>
+</body>
+</html>

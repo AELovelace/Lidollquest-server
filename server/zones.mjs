@@ -9,10 +9,13 @@ import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPre
 import {hubArrival,hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog,campaignDives,DAILY_COIN_CAP} from './hubs.mjs';
 import {createDive,DIVE_ZONE} from './dive.mjs';
 import {generateDesert} from './desert-generation.mjs';
+import {addTaigaTrail} from './wilderness-links.mjs';
 export const DESERT_ZONE='dive-desert';
 export const desertData=JSON.parse(readFileSync(new URL('./desert-data.json',import.meta.url),'utf8'));
 export const TUNDRA_ZONE='dive-tundra';
 export const tundraData=JSON.parse(readFileSync(new URL('./tundra-data.json',import.meta.url),'utf8'));
+export const TAIGA_ZONE='dive-taiga';
+export const taigaData=JSON.parse(readFileSync(new URL('./taiga-data.json',import.meta.url),'utf8'));
 import {createBank} from './bank.mjs';
 import {createItemOrigins} from './item-origins.mjs';
 import {inspectionProjection} from './inspection.mjs';
@@ -39,7 +42,7 @@ function canonical(value,depth=0){ // Nested loadout property order may change w
  return value;
 }
 
-export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Date.now,roll=randomInt,diveOptions={},desertOptions={},tundraOptions={},onPresence=()=>{}}={}) {
+export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},onPresence=()=>{}}={}) {
  db.exec(`CREATE TABLE IF NOT EXISTS quest_characters(id TEXT PRIMARY KEY,owner TEXT NOT NULL,name TEXT NOT NULL,created INTEGER NOT NULL,revision INTEGER NOT NULL DEFAULT 0,state TEXT NOT NULL,creation_id TEXT NOT NULL,UNIQUE(owner,creation_id));
  CREATE INDEX IF NOT EXISTS quest_character_owner ON quest_characters(owner);
  CREATE TABLE IF NOT EXISTS quest_presence(owner TEXT PRIMARY KEY,character_id TEXT NOT NULL UNIQUE,zone TEXT NOT NULL,grant_id TEXT NOT NULL,controller TEXT NOT NULL,x INTEGER NOT NULL,y INTEGER NOT NULL,seen INTEGER NOT NULL,moved INTEGER NOT NULL);
@@ -58,8 +61,14 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
  const bank=createBank(db);
  const quarters=createDive(db,{now,roll,adjust,origins,parties,...diveOptions});
  const desert=createDive(db,{now,roll,adjust,origins,parties,data:desertData,generate:generateDesert,...desertOptions});
- const tundra=createDive(db,{now,roll,adjust,origins,parties,data:tundraData,generate:generateDesert,...tundraOptions});
- const engines=new Map([[DIVE_ZONE,quarters],[DESERT_ZONE,desert],[TUNDRA_ZONE,tundra]]);
+ const trail=floor=>addTaigaTrail(floor,(taigaOptions.data??taigaData).config);
+ const tundra=createDive(db,{now,roll,adjust,origins,parties,data:tundraData,generate:generateDesert,upgradeFloor:trail,travel,...tundraOptions});
+ const taiga=createDive(db,{now,roll,adjust,origins,parties,data:taigaData,generate:generateDesert,travel,...taigaOptions});
+ const engines=new Map([[DIVE_ZONE,quarters],[DESERT_ZONE,desert],[TUNDRA_ZONE,tundra],[TAIGA_ZONE,taiga]]);
+ function travel(c,state,source,destination){
+  if(!((source===TUNDRA_ZONE&&destination===TAIGA_ZONE)||(source===TAIGA_ZONE&&destination===TUNDRA_ZONE)))return false;
+  engines.get(destination).arrive(c,state,source);return true; // Only this authored reciprocal trail connects dungeons; hub portals cannot enter the branch.
+ }
  for(const data of campaignDives)engines.set(data.config.zone_id,createDive(db,{now,roll,adjust,origins,parties,data})); // Each destination keeps its own editions, loot receipts and encounter locks.
  const isDungeon=id=>engines.has(id);
  const engine=id=>engines.get(id)??quarters; // No active visit still exposes the legacy Quarters summary.
@@ -278,6 +287,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,now=Da
      else {db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE owner=?').run(x,y,now(),i.owner);if(input.world_step===true&&state.loadout)state.worldTurnDue={id:randomUUID()};} // Ordinary walking still reserves one recoverable needs turn.
     }else if(input.action==='chat'){
      const text=clean(input.text,240);if(!text)fail(400,'Write a message first.');
+     if(muted(i.owner))fail(403,'A gamemaster has muted this account; you can still play normally.'); // Only speech is withheld: walking, fighting and trading continue.
      if(db.prepare('SELECT COUNT(*) AS n FROM quest_chat WHERE owner=? AND created>?').get(i.owner,now()-10000).n>=5)fail(429,'Wait a moment before sending another message.');
      db.prepare('INSERT INTO quest_chat(zone,owner,character_id,name,text,created) VALUES (?,?,?,?,?,?)').run(z.id,i.owner,c.id,c.name,text,now());
      db.prepare('DELETE FROM quest_chat WHERE zone=? AND seq NOT IN (SELECT seq FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 100)').run(z.id,z.id);

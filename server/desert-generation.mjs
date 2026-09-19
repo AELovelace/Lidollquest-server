@@ -8,7 +8,7 @@ function reachable(f){
 } // One flood fill validates every destination without repeated full-map path searches.
 export function validateDesert(f){
  const seen=reachable(f),ids=new Set();
- if(!walkable(f,f.entrance.x,f.entrance.y)||f.exits.length!==2)throw Error('Invalid Desert entrances');
+ if(!walkable(f,f.entrance.x,f.entrance.y)||!f.exits.length)throw Error('Invalid wilderness entrances');
  for(const p of [...f.exits,...f.enemies,...f.chests,...f.pickups]){
   if(!seen.has(key(p)))throw Error('Unreachable Desert content');
   if(p.id){if(ids.has(p.id))throw Error('Duplicate Desert content ID');ids.add(p.id);}
@@ -41,25 +41,28 @@ export function generateDesert(data,edition,depth=1){
    f.walls[y][x]=old[y][x]?(n<s.death_limit?0:1):(n>s.birth_limit?1:0);
   }
  }
- f.safeRooms=[{x:1,y:Math.floor(f.height/2)-3,w:7,h:7},{x:f.width-8,y:Math.floor(f.height/2)-3,w:7,h:7}];
  const endpoints=c.endpoints??[{zone:'honeydew-lantern',name:'Honeydew Village'},{zone:'littlebig-clockwork',name:'LittleBig City'}];
- if(endpoints.length!==2||endpoints[0].zone===endpoints[1].zone||endpoints.some(p=>!p.zone||!p.name))throw Error('Invalid crossing endpoints');
- f.exits=endpoints.map((p,i)=>({x:i===0?4:f.width-5,y:Math.floor(f.height/2),zone:p.zone,name:p.name})); // Desert defaults and random draws stay unchanged for existing editions.
- f.entrance={x:f.exits[0].x+1,y:f.exits[0].y};
- f.entries=Object.fromEntries(f.exits.map((p,i)=>[p.zone,{x:p.x+(i===0?1:-1),y:p.y}]));
- f.rooms.push(...f.safeRooms);path(f.exits[0],f.exits[1],range(s.main_path_width_min,s.main_path_width_max));
+ const southern=endpoints.length===1&&endpoints[0].side==='south',middle=Math.floor(f.width/2);
+ if((!southern&&endpoints.length!==2)||new Set(endpoints.map(p=>p.zone)).size!==endpoints.length||endpoints.some(p=>!p.zone||!p.name))throw Error('Invalid crossing endpoints');
+ f.safeRooms=southern?[{x:middle-3,y:f.height-8,w:7,h:7}]:[{x:1,y:Math.floor(f.height/2)-3,w:7,h:7},{x:f.width-8,y:Math.floor(f.height/2)-3,w:7,h:7}];
+ f.exits=endpoints.map((p,i)=>({x:southern?middle:i===0?4:f.width-5,y:southern?f.height-2:Math.floor(f.height/2),zone:p.zone,name:p.name})); // Preserve the original crossing coordinates and random sequence.
+ f.entries=Object.fromEntries(f.exits.map((p,i)=>[p.zone,{x:p.x+(southern?0:i===0?1:-1),y:p.y-(southern?1:0)}]));
+ f.entrance={...f.entries[endpoints[0].zone]};
+ const safeCount=f.safeRooms.length;
+ f.rooms.push(...f.safeRooms);path(f.exits[0],southern?{x:middle,y:Math.floor(f.height/2)}:f.exits[1],range(s.main_path_width_min,s.main_path_width_max));
+ if(southern)path({x:10,y:Math.floor(f.height/2)},{x:f.width-11,y:Math.floor(f.height/2)},range(s.main_path_width_min,s.main_path_width_max)); // A central east/west trail connects the clearings to the sole southern trailhead.
  for(let i=0;i<s.basin_count;i++){
   const w=range(s.min_basin_w,s.max_basin_w),h=range(s.min_basin_h,s.max_basin_h),x=Math.max(9,Math.min(f.width-w-9,Math.round(10+i*(f.width-30)/(s.basin_count-1))+range(-4,4))),y=range(3,f.height-h-3);
   const r={x,y,w,h};f.rooms.push(r);rect(r);path({x:x+Math.floor(w/2),y:y+Math.floor(h/2)},{x:x+Math.floor(w/2),y:Math.floor(f.height/2)},range(s.side_path_width_min,s.side_path_width_max));
  }
- for(let i=0;i<s.side_path_count;i++){const a=f.rooms[2+rnd(s.basin_count)],b=f.rooms[2+rnd(s.basin_count)];path({x:a.x+Math.floor(a.w/2),y:a.y+Math.floor(a.h/2)},{x:b.x+Math.floor(b.w/2),y:b.y+Math.floor(b.h/2)},range(s.side_path_width_min,s.side_path_width_max));}
+ for(let i=0;i<s.side_path_count;i++){const a=f.rooms[safeCount+rnd(s.basin_count)],b=f.rooms[safeCount+rnd(s.basin_count)];path({x:a.x+Math.floor(a.w/2),y:a.y+Math.floor(a.h/2)},{x:b.x+Math.floor(b.w/2),y:b.y+Math.floor(b.h/2)},range(s.side_path_width_min,s.side_path_width_max));}
  for(const r of f.safeRooms)rect(r);
  // Remove isolated CA pockets; all active content is placed only in the entrance's connected component.
  const connected=reachable(f);for(let y=1;y<f.height-1;y++)for(let x=1;x<f.width-1;x++)if(!connected.has(x+','+y))f.walls[y][x]=1;
  const occupied=new Set(f.exits.map(key)),safe=p=>f.safeRooms.some(r=>inside(r,p.x,p.y));
  function free(r){const cells=[];for(let y=r.y;y<r.y+r.h;y++)for(let x=r.x;x<r.x+r.w;x++){const p={x,y};if(walkable(f,x,y)&&!occupied.has(key(p))&&!safe(p))cells.push(p);}if(!cells.length)throw Error('No Desert content space');const p=cells[rnd(cells.length)];occupied.add(key(p));return p;}
  const weights=data.enemy_types.flatMap(e=>Array(e.chance).fill(e.enemy_id));
- for(let i=2;i<f.rooms.length;i++){
+ for(let i=safeCount;i<f.rooms.length;i++){
   const r=f.rooms[i];f.chests.push({id:`chest-${i}`,...free(r)});
   for(let n=0;n<c.enemies_per_room;n++){const p=free(r);f.enemies.push({id:`enemy-${i}-${n}`,type:weights[rnd(weights.length)],...p,spawn:{...p},roaming:true,engaged:null,respawnAt:0});}
   for(const [kind,count] of [['food',c.food_per_room],['potion',c.potions_per_room],['treasure',c.treasures_per_room]])for(let n=0;n<count;n++)f.pickups.push({id:`${kind}-${i}-${n}`,kind,...free(r),sprite:'sprItem'});

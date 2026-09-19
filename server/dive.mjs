@@ -16,7 +16,7 @@ const fail=(message,code='dive_conflict')=>{throw Object.assign(Error(message),{
 const clone=structuredClone;
 const seconds=1000,minutes=60000;
 
-export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties}){
+export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,upgradeFloor=()=>false,travel=()=>false}){
  const config=data.config,route=config.route,zoneId=config.zone_id??DIVE_ZONE,theme=config.theme??'princess_quarters',name=config.name??"Princess' Quarters - Dungeon Dive",bossId=config.boss_id??'iris';
  const rollLoot=createDiveLootRoller(data); // One policy covers every online route and its personal floor progress.
  const owns=visit=>visit?.route===route; // Each route maintains only its own visits and encounter locks.
@@ -26,7 +26,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  CREATE TABLE IF NOT EXISTS dive_progress(character_id TEXT NOT NULL,route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,state TEXT NOT NULL,PRIMARY KEY(character_id,route,edition,depth));`);
  const encounters=createDiveEncounters(db,{now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate});
  let lastTick=-Infinity,retryAt=0,dressingRetryAt=0;
- const getFloor=edition=>{const row=db.prepare('SELECT * FROM dive_editions WHERE route=? AND edition=? AND depth=1').get(route,edition);return row?{...row,floor:JSON.parse(row.content)}:null;};
+ const getFloor=edition=>{const row=db.prepare('SELECT * FROM dive_editions WHERE route=? AND edition=? AND depth=1').get(route,edition??null);return row?{...row,floor:JSON.parse(row.content)}:null;}; // Disabled or not-yet-generated branches have no edition to bind.
  const latest=()=>db.prepare('SELECT edition FROM dive_editions WHERE route=? ORDER BY starts DESC LIMIT 1').get(route)?.edition;
  function saveFloor(record){db.prepare('UPDATE dive_editions SET content=?,updated=? WHERE route=? AND edition=? AND depth=1').run(JSON.stringify(record.floor),record.updated,route,record.edition);}
  function progress(c,edition){const row=db.prepare('SELECT state FROM dive_progress WHERE character_id=? AND route=? AND edition=? AND depth=1').get(c.id,route,edition);return row?JSON.parse(row.state):{claimed:[],rolls:{},explored:[],completed:false,coinsPaid:0};}
@@ -52,7 +52,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function ensure(){
   if(!config.enabled)return;
   const window=weeklyWindow(now());if(getFloor(window.edition)||now()<retryAt)return;
-  try{const floor=generate(data,window.edition);addPinkMist(floor);db.prepare('INSERT OR IGNORE INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(route,window.edition,window.start,window.ends,JSON.stringify(floor),now());log('dive_generation_ready',route,window.edition);}
+  try{const floor=generate(data,window.edition);upgradeFloor(floor);addPinkMist(floor);db.prepare('INSERT OR IGNORE INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(route,window.edition,window.start,window.ends,JSON.stringify(floor),now());log('dive_generation_ready',route,window.edition);}
   catch(error){retryAt=now()+minutes;log('dive_generation_failed',route,String(error));}
  } // Never replace a valid edition until its successor is fully generated and validated.
  function relocate(c,state,position,scene,downedAt=now()){ // Recovery needs both the completed scene and one real minute since defeat.
@@ -70,9 +70,10 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  }
  function back(c,state,destination){
   if(state.pendingDefeat){state.pendingDefeat.returnToHub=true;return;} // Weekly reset may retire the floor, but never interrupts its unread defeat scene.
+  if(destination&&travel(c,state,zoneId,destination))return; // Linked wilderness travel preserves the loadout and personal progress inside the same transaction.
   const origin=destination?(state.dive?.returnZone?.endsWith('-dives')?destination+'-dives':destination):(state.dive?.returnZone??state.dive?.origin??'honeydew-lantern');
   const destinationRoom=[...hubRooms,...hubCatalog].find(z=>z.id===origin);
-  const arrival=hubArrival(destinationRoom,origin.endsWith('-dives')?zoneId:origin+'-dives');
+  const arrival=hubArrival(destinationRoom,origin.endsWith('-dives')?(state.dive?.hubEntryZone??zoneId):origin+'-dives'); // A retired branch returns beside its original Tundra hall pad.
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(origin,arrival.x,arrival.y,now(),c.id);
   if(origin.endsWith('-dives'))state.hubVisit=origin;else delete state.hubVisit; // Reconnect after a warp restores the destination hall rather than the previous hub.
   state.dive=null;state.diveReturned=origin;state.diveReturnedPosition=arrival;
@@ -114,6 +115,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  }
  function maintain(){
   ensure();let active=current();if(!active)return;
+  if(upgradeFloor(active.floor))saveFloor(active); // Add a trail to an existing edition without rerolling rooms or claimed treasure.
   if(addPinkMist(active.floor))saveFloor(active); // Install a layer on existing editions once, preserving every room, enemy lock and personal claim.
   if(zoneId===DIVE_ZONE&&((active.floor.dressingVersion??0)<(data.dressing_version??2)||(active.floor.foodVersion??0)<(data.food_version??0))&&now()>=dressingRetryAt){
    try{
@@ -156,7 +158,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const summary={enabled:config.enabled&&!!record,version:1,route,zone:zoneId,name,boss:bossId,edition:record?.edition??'',resetsAt:record?.ends??weeklyWindow(now()).ends,completed:personal?.completed??false,claimed:record?.floor.chests.filter(ch=>personal?.claimed.includes(ch.id)).length??0,total:record?.floor.chests.length??0,pickupsClaimed:(record?.floor.pickups??[]).filter(ch=>personal?.claimed.includes(ch.id)).length,pickupsTotal:record?.floor.pickups?.length??0,claimableCoins:personal?.completed?Math.max(0,config.boss_coins-personal.coinsPaid):0};
   if(!record||p?.zone!==zoneId||!owns(state?.dive))return {dive:summary};
   const f=record.floor;
-  return {dive:{...summary,depth:1,origin:state.dive.origin,explored:personal.explored,enemies:f.enemies.map(e=>({...e,name:data.enemies[e.type].name,sprite:data.enemies[e.type].sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",exits:f.exits??[],theme,mist:f.mist,walls:f.walls,props:f.props,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,decorations:f.decorations}};
+  return {dive:{...summary,depth:1,origin:state.dive.origin,explored:personal.explored,enemies:f.enemies.map(e=>({...e,name:data.enemies[e.type].name,sprite:data.enemies[e.type].sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",exits:f.exits??[],theme,mist:f.mist,walls:f.walls,props:f.props,geometryVersion:f.geometryVersion??0,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,decorations:f.decorations}};
  } // Snapshots expose claim status but never another character's inventory or chest rolls.
  function claim(c,state,record,chest,automatic=false){
   const personal=progress(c,record.edition);if(personal.claimed.includes(chest.id)){if(automatic)return;fail('You already claimed this treasure this week.');}
@@ -203,7 +205,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   }
   if(action==='dive_exit'||action==='leave'){if(state.run)fail('Finish or flee from the current fight first.');
    if(input.zone){const exit=f.exits?.find(e=>e.zone===input.zone);if(!exit||Math.abs(exit.x-p.x)+Math.abs(exit.y-p.y)>1)fail('Stand beside that hub exit.');}
-   back(c,state,input.zone);return;} // Escape returns to the entry hub; a nearby marked exit crosses to its destination.
+   back(c,state,input.zone??config.parent_zone);return;} // Branch regions retreat to their parent; crossings retain their original hub return.
   if(action==='chat'){
    const text=String(input.text??'').replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069#]/g,' ').trim().slice(0,240);if(!text)fail('Write a message first.');
    if(db.prepare('SELECT COUNT(*) AS n FROM quest_chat WHERE owner=? AND created>?').get(i.owner,now()-10000).n>=5)fail('Wait before sending another message.');
@@ -255,5 +257,15 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    if(record.edition!==latest())back(c,state);
   }
  }
- return {tick,snapshot,handles,act,chatArea,encounterSnapshot:state=>encounters.snapshot(state)};
+ function arrive(c,state,source){
+  const record=current(),position=record?.floor.entries?.[source];
+  if(!config.enabled||!position)fail('That connecting trail is unavailable.');
+  if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(zoneId,now()-30000,c.owner).n>=64)fail('The dive is full.');
+  const previous=state.dive;
+  state.dive={route,zone:zoneId,edition:record.edition,depth:1,origin:source,hubOrigin:previous.hubOrigin??previous.origin,hubEntryZone:previous.hubEntryZone??source,returnZone:previous.returnZone,position:{...position},safeUntil:now()+10*seconds};
+  state.diveReturned=null;delete state.diveReturnedPosition;
+  db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(zoneId,position.x,position.y,now(),c.id);
+  reveal(c,state,record.floor,position.x,position.y); // Revisit this route's own claims and fog; never re-import stale campaign equipment.
+ }
+ return {tick,snapshot,handles,act,chatArea,arrive,encounterSnapshot:state=>encounters.snapshot(state)};
 } // All mutations run inside the zone command transaction; scheduled simulation owns its own transaction.

@@ -1,5 +1,24 @@
 # LiDollQuest server
 
+## Frostveil Taiga
+
+`dive-taiga` / `frostveil-taiga` adds an 80×80 weekly region with Forest and Tundra
+enemies, their authored spells/DEX, and both native scenery pools. Its only entrance
+is the north-center Tundra trail (50,1). The Taiga southern exit (40,78) and manual
+retreat lead back to Tundra; no hub or Dive Hall offers a shortcut. Crossings use
+the existing command transaction and party transfer, retaining route-scoped claims,
+fog, equipment and replay receipts. Reconnect resumes the branch; weekly reset
+returns to the original hub through the normal recovery rules.
+
+Export the game's `taiga.json` and `online_taiga.json` with
+`python/export_online_taiga.py`. Deploy `server/taiga-data.json`,
+`server/wilderness-links.mjs`, and the updated service modules before the rebuilt
+client. Existing Tundra maps gain the trail additively and publish `geometryVersion`
+for live collision/minimap refresh; never delete weekly maps or progress to apply it.
+The new route otherwise uses the Monday 04:00 Pacific lifecycle. Run
+`node --test test/taiga.test.mjs test/tundra.test.mjs`; the game browser fixture
+`--taiga-only` exercises two real clients, mixed terrain and both return controls.
+
 ## Enemy ATB variation
 
 Shared encounter player cards now receive `mp` and `maxMp` from each character's committed loadout. Reads never mutate or refill mana. Deploy the service before the rebuilt client for current/max MP on all party cards; newer clients can still display their own MP against older services using the local loadout.
@@ -45,6 +64,52 @@ protected feed, signed-in joins, command replay, heartbeats and reconnects.
 Crawling now persists as a recoverable stance. Hub and Dive movement enforce a 400 ms minimum while crawling (200 ms standing); shared NPC clocks remain unchanged. Physical damage is reduced 25%, with a minimum of one. The `stand` action costs one ordinary combat turn or shared action-gauge cycle and needs no enemy target. Exhaustion or equipped `forces_crawl` definitions reject standing without spending an action. The campaign client supplies its two-stamina crawl recovery during the existing prepared-turn needs commit.
 
 Enemy `enemy_stat` spells can apply `stat_effect: "crawling"`; combo effects accept `type: "crawling"`. The game exporter adds `crawl_equipment` to `combat-data.json`, including the opt-in Cursed Crawling Anklets example. Deploy refreshed combat, campaign-Dive and hub definitions with the service and rebuilt client. Existing save flags/receipts are reused; no database migration is required. Combat, party and world tests cover recovery, replay and movement boundaries.
+
+## Gamemaster panel
+
+Set a dedicated `LIDOLLQUEST_GM_TOKEN` (32-128 URL-safe random characters) to
+enable the staff moderation surface. Without it every `/gm` route answers 503 and
+no panel exists. The secret is checked with a constant-time digest comparison;
+player wallet tokens are refused, and cross-origin callers are rejected. Because
+authentication is Bearer-only with no cookies, a forged page cannot drive the
+panel. Keep `HOST` on loopback or front the service with an authenticated proxy:
+this surface is not intended for the public internet.
+
+`GET /gm` serves a single self-contained page with no external assets. The
+operator pastes the token into it; the page holds it in tab memory only and never
+writes it to storage. The shell itself carries no player data. Everything it shows
+arrives through the authorised JSON routes below.
+
+`GET /gm/overview` returns `serverTime`, every room with its live occupancy, the
+current player roster, sanctions in force, the last fifty gamemaster actions and
+account/character totals. `GET /gm/chat?zone=&limit=` reads shared area chat,
+tagging automatic care announcements as `activity` rather than hiding them.
+`GET /gm/player?owner=` or `?character_id=` summarises one account: its
+characters, live presence, sanctions, recent messages and the actions taken
+against it. Character summaries carry only flat values, never inventory,
+equipment or credentials.
+
+`POST /gm/action` takes `{"action":...}` with one of:
+
+| Action | Effect |
+| --- | --- |
+| `kick` | Drops the presence row. The client's next command returns 409 and the player re-enters. The character is untouched. |
+| `warp` | Moves a live player to another hub room, arriving on its declared spawn tile. Refused during a run or Dive, and Dives are never destinations. |
+| `mute` / `unmute` | Withholds the `chat` command only. Movement, combat, trade and Dives continue normally. |
+| `suspend` / `unsuspend` | Refuses every authenticated route with `account_suspended` (zones, cloud saves and character management alike), drops the session immediately and removes the player from other rosters. Local campaign saves are untouched; cloud sync simply pauses until it is lifted. |
+| `broadcast` | Posts an announcement into a room as an activity line, which clients already render apart from player speech. |
+| `delete_chat` | Removes one message by `seq`. |
+
+Sanctions take `minutes` (0 records an indefinite one) and an optional `reason`.
+Expired sanctions clear themselves on the next lookup, so no sweeper is required.
+Every action writes an auditable `gm_audit` row recording who was affected, the
+detail and the reason. The panel never reads wallet credentials, never writes
+character inventories and never mints coins.
+
+Two tables are created on first start: `gm_sanctions` and `gm_audit`. No
+migration, weekly floor reset or GameMaker client rebuild is required, and the
+mute and suspension messages are ordinary rejection text existing clients already
+display. Verify with `node --test test/gm.test.mjs`.
 
 ## Unified accounts and cloud campaigns
 
