@@ -15,6 +15,15 @@ settings or manual migration are required. `test/management.test.mjs` covers the
 
 ## Premium private sprites
 
+The animation compatibility update reads PixelLab `last_response`, requests
+`keep_first_frame: false` so eight generated frames remain eight, and downloads
+the character ZIP when completed jobs return storage metadata. It preserves each
+job's direction and sorts exported frames numerically. `incomplete_animation`
+diagnostics now include bounded idle/per-direction frame counts. Deploy this
+server update before retrying a generation that failed during packing; the game,
+tracker and token configuration need no changes. ZIP retries never submit paid
+generation again. See the [PixelLab API specification](https://api.pixellab.ai/v2/openapi.json).
+
 Deploy the tracker sprite routes and diamond-consent changes before the GX client.
 Install Python 3.11+ and `pip install -r python/requirements.txt`; set the service's
 `PIXELLAB_API_TOKEN` and optionally `PIXELLAB_PYTHON` (default `python3`). Keep these

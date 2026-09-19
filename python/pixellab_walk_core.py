@@ -250,6 +250,7 @@ class GenerationResult:
 class PixelLabClient:
     def __init__(self, token: str):
         self.token = token
+        self._fresh_characters: set[str] = set()  # A first animation may safely use the sole animation folder in a new character's export.
 
     def _headers(self) -> dict[str, str]:
         return {
@@ -329,7 +330,7 @@ class PixelLabClient:
             job_result = self.poll_job(job_id)
             self.write_debug({"endpoint": f"background-jobs/{job_id}", "payload": {}, "data": job_result, "usage": None})
             if not character_id:
-                output = job_result.get("output")
+                output = job_result.get("last_response") or job_result.get("output")
                 if isinstance(output, dict):
                     character_id = output.get("character_id")
                 if not character_id:
@@ -337,6 +338,7 @@ class PixelLabClient:
 
         if not character_id:
             raise RuntimeError("PixelLab did not return a character_id from create-character-with-4-directions.")
+        self._fresh_characters.add(character_id)
         return character_id, usage
 
     def fetch_character_direction_images(self, character_id: str) -> dict[str, bytes]:
@@ -371,11 +373,16 @@ class PixelLabClient:
         action_description: str,
         frame_count: int,
     ) -> tuple[dict[str, list[bytes]], dict | None]:
+        animation_name = "lidoll-walk-" + uuid.uuid4().hex
+        first_animation = character_id in self._fresh_characters
+        self._fresh_characters.discard(character_id)
         payload = {
             "character_id": character_id,
             "mode": "v3",
             "action_description": action_description,
             "frame_count": frame_count,
+            "keep_first_frame": False,  # V3 otherwise stores the reference plus eight generated frames, producing nine.
+            "animation_name": animation_name,
             "directions": list(DIRECTIONS),
         }
         data, usage = self._post("animate-character", payload)
@@ -384,6 +391,24 @@ class PixelLabClient:
         job_id = None
         job_ids: list[str] = []
         requested_directions: list[str] = []
+        animation_keys = {animation_name}
+
+        def output_for(job):
+            output = job.get("last_response") or job.get("output") or job
+            if isinstance(output, dict):
+                for key in ("animation_id", "animation_name"):
+                    if isinstance(output.get(key), str):
+                        animation_keys.add(output[key])
+            return output  # Current jobs expose last_response; older responses may still use output.
+
+        def finish(frames):
+            if all(len(frames[d]) == frame_count for d in DIRECTIONS):
+                return frames, usage
+            stored = self._fetch_character_walk_frames(character_id, animation_keys, first_animation)
+            for direction in DIRECTIONS:
+                if len(frames[direction]) != frame_count and stored[direction]:
+                    frames[direction] = stored[direction]
+            return frames, usage  # Completed managed jobs may return storage metadata rather than embedded images.
         if isinstance(data, dict):
             if isinstance(data.get("background_job_id"), str):
                 job_id = data["background_job_id"]
@@ -404,33 +429,52 @@ class PixelLabClient:
                         "usage": None,
                     }
                 )
-                animation_data = job_result.get("output") if isinstance(job_result, dict) else None
-                if animation_data is None:
-                    animation_data = job_result
-                extracted = self._extract_walk_frames(animation_data)
-                merged_any = False
+                animation_data = output_for(job_result)
+                expected_direction = requested_directions[index] if index < len(requested_directions) else None
+                extracted = self._extract_walk_frames(animation_data, expected_direction)
                 for direction, frames in extracted.items():
                     if frames:
                         combined[direction].extend(frames)
-                        merged_any = True
-                if not merged_any:
-                    flat_frames = self._extract_flat_frames(animation_data)
-                    expected_direction = requested_directions[index] if index < len(requested_directions) else None
-                    if expected_direction in combined and flat_frames:
-                        combined[expected_direction].extend(flat_frames)
-            return combined, usage
+            return finish(combined)
 
         if job_id:
             job_result = self.poll_job(job_id)
             self.write_debug({"endpoint": f"background-jobs/{job_id}", "payload": {}, "data": job_result, "usage": None})
-            animation_data = job_result.get("output") if isinstance(job_result, dict) else None
-            if animation_data is None:
-                animation_data = job_result
-            return self._extract_walk_frames(animation_data), usage
+            return finish(self._extract_walk_frames(output_for(job_result)))
 
-        return self._extract_walk_frames(data), usage
+        return finish(self._extract_walk_frames(data))
 
-    def _extract_walk_frames(self, animation_data: object) -> dict[str, list[bytes]]:
+    def _fetch_character_walk_frames(self, character_id: str, animation_keys: set[str], first_animation: bool) -> dict[str, list[bytes]]:
+        url = f"{PIXELLAB_API_BASE_URL.rstrip('/')}/characters/{character_id}/zip"
+        for attempt in range(5):
+            response = requests.get(url, headers=self._headers(), timeout=REQUEST_TIMEOUT_SECONDS)
+            if response.status_code != 423 or attempt == 4:
+                response.raise_for_status()
+                break
+            time.sleep(BACKGROUND_JOB_POLL_SECONDS)  # Export can briefly lag completed jobs; retry downloads, never paid generation.
+        groups: dict[str, dict[str, list[tuple[int, str]]]] = {}
+        with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+            for name in archive.namelist():
+                parts = name.replace("\\", "/").split("/")
+                if "animations" not in parts:
+                    continue
+                index = parts.index("animations")
+                if len(parts) != index + 4 or parts[index + 2] not in DIRECTIONS:
+                    continue
+                match = re.fullmatch(r"frame[_-]?(\d+)\.png", parts[-1], re.IGNORECASE)
+                if not match:
+                    continue
+                group = groups.setdefault(parts[index + 1], {d: [] for d in DIRECTIONS})
+                group[parts[index + 2]].append((int(match.group(1)), name))
+            selected = [key for key in groups if key in animation_keys]
+            if not selected and first_animation and len(groups) == 1:
+                selected = list(groups)  # Only a newly created character can fall back to an otherwise unnamed sole animation.
+            if len(selected) != 1:
+                return {d: [] for d in DIRECTIONS}
+            return {d: [archive.read(name) for _, name in sorted(groups[selected[0]][d])] for d in DIRECTIONS}
+        # Read animation frames only: rotations, diagonal directions and other animations cannot leak into the strip.
+
+    def _extract_walk_frames(self, animation_data: object, expected_direction: str | None = None) -> dict[str, list[bytes]]:
         results: dict[str, list[bytes]] = {direction: [] for direction in DIRECTIONS}
 
         if isinstance(animation_data, dict):
@@ -452,12 +496,18 @@ class PixelLabClient:
                         frame_bytes = decode_image_candidate(frame_node)
                         if frame_bytes:
                             flat_bytes.append(frame_bytes)
-                    if flat_bytes:
+                    if flat_bytes and expected_direction in results:
+                        results[expected_direction] = flat_bytes  # Each managed background job belongs to one direction, not four slices.
+                    elif flat_bytes and len(flat_bytes) % len(DIRECTIONS) == 0:
                         frames_per_direction = max(1, len(flat_bytes) // len(DIRECTIONS))
                         for index, direction in enumerate(DIRECTIONS):
                             start = index * frames_per_direction
                             end = (index + 1) * frames_per_direction
                             results[direction] = flat_bytes[start:end]
+
+            if not any(results.values()) and expected_direction in results:
+                results[expected_direction] = self._extract_flat_frames(animation_data)
+                return results  # Metadata-only per-direction jobs use the authenticated character export after all jobs finish.
 
             if not any(results.values()):
                 zip_url = None

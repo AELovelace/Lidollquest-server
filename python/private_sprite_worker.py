@@ -42,6 +42,10 @@ def failure_diagnostic(error):
         result["code"] = "provider_network_error"
     elif str(error) == "Incomplete directional walk cycle":
         result["code"] = "incomplete_animation"
+        counts = getattr(error, "sprite_counts", {})
+        for key in ("idle_count", "south", "north", "east", "west"):
+            if type(counts.get(key)) is int and 0 <= counts[key] <= 256:
+                result[key] = counts[key]  # Counts distinguish missing output from unexpected frame totals without exposing image URLs.
     elif str(error) in ("Unexpected frame size", "Sprite strip exceeds delivery limit"):
         result["code"] = "invalid_sprite_output"
     return result  # Return allowlisted metadata only, never the exception text, token, prompt or provider body.
@@ -54,7 +58,9 @@ def generate(prompt, client):
     frames = []
     for direction in DIRECTIONS:
         if direction not in idle or len(walk.get(direction, [])) != 8:
-            raise ValueError("Incomplete directional walk cycle")  # Paid generations must contain actual animations; no static-frame substitutes.
+            error = ValueError("Incomplete directional walk cycle")
+            error.sprite_counts = {"idle_count": len(idle), **{d: len(walk.get(d, [])) for d in DIRECTIONS}}
+            raise error  # Paid generations must contain actual animations; no static-frame substitutes.
     for data in [idle[d] for d in DIRECTIONS] + [f for d in DIRECTIONS for f in walk[d]]:
         picture = Image.open(io.BytesIO(data))
         if picture.width > 256 or picture.height > 256:

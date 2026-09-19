@@ -28,6 +28,14 @@ test('failed generation logs sanitized diagnostics and still refunds exactly onc
  }finally{f.close();}
 });
 
+test('incomplete animation logs only bounded direction counts and refunds the failed slot',async()=>{
+ const logs=[],f=fixture(async()=>{throw Object.assign(Error('secret'),{diagnostic:{code:'incomplete_animation',stage:'pack',idle_count:4,south:9,north:8,east:-1,west:'secret',prompt:'private'}});},{log:(...args)=>logs.push(args)});
+ try{
+  await f.generate('','frame-counts');await until(()=>f.sprites.list('alice').sprites[0]?.status==='refunded');
+  assert.deepEqual(logs,[['quest_sprite_generation_failed',{code:'incomplete_animation',stage:'pack',idle_count:4,south:9,north:8}]]);assert.equal(f.balance,10);
+ }finally{f.close();}
+});
+
 test('generation debits once, survives lost responses, claims drafts once, and enforces per-character privacy',async()=>{
  const f=fixture();try{
   f.lose();await assert.rejects(()=>f.generate('','first'));assert.equal(f.balance,9);await f.sprites.recover('alice','new-token');
