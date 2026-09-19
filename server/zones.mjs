@@ -42,7 +42,7 @@ function canonical(value,depth=0){ // Nested loadout property order may change w
  return value;
 }
 
-export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},onPresence=()=>{}}={}) {
+export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},onPresence=()=>{}}={}) {
  db.exec(`CREATE TABLE IF NOT EXISTS quest_characters(id TEXT PRIMARY KEY,owner TEXT NOT NULL,name TEXT NOT NULL,created INTEGER NOT NULL,revision INTEGER NOT NULL DEFAULT 0,state TEXT NOT NULL,creation_id TEXT NOT NULL,UNIQUE(owner,creation_id));
  CREATE INDEX IF NOT EXISTS quest_character_owner ON quest_characters(owner);
  CREATE TABLE IF NOT EXISTS quest_presence(owner TEXT PRIMARY KEY,character_id TEXT NOT NULL UNIQUE,zone TEXT NOT NULL,grant_id TEXT NOT NULL,controller TEXT NOT NULL,x INTEGER NOT NULL,y INTEGER NOT NULL,seen INTEGER NOT NULL,moved INTEGER NOT NULL);
@@ -59,17 +59,17 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  const origins=createItemOrigins(db);
  const purchases=createHubPurchases(db,{now,origins});
  const bank=createBank(db);
- const quarters=createDive(db,{now,roll,adjust,origins,parties,...diveOptions});
- const desert=createDive(db,{now,roll,adjust,origins,parties,data:desertData,generate:generateDesert,...desertOptions});
+ const quarters=createDive(db,{now,roll,adjust,origins,parties,measure,...diveOptions});
+ const desert=createDive(db,{now,roll,adjust,origins,parties,measure,data:desertData,generate:generateDesert,...desertOptions});
  const trail=floor=>addTaigaTrail(floor,(taigaOptions.data??taigaData).config);
- const tundra=createDive(db,{now,roll,adjust,origins,parties,data:tundraData,generate:generateDesert,upgradeFloor:trail,travel,...tundraOptions});
- const taiga=createDive(db,{now,roll,adjust,origins,parties,data:taigaData,generate:generateDesert,travel,...taigaOptions});
+ const tundra=createDive(db,{now,roll,adjust,origins,parties,measure,data:tundraData,generate:generateDesert,upgradeFloor:trail,travel,...tundraOptions});
+ const taiga=createDive(db,{now,roll,adjust,origins,parties,measure,data:taigaData,generate:generateDesert,travel,...taigaOptions});
  const engines=new Map([[DIVE_ZONE,quarters],[DESERT_ZONE,desert],[TUNDRA_ZONE,tundra],[TAIGA_ZONE,taiga]]);
  function travel(c,state,source,destination){
   if(!((source===TUNDRA_ZONE&&destination===TAIGA_ZONE)||(source===TAIGA_ZONE&&destination===TUNDRA_ZONE)))return false;
   engines.get(destination).arrive(c,state,source);return true; // Only this authored reciprocal trail connects dungeons; hub portals cannot enter the branch.
  }
- for(const data of campaignDives)engines.set(data.config.zone_id,createDive(db,{now,roll,adjust,origins,parties,data})); // Each destination keeps its own editions, loot receipts and encounter locks.
+ for(const data of campaignDives)engines.set(data.config.zone_id,createDive(db,{now,roll,adjust,origins,parties,measure,data})); // Each destination keeps its own editions, loot receipts and encounter locks.
  const isDungeon=id=>engines.has(id);
  const engine=id=>engines.get(id)??quarters; // No active visit still exposes the legacy Quarters summary.
  const dive={tick(){atomic(()=>parties.tick());for(const route of engines.values())route.tick();},
@@ -90,7 +90,8 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   const spawn=hubArrival(destination,source.id);
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE owner=?').run(destination.id,spawn.x,spawn.y,now(),i.owner);
  } // Enter just inside the matching wall opening, facing into the destination; a held movement key cannot immediately bounce back.
- function snapshot(i,c=null,view={}){
+ function snapshot(i,c=null,view={}){return measure('snapshot.build',()=>snapshotData(i,c,view));} // Includes floor decoding and database reads, but excludes network waits and response encoding.
+ function snapshotData(i,c=null,view={}){
   const restricted=i.blockedAccounts??[]; // Account restrictions apply across every character and room.
   const p=c?db.prepare('SELECT * FROM quest_presence WHERE owner=? AND character_id=? AND seen>?').get(i.owner,c.id,now()-30000):null;
   const peers=p?db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT 64').all(p.zone,now()-30000).filter(r=>enabled(r.owner)).map(r=>({id:r.character_id,name:r.name,restricted:restricted.includes(r.owner),avatar:JSON.parse(r.state).avatar??'player',x:r.x,y:r.y,stage:JSON.parse(r.state).run?.stage??0,fighting:JSON.parse(r.state).run?.phase==='fight'})):[];

@@ -67,27 +67,187 @@ Enemy `enemy_stat` spells can apply `stat_effect: "crawling"`; combo effects acc
 
 ## Gamemaster panel
 
-Set a dedicated `LIDOLLQUEST_GM_TOKEN` (32-128 URL-safe random characters) to
-enable the staff moderation surface. Without it every `/gm` route answers 503 and
-no panel exists. The secret is checked with a constant-time digest comparison;
-player wallet tokens are refused, and cross-origin callers are rejected. Because
-authentication is Bearer-only with no cookies, a forged page cannot drive the
-panel. Keep `HOST` on loopback or front the service with an authenticated proxy:
-this surface is not intended for the public internet.
+`GET /gm` is the staff moderation surface. Access is granted by LiDollID identity,
+not by a shared secret: the operator signs in with their own account and it must
+hold the `gamemaster` role in Little Log user management. There is no panel token
+to distribute, rotate or leak, and every action is recorded against the account
+that performed it. Set `LIDOLLQUEST_GM_ENABLED=false` to remove the surface
+entirely.
 
-`GET /gm` serves a single self-contained page with no external assets. The
-operator pastes the token into it; the page holds it in tab memory only and never
-writes it to storage. The shell itself carries no player data. Everything it shows
-arrives through the authorised JSON routes below.
+### Recorded server performance
+
+The `/gm` panel includes **Server performance**, backed by the same live LiDollID
+gamemaster checks as moderation. `GET /gm/performance` is read-only and also obeys
+the panel's address, origin and TLS rules. `/health` remains a simple availability
+probe and exposes no statistics.
+
+The service records one aggregate sample per minute into `server_performance_samples`
+in `quest.sqlite`, even while nobody has the panel open. It retains at most 1,440
+samples from the last 24 hours, including across restarts. A graceful shutdown also
+records a partial interval of at least one second. The panel refreshes the current
+interval every ten seconds and charts the last hour or last day; restarts and missed
+intervals appear as gaps. Each sample carries its actual duration and process session.
+
+- Process CPU: **100% is one occupied core**, not 100% of the host. Native/background
+  threads can take process CPU above 100%. Available CPU parallelism is also shown.
+- Event-loop utilization, delay p95/max (20 ms timer sampling), resident/heap memory.
+  An idle loop normally has a delay near the sampling resolution; loop utilization
+  can include synchronous waits and is not itself CPU usage.
+- Gameplay request throughput, active/peak requests, mean/max response time, 4xx/5xx,
+  429 throttles and disconnects. Health probes and staff traffic are excluded from
+  these request counters; process CPU still includes the entire service.
+- Expand **Work timings by operation and zone** for current or latest recorded calls,
+  total/mean/max elapsed milliseconds and thrown errors. Simulation, generation and
+  pathfinding are grouped by authored zone; snapshots, zone actions/reads, response
+  JSON encoding and gameplay account authentication/debits/credits are also timed.
+
+Timings include elapsed waits and nested scopes overlap. Do not add their totals or
+treat network latency as CPU time. Synchronous scopes include SQLite reads/writes;
+this is not a per-query profiler. No tokens, player IDs, chat, paths supplied by
+players or request bodies are recorded. Timing labels have a fixed memory ceiling.
+Old detailed scopes stay in the bounded database history; the panel downloads detailed
+timings only for the latest recorded interval and the current interval.
+
+A failed history write leaves gameplay running and displays a recording warning;
+a failed panel refresh marks displayed readings stale. Removing the operator's role
+returns them to sign-in. Deploy the quest service to enable this feature; no tracker
+deployment, content export, editor schema change or GX.games rebuild is needed.
+
+Run `node --test test/performance.test.mjs test/gm.test.mjs` for calculations,
+retention, restarts, rejected/disconnected requests, failed writes and access checks.
+The game checkout's `node python/tests/fixtures/gm_performance_browser.mjs` checks
+the real panel with synthetic identities/history and writes desktop/mobile captures
+under `build/gm-performance-browser/`. Synthetic chart data is not a capacity benchmark.
+
+### Granting the role
+
+In the Little Log admin console, User management now offers **Gamemaster**
+alongside Participant and Admin. The role is deliberately narrow: it unlocks this
+panel and nothing else. A gamemaster cannot open the Little Log console, read or
+export anyone's records, moderate the social timeline or send notifications —
+those remain `admin`. Administrators hold gamemaster implicitly, so the job can be
+delegated without handing over the whole console. Changing or disabling the role
+takes effect on the operator's very next request, because identity is revalidated
+with LiDollID on every staff call rather than cached in a session.
+
+### Signing in
+
+The panel runs a LiDollID device authorisation, the same flow the native game
+uses. It shows a user code and a link to the approval page; the operator approves
+it from any signed-in Little Log session and the panel receives a `wallet:read`
+grant. That scope carries identity alone: the panel can never move coins, read
+cloud saves, touch social data or act as a character. An approved account that
+lacks the role is refused at the moment of sign-in, so the page never holds a
+session it could not use. The grant lives in tab memory only and is never written
+to storage. The service proxies both sign-in steps, so the operator's browser
+never talks to the tracker directly and no CORS entry is required.
+
+### Reaching a headless server
+
+The service host has no browser, so the panel is opened from another machine and
+`HOST` must be an address that machine can reach. Set `HOST` to the server's LAN
+address (or `0.0.0.0` for every interface) and restrict who may use the staff
+routes with `LIDOLLQUEST_GM_ALLOW`: comma-separated IPv4/IPv6 addresses and CIDR
+blocks, for example `10.1.1.23` or `10.1.1.0/24`. An unlisted caller receives 403
+`gm_forbidden_address` before the page is served and before any identity is
+considered. A malformed entry throws at startup rather than silently admitting the
+network. Leaving it unset applies no address restriction, leaving the gamemaster
+role as the only barrier. The allowlist covers `/gm` alone; gameplay, `/health`
+and the join feed are unaffected.
+
+The comparison uses the socket's own address, correctly handling the
+`::ffff:10.1.1.23` form a dual-stack bind reports.
+
+### Behind a reverse proxy
+
+Set `LIDOLLQUEST_GM_TRUST_PROXY` to the proxy's address (IPs and/or CIDR blocks).
+Only a caller matching it has its `X-Forwarded-For` and `X-Forwarded-Proto`
+believed; from anyone else both headers are ignored entirely, so a client cannot
+forge an operator address or claim a secure channel. The real caller is resolved by
+walking the forwarded chain from the right and taking the first hop that is not one
+of our own proxies. With no proxy declared, the socket address is used and
+forwarded headers never matter.
+
+`LIDOLLQUEST_GM_REQUIRE_TLS=true` then refuses `/gm` — the sign-in page included —
+with 403 `gm_insecure_transport` unless the request reached the operator over
+HTTPS. A request is considered secure when this process terminated TLS itself, or
+when a trusted proxy reports `X-Forwarded-Proto: https`. Without a trusted proxy
+configured, nothing can satisfy it, which is deliberate: the flag is meaningless
+without a terminator in front. Set both together.
+
+This matters because the operator's grant travels in an `Authorization` header and
+stays valid for thirty days. Anyone who reads it off the wire holds working
+gamemaster access, and the role check cannot tell them apart from the real
+operator. Restrict the service port to the proxy so the plaintext listener cannot
+be reached directly:
+
+```sh
+sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="10.1.1.20/32" port port="4191" protocol="tcp" accept'
+sudo firewall-cmd --reload
+```
+
+A private LAN with no proxy is a reasonable place to leave both settings unset. An
+SSH tunnel (`ssh -L 4191:127.0.0.1:4191 host`) with `HOST` on loopback remains the
+lightest option when the panel is needed only occasionally.
+
+### nginx
+
+Terminate TLS at the proxy and forward the whole `/gm` prefix. The service needs
+both forwarded headers; `X-Forwarded-Proto` drives the TLS requirement and
+`X-Forwarded-For` drives the address allowlist.
+
+```nginx
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name gm.lidoll.example;
+
+  ssl_certificate     /etc/letsencrypt/live/gm.lidoll.example/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/gm.lidoll.example/privkey.pem;
+
+  location /gm {
+    proxy_pass http://10.1.1.21:4191;          # the LiDollQuest service
+    proxy_http_version 1.1;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header Origin            "";      # the panel is same-origin to itself
+    proxy_read_timeout 30s;
+  }
+
+  location / { return 404; }                    # nothing but the panel is published here
+}
+
+server {
+  listen 80;
+  server_name gm.lidoll.example;
+  return 301 https://$host$request_uri;
+}
+```
+
+Clearing `Origin` matters: the service rejects a cross-origin `Origin` on staff
+writes, and the browser sends the public hostname while the service sees its own.
+Removing the header leaves the same-origin path, which the bearer credential
+already makes safe. `$proxy_add_x_forwarded_for` appends the real client to any
+existing chain, which is what the right-to-left walk above expects. Publish only
+`/gm`: the gameplay API authenticates its own callers and does not belong on this
+hostname.
+
+### Routes
+
+`GET /gm` serves a single self-contained page with no external assets; the shell
+carries no player data. `POST /gm/signin/start` and `POST /gm/signin/poll` run the
+device authorisation and are the only unauthenticated routes, bounded by a
+per-caller attempt ceiling. Everything below requires a live gamemaster identity.
 
 `GET /gm/overview` returns `serverTime`, every room with its live occupancy, the
-current player roster, sanctions in force, the last fifty gamemaster actions and
-account/character totals. `GET /gm/chat?zone=&limit=` reads shared area chat,
-tagging automatic care announcements as `activity` rather than hiding them.
-`GET /gm/player?owner=` or `?character_id=` summarises one account: its
-characters, live presence, sanctions, recent messages and the actions taken
-against it. Character summaries carry only flat values, never inventory,
-equipment or credentials.
+current player roster, sanctions in force, the last fifty gamemaster actions with
+their actor, and account/character totals. `GET /gm/chat?zone=&limit=` reads shared
+area chat, tagging automatic care announcements as `activity` rather than hiding
+them. `GET /gm/player?owner=` or `?character_id=` summarises one account: its
+characters, live presence, sanctions, recent messages and the actions taken against
+it. Character summaries carry only flat values, never inventory, equipment or
+credentials. `GET /gm/whoami` reports the signed-in account.
 
 `POST /gm/action` takes `{"action":...}` with one of:
 
@@ -102,14 +262,21 @@ equipment or credentials.
 
 Sanctions take `minutes` (0 records an indefinite one) and an optional `reason`.
 Expired sanctions clear themselves on the next lookup, so no sweeper is required.
-Every action writes an auditable `gm_audit` row recording who was affected, the
-detail and the reason. The panel never reads wallet credentials, never writes
-character inventories and never mints coins.
+A gamemaster cannot mute or suspend their own account. Every action writes a
+`gm_audit` row naming the acting account, the target, the detail and the reason.
+The panel never reads wallet credentials, never writes character inventories and
+never mints coins.
 
-Two tables are created on first start: `gm_sanctions` and `gm_audit`. No
-migration, weekly floor reset or GameMaker client rebuild is required, and the
-mute and suspension messages are ordinary rejection text existing clients already
-display. Verify with `node --test test/gm.test.mjs`.
+Account identifiers shown in the panel are the per-app pseudonyms LiDollQuest
+already uses (`sha256('lidollquest:' + participant)`). This service cannot resolve
+them to a Little Log participant, and the panel deliberately does not try.
+
+Two tables are created on first start: `gm_sanctions` and `gm_audit`; an existing
+`gm_audit` gains its `actor` column automatically. Deploy the updated tracker
+before this service, because the role decision travels on the wallet response. No
+weekly floor reset or GameMaker client rebuild is required, and the mute and
+suspension messages are ordinary rejection text existing clients already display.
+Verify with `node --test test/gm.test.mjs`.
 
 ## Unified accounts and cloud campaigns
 

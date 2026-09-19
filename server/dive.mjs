@@ -16,7 +16,7 @@ const fail=(message,code='dive_conflict')=>{throw Object.assign(Error(message),{
 const clone=structuredClone;
 const seconds=1000,minutes=60000;
 
-export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,upgradeFloor=()=>false,travel=()=>false}){
+export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,measure=(_name,work)=>work(),upgradeFloor=()=>false,travel=()=>false}){
  const config=data.config,route=config.route,zoneId=config.zone_id??DIVE_ZONE,theme=config.theme??'princess_quarters',name=config.name??"Princess' Quarters - Dungeon Dive",bossId=config.boss_id??'iris';
  const rollLoot=createDiveLootRoller(data); // One policy covers every online route and its personal floor progress.
  const owns=visit=>visit?.route===route; // Each route maintains only its own visits and encounter locks.
@@ -52,7 +52,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function ensure(){
   if(!config.enabled)return;
   const window=weeklyWindow(now());if(getFloor(window.edition)||now()<retryAt)return;
-  try{const floor=generate(data,window.edition);upgradeFloor(floor);addPinkMist(floor);db.prepare('INSERT OR IGNORE INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(route,window.edition,window.start,window.ends,JSON.stringify(floor),now());log('dive_generation_ready',route,window.edition);}
+  try{const floor=measure('generate.'+zoneId,()=>generate(data,window.edition));upgradeFloor(floor);addPinkMist(floor);db.prepare('INSERT OR IGNORE INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(route,window.edition,window.start,window.ends,JSON.stringify(floor),now());log('dive_generation_ready',route,window.edition);}
   catch(error){retryAt=now()+minutes;log('dive_generation_failed',route,String(error));}
  } // Never replace a valid edition until its successor is fully generated and validated.
  function relocate(c,state,position,scene,downedAt=now()){ // Recovery needs both the completed scene and one real minute since defeat.
@@ -143,7 +143,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    if(foe.engaged||foe.respawnAt>now()||!enemyRoams(data,foe))continue;
    const targets=players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return v.pendingDefeat||v.dive?.route!==route||v.dive?.edition!==active.edition||(!v.run&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0&&!v.loadout?.player_info.stat_points);});return ready&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.worldTurnDue&&!(s.loadout?.player_info.stat_points>0)&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);}); // Roaming enemies can engage survivors without enrolling downed party members.
    let target=null,best=null;
-   for(const p of targets){const path=pathTo(f,foe,p,config.pursuit_steps);if(path&&(!best||path.length<best.length)){target=p;best=path;}}
+   for(const p of targets){const path=measure('pathfinding.'+zoneId,()=>pathTo(f,foe,p,config.pursuit_steps));if(path&&(!best||path.length<best.length)){target=p;best=path;}} // Aggregate by authored zone, never by a player or enemy identifier.
    if(best?.length===0||best?.length===1){const c={id:target.character_id,owner:target.owner,revision:target.revision},s=JSON.parse(target.state);if(s.loadout?.player_info.playerHealth>0){start(c,s,active,foe);saveCharacter(c,s);target.state=c.state;target.revision=c.revision;}continue;}
    let step=best?.[0];if(!step){const [dx,dy]=[[1,0],[-1,0],[0,1],[0,-1]][rnd(4)];step={x:foe.x+dx,y:foe.y+dy};}
    if(walkable(f,step.x,step.y)&&!safe(f,step.x,step.y)&&!occupied.has(step.x+','+step.y)&&!players.some(p=>p.x===step.x&&p.y===step.y)){
@@ -152,7 +152,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   }
   active.updated=now();saveFloor(active);
  }
- function tick(){if(now()-lastTick<seconds)return;lastTick=now();db.exec('BEGIN IMMEDIATE');try{maintain();db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');lastTick=-Infinity;log('dive_tick_failed',String(error));}}
+ function tick(){if(now()-lastTick<seconds)return;lastTick=now();measure('simulation.'+zoneId,()=>{db.exec('BEGIN IMMEDIATE');try{maintain();db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');lastTick=-Infinity;log('dive_tick_failed',String(error));}});} // Time actual ticks, not the early returns when a request arrives inside the same second.
  function snapshot(c,p){
   const state=c?JSON.parse(c.state):null,record=owns(state?.dive)?getFloor(state.dive.edition):current(),personal=c&&record?progress(c,record.edition):null;
   const summary={enabled:config.enabled&&!!record,version:1,route,zone:zoneId,name,boss:bossId,edition:record?.edition??'',resetsAt:record?.ends??weeklyWindow(now()).ends,completed:personal?.completed??false,claimed:record?.floor.chests.filter(ch=>personal?.claimed.includes(ch.id)).length??0,total:record?.floor.chests.length??0,pickupsClaimed:(record?.floor.pickups??[]).filter(ch=>personal?.claimed.includes(ch.id)).length,pickupsTotal:record?.floor.pickups?.length??0,claimableCoins:personal?.completed?Math.max(0,config.boss_coins-personal.coinsPaid):0};

@@ -48,14 +48,25 @@ tr.sel td{background:#2c1e3d}
 .flash.err{display:block;background:#3d1c26;border:1px solid var(--red);color:var(--red)}
 .gate{max-width:420px;margin:60px auto;text-align:center}
 .empty{color:var(--dim);font-style:italic;padding:10px 0}
+.usercode{font-family:ui-monospace,Consolas,monospace;font-size:30px;letter-spacing:4px;color:var(--mint);margin:14px 0}
+.gate a{color:var(--rose)}
+#who{font-size:12px;color:var(--dim)}
+.scroll{overflow-x:auto}.perf-chart{display:block;width:100%;height:190px;background:#1b1226;border-radius:8px}.perf-chart text{fill:var(--dim);font-size:12px}.perf-chart .grid{stroke:var(--edge);stroke-width:1}.perf-chart .cpu{stroke:var(--mint);fill:none;stroke-width:2}.perf-chart .loop{stroke:var(--rose);fill:none;stroke-width:2}
 </style>
 </head>
 <body>
 
 <div id="gate" class="gate">
   <h1>LiDollQuest Gamemaster</h1>
-  <p class="note">Paste the staff token to begin. It is held in this tab's memory only and is never written to storage.</p>
-  <div class="row"><input id="token" class="grow" type="password" placeholder="Staff token" autocomplete="off"><button class="go" id="enter">Enter</button></div>
+  <p class="note">Sign in with the LiDollID account that holds the gamemaster role in Little Log. The approval is held in this tab's memory only and is never written to storage.</p>
+  <div class="row" id="startRow"><button class="go" id="enter">Sign in with LiDollID</button></div>
+  <div id="pending" hidden>
+    <p class="note">Enter this code on the LiDollID approval page:</p>
+    <p class="usercode" id="usercode"></p>
+    <p class="note"><a id="verify" target="_blank" rel="noreferrer noopener">Open the approval page</a></p>
+    <p class="note" id="waiting">Waiting for approval&#8230;</p>
+    <div class="row" style="justify-content:center"><button id="cancel">Cancel</button></div>
+  </div>
   <div id="gateErr" class="flash"></div>
 </div>
 
@@ -65,10 +76,35 @@ tr.sel td{background:#2c1e3d}
   <button id="refresh">Refresh</button>
   <label><input type="checkbox" id="auto" checked> auto every 10s</label>
   <span id="clock" class="mono"></span>
+  <span id="who"></span>
   <button id="signout" style="margin-left:auto">Sign out</button>
 </header>
 <div id="flash" class="flash"></div>
 <main>
+
+  <section class="wide" aria-labelledby="perfHeading">
+    <h2 id="perfHeading">Server performance</h2>
+    <p id="perfStatus" class="note" role="status">Loading performance statistics...</p>
+    <div class="tot" style="margin-top:12px">
+      <div><b id="perfCpu">—</b><span>process CPU</span></div>
+      <div><b id="perfLoop">—</b><span>event loop busy</span></div>
+      <div><b id="perfDelay">—</b><span>loop delay p95</span></div>
+      <div><b id="perfMemory">—</b><span>resident memory</span></div>
+      <div><b id="perfRate">—</b><span>game requests / sec</span></div>
+      <div><b id="perfActive">—</b><span>active requests</span></div>
+    </div>
+    <p class="note">CPU: 100% means one fully occupied core; background threads can take it above 100%. This measures the Quest process, not the entire host. Event-loop busy time also includes blocking waits.</p>
+    <div class="row" style="margin-top:12px"><label for="perfRange">Recorded history</label><select id="perfRange"><option value="1">Last hour</option><option value="24">Last 24 hours</option></select><span class="note">Mint: CPU · Pink: event loop busy</span></div>
+    <svg id="perfChart" class="perf-chart" viewBox="0 0 900 190" role="img" aria-label="Recorded CPU and event-loop utilization"></svg>
+    <p id="perfHistory" class="note"></p>
+    <p id="perfRequests" class="note"></p>
+    <details style="margin-top:12px"><summary>Work timings by operation and zone</summary>
+    <div class="row" style="margin-top:12px"><label for="perfTimingWindow">Interval</label><select id="perfTimingWindow"><option value="recorded">Latest recorded interval</option><option value="live">Current interval</option></select></div>
+    <p id="perfTimingStatus" class="note"></p>
+    <div class="scroll"><table><thead><tr><th>Work</th><th>Calls</th><th>Total ms</th><th>Mean ms</th><th>Max ms</th><th>Errors</th></tr></thead><tbody id="perfTimings"></tbody></table></div>
+    <p class="note">Timings are elapsed time, not CPU attribution. Nested scopes overlap: generation and pathfinding are included in simulation; snapshots are included in zone reads/actions. Account timings include network waits. Synchronous timings include database work. Delay sampling uses a 20 ms timer, so an idle loop normally reads near 20 ms.</p>
+    </details>
+  </section>
 
   <section class="wide">
     <h2>Live server</h2>
@@ -128,11 +164,48 @@ tr.sel td{background:#2c1e3d}
  "use strict";
  var token="",timer=null,state={zones:[],players:[]},selected=null; // The token lives only in this closure for the life of the tab.
  var $=function(id){return document.getElementById(id);};
+ var perfData=null,perfBusy=false,perfEpoch=0; // A late response from a signed-out session cannot repopulate the statistics.
 
  function el(tag,cls,text){var n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;} // textContent everywhere: player names and chat are untrusted input.
  function clear(node){while(node.firstChild)node.removeChild(node.firstChild);}
  function when(ms){return new Date(ms).toLocaleTimeString();}
  function idle(ms){return ms<1000?"now":ms<60000?Math.round(ms/1000)+"s":Math.round(ms/60000)+"m";}
+ function metric(value,suffix){return typeof value==="number"&&Number.isFinite(value)?value.toFixed(1)+(suffix||""):"—";}
+ function renderPerformance(){
+  if(!perfData)return;
+  var data=perfData,current=data.current,request=current.requests,latest=data.latest;
+  $("perfCpu").textContent=metric(current.cpuPercent,"%");$("perfLoop").textContent=metric(current.eventLoopPercent,"%");
+  $("perfDelay").textContent=metric(current.delayP95Ms," ms");$("perfMemory").textContent=metric(current.rssMiB," MiB");
+  $("perfRate").textContent=metric(request.perSecond);$("perfActive").textContent=String(request.active);
+  $("perfStatus").textContent=(data.recordingError?"History recording failed; live readings still available. ":"")+"Updated "+when(current.at)+" · "+data.availableCores+" available CPU cores · live interval "+metric(current.elapsedMs/1000," s")+" · started "+new Date(data.startedAt).toLocaleString();
+  $("perfRequests").textContent="Current interval: "+request.completed+" completed requests · "+request.clientErrors+" 4xx · "+request.serverErrors+" 5xx · "+request.throttled+" throttled · "+request.aborted+" disconnected · mean "+metric(request.meanMs," ms")+" / max "+metric(request.maxMs," ms")+" · peak active "+request.peakActive+" · heap "+metric(current.heapMiB," MiB")+" · max loop delay "+metric(current.delayMaxMs," ms");
+  var recorded=$("perfTimingWindow").value==="recorded",sample=recorded?latest:current,body=$("perfTimings");clear(body);
+  $("perfTimingStatus").textContent=sample?(recorded?"Recorded":"Live")+" interval ending "+new Date(sample.at).toLocaleString()+" ("+metric(sample.elapsedMs/1000," s")+").":"The first interval is recorded after one minute.";
+  if(sample&&sample.timings.length)sample.timings.forEach(function(t){var tr=el("tr");[t.name,String(t.calls),metric(t.totalMs),metric(t.meanMs),metric(t.maxMs),String(t.errors)].forEach(function(value){tr.appendChild(el("td",null,value));});body.appendChild(tr);});
+  else{var tr=el("tr"),cell=el("td","empty","No measured work in this interval.");cell.colSpan=6;tr.appendChild(cell);body.appendChild(tr);}
+  renderPerformanceChart();
+ } // Render only numeric aggregates and code-owned labels; no private request data is collected.
+ function renderPerformanceChart(){
+  var data=perfData,end=data.current.at,start=end-Number($("perfRange").value)*3600000,rows=data.history.filter(function(p){return p.at>=start&&p.at<=end;}),svg=$("perfChart");clear(svg);
+  function shape(tag,attrs,text){var node=document.createElementNS("http://www.w3.org/2000/svg",tag);Object.keys(attrs).forEach(function(key){node.setAttribute(key,String(attrs[key]));});if(text!==undefined)node.textContent=text;svg.appendChild(node);return node;}
+  var max=Math.max(100,...rows.map(function(p){return p.cpuPercent||0;})),x=function(at){return 52+(at-start)/(end-start)*832;},y=function(value){return 152-value/max*130;};
+  [0,50,100].forEach(function(value){shape("line",{x1:52,x2:884,y1:y(value),y2:y(value),class:"grid"});shape("text",{x:2,y:y(value)+4},value+"%");});
+  shape("text",{x:52,y:180},new Date(start).toLocaleTimeString());shape("text",{x:790,y:180},new Date(end).toLocaleTimeString());
+  ["cpuPercent","eventLoopPercent"].forEach(function(key){
+   var points=[],previous=null;
+   function segment(){if(points.length)shape("polyline",{points:points.join(" "),class:key==="cpuPercent"?"cpu":"loop"});points=[];}
+   rows.forEach(function(p){if(p[key]===null){segment();previous=null;return;}if(previous&&(previous.session!==p.session||p.at-previous.at>data.sampleMs*2||p.at<previous.at))segment();points.push(x(p.at)+","+y(p[key]));previous=p;});segment();
+  }); // Leave gaps across restarts and missed samples instead of inventing continuous measurements.
+  rows.forEach(function(p){if(p.cpuPercent===null)return;var dot=shape("circle",{cx:x(p.at),cy:y(p.cpuPercent),r:3,fill:"var(--mint)"}),title=document.createElementNS(svg.namespaceURI,"title");title.textContent=new Date(p.at).toLocaleString()+" · CPU "+metric(p.cpuPercent,"%")+" · event loop "+metric(p.eventLoopPercent,"%")+" · requests/s "+metric(p.requests.perSecond);dot.appendChild(title);});
+  $("perfHistory").textContent=rows.length?rows.length+" recorded intervals shown. CPU peak "+metric(Math.max(...rows.map(function(p){return p.cpuPercent||0;})),"%")+". One sample per minute; up to 24 hours retained across restarts.":"No recorded samples in this range yet. Recording runs every minute, even with this panel closed.";
+ }
+ function loadPerformance(){
+  if(perfBusy||!token)return;perfBusy=true;var epoch=perfEpoch;
+  return api("/gm/performance").then(function(data){if(epoch!==perfEpoch||!token)return;perfData=data;renderPerformance();}).catch(function(error){
+   if(epoch!==perfEpoch)return;$("perfStatus").textContent="Performance refresh failed; displayed readings may be stale. "+error.message;
+   if(error.status===401||error.status===403)signOut();
+  }).finally(function(){if(epoch===perfEpoch)perfBusy=false;});
+ }
  function until(row){return row.until?new Date(row.until).toLocaleString():"indefinite";}
  function short(owner){return owner.length>14?owner.slice(0,10)+"…"+owner.slice(-4):owner;} // Account ids are long hashes; the full value stays in the title attribute.
 
@@ -258,6 +331,8 @@ tr.sel td{background:#2c1e3d}
    var target=el("span",null,row.detail&&row.detail.text?row.detail.text:short(row.target));
    target.title=row.target+(row.detail&&row.detail.reason?" — "+row.detail.reason:"");
    line.appendChild(target);
+   if(row.actor)line.appendChild(el("span","mono","by "+short(row.actor)));  // Attribution is why the shared secret went away.
+
    line.appendChild(el("span","when",when(row.created)));
    log.appendChild(line);
   });
@@ -329,17 +404,21 @@ tr.sel td{background:#2c1e3d}
  }
 
  function refresh(){
+  var epoch=perfEpoch;
   return api("/gm/overview").then(function(payload){
+   if(epoch!==perfEpoch||!token)return; // Ignore an overview that finishes after sign-out or a new session.
    state=payload;
    $("tOnline").textContent=String(payload.totals.online);
    $("tAccounts").textContent=String(payload.totals.accounts);
    $("tCharacters").textContent=String(payload.totals.characters);
    $("clock").textContent="server "+when(payload.serverTime);
    renderZones();renderPlayers();renderSanctions(payload.sanctions);renderAudit(payload.audit);
+   loadPerformance();
    if(selected)loadPlayer(selected);
   }).catch(function(error){
+   if(epoch!==perfEpoch)return;
    say("err",error.message);
-   if(error.status===401)signOut(); // A rotated secret drops straight back to the token gate.
+   if(error.status===401||error.status===403)signOut(); // Expired identity or a revoked role drops back to the sign-in gate.
   });
  }
 
@@ -349,24 +428,60 @@ tr.sel td{background:#2c1e3d}
  }
 
  function signOut(){
+  perfEpoch++;perfBusy=false;perfData=null;clear($("perfChart"));clear($("perfTimings")); // Discard old readings when the authenticated session ends.
+  ["perfCpu","perfLoop","perfDelay","perfMemory","perfRate","perfActive","perfStatus","perfHistory","perfRequests","perfTimingStatus"].forEach(function(id){$(id).textContent="—";});
   token="";if(timer)clearInterval(timer);timer=null;selected=null;
-  $("app").hidden=true;$("gate").hidden=false;$("token").value="";$("token").focus();
+  if(poller){clearTimeout(poller);poller=null;}
+  $("who").textContent="";$("pending").hidden=true;$("startRow").hidden=false;
+  $("app").hidden=true;$("gate").hidden=false;
+ }
+
+ var poller=null;
+ function gateError(text){$("gateErr").className="flash err";$("gateErr").textContent=text;}
+ function stopSignin(){if(poller){clearTimeout(poller);poller=null;}$("pending").hidden=true;$("startRow").hidden=false;}
+
+ function enter(){ // A confirmed gamemaster grant swaps the gate for the live panel.
+  stopSignin();$("gateErr").className="flash";
+  $("gate").hidden=true;$("app").hidden=false;
+  refresh();loadChat();schedule();
+ }
+
+ function poll(deviceCode,intervalMs,deadline){
+  poller=setTimeout(function(){
+   if(Date.now()>deadline){stopSignin();gateError("That sign-in code expired. Try again.");return;}
+   fetch("/gm/signin/poll",{method:"POST",headers:{"Content-Type":"application/json"},cache:"no-store",body:JSON.stringify({device_code:deviceCode})})
+    .then(function(response){return response.json().then(function(payload){return {ok:response.ok,payload:payload};});})
+    .then(function(result){
+     if(result.ok){token=result.payload.access_token;$("who").textContent="signed in as "+short(result.payload.owner);enter();return;}
+     var code=result.payload.error;
+     if(code==="authorization_pending"){poll(deviceCode,intervalMs,deadline);return;}          // Still waiting for the operator to approve in Little Log.
+     if(code==="slow_down"){poll(deviceCode,intervalMs+5000,deadline);return;}                 // Honour the tracker's backoff rather than hammering it.
+     stopSignin();
+     gateError(code==="gm_not_gamemaster"?"That LiDollID account is not a gamemaster.":(result.payload.error_description||"Sign-in failed."));
+    })
+    .catch(function(){poll(deviceCode,intervalMs,deadline);});                                  // A dropped poll is retried rather than ending the attempt.
+  },intervalMs);
  }
 
  $("enter").addEventListener("click",function(){
-  var value=$("token").value.trim();
-  if(!value){$("gateErr").className="flash err";$("gateErr").textContent="Paste the staff token first.";return;}
-  token=value;
-  api("/gm/overview").then(function(){
-   $("gate").hidden=true;$("app").hidden=false;$("gateErr").className="flash";
-   refresh();loadChat();schedule();
-  }).catch(function(error){
-   token="";$("gateErr").className="flash err";
-   $("gateErr").textContent=error.status===401?"That token was not accepted.":error.message;
-  });
+  $("gateErr").className="flash";$("startRow").hidden=true;
+  fetch("/gm/signin/start",{method:"POST",headers:{"Content-Type":"application/json"},cache:"no-store",body:"{}"})
+   .then(function(response){return response.json().then(function(payload){return {ok:response.ok,payload:payload};});})
+   .then(function(result){
+    if(!result.ok){$("startRow").hidden=false;gateError(result.payload.error_description||result.payload.error||"Sign-in is unavailable.");return;}
+    var data=result.payload;
+    $("usercode").textContent=data.user_code;
+    if(data.verification_uri){$("verify").href=data.verification_uri;$("verify").parentNode.hidden=false;}
+    else $("verify").parentNode.hidden=true;                                                    // Without a known approval URL the code is still usable in Little Log.
+    $("pending").hidden=false;
+    poll(data.device_code,(data.interval||5)*1000,Date.now()+(data.expires_in||600)*1000);
+   })
+   .catch(function(){$("startRow").hidden=false;gateError("Could not reach the server.");});
  });
- $("token").addEventListener("keydown",function(e){if(e.key==="Enter")$("enter").click();});
+ $("cancel").addEventListener("click",function(){stopSignin();$("gateErr").className="flash";});
  $("refresh").addEventListener("click",function(){refresh();loadChat();});
+ $("perfRange").addEventListener("change",function(){if(perfData)renderPerformanceChart();});
+ $("perfTimingWindow").addEventListener("change",function(){if(perfData)renderPerformance();});
  $("auto").addEventListener("change",schedule);
  $("signout").addEventListener("click",signOut);
  $("chatLoad").addEventListener("click",loadChat);
@@ -377,8 +492,7 @@ tr.sel td{background:#2c1e3d}
   act("broadcast",{zone:zone,text:text,speaker:$("castName").value.trim()},"Announced to that room.").then(function(){$("castText").value="";loadChat();});
  });
  $("castText").addEventListener("keydown",function(e){if(e.key==="Enter")$("cast").click();});
- $("token").focus();
-})();
+ })();
 </script>
 </body>
 </html>

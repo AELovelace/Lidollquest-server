@@ -18,10 +18,26 @@ export function createWalletClient({baseUrl,key,fetcher=fetch}={}){
   async authenticate(token){
    if(typeof token!=='string'||!/^[A-Za-z0-9_-]{20,100}$/.test(token))throw Object.assign(Error('A linked account is required.'),{status:401});
    const data=await request(token);if(!/^[a-f0-9]{64}$/.test(data.account_id??'')||!Number.isSafeInteger(data.balance)||data.balance<0)throw Error('Invalid wallet identity');
-   return {owner:data.account_id,id:createHash('sha256').update(token).digest('hex'),client:'lidollquest',coins:data.balance,scope:data.scope??'',blockedAccounts:Array.isArray(data.blocked_accounts)?data.blocked_accounts.filter(id=>/^[a-f0-9]{64}$/.test(id)):[]}; // Only the authenticated tracker supplies account restrictions.
+   return {owner:data.account_id,id:createHash('sha256').update(token).digest('hex'),client:'lidollquest',coins:data.balance,scope:data.scope??'',gamemaster:data.gamemaster===true,blockedAccounts:Array.isArray(data.blocked_accounts)?data.blocked_accounts.filter(id=>/^[a-f0-9]{64}$/.test(id)):[]}; // Only the authenticated tracker supplies account restrictions and game-moderation rights.
   },
   async credit(token,body){const result=await request(token,body);if(result.request_id!==body.request_id||result.currency!=='LiDollCoin'||result.amount!==body.amount||!Number.isSafeInteger(result.balance)||result.balance<0)throw Error('Invalid reward receipt');return result;},
   async stars(token,body){const result=await request(token,body);if(result.request_id!==body.request_id||result.currency!=='Stars'||result.kind!=='debit'||result.amount!==body.amount||!Number.isSafeInteger(result.balance)||result.balance<0)throw Error('Invalid star receipt');return result;}, // Prices and stable request IDs come from character management.
+  async device(scope='wallet:read'){ // Begin a LiDollID device authorisation the operator approves in Little Log.
+   const url=new URL('device',base);url.searchParams.set('client_id','lidollquest');
+   const response=await fetcher(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scope}),redirect:'error',signal:AbortSignal.timeout(5000)});
+   const data=await response.json();
+   if(!response.ok)throw Object.assign(Error('Sign-in is unavailable.'),{status:response.status,code:data.error??'device_unavailable'});
+   if(typeof data.device_code!=='string'||typeof data.user_code!=='string')throw Error('Invalid device response');
+   return data;
+  },
+  async deviceToken(deviceCode){ // Poll for approval; the caller relays authorization_pending and slow_down unchanged.
+   const url=new URL('token',base);url.searchParams.set('client_id','lidollquest');
+   const response=await fetcher(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grant_type:'urn:ietf:params:oauth:grant-type:device_code',device_code:deviceCode}),redirect:'error',signal:AbortSignal.timeout(5000)});
+   const data=await response.json();
+   if(!response.ok)throw Object.assign(Error(data.error_description??'Sign-in failed.'),{status:response.status,code:data.error??'device_failed'});
+   if(typeof data.access_token!=='string')throw Error('Invalid device token');
+   return data;
+  },
   async profile(token,account){const url=new URL('social',base);url.searchParams.set('client_id','lidollquest');url.searchParams.set('account_id',account);const response=await fetcher(url,{headers:{Authorization:'Bearer '+token},redirect:'error',signal:AbortSignal.timeout(5000)});if(!response.ok)throw Object.assign(Error('Account profile unavailable.'),{status:response.status});return response.json();},
  };
 } // Secrets stay on the service. Only verified arena entitlements reach the shared wallet.
