@@ -18,7 +18,7 @@ export function createWalletClient({baseUrl,key,fetcher=fetch}={}){
   async authenticate(token){
    if(typeof token!=='string'||!/^[A-Za-z0-9_-]{20,100}$/.test(token))throw Object.assign(Error('A linked account is required.'),{status:401});
    const data=await request(token);if(!/^[a-f0-9]{64}$/.test(data.account_id??'')||!Number.isSafeInteger(data.balance)||data.balance<0)throw Error('Invalid wallet identity');
-   return {owner:data.account_id,id:createHash('sha256').update(token).digest('hex'),client:'lidollquest',coins:data.balance,scope:data.scope??''};
+   return {owner:data.account_id,id:createHash('sha256').update(token).digest('hex'),client:'lidollquest',coins:data.balance,scope:data.scope??'',blockedAccounts:Array.isArray(data.blocked_accounts)?data.blocked_accounts.filter(id=>/^[a-f0-9]{64}$/.test(id)):[]}; // Only the authenticated tracker supplies account restrictions.
   },
   async credit(token,body){const result=await request(token,body);if(result.request_id!==body.request_id||result.currency!=='LiDollCoin'||result.amount!==body.amount||!Number.isSafeInteger(result.balance)||result.balance<0)throw Error('Invalid reward receipt');return result;},
   async stars(token,body){const result=await request(token,body);if(result.request_id!==body.request_id||result.currency!=='Stars'||result.kind!=='debit'||result.amount!==body.amount||!Number.isSafeInteger(result.balance)||result.balance<0)throw Error('Invalid star receipt');return result;}, // Prices and stable request IDs come from character management.

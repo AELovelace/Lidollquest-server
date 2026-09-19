@@ -29,7 +29,7 @@ export function createParties(db,{now}) {
   for(const m of db.prepare('SELECT m.character_id,p.seen FROM quest_party_members m LEFT JOIN quest_presence p ON p.character_id=m.character_id').all())if(!m.seen||m.seen<=now()-150000)remove(m.character_id);
   for(const p of db.prepare('SELECT * FROM quest_parties').all())if((presence(p.leader)?.seen??0)<=now()-30000){const next=members(p.leader).find(c=>(presence(c.id)?.seen??0)>now()-30000);if(next)db.prepare('UPDATE quest_parties SET leader=? WHERE id=?').run(next.id,p.id);}
  } // A stale connection has a two-minute reservation after its thirty-second presence lease expires.
- function act(c,input){
+ function act(c,input,restricted=[]){
   const p=party(c.id);
   if(input.action==='party_decline'){db.prepare('DELETE FROM quest_party_invites WHERE id=? AND target=?').run(input.invitation,c.id);return;}
   available(c);
@@ -37,6 +37,7 @@ export function createParties(db,{now}) {
    if(p&&p.leader!==c.id)fail('Only the party leader can invite players.');
    const target=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(input.member??'');
    if(!target||target.id===c.id||!sameArea(c,target))fail('Choose another player in this online area.');
+   if(restricted.includes(target.owner))fail('Contact with this player is unavailable.');
    available(target);if(party(target.id))fail('That player already belongs to a party.');
    if(JSON.parse(c.state).diveCombatVersion!==3||JSON.parse(target.state).diveCombatVersion!==3)fail('Both players need the current party-capable game.');
    if(p&&members(c.id).length>=3)fail('Your party already has three players.');
@@ -50,6 +51,7 @@ export function createParties(db,{now}) {
    const leader=invite&&db.prepare('SELECT c.* FROM quest_parties p JOIN quest_characters c ON c.id=p.leader WHERE p.id=?').get(invite.party_id);
    if(!leader||!sameArea(c,leader))fail('This invitation has expired or the party moved.');
    const roster=members(leader.id);if(roster.length>=3)fail('That party is full.');
+   if(roster.some(other=>restricted.includes(other.owner)))fail('Contact with this party is unavailable.'); // Recheck old invitations against all current members.
    for(const other of roster)if(!JSON.parse(other.state).pendingDefeat)available(other); // A recovering member does not prevent survivors from filling an empty party slot.
    db.prepare('INSERT INTO quest_party_members VALUES (?,?,?)').run(c.id,invite.party_id,now());db.prepare('DELETE FROM quest_party_invites WHERE target=?').run(c.id);return;
   }
@@ -61,10 +63,10 @@ export function createParties(db,{now}) {
   if(input.action==='party_disband'){for(const other of members(c.id))remove(other.id);return;}
   fail('Unknown party action.');
  }
- function snapshot(c){
+ function snapshot(c,restricted=[]){
   if(!c)return {party:null,partyInvitations:[]};const p=party(c.id);
   return {party:p?{id:p.id,leader:p.leader,members:members(c.id).map(other=>{const s=JSON.parse(other.state),pos=presence(other.id);return {id:other.id,name:other.name,avatar:s.avatar??'player',connected:(pos?.seen??0)>now()-30000,zone:pos?.zone??null,fighting:!!s.run,recovering:!!s.pendingDefeat};})}:null,
-   partyInvitations:db.prepare('SELECT i.id,i.expires,c.name AS name FROM quest_party_invites i JOIN quest_characters c ON c.id=i.sender WHERE i.target=? AND i.expires>? ORDER BY i.expires LIMIT 8').all(c.id,now())};
+   partyInvitations:db.prepare('SELECT i.id,i.expires,c.name AS name,c.id AS sender FROM quest_party_invites i JOIN quest_characters c ON c.id=i.sender WHERE i.target=? AND i.expires>? ORDER BY i.expires LIMIT 8').all(c.id,now()).filter(invite=>!members(invite.sender).some(other=>restricted.includes(other.owner))).map(({sender,...invite})=>invite)};
  } // Roster views disclose only social status, never other members' loadouts or needs.
  function transfer(c,state,before,after){
   if(!before||!after||before.zone===after.zone)return;
