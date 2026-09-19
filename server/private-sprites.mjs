@@ -1,22 +1,30 @@
 import {randomUUID,createHash} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {existsSync} from 'node:fs';
 const fail=(status,message,code='private_sprite_failed')=>{throw Object.assign(Error(message),{status,code});};
 const identifier=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(v);
 const reserved=['charging','queued','running','ready'];
-export function pythonSpriteProvider({python=process.env.PIXELLAB_PYTHON??'python3',token=process.env.PIXELLAB_API_TOKEN}={}){
+const diagnosticCodes=new Set(['python_dependency_missing','python_unavailable','worker_missing','worker_start_failed','worker_timeout','provider_http_error','provider_timeout','provider_network_error','incomplete_animation','invalid_sprite_output','generation_failed']);
+const diagnosticStages=new Set(['startup','create','fetch','animate','pack']);
+function safeDiagnostic(value){const result={code:diagnosticCodes.has(value?.code)?value.code:'generation_failed',stage:diagnosticStages.has(value?.stage)?value.stage:'startup'};if(Number.isInteger(value?.http_status)&&value.http_status>=400&&value.http_status<=599)result.http_status=value.http_status;return result;} // Log only fixed labels and an HTTP status; never arbitrary Python/provider messages.
+const generationError=diagnostic=>Object.assign(Error('Sprite generation failed'),{diagnostic:safeDiagnostic(diagnostic)});
+export function pythonSpriteProvider({python=process.env.PIXELLAB_PYTHON??'python3',token=process.env.PIXELLAB_API_TOKEN,spawnWorker=spawn}={}){
  if(!token)return null;
  return (prompt,signal)=>new Promise((resolve,reject)=>{
-  const child=spawn(python,[fileURLToPath(new URL('../python/private_sprite_worker.py',import.meta.url))],{windowsHide:true,stdio:['pipe','pipe','pipe'],env:{...process.env,PIXELLAB_API_TOKEN:token},signal});
-  let result='',size=0;const timer=setTimeout(()=>child.kill(),30*60000);timer.unref();
-  child.stdout.on('data',chunk=>{size+=chunk.length;if(size>250000)child.kill();else result+=chunk;});child.stderr.resume();
-  child.on('error',()=>{clearTimeout(timer);reject(Error('Generation worker unavailable'));});
-  child.on('close',code=>{clearTimeout(timer);if(code!==0)return reject(Error('Generation failed'));try{resolve(JSON.parse(result));}catch{reject(Error('Invalid generation output'));}});
+  const workerPath=fileURLToPath(new URL('../python/private_sprite_worker.py',import.meta.url));
+  if(!existsSync(workerPath))return reject(generationError({code:'worker_missing',stage:'startup'}));
+  const child=spawnWorker(python,[workerPath],{windowsHide:true,stdio:['pipe','pipe','pipe'],env:{...process.env,PIXELLAB_API_TOKEN:token},signal});
+  let result='',stderr='',size=0,failure=null;const timer=setTimeout(()=>{failure={code:'worker_timeout'};child.kill();},30*60000);timer.unref();
+  child.stdout.on('data',chunk=>{size+=chunk.length;if(size>250000){failure={code:'invalid_sprite_output',stage:'pack'};child.kill();}else result+=chunk;});
+  child.stderr.on('data',chunk=>{if(stderr.length<8192)stderr+=chunk.toString().slice(0,8192-stderr.length);}); // Bound diagnostics even if an interpreter or dependency prints a long traceback.
+  child.on('error',error=>{clearTimeout(timer);reject(generationError({code:error.code==='ENOENT'?'python_unavailable':'worker_start_failed',stage:'startup'}));});
+  child.on('close',code=>{clearTimeout(timer);if(code!==0||failure){let diagnostic=failure;for(const line of stderr.split('\n')){try{const parsed=JSON.parse(line);if(!diagnostic&&parsed?.error)diagnostic=safeDiagnostic(parsed.error);}catch{}}return reject(generationError(diagnostic));}try{resolve(JSON.parse(result));}catch{reject(generationError({code:'invalid_sprite_output',stage:'pack'}));}});
   child.stdin.on('error',()=>{});child.stdin.end(JSON.stringify({prompt}));
  });
 } // Only the service process receives the provider key; subprocess arguments and browser packets contain no credentials.
 
-export function createPrivateSprites(db,{walletClient,provider=pythonSpriteProvider(),now=Date.now}={}){
+export function createPrivateSprites(db,{walletClient,provider=pythonSpriteProvider(),now=Date.now,log=console.warn}={}){
  db.exec(`CREATE TABLE IF NOT EXISTS quest_private_sprites(id TEXT PRIMARY KEY,owner TEXT NOT NULL,character_id TEXT NOT NULL DEFAULT '',request_id TEXT NOT NULL,fingerprint TEXT NOT NULL,prompt TEXT NOT NULL,status TEXT NOT NULL,png TEXT,created INTEGER NOT NULL,UNIQUE(owner,request_id));
  CREATE INDEX IF NOT EXISTS quest_private_sprite_slots ON quest_private_sprites(owner,character_id,status);`);
  db.prepare("UPDATE quest_private_sprites SET status='refunding' WHERE status='running'").run(); // An interrupted provider call is never blindly submitted a second time.
@@ -60,7 +68,7 @@ export function createPrivateSprites(db,{walletClient,provider=pythonSpriteProvi
    if(closed)return;validStrip(output);const current=row(r.id);
    if(current.character_id&&!db.prepare('SELECT 1 FROM quest_characters WHERE id=? AND owner=?').get(current.character_id,r.owner))throw Error('Character deleted');
    db.prepare("UPDATE quest_private_sprites SET status='ready',png=? WHERE id=?").run(output.png,r.id);
-  }).catch(()=>{if(!closed)db.prepare("UPDATE quest_private_sprites SET status='refunding' WHERE id=?").run(r.id);}).finally(()=>{
+  }).catch(error=>{if(!closed){db.prepare("UPDATE quest_private_sprites SET status='refunding' WHERE id=?").run(r.id);log('quest_sprite_generation_failed',safeDiagnostic(error?.diagnostic));}}).finally(()=>{
    workers.delete(r.id);if(closed)return;
    if(tokens.has(r.owner))void settle(row(r.id),tokens.get(r.owner)).catch(()=>{});pump();
   });
