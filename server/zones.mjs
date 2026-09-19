@@ -160,6 +160,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   if(input.takeover!==undefined&&(input.action!=='enter'||typeof input.takeover!=='boolean'))fail(400,'Control can only be transferred by an explicit entry request.'); // Never let movement or a background heartbeat steal control.
   return atomic(()=>{
    identity(secret);
+   let arrival=null; // Set only by an explicit entry, so heartbeats and movement never look like an arrival.
    if(input.action==='create'){
     if(db.prepare('SELECT 1 FROM quest_deleted_characters WHERE owner=? AND creation_id=?').get(i.owner,input.request_id))fail(410,'This character was deleted. Start a new character.');
     const name=clean(input.name,24);if(!name)fail(400,'Give your online character a name.');
@@ -247,6 +248,10 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(now(),c.id);
    }else if(input.action==='enter'){
     const z=zone(state.hubVisit??input.zone),active=db.prepare('SELECT * FROM quest_presence WHERE owner=? AND seen>?').get(i.owner,now()-30000);
+    const prior=db.prepare('SELECT grant_id,seen FROM quest_presence WHERE owner=?').get(i.owner);
+    arrival=!prior||prior.grant_id!==i.id?'join':prior.seen<=now()-30000?'return':null;
+    // Leaving deletes the row and a fresh sign-in issues a new grant, so either is a real arrival; the same grant
+    // coming back to a row it never removed is the same session resuming after its heartbeats lapsed.
     if(active&&(active.controller!==input.controller||active.character_id!==c.id||active.grant_id!==i.id)&&input.takeover!==true)fail(409,'This account is active in another game window.','zone_controller_conflict'); // The owner may explicitly replace the single lease; ordinary retries never do.
     if(state.run&&state.run.zone!==z.id)fail(409,'Finish or forfeit the current arena run before changing zones.');
     if(input.loadout!==undefined&&!state.run&&!state.hubVisit&&!state.pendingPurchase&&!state.worldTurnDue&&!(input.takeover===true&&state.loadout))state.loadout=importLoadout(input.loadout); // Resume committed turns before importing another campaign inventory.
@@ -380,7 +385,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    const receipt={request_id:input.request_id,revision:c.revision,action:input.action,result:state.lastResult,...(rpId?{rpId}: {})};
    db.prepare('INSERT INTO quest_commands VALUES (?,?,?,?,?)').run(c.id,input.request_id,c.revision,fingerprint,JSON.stringify(receipt));
    db.prepare('DELETE FROM quest_commands WHERE character_id=? AND revision<?').run(c.id,c.revision-128);
-   onPresence(c,afterPresence); // Publish only committed, authenticated presence; a failed command rolls its event back too.
+   onPresence(c,afterPresence,arrival); // Publish only committed, authenticated presence; a failed command rolls its event back too.
    return {...response(i,c),receipt};
   });
  }
