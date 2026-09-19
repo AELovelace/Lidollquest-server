@@ -108,11 +108,12 @@ tr.sel td{background:#2c1e3d}
     <svg id="perfChart" class="perf-chart" viewBox="0 0 900 190" role="img" aria-label="Recorded CPU and event-loop utilization"></svg>
     <p id="perfHistory" class="note"></p>
     <p id="perfRequests" class="note"></p>
+    <p id="perfWorkers" class="note"></p>
     <details style="margin-top:12px"><summary>Work timings by operation and zone</summary>
     <div class="row" style="margin-top:12px"><label for="perfTimingWindow">Interval</label><select id="perfTimingWindow"><option value="recorded">Latest recorded interval</option><option value="live">Current interval</option></select></div>
     <p id="perfTimingStatus" class="note"></p>
     <div class="scroll"><table><thead><tr><th>Work</th><th>Calls</th><th>Total ms</th><th>Mean ms</th><th>Max ms</th><th>Errors</th></tr></thead><tbody id="perfTimings"></tbody></table></div>
-    <p class="note">Timings are elapsed time, not CPU attribution. Nested scopes overlap: generation and pathfinding are included in simulation; snapshots are included in zone reads/actions. Account timings include network waits. Synchronous timings include database work. Delay sampling uses a 20 ms timer, so an idle loop normally reads near 20 ms.</p>
+    <p class="note">Timings are elapsed time, not CPU attribution. Nested synchronous scopes overlap; final snapshots are included in zone reads/refreshes. Worker execution overlaps the coordinator and other workers. worker.queue measures waiting; worker.roundtrip includes dispatch, execution and delivery; worker.stale.paths counts discarded results. Account timings include network waits. floor.read/write include SQLite work; floor.decode/encode measure JSON work. Delay sampling uses a 20 ms timer, so an idle loop normally reads near 20 ms.</p>
     </details>
   </section>
 
@@ -267,6 +268,8 @@ tr.sel td{background:#2c1e3d}
   $("perfCpu").textContent=metric(current.cpuPercent,"%");$("perfLoop").textContent=metric(current.eventLoopPercent,"%");
   $("perfDelay").textContent=metric(current.delayP95Ms," ms");$("perfMemory").textContent=metric(current.rssMiB," MiB");
   $("perfRate").textContent=metric(request.perSecond);$("perfActive").textContent=String(request.active);
+  var workers=current.workers;
+  $("perfWorkers").textContent="Request p95: "+metric(request.p95Ms," ms")+". "+(workers?"Compute workers: "+workers.busy+" / "+workers.size+" busy, "+workers.queued+" queued, "+workers.rejected+" queue rejections. Lifetime jobs: "+workers.workers.map(function(w){return "#"+(w.index+1)+": "+w.completed+" completed / "+w.failed+" failed";}).join("; "):"Compute workers disabled (synchronous mode)."); // Counters are pool lifetime totals; timing rows and request p95 use the selected sampling interval.
   $("perfStatus").textContent=(data.recordingError?"History recording failed; live readings still available. ":"")+"Updated "+when(current.at)+" · "+data.availableCores+" available CPU cores · live interval "+metric(current.elapsedMs/1000," s")+" · started "+new Date(data.startedAt).toLocaleString();
   $("perfRequests").textContent="Current interval: "+request.completed+" completed requests · "+request.clientErrors+" 4xx · "+request.serverErrors+" 5xx · "+request.throttled+" throttled · "+request.aborted+" disconnected · mean "+metric(request.meanMs," ms")+" / max "+metric(request.maxMs," ms")+" · peak active "+request.peakActive+" · heap "+metric(current.heapMiB," MiB")+" · max loop delay "+metric(current.delayMaxMs," ms");
   var recorded=$("perfTimingWindow").value==="recorded",sample=recorded?latest:current,body=$("perfTimings");clear(body);

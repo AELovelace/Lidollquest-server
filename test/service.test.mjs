@@ -8,6 +8,24 @@ import {createWalletClient} from '../server/wallet.mjs';
 import {createServer} from 'node:http';
 import {connect} from 'node:net';
 const token='a'.repeat(43),owner='a'.repeat(64);
+test('worker startup prepares every route and HTTP commands/reads each build one settled snapshot',async()=>{
+ const service=createQuestService({workerCount:2,now:()=>Date.parse('2026-09-17T12:00:00Z'),walletClient:{authenticate:async()=>({owner,id:'grant-a',client:'lidollquest',coins:50})}});
+ await service.prepare();await new Promise(resolve=>service.server.listen(0,'127.0.0.1',resolve));
+ const url='http://127.0.0.1:'+service.server.address().port,headers={Authorization:'Bearer '+token,'Content-Type':'application/json'};
+ const count=()=>service.metrics.snapshot().current.timings.find(t=>t.name==='snapshot.build')?.calls??0;
+ const act=async input=>{const before=count(),res=await fetch(url+'/zones/action',{method:'POST',headers,body:JSON.stringify(input)});const data=await res.json();assert.equal(res.status,200,JSON.stringify(data));assert.equal(count(),before+1);return data;};
+ try{
+  assert.equal(service.db.prepare('SELECT COUNT(*) n FROM dive_editions').get().n,10);
+  assert.equal(service.metrics.snapshot().current.workers.workers.reduce((n,w)=>n+w.completed,0),10);
+  const created=await act({action:'create',request_id:randomUUID(),controller:'window',name:'Snapshot tester'});
+  const command={action:'enter',character_id:created.character.id,revision:created.character.revision,request_id:randomUUID(),controller:'window',zone:'honeydew-lantern'};
+  const entered=await act(command),replay=await act(command);assert.deepEqual(replay.receipt,entered.receipt);assert.equal(replay.character.revision,entered.character.revision);
+  for(const view of ['', '&view=companion']){
+   const before=count(),res=await fetch(url+'/zones?character_id='+created.character.id+view,{headers});assert.equal(res.status,200);const data=await res.json();assert.equal(data.character.id,created.character.id);assert.equal(count(),before+1);
+  }
+  assert.ok(service.metrics.snapshot().current.requests.p95Ms>0);
+ }finally{service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));}
+});
 test('lobby conflicts log their precise reason without exposing wallet tokens or loadouts',async()=>{
  const logs=[],walletClient={authenticate:async()=>({owner,id:'grant-a',client:'lidollquest',coins:50})};
  const service=createQuestService({walletClient,now:()=>1000000,log:(...parts)=>logs.push(parts)});

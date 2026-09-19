@@ -1,4 +1,4 @@
-import {performance,monitorEventLoopDelay} from 'node:perf_hooks';
+import {performance,monitorEventLoopDelay,createHistogram} from 'node:perf_hooks';
 import {availableParallelism} from 'node:os';
 import {randomUUID} from 'node:crypto';
 
@@ -9,7 +9,7 @@ const emptyRequests=()=>({completed:0,clientErrors:0,serverErrors:0,throttled:0,
 export function createPerformanceMonitor(db,{
  now=Date.now,clock=()=>performance.now(),cpuUsage=()=>process.cpuUsage(),memoryUsage=()=>process.memoryUsage(),
  loopUsage=()=>performance.eventLoopUtilization(),delay=monitorEventLoopDelay({resolution:20}),
- cores=availableParallelism(),automatic=true,log=console.warn,
+ cores=availableParallelism(),automatic=true,log=console.warn,workers=()=>null,
 }={}){
  db.exec('CREATE TABLE IF NOT EXISTS server_performance_samples(id INTEGER PRIMARY KEY,sampled_at INTEGER NOT NULL,data TEXT NOT NULL)');
  const insert=db.prepare('INSERT INTO server_performance_samples(sampled_at,data) VALUES (?,?)');
@@ -19,6 +19,7 @@ export function createPerformanceMonitor(db,{
  };
  prune();
  const session=randomUUID(),startedAt=now();
+ const requestLatency=createHistogram(); // A bounded histogram records request percentiles without storing individual requests.
  let baseline={at:clock(),cpu:cpuUsage(),loop:loopUsage()},requests=emptyRequests(),timings=new Map(),active=0,peakActive=0,closed=false,recordingError=false;
  delay.enable(); // This histogram observes stalls without recording request bodies or account identifiers.
 
@@ -39,7 +40,7 @@ export function createPerformanceMonitor(db,{
   const start=clock();active++;peakActive=Math.max(peakActive,active);let finished=false;
   function finish(){
    if(finished)return;finished=true;active--;res.off('finish',finish);res.off('close',finish);
-   const elapsed=clock()-start;requests.completed++;requests.totalMs+=elapsed;requests.maxMs=Math.max(requests.maxMs,elapsed);
+   const elapsed=clock()-start;requests.completed++;requests.totalMs+=elapsed;requests.maxMs=Math.max(requests.maxMs,elapsed);requestLatency.record(Math.max(1,Math.round(elapsed*1e6)));
    if(!res.writableFinished)requests.aborted++;
    else if(res.statusCode>=500)requests.serverErrors++;
    else if(res.statusCode>=400)requests.clientErrors++;
@@ -55,9 +56,9 @@ export function createPerformanceMonitor(db,{
    cpuPercent:elapsed>0?rounded(((cpu.user-baseline.cpu.user)+(cpu.system-baseline.cpu.system))/(elapsed*10)):null,
    eventLoopPercent:busy+idle>0?rounded(100*busy/(busy+idle)):null,
    delayP95Ms:delay.count?rounded(delay.percentile(95)/1e6):null,delayMaxMs:delay.count?rounded(delay.max/1e6):null,
-   rssMiB:rounded(memory.rss/1048576),heapMiB:rounded(memory.heapUsed/1048576),
+   rssMiB:rounded(memory.rss/1048576),heapMiB:rounded(memory.heapUsed/1048576),workers:workers(),
    requests:{...requests,totalMs:rounded(requests.totalMs),maxMs:rounded(requests.maxMs),active,peakActive,
-    perSecond:elapsed>0?rounded(requests.completed*1000/elapsed):null,meanMs:requests.completed?rounded(requests.totalMs/requests.completed):null},
+    perSecond:elapsed>0?rounded(requests.completed*1000/elapsed):null,meanMs:requests.completed?rounded(requests.totalMs/requests.completed):null,p95Ms:requestLatency.count?rounded(requestLatency.percentile(95)/1e6):null},
    timings:[...timings.values()].map(t=>({...t,totalMs:rounded(t.totalMs),maxMs:rounded(t.maxMs),meanMs:rounded(t.totalMs/t.calls)})).sort((a,b)=>b.totalMs-a.totalMs)};
   return {row,baseline:{at,cpu,loop}};
  } // Process CPU uses 100% for one fully occupied core; native/background threads can take it above 100%.
@@ -66,7 +67,7 @@ export function createPerformanceMonitor(db,{
   const value=capture();if(value.row.elapsedMs<1)return;
   try{insert.run(value.row.at,JSON.stringify(value.row));prune();recordingError=false;}
   catch{recordingError=true;log('quest_performance_recording_failed');} // A telemetry write failure must not stop gameplay or expose database details.
-  baseline=value.baseline;requests=emptyRequests();timings=new Map();peakActive=active;delay.reset();
+  baseline=value.baseline;requests=emptyRequests();timings=new Map();peakActive=active;delay.reset();requestLatency.reset();
   return value.row;
  }
  const timer=automatic?setInterval(sample,SAMPLE_MS):null;timer?.unref();
@@ -77,5 +78,5 @@ export function createPerformanceMonitor(db,{
   return {startedAt,session,availableCores:cores,sampleMs:SAMPLE_MS,retentionMs:RETENTION_MS,recordingError,current:capture().row,latest:last?JSON.parse(last.data):null,history};
  } // Reading the panel never resets counters; history continues collecting while the panel is closed.
  function close(){if(closed)return;clearInterval(timer);if(clock()-baseline.at>=1000)sample();closed=true;delay.disable();}
- return {measure,measureAsync,request,sample,snapshot,close};
+ return {measure,measureAsync,observe,request,sample,snapshot,close};
 }

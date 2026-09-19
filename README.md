@@ -1,5 +1,28 @@
 # LiDollQuest server
 
+## Premium private sprites
+
+Deploy the tracker sprite routes and diamond-consent changes before the GX client.
+Install Python 3.11+ and `pip install -r python/requirements.txt`; set the service's
+`PIXELLAB_API_TOKEN` and optionally `PIXELLAB_PYTHON` (default `python3`). Keep these
+secrets on the server. No key disables new generations without affecting saved art.
+
+`GET /sprites`, `GET /sprites/asset`, and `POST /sprites/action` use authenticated
+account ownership. Generations cost one diamond, reserve one of five per-character
+slots before payment, and run in one background worker. The shared Python client
+comes from the desktop walk generator; copy it with the game's
+`python/prepare_private_sprite_worker.py` when that generator changes. Worker
+failures refund through durable wallet receipts; restarting an interrupted worker
+marks its generation for refund rather than resubmitting it. Refund recovery runs
+when the owner opens their collection. Run one service process per SQLite database.
+
+Draft sprites attach once to the account's next created character. Selection is
+character-exclusive; other players can fetch equipped art only while sharing a
+live zone. Descriptions and saved collections stay private. Deleting a completed
+sprite frees its slot without refunding it. Existing browser grants need renewed
+consent for diamond spending. Test with `node --test test/private-sprites.test.mjs`;
+the GX fixture uses synthetic PNGs and never spends real provider credits.
+
 ## Shared RP and admin journal
 
 `rp_post` accepts a narrative up to 12,000 Unicode characters and one to eight
@@ -105,6 +128,44 @@ hold the `gamemaster` role in Little Log user management. There is no panel toke
 to distribute, rotate or leak, and every action is recorded against the account
 that performed it. Set `LIDOLLQUEST_GM_ENABLED=false` to remove the surface
 entirely.
+
+### Paperdoll portraits
+
+`/integrations/mommybot/character` returns `portrait_png` (base64) and
+`portrait_size` alongside the inspection sheet. The service composites the
+character itself, from the same authored sprite layers the companion client draws
+in `paperdoll.js`, so the Discord post and the in-browser preview show the same
+character.
+
+Two constraints shaped this. The service has no dependencies and no `node_modules`,
+so a native canvas was not an option: `server/png.mjs` is a stdlib decoder and
+encoder built on `node:zlib`, deliberately narrow to 8-bit RGBA non-interlaced PNG,
+which every exported layer is. Anything else is refused loudly rather than decoded
+approximately. `server/paperdoll.mjs` holds the layer order, ported line for line
+from the companion; **if one changes, change the other.**
+
+There is no item-to-sprite lookup table. An equipped item resolves to
+`sprTQ_<item_id>`, so artwork is discovered by name and new items need no mapping.
+Missing artwork is skipped rather than drawn wrong, and only names present in the
+exported manifest are ever opened, so an item id can never reach the filesystem.
+
+Artwork lives in `server/paperdoll-assets/` (1,540 layers, ~25 MB, committed) and is
+produced from the game checkout:
+
+```
+python python/export_paperdoll_assets.py --server-root <this repo>
+```
+
+It exports at half scale, giving a 194x438 portrait that Discord renders inline at
+full size while costing a quarter of the compositing work. A deployment without the
+assets serves every other field and omits the portrait rather than failing.
+
+Renders are cached per `character_id` + `revision`, and decoded layers in a bounded
+LRU, so a re-view is free and repeat characters are cheap. Measured: ~70 ms cold,
+~26 ms warm, 0.01 ms cached. That is synchronous work on the event loop, so it is
+visible in the `/gm` performance panel under sustained first-time views.
+
+Run `node --test test/paperdoll.test.mjs test/mommybot-profile.test.mjs`.
 
 ### Live curse and blessing tuning
 
@@ -876,6 +937,45 @@ Run `node --test test/*.test.mjs`; `test/parties.test.mjs` covers reinforcement 
 Multiplayer mage levels now increment authoritative `state.mageSpellPicks` once per level instead of automatically learning a spell. `mage_pick` redeems one for an eligible unknown shop spell and records a zero-RPP permanent unlock; normal receipt/revision checks prevent duplicate spending. RP-admin levels share this path. Existing known spells remain, without retroactive credits. Unspent stat points no longer block travel, encounters or party readiness; allocation remains unavailable during combat. Deploy this service before the GX client with stored-point controls and the centered MENU modal.
 
 RPP: `/gm` now includes character-specific gifts and a purchase ledger (`GET /gm/rpp`, authenticated `rpp_gift` action). `rpp_buy` uses the existing character/controller revision and durable request receipt, plus `offer` and `rpp_cost`. Wallet, debit and unlock updates are atomic; gifts have independently replay-safe IDs. Startup adds three RPP tables without resetting data. Exported `magic_tree.rpp_shop` controls costs/classes/levels; `magic-balance.mjs` matches the client's mage ×0.5 physical, ×1.5 magic/fullness and ×2 MP multipliers. Purchased abilities are authoritative even when campaign imports or combat patches replace player data. Deploy service and combat-data before the matching GX client. Tests: `test/rpp.test.mjs`, `test/gm.test.mjs`, `test/combat.test.mjs`; game-side `RPP_GUIDE.md` documents the UI and browser fixture.
+
+## Multicore runtime
+
+`QUEST_COMPUTE_WORKERS=auto` uses up to six persistent CPU workers while leaving
+two available cores of headroom (six workers on an eight-core VM). Explicit
+values 0 through 32 are supported; 0 uses synchronous calculations. Restart
+after changing `/etc/lidollquest/server.env`. The startup path prepares missing
+weekly floors before listening; existing editions, claims and receipts remain.
+No database reset or GameMaker rebuild is needed.
+
+Workers generate seeded floors and calculate batches of pursuit paths. One
+coordinator owns SQLite, timers, purchases and combat. Before applying paths it
+rechecks edition, exact floor contents, player identities/positions and age
+(at most one second), then uses fresh character/party state. Stale results wait
+for another tick. Generation failures retry after a minute; pursuit failures
+retry on later ticks. The pool has a 64-job waiting queue and a 60-second job
+timeout. Crashed workers are replaced on demand. Shutdown cancels pending work
+before closing the database. Do not run duplicate service instances against
+one SQLite database for scaling.
+
+HTTP actions now build one snapshot after purchase settlement; HTTP reads build
+one snapshot as well. Availability checks no longer decode every dungeon floor.
+Snapshot assembly, combat, monthly districts and database writes remain on the
+coordinator. In `/gm`, compare request p95, event-loop delay, worker busy/queued
+counts and memory. `worker.paths/generate` measure execution;
+`worker.queue.*` measures waiting; `worker.roundtrip.*` includes dispatch through
+delivery; `worker.stale.paths` counts discarded batches. `floor.read/decode/encode/write`
+separates SQLite and JSON costs. Timings overlap and are not additive CPU usage.
+Worker completed/failed counters are lifetime totals. Process CPU includes all
+threads, with 100% representing one occupied core.
+
+Run `node deploy/benchmark-compute.mjs --workers=0,1,2,4,6` off-peak for an isolated
+synthetic comparison (in-memory databases, no real wallet or accounts). It measures
+ten floor generations, forty pursuit batches, and forty empty-lobby HTTP reads.
+Repeat on the VM and compare populated-zone load before selecting 2, 4 or 6;
+the empty-lobby HTTP benchmark does not exercise roaming, disk writes or wallet
+latency. Regression tests: `node --test test/*.test.mjs`, especially
+`compute-pool.test.mjs`, `parallel-dive.test.mjs`, `service.test.mjs` and
+`performance.test.mjs`.
 
 ## Market dumpsters
 
