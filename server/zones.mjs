@@ -46,7 +46,9 @@ function canonical(value,depth=0){ // Nested loadout property order may change w
  return value;
 }
 
-export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},onPresence=()=>{}}={}) {
+export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},onPresence=()=>{},compute=null}={}) {
+ let privateSprites=null;
+ const chooseAvatar=(value,owner,cid='')=>typeof value==='string'&&value.startsWith('private-')?(privateSprites?.authorize(owner,cid,value)??fail(403,'Private sprites are unavailable.')):avatar(value);
  db.exec(`CREATE TABLE IF NOT EXISTS quest_characters(id TEXT PRIMARY KEY,owner TEXT NOT NULL,name TEXT NOT NULL,created INTEGER NOT NULL,revision INTEGER NOT NULL DEFAULT 0,state TEXT NOT NULL,creation_id TEXT NOT NULL,UNIQUE(owner,creation_id));
  CREATE INDEX IF NOT EXISTS quest_character_owner ON quest_characters(owner);
  CREATE TABLE IF NOT EXISTS quest_presence(owner TEXT PRIMARY KEY,character_id TEXT NOT NULL UNIQUE,zone TEXT NOT NULL,grant_id TEXT NOT NULL,controller TEXT NOT NULL,x INTEGER NOT NULL,y INTEGER NOT NULL,seen INTEGER NOT NULL,moved INTEGER NOT NULL);
@@ -66,17 +68,17 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  const purchases=createHubPurchases(db,{now,origins});
  const bank=createBank(db);
  const enchantments=createEnchantmentStore(db,{now}); // One live curse/blessing table behind every route and the /gm panel.
- const quarters=createDive(db,{now,roll,adjust,origins,parties,measure,enchantments,...diveOptions});
- const desert=createDive(db,{now,roll,adjust,origins,parties,measure,data:desertData,generate:generateDesert,enchantments,...desertOptions});
+ const quarters=createDive(db,{now,roll,adjust,origins,parties,measure,compute,enchantments,...diveOptions});
+ const desert=createDive(db,{now,roll,adjust,origins,parties,measure,compute,data:desertData,generate:generateDesert,enchantments,...desertOptions});
  const trail=floor=>addTaigaTrail(floor,(taigaOptions.data??taigaData).config);
- const tundra=createDive(db,{now,roll,adjust,origins,parties,measure,data:tundraData,generate:generateDesert,upgradeFloor:trail,travel,enchantments,...tundraOptions});
- const taiga=createDive(db,{now,roll,adjust,origins,parties,measure,data:taigaData,generate:generateDesert,travel,enchantments,...taigaOptions});
+ const tundra=createDive(db,{now,roll,adjust,origins,parties,measure,compute,data:tundraData,generate:generateDesert,upgradeFloor:trail,travel,enchantments,...tundraOptions});
+ const taiga=createDive(db,{now,roll,adjust,origins,parties,measure,compute,data:taigaData,generate:generateDesert,travel,enchantments,...taigaOptions});
  const engines=new Map([[DIVE_ZONE,quarters],[DESERT_ZONE,desert],[TUNDRA_ZONE,tundra],[TAIGA_ZONE,taiga]]);
  function travel(c,state,source,destination){
   if(!((source===TUNDRA_ZONE&&destination===TAIGA_ZONE)||(source===TAIGA_ZONE&&destination===TUNDRA_ZONE)))return false;
   engines.get(destination).arrive(c,state,source);return true; // Only this authored reciprocal trail connects dungeons; hub portals cannot enter the branch.
  }
- for(const data of campaignDives)engines.set(data.config.zone_id,createDive(db,{now,roll,adjust,origins,parties,measure,data,enchantments})); // Each destination keeps its own editions, loot receipts and encounter locks.
+ for(const data of campaignDives)engines.set(data.config.zone_id,createDive(db,{now,roll,adjust,origins,parties,measure,compute,data,enchantments})); // Each destination keeps its own editions, loot receipts and encounter locks.
  const isDungeon=id=>engines.has(id);
  const engine=id=>engines.get(id)??quarters; // No active visit still exposes the legacy Quarters summary.
  const dive={tick(){atomic(()=>parties.tick());for(const route of engines.values())route.tick();},
@@ -99,9 +101,10 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  } // Enter just inside the matching wall opening, facing into the destination; a held movement key cannot immediately bounce back.
  function snapshot(i,c=null,view={}){return measure('snapshot.build',()=>snapshotData(i,c,view));} // Includes floor decoding and database reads, but excludes network waits and response encoding.
  function snapshotData(i,c=null,view={}){
+  const state=c?JSON.parse(c.state):null,peerStates=new Map(); // Decode each character once for this response, with no mutable cache surviving a transaction.
   const restricted=i.blockedAccounts??[]; // Account restrictions apply across every character and room.
   const p=c?db.prepare('SELECT * FROM quest_presence WHERE owner=? AND character_id=? AND seen>?').get(i.owner,c.id,now()-30000):null;
-  const peers=p?db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT 64').all(p.zone,now()-30000).filter(r=>enabled(r.owner)).map(r=>({id:r.character_id,name:r.name,restricted:restricted.includes(r.owner),avatar:JSON.parse(r.state).avatar??'player',x:r.x,y:r.y,stage:JSON.parse(r.state).run?.stage??0,fighting:JSON.parse(r.state).run?.phase==='fight'})):[];
+  const peers=p?db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT 64').all(p.zone,now()-30000).filter(r=>enabled(r.owner)).map(r=>{const peer=JSON.parse(r.state);peerStates.set(r.character_id,peer);return {id:r.character_id,name:r.name,restricted:restricted.includes(r.owner),avatar:peer.avatar??'player',x:r.x,y:r.y,stage:peer.run?.stage??0,fighting:peer.run?.phase==='fight'};}):[];
   const chatArea=isDungeon(p?.zone)?dive.chatArea(c,p):p?{id:p.zone,name:zone(p.zone).name}:null;
   const chatRows=(area,channel)=>db.prepare('SELECT seq,name,text,character_id AS characterId,owner,owner LIKE \'activity:%\' AS activity,(SELECT id FROM quest_rp_posts WHERE chat_seq=seq) AS rpId FROM quest_chat WHERE zone=? AND created>? ORDER BY seq DESC LIMIT 100').all(area,now()-86400000).filter(row=>!restricted.includes(row.owner.replace(/^activity:/,''))).slice(0,40).reverse().map(({owner,...row})=>({...row,channel})); // RP links come from committed posts, never from player text.
   const chat=chatArea?chatRows(chatArea.id,'area'):[],globalChat=p?chatRows('global:ooc','global'):[]; // The reserved global stream is independent of hub, dungeon room and weekly edition.
@@ -112,14 +115,14 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP}; // The private companion needs no dungeon geometry, peer records or duplicate raw loadout.
   const dungeon=dive.snapshot(c,p),definitions=[...questZones,...hubRooms].map(base=>{
    const z=zone(base.id),definition=hubDefinition(z,now());
-   if(c&&JSON.parse(c.state).diveCombatVersion===3&&p?.zone!==z.id){const {id,name,kind,parent,theme,width,height,spawn,exit,portals}=definition;return {id,name,kind,parent,theme,width,height,spawn,exit,portals,fixtures:[],walls:[]};} // New clients load full room geometry only after arrival, leaving room for large inventories and six-actor encounters.
+   if(state?.diveCombatVersion===3&&p?.zone!==z.id){const {id,name,kind,parent,theme,width,height,spawn,exit,portals}=definition;return {id,name,kind,parent,theme,width,height,spawn,exit,portals,fixtures:[],walls:[]};} // New clients load full room geometry only after arrival, leaving room for large inventories and six-actor encounters.
    if(z.district&&p?.zone!==z.id){const {floors,wallTiles,rooms,blocks,axes,...summary}=definition;return {...summary,fixtures:[],walls:[]};} // Only the visited district sends its full monthly map.
    return {...definition,walls:z.walls??Array.from({length:z.height??12},(_,y)=>Array.from({length:z.width??20},(_,x)=>blocked({...z,fixtures:[]},x,y)?1:0))};
   });
   if(dungeon.definition)definitions.push(dungeon.definition);
-  const edition=c?JSON.parse(c.state).dive?.edition:null;
-  const visiblePeers=isDungeon(p?.zone)?peers.filter(peer=>JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(peer.id).state).dive?.edition===edition):peers;
-  return {rpp:c?rpp.snapshot(c,JSON.parse(c.state)):null,rp:{...rp.snapshot(c,chatArea?.id,restricted),candidates:c&&p?rpCandidates(i,c,p).map(({id,name})=>({id,name})):[]},dungeons:[...engines].map(([id,route])=>({id,enabled:route.snapshot(null,null).dive.enabled})),serverTime:now(),loadoutSupport:true,combatVersion:2,diveCombatVersion:3,partySupport:true,globalChatSupport:true,...parties.snapshot(c,restricted),encounter:c?engine(p?.zone).encounterSnapshot(JSON.parse(c.state)):null,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,tundra:tundra.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?publicCharacter(c):null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,globalChat,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null,view),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP};
+  const edition=state?.dive?.edition;
+  const visiblePeers=isDungeon(p?.zone)?peers.filter(peer=>peerStates.get(peer.id).dive?.edition===edition):peers;
+  return {rpp:c?rpp.snapshot(c,state):null,rp:{...rp.snapshot(c,chatArea?.id,restricted),candidates:c&&p?rpCandidates(i,c,p).map(({id,name})=>({id,name})):[]},dungeons:[...engines].map(([id,route])=>({id,enabled:route.available()})),serverTime:now(),loadoutSupport:true,combatVersion:2,diveCombatVersion:3,partySupport:true,globalChatSupport:true,...parties.snapshot(c,restricted),encounter:c?engine(p?.zone).encounterSnapshot(state):null,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,tundra:tundra.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);return summary;}),character:c?{avatar:'player',id:c.id,name:c.name,revision:c.revision,...state}:null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,globalChat,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null,view),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP};
  } // Snapshots expose only zone avatars and chat, never wallet credentials or account IDs.
  function read(secret,id,view={}){const i=identity(secret);limit(i.owner);districts.refresh();dive.tick();if(view.companion&&!id)id=db.prepare('SELECT character_id FROM quest_presence WHERE owner=? ORDER BY seen DESC LIMIT 1').get(i.owner)?.character_id??db.prepare('SELECT id FROM quest_characters WHERE owner=? ORDER BY created DESC,id LIMIT 1').get(i.owner)?.id;
   return snapshot(i,id?character(i.owner,id):null,view);} // Only this read honours the companion view; every in-play snapshot keeps the beside-a-bank rule.
@@ -145,7 +148,8 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   const area=rpArea(c,p);
   return db.prepare('SELECT c.*,p.zone,p.x,p.y FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? AND c.owner<>? ORDER BY c.name,c.id').all(p.zone,now()-30000,c.owner).filter(other=>enabled(other.owner)&&!(i.blockedAccounts??[]).includes(other.owner)&&rpArea(other,other)===area); // Partner selection follows area chat, including dungeon room and edition boundaries.
  }
- function act(secret,input){
+ function act(secret,input,{buildSnapshot=true}={}){
+  const response=(i,c)=>buildSnapshot?snapshot(i,c):{character:{id:c.id}}; // HTTP needs only the committed character ID until purchases settle; direct callers retain full snapshots.
   const i=identity(secret);limit(i.owner);
   grant(secret,'wallet:write');
   districts.refresh(); // Materialize monthly maps before the command transaction, keeping rollback and cached geometry consistent.
@@ -158,22 +162,23 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    identity(secret);
    if(input.action==='create'){
     if(db.prepare('SELECT 1 FROM quest_deleted_characters WHERE owner=? AND creation_id=?').get(i.owner,input.request_id))fail(410,'This character was deleted. Start a new character.');
-    const name=clean(input.name,24),appearance=avatar(input.avatar===undefined?'player':input.avatar);if(!name)fail(400,'Give your online character a name.');
+    const name=clean(input.name,24);if(!name)fail(400,'Give your online character a name.');
     let c=db.prepare('SELECT * FROM quest_characters WHERE owner=? AND creation_id=?').get(i.owner,input.request_id);
+    const appearance=c?(input.avatar??'player'):chooseAvatar(input.avatar===undefined?'player':input.avatar,i.owner,''); // Creation retries retain their original receipt even if that sprite was later deleted.
     if(c&&(JSON.parse(c.state).creationName??c.name)!==name)fail(409,'This creation request already has another name.');
     if(c&&(JSON.parse(c.state).creationAvatar??'player')!==appearance)fail(409,'This creation request already has another appearance.');
     const creation=input.creation??null;if(creation!==null&&(typeof creation!=='object'||Array.isArray(creation)||Buffer.byteLength(JSON.stringify(creation))>8192))fail(400,'Invalid creation choices.');
     if(c&&JSON.stringify(JSON.parse(c.state).creation??null)!==JSON.stringify(creation))fail(409,'This creation request already has different choices.');
-    if(!c){if(db.prepare('SELECT COUNT(*) AS n FROM quest_characters WHERE owner=?').get(i.owner).n>=5)fail(409,'This account already has five online characters.');const id=randomUUID();db.prepare('INSERT INTO quest_characters VALUES (?,?,?,?,0,?,?)').run(id,i.owner,name,now(),JSON.stringify({avatar:appearance,creationAvatar:appearance,creationName:name,creation,wins:0,run:null,lastStart:0,lastResult:null}),input.request_id);c=character(i.owner,id);}
-    return snapshot(i,c);
+    if(!c){if(db.prepare('SELECT COUNT(*) AS n FROM quest_characters WHERE owner=?').get(i.owner).n>=5)fail(409,'This account already has five online characters.');const id=randomUUID();db.prepare('INSERT INTO quest_characters VALUES (?,?,?,?,0,?,?)').run(id,i.owner,name,now(),JSON.stringify({avatar:appearance,creationAvatar:appearance,creationName:name,creation,wins:0,run:null,lastStart:0,lastResult:null}),input.request_id);c=character(i.owner,id);privateSprites?.claimDraft(i.owner,c.id);}
+    return response(i,c);
    }
    const c=character(i.owner,input.character_id),fingerprint=createHash('sha256').update(JSON.stringify(Object.keys(input).sort().map(k=>[k,canonical(input[k])]))).digest('hex'); // Preserve legacy flat command fingerprints while stabilizing nested loadout data.
    if(db.prepare("SELECT 1 FROM quest_management WHERE character_id=? AND status='pending'").get(c.id))fail(409,'Your character change is still settling.','character_change_pending');
    const old=db.prepare('SELECT * FROM quest_commands WHERE character_id=? AND request_id=?').get(c.id,input.request_id);
-   if(input.action==='rp_read'){const p=presence(i,c,input.controller);return {...snapshot(i,c),receipt:{action:'rp_read',request_id:input.request_id,rpPost:rp.read(c,input.rp_id,rpArea(c,p),i.blockedAccounts??[])}};} // Reading never alters character revision, writing credit, or the command journal.
-   if(old){if(old.fingerprint!==fingerprint)fail(409,'This request ID already describes another action.');return {...snapshot(i,c),receipt:JSON.parse(old.result)};}
+   if(input.action==='rp_read'){const p=presence(i,c,input.controller);return {...response(i,c),receipt:{action:'rp_read',request_id:input.request_id,rpPost:rp.read(c,input.rp_id,rpArea(c,p),i.blockedAccounts??[])}};} // Reading never alters character revision, writing credit, or the command journal.
+   if(old){if(old.fingerprint!==fingerprint)fail(409,'This request ID already describes another action.');return {...response(i,c),receipt:JSON.parse(old.result)};}
    if(input.action==='heartbeat'){
-    presence(i,c,input.controller);db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);return snapshot(i,c);
+    presence(i,c,input.controller);db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);return response(i,c);
    }
    if((!JSON.parse(c.state).run?.sharedEncounter||!['turn_ready','attack','cast','charm','allure','use_item','flee','submit','stand'].includes(input.action))&&(!Number.isSafeInteger(input.revision)||input.revision!==c.revision))fail(409,'Character changed; refresh before choosing another action.');
    const state=JSON.parse(c.state);let p,rpId;
@@ -237,7 +242,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);
    }else if(dive.handles(input,divePresence)){
     if(!['enter','dive_enter'].includes(input.action))presence(i,c,input.controller);
-    if(input.action==='appearance')avatar(input.avatar);
+    if(input.action==='appearance')chooseAvatar(input.avatar,i.owner,c.id);
     dive.act(i,c,state,input,divePresence);
     db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(now(),c.id);
    }else if(input.action==='enter'){
@@ -288,7 +293,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
      if(state.run)fail(409,'Finish combat before resting.');nearbyFixture(z,p,input.fixture,'bed');
      if(state.restedAt&&now()-state.restedAt<hubData.config.rest_tick_ms)fail(429,'Wait for the next rest turn.');
      const next=importLoadout(input.loadout);next.player_info.companions=state.loadout?.player_info.companions??{};state.loadout=next;state.restedAt=now();
-    }else if(input.action==='appearance'){state.avatar=avatar(input.avatar);} // Cosmetic changes use the same ownership, presence, revision and replay checks as other arena commands.
+    }else if(input.action==='appearance'){state.avatar=chooseAvatar(input.avatar,i.owner,c.id);} // Private sprites require this character's ownership as well as ordinary replay/presence checks.
     else if(input.action==='allocate'){
      if(!state.loadout||state.run?.phase==='fight'||!['str','def','dex','int','cha'].includes(input.stat)||!(state.loadout.player_info.stat_points>0))fail(409,'Choose an available level-up stat point between rounds.');
      state.loadout.player_info[input.stat]++;state.loadout.player_info.stat_points--;
@@ -376,7 +381,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    db.prepare('INSERT INTO quest_commands VALUES (?,?,?,?,?)').run(c.id,input.request_id,c.revision,fingerprint,JSON.stringify(receipt));
    db.prepare('DELETE FROM quest_commands WHERE character_id=? AND revision<?').run(c.id,c.revision-128);
    onPresence(c,afterPresence); // Publish only committed, authenticated presence; a failed command rolls its event back too.
-   return {...snapshot(i,c),receipt};
+   return {...response(i,c),receipt};
   });
  }
  function inspect(secret,id,target,controller){
@@ -386,5 +391,5 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   if(isDungeon(p.zone)){const a=JSON.parse(c.state).dive,b=JSON.parse(other.state).dive;if(!a||!b||a.route!==b.route||a.depth!==b.depth||a.edition!==b.edition)fail(404,'That player is no longer in this area.');} // Inspection follows displayed peers on the same weekly floor; chat room boundaries never make a visible player unclickable.
   return inspectionProjection(other);
  }
- return {read,act,inspect,enchantments,tick(){districts.tick();dive.tick();},completePurchase:purchases.complete}; // The service timer also moves shared social residents without requiring player commands.
+ return {read,act,inspect,enchantments,setPrivateSprites(value){privateSprites=value;},tick(){districts.tick();dive.tick();},prepare:()=>Promise.all([...engines.values()].map(route=>route.prepare())),close(){for(const route of engines.values())route.close();},completePurchase:purchases.complete}; // One coordinator owns simulation and commits; workers only calculate candidate results.
 } // Campaign stats and inventory are client-trusted; arena outcomes and shared-currency awards still belong to this simulation.

@@ -1,9 +1,11 @@
 import {parseEnv} from 'node:util';
 import {isIP} from 'node:net';
 import {createWalletClient} from '../server/wallet.mjs';
+import {computeWorkerCount} from '../server/compute-pool.mjs';
 
 export function validateEnvironment(text) { // Check settings without printing or executing environment-file contents.
   const env = parseEnv(text);
+  computeWorkerCount(env.QUEST_COMPUTE_WORKERS??'auto'); // Reject invalid pool settings before stopping the running release.
   if (env.DATA_DIR !== '/var/lib/lidollquest-server') throw Error('DATA_DIR must be /var/lib/lidollquest-server for this installer.');
   if (!isIP(env.HOST ?? '')) throw Error('HOST must be an explicit IPv4 or IPv6 bind address.');
   if (!/^\d+$/.test(env.PORT ?? '') || Number(env.PORT) < 1024 || Number(env.PORT) > 65535) throw Error('PORT must be between 1024 and 65535.');

@@ -53,6 +53,7 @@ test('gameplay response counters handle rejection, in-flight requests, and disco
   h.monitor.sample();const saved=h.monitor.snapshot().history[0].requests;
   assert.equal(saved.completed,3);assert.equal(saved.active,1);assert.equal(saved.peakActive,4);assert.equal(saved.throttled,1);
   assert.equal(saved.clientErrors,1);assert.equal(saved.serverErrors,1);assert.equal(saved.meanMs,100);assert.equal(saved.perSecond,30);
+  assert.ok(Math.abs(saved.p95Ms-100)<1);assert.equal(h.monitor.snapshot().current.requests.p95Ms,null); // Percentile histograms reset with their request interval.
   h.advance(100);aborted.writableFinished=false;aborted.emit('close');aborted.emit('finish');
   const next=h.monitor.snapshot().current.requests;assert.equal(next.completed,1);assert.equal(next.aborted,1);assert.equal(next.active,0);assert.equal(next.maxMs,200);
  }finally{h.close();}

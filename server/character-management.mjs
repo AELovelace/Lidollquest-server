@@ -10,7 +10,7 @@ export function appearanceChoices(value){
 } // Class, stats, equipment and NPC sprite cannot be changed through a paperdoll purchase.
 export function managementSchema(db){db.exec(`CREATE TABLE IF NOT EXISTS quest_management(owner TEXT NOT NULL,request_id TEXT NOT NULL,character_id TEXT NOT NULL,fingerprint TEXT NOT NULL,action TEXT NOT NULL,payload TEXT NOT NULL,cost INTEGER NOT NULL,status TEXT NOT NULL,result TEXT,PRIMARY KEY(owner,request_id));
  CREATE TABLE IF NOT EXISTS quest_deleted_characters(id TEXT PRIMARY KEY,owner TEXT NOT NULL,creation_id TEXT NOT NULL,deleted INTEGER NOT NULL,UNIQUE(owner,creation_id));`);}
-export function createCharacterManagement(db,{walletClient,cloud,now=Date.now,log=console.warn}){
+export function createCharacterManagement(db,{walletClient,cloud,sprites,now=Date.now,log=console.warn}){
  managementSchema(db);const running=new Map();
  const atomic=work=>{db.exec('BEGIN IMMEDIATE');try{const result=work();db.exec('COMMIT');return result;}catch(error){db.exec('ROLLBACK');throw error;}};
  function prepare(owner,i){
@@ -26,6 +26,7 @@ export function createCharacterManagement(db,{walletClient,cloud,now=Date.now,lo
   if(state.run||state.pendingPurchase||state.worldTurnDue||db.prepare('SELECT 1 FROM quest_presence WHERE character_id=? AND seen>?').get(c.id,now()-30000))fail(409,'Leave online rooms and finish pending battles or purchases before managing this character.');
   if(db.prepare("SELECT 1 FROM quest_management WHERE character_id=? AND status='pending'").get(c.id))fail(409,'Another character change is still settling.','character_change_pending');
   if(i.action==='delete'&&i.confirm!==c.name)fail(400,'Type the character name to confirm permanent deletion.');
+  if(i.action==='delete')sprites?.blockDeletion(c.id);
   if(i.action==='rename'&&payload.name===c.name)fail(400,'Choose a different character name.');
   const cost=i.action==='rename'?5:i.action==='appearance'?1:0;
   db.prepare('INSERT INTO quest_management VALUES (?,?,?,?,?,?,?,?,NULL)').run(owner,i.request_id,c.id,fingerprint,i.action,JSON.stringify(payload),cost,'pending');
@@ -47,7 +48,7 @@ export function createCharacterManagement(db,{walletClient,cloud,now=Date.now,lo
     const c=db.prepare('SELECT * FROM quest_characters WHERE id=? AND owner=?').get(row.character_id,row.owner);if(!c)throw Error('Pending character change lost its character');
     const state=JSON.parse(c.state),payload=JSON.parse(row.payload);let result;
     if(row.action==='delete'){
-     cloud.deleteCharacter(c.id);
+     cloud.deleteCharacter(c.id);sprites?.deleteCharacter(c.id);
      for(const table of ['quest_presence','quest_commands','quest_bank','quest_item_origins','dive_progress'])db.prepare(`DELETE FROM ${table} WHERE character_id=?`).run(c.id);
      db.prepare('INSERT INTO quest_deleted_characters VALUES (?,?,?,?)').run(c.id,c.owner,c.creation_id,now());db.prepare('DELETE FROM quest_characters WHERE id=?').run(c.id);
      result={character_id:c.id,deleted:true}; // Keep shared friendships, wallet receipts, account reward caps and unpaid payouts intact.
