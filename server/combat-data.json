@@ -1258,5 +1258,1527 @@
       "cute_preference": "neutral",
       "sexy_preference": "neutral"
     }
+  },
+  "defeat_equipment": {
+    "goblin": {
+      "first": [
+        "goblin_rattle",
+        "bonnet",
+        "cursed_pottypants_diaper",
+        "goblin_plug",
+        "cursed_paci"
+      ],
+      "repeat": [
+        "goblin_rattle",
+        "bonnet",
+        "cursed_pottypants_diaper",
+        "goblin_plug",
+        "cursed_paci"
+      ]
+    },
+    "goblin_brute": {
+      "first": [
+        "goblin_rattle",
+        "bonnet",
+        "cursed_pottypants_diaper",
+        "goblin_plug",
+        "cursed_paci"
+      ],
+      "repeat": [
+        "cursed_pottypants_diaper",
+        "onesie",
+        "goblin_plug",
+        "cursed_paci"
+      ]
+    },
+    "diaper_fairy": {
+      "first": [
+        "printed_diaper",
+        "hair_bow",
+        "ruffle_socks",
+        "mary_janes"
+      ],
+      "repeat": [
+        "printed_diaper",
+        "hair_bow",
+        "ruffle_socks",
+        "mary_janes"
+      ]
+    },
+    "nanny_golem": {
+      "first": [
+        "nighttime_diaper",
+        "pacifier"
+      ],
+      "repeat": [
+        "nighttime_diaper",
+        "onesie",
+        "bonnet",
+        "ruffle_socks",
+        "pacifier",
+        "bloomers"
+      ]
+    },
+    "teddy_mimic": {
+      "first": [
+        "cursed_teddy"
+      ],
+      "repeat": [
+        "cursed_teddy"
+      ]
+    },
+    "bottle_slime": {
+      "first": [
+        "pacifier"
+      ],
+      "repeat": [
+        "pacifier"
+      ]
+    },
+    "pacifier_wraith": {
+      "first": [
+        "cursed_paci",
+        "ghostly_onesie"
+      ],
+      "repeat": [
+        "cursed_paci",
+        "ghostly_onesie",
+        "ghost_bloomers"
+      ]
+    },
+    "diaper_hugger": {
+      "first": [
+        "diaper_hugger_diaper"
+      ],
+      "repeat": [
+        "diaper_hugger_diaper",
+        "onesie"
+      ]
+    },
+    "lullaby_siren": {
+      "first": [
+        "enchanted_diaper",
+        "ruffle_socks",
+        "hair_bow"
+      ],
+      "repeat": [
+        "enchanted_diaper",
+        "ruffle_socks",
+        "hair_bow",
+        "pacifier_necklace"
+      ]
+    },
+    "crib_mimic": {
+      "first": [
+        "nighttime_diaper",
+        "bunny_onesie"
+      ],
+      "repeat": [
+        "nighttime_diaper",
+        "bunny_onesie",
+        "bonnet",
+        "ruffle_socks"
+      ]
+    },
+    "elder_witch": {
+      "first": [
+        "cobweb_diaper",
+        "enchanted_blankie",
+        "cursed_paci_forest",
+        "bramble_bow"
+      ],
+      "repeat": [
+        "cobweb_diaper",
+        "enchanted_blankie",
+        "cursed_paci_forest",
+        "bramble_bow"
+      ]
+    },
+    "shadow_fairy": {
+      "first": [
+        "cobweb_diaper",
+        "ghostly_onesie",
+        "bramble_bow",
+        "wet_moss_boots",
+        "mushroom_plug"
+      ],
+      "repeat": [
+        "cobweb_diaper",
+        "ghostly_onesie",
+        "bramble_bow",
+        "wet_moss_boots",
+        "mushroom_plug"
+      ]
+    },
+    "bloated_slime": {
+      "first": [
+        "pacifier",
+        "cobweb_diaper",
+        "mushroom_plug"
+      ],
+      "repeat": [
+        "pacifier",
+        "cobweb_diaper",
+        "mushroom_plug"
+      ]
+    },
+    "nanny_bot": {
+      "first": [
+        "safety_helmet",
+        "nursery_nappy",
+        "locking_bib"
+      ],
+      "repeat": [
+        "safety_helmet",
+        "nursery_nappy",
+        "locking_bib"
+      ]
+    },
+    "diaper_dispenser": {
+      "first": [
+        "auto_diaper",
+        "activity_socks"
+      ],
+      "repeat": [
+        "auto_diaper",
+        "activity_socks"
+      ]
+    },
+    "formula_feeder_bot": {
+      "first": [
+        "nursery_nappy"
+      ],
+      "repeat": [
+        "nursery_nappy"
+      ]
+    },
+    "robo_nurse": {
+      "first": [
+        "sensor_cap",
+        "nursery_coverall",
+        "auto_diaper",
+        "nursery_booties"
+      ],
+      "repeat": [
+        "sensor_cap",
+        "nursery_coverall",
+        "auto_diaper",
+        "nursery_booties"
+      ]
+    },
+    "auto_strapper": {
+      "first": [
+        "auto_bonnet",
+        "nursery_coverall",
+        "max_absorbency_diaper",
+        "lockable_bloomers",
+        "activity_socks",
+        "nursery_booties",
+        "foam_mallet"
+      ],
+      "repeat": [
+        "auto_bonnet",
+        "nursery_coverall",
+        "max_absorbency_diaper",
+        "lockable_bloomers",
+        "activity_socks",
+        "nursery_booties",
+        "foam_mallet"
+      ]
+    },
+    "potty_trainer_bot": {
+      "first": [
+        "printed_diaper_auto",
+        "potty_pants"
+      ],
+      "repeat": [
+        "printed_diaper_auto",
+        "potty_pants"
+      ]
+    },
+    "nanny_sentinel": {
+      "first": [
+        "auto_bonnet",
+        "nursery_coverall",
+        "max_absorbency_diaper",
+        "lockable_bloomers",
+        "activity_socks",
+        "nursery_booties",
+        "foam_mallet"
+      ],
+      "repeat": [
+        "auto_bonnet",
+        "nursery_coverall",
+        "max_absorbency_diaper",
+        "lockable_bloomers",
+        "activity_socks",
+        "nursery_booties",
+        "foam_mallet"
+      ]
+    },
+    "cradle_golem": {
+      "first": [
+        "auto_tutu",
+        "max_absorbency_diaper",
+        "nursery_booties"
+      ],
+      "repeat": [
+        "auto_tutu",
+        "max_absorbency_diaper",
+        "nursery_booties"
+      ]
+    },
+    "matron_rosalind_boss": {
+      "first": [
+        "sensor_cap",
+        "nursery_coverall",
+        "blessed_pottypants_diaper",
+        "lockable_bloomers",
+        "activity_socks",
+        "nursery_booties",
+        "cursed_paci",
+        "medical_wristband"
+      ],
+      "repeat": [
+        "sensor_cap",
+        "nursery_coverall",
+        "blessed_pottypants_diaper",
+        "lockable_bloomers",
+        "activity_socks",
+        "nursery_booties",
+        "cursed_paci",
+        "medical_wristband"
+      ]
+    },
+    "slime_queen_boss": {
+      "first": [
+        "printed_diaper",
+        "bloomers",
+        "hair_bow"
+      ],
+      "repeat": [
+        "printed_diaper",
+        "bloomers",
+        "hair_bow",
+        "nighttime_diaper"
+      ]
+    },
+    "school_janitor": {
+      "first": [
+        "bloomers"
+      ],
+      "repeat": [
+        "bloomers"
+      ]
+    },
+    "school_teacher": {
+      "first": [
+        "bonnet",
+        "ruffle_socks"
+      ],
+      "repeat": [
+        "bonnet",
+        "ruffle_socks"
+      ]
+    },
+    "school_nurse": {
+      "first": [
+        "diaper_school_issued"
+      ],
+      "repeat": [
+        "diaper_school_issued"
+      ]
+    },
+    "school_nurse_boss": {
+      "first": [
+        "diaper_school_issued"
+      ],
+      "repeat": [
+        "diaper_school_issued"
+      ]
+    },
+    "school_principal": {
+      "first": [
+        "onesie",
+        "bonnet",
+        "ruffle_socks",
+        "mary_janes",
+        "bloomers",
+        "pacifier"
+      ],
+      "repeat": [
+        "onesie",
+        "bonnet",
+        "ruffle_socks",
+        "mary_janes",
+        "bloomers",
+        "pacifier"
+      ]
+    },
+    "hospital_orderly": {
+      "first": [
+        "hospital_gown",
+        "thick_medical_diaper"
+      ],
+      "repeat": [
+        "hospital_gown",
+        "thick_medical_diaper"
+      ]
+    },
+    "hospital_nurse": {
+      "first": [
+        "thick_medical_diaper",
+        "patient_pacifier"
+      ],
+      "repeat": [
+        "thick_medical_diaper",
+        "patient_pacifier"
+      ]
+    },
+    "hospital_doctor": {
+      "first": [
+        "hospital_gown",
+        "thick_medical_diaper",
+        "hospital_booties",
+        "medical_wristband"
+      ],
+      "repeat": [
+        "hospital_gown",
+        "thick_medical_diaper",
+        "hospital_booties",
+        "medical_wristband"
+      ]
+    },
+    "hospital_surgeon": {
+      "first": [
+        "hospital_gown",
+        "thick_medical_diaper",
+        "hospital_booties",
+        "medical_wristband",
+        "patient_pacifier",
+        "bloomers"
+      ],
+      "repeat": [
+        "hospital_gown",
+        "thick_medical_diaper",
+        "hospital_booties",
+        "medical_wristband",
+        "patient_pacifier",
+        "bloomers"
+      ]
+    },
+    "hospital_security": {
+      "first": [
+        "thick_medical_diaper"
+      ],
+      "repeat": [
+        "thick_medical_diaper"
+      ]
+    },
+    "hospital_researcher": {
+      "first": [
+        "thick_medical_diaper"
+      ],
+      "repeat": [
+        "thick_medical_diaper"
+      ]
+    },
+    "research_director": {
+      "first": [
+        "hospital_gown",
+        "thick_medical_diaper",
+        "hospital_booties",
+        "medical_wristband",
+        "patient_pacifier",
+        "bloomers"
+      ],
+      "repeat": [
+        "hospital_gown",
+        "thick_medical_diaper",
+        "hospital_booties",
+        "medical_wristband",
+        "patient_pacifier",
+        "bloomers"
+      ]
+    },
+    "mother_vesper": {
+      "first": [
+        "cultist_robe_1",
+        "blessed_pottypants_diaper"
+      ],
+      "repeat": [
+        "cultist_robe_1"
+      ]
+    },
+    "subject_theta_boss": {
+      "first": [
+        "cobweb_diaper",
+        "ghostly_onesie"
+      ],
+      "repeat": [
+        "cobweb_diaper"
+      ]
+    }
+  },
+  "defeat_items": {
+    "activity_socks": {
+      "item_id": "activity_socks",
+      "category": "socks",
+      "name": "Activity Socks (Jingles)",
+      "desc": "White ankle socks with tiny jingle bells sewn around the cuff. Every step announces your presence. Adorable. Mortifying. DEF +1.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "value": 5,
+      "childish": 8
+    },
+    "auto_diaper": {
+      "item_id": "auto_diaper",
+      "category": "panties",
+      "name": "Auto-Taped Nursery Diaper",
+      "desc": "A thick mechanical diaper fired from a Diaper Dispenser Bot. The adhesive tabs deployed automatically and are bonded to your skin. Cannot be removed. ATK -2, DEX -3.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -4,
+      "atk_mod": -2,
+      "def_mod": 0,
+      "dex_mod": -3,
+      "value": 0,
+      "childish": 10,
+      "bulk": 3,
+      "is_diaper": true,
+      "cursed": true,
+      "curse_max": 4
+    },
+    "auto_tutu": {
+      "item_id": "auto_tutu",
+      "category": "torso",
+      "name": "Auto-Fitted Tutu",
+      "desc": "A bright pink tutu that snapped around your waist automatically when you walked past a robot. The layers of tulle make your diaper situation extremely obvious. DEF +1.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "value": 0,
+      "childish": 10
+    },
+    "blessed_pottypants_diaper": {
+      "item_id": "blessed_pottypants_diaper",
+      "category": "panties",
+      "name": "Blessed PottyPants Diaper",
+      "desc": "A thick, gently enchanted diaper that hums with soft light. It does not force accidents, but its magic slowly... reshapes you. ATK -2, DEF -1, DEX -3. It quietly takes care of things for you.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -5,
+      "atk_mod": -2,
+      "def_mod": -1,
+      "dex_mod": -3,
+      "value": 0,
+      "childish": 10,
+      "bulk": 10,
+      "visual_bulk": 3,
+      "blessed": true,
+      "is_diaper": true,
+      "magical_effects": [
+        {
+          "effect_id": "dry_blessing",
+          "enabled": true,
+          "trigger_mode": "step",
+          "proc_min": 141,
+          "proc_max": 230,
+          "chance_percent": 100,
+          "cooldown": 20,
+          "popup_title": "A Small Mercy",
+          "popup_text": "",
+          "popup_lines": [
+            "{item} goes cool and dry against {name}, as if it simply decided to forgive her.",
+            "Whatever {name} just did to {item}, it takes it away without comment."
+          ],
+          "log_text": "{item} wicks you dry: Wet -6.",
+          "narrative_chunk": "",
+          "movement_lock": false,
+          "lock_prompt_min": 4,
+          "lock_prompt_max": 8,
+          "lock_release_chance": 35,
+          "lock_title": "Constricted!",
+          "lock_text": "You struggle against {item}...",
+          "content_pass": "cursed_blessed_pass_v1",
+          "alignment": "blessed",
+          "stat_delta": {
+            "wet": -6
+          }
+        }
+      ]
+    },
+    "bloomers": {
+      "item_id": "bloomers",
+      "category": "diaper_cover",
+      "name": "Puffy Bloomers",
+      "desc": "Billowy shorts gathered at the knee. Cute, but bulk over 2 will peek out.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": 0,
+      "value": 7,
+      "childish": 9,
+      "conceals_panties": true,
+      "bulk_threshold": 3,
+      "is_bloomers": true
+    },
+    "bramble_bow": {
+      "item_id": "bramble_bow",
+      "category": "head",
+      "name": "Bramble Bow",
+      "desc": "A hair bow woven from thorny vines and tiny forest flowers. Pretty but prickly. +1 DEF.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "value": 12,
+      "childish": 7
+    },
+    "bunny_onesie": {
+      "item_id": "bunny_onesie",
+      "category": "torso",
+      "name": "Bunny Onesie",
+      "desc": "A fuzzy onesie with floppy bunny ears. Makes you want to hop and giggle! Something protective is woven into the thread.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": 0,
+      "value": 12,
+      "childish": 10,
+      "magical_effects": [
+        {
+          "effect_id": "guardian_thread",
+          "enabled": true,
+          "trigger_mode": "step",
+          "proc_min": 132,
+          "proc_max": 259,
+          "chance_percent": 90,
+          "cooldown": 20,
+          "popup_title": "",
+          "popup_text": "",
+          "popup_lines": [],
+          "log_text": "{item} shelters you: HP +4, Stamina +6.",
+          "narrative_chunk": "",
+          "movement_lock": false,
+          "lock_prompt_min": 4,
+          "lock_prompt_max": 8,
+          "lock_release_chance": 35,
+          "lock_title": "Constricted!",
+          "lock_text": "You struggle against {item}...",
+          "content_pass": "cursed_blessed_pass_v1",
+          "alignment": "blessed",
+          "stat_delta": {
+            "health": 5,
+            "stamina": 6
+          }
+        }
+      ],
+      "blessed": true
+    },
+    "cobweb_diaper": {
+      "item_id": "cobweb_diaper",
+      "category": "panties",
+      "name": "Cobweb Diaper",
+      "desc": "A thick diaper woven from enchanted cobwebs. Soft as clouds, embarrassing as everything. ATK -1, DEX -2. The leg elastic grips like it has fingers.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -4,
+      "atk_mod": -1,
+      "def_mod": 1,
+      "dex_mod": -2,
+      "value": 12,
+      "childish": 10,
+      "bulk": 4,
+      "is_diaper": true,
+      "magical_effects": [
+        {
+          "effect_id": "clutching_elastic",
+          "enabled": true,
+          "trigger_mode": "step",
+          "proc_min": 228,
+          "proc_max": 458,
+          "chance_percent": 90,
+          "cooldown": 60,
+          "popup_title": "Clutching Elastic",
+          "popup_text": "",
+          "popup_lines": [],
+          "log_text": "",
+          "narrative_chunk": "",
+          "movement_lock": true,
+          "lock_prompt_min": 4,
+          "lock_prompt_max": 8,
+          "lock_release_chance": 36,
+          "lock_title": "Held Fast!",
+          "lock_text": "{item} clamps around {name}'s hips and thighs and simply will not let her walk.",
+          "content_pass": "cursed_blessed_pass_v1",
+          "alignment": "haunted"
+        }
+      ]
+    },
+    "cultist_robe_1": {
+      "item_id": "cultist_robe_1",
+      "category": "dress",
+      "name": "Cultist Robe #1",
+      "desc": "A stylish cultist robe #1. Fills both torso and pants slots. It never seems to fit the same way twice.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "value": 15,
+      "childish": 5,
+      "conceals_panties": true,
+      "bulk_threshold": 3,
+      "magical_effects": [
+        {
+          "effect_id": "shrinking_stitches",
+          "enabled": true,
+          "trigger_mode": "step",
+          "proc_min": 148,
+          "proc_max": 283,
+          "chance_percent": 70,
+          "cooldown": 22,
+          "popup_title": "Shrinking Stitches",
+          "popup_text": "",
+          "popup_lines": [
+            "{item} draws in a size, then another, until {name} can barely breathe in it.",
+            "The stitching of {item} creeps tighter, hugging {name} like it means to keep her."
+          ],
+          "log_text": "{item} shrinks: Shame -14, Stamina -5.",
+          "narrative_chunk": "",
+          "movement_lock": false,
+          "lock_prompt_min": 4,
+          "lock_prompt_max": 8,
+          "lock_release_chance": 35,
+          "lock_title": "Constricted!",
+          "lock_text": "You struggle against {item}...",
+          "content_pass": "cursed_blessed_pass_v1",
+          "alignment": "haunted",
+          "stat_delta": {
+            "shame": -13,
+            "stamina": -4
+          }
+        }
+      ]
+    },
+    "cursed_paci": {
+      "item_id": "cursed_paci",
+      "category": "mouth",
+      "name": "Cursed Goblin Pacifier",
+      "desc": "A dark, pulsing pacifier jammed in by goblins. It won't come out on its own. Adds +1 Wet and +1 Tum every turn. A friendly face might be able to remove it. Sometimes it decides you have had enough of walking about.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 3,
+      "value": 0,
+      "childish": 10,
+      "cursed": true,
+      "magical_effects": [
+        {
+          "effect_id": "hush_curse",
+          "enabled": true,
+          "trigger_mode": "step",
+          "proc_min": 246,
+          "proc_max": 459,
+          "chance_percent": 70,
+          "cooldown": 60,
+          "popup_title": "Hush Curse",
+          "popup_text": "",
+          "popup_lines": [],
+          "log_text": "",
+          "narrative_chunk": "",
+          "movement_lock": true,
+          "lock_prompt_min": 4,
+          "lock_prompt_max": 8,
+          "lock_release_chance": 38,
+          "lock_title": "Hush!",
+          "lock_text": "{item} swells against {name}'s tongue and every muscle goes soft and useless.",
+          "content_pass": "cursed_blessed_pass_v1",
+          "alignment": "cursed"
+        }
+      ]
+    },
+    "cursed_paci_forest": {
+      "item_id": "cursed_paci_forest",
+      "category": "mouth",
+      "name": "Haunted Pacifier",
+      "desc": "A ghostly pacifier that materialised from the forest fog. Restores +3 HP per turn but increases wet by 2 per step. Cannot be removed normally.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 3,
+      "wet_resist": -2,
+      "value": 0,
+      "childish": 10,
+      "cursed": true
+    },
+    "cursed_pottypants_diaper": {
+      "item_id": "cursed_pottypants_diaper",
+      "category": "panties",
+      "name": "Cursed PottyPants Diaper",
+      "desc": "A thick, magically cursed diaper fastened by goblins. It pulses with dark energy, filling itself by force. Cannot be removed by normal means. ATK -2, DEF -1, DEX -3. The leg elastic grips like it has fingers.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -5,
+      "atk_mod": -2,
+      "def_mod": -1,
+      "dex_mod": -3,
+      "value": 0,
+      "childish": 10,
+      "bulk": 10,
+      "visual_bulk": 3,
+      "curse_max": 10,
+      "cursed": true,
+      "is_diaper": true,
+      "magical_effects": [
+        {
+          "effect_id": "clutching_elastic",
+          "enabled": true,
+          "trigger_mode": "step",
+          "proc_min": 239,
+          "proc_max": 418,
+          "chance_percent": 80,
+          "cooldown": 60,
+          "popup_title": "Clutching Elastic",
+          "popup_text": "",
+          "popup_lines": [],
+          "log_text": "",
+          "narrative_chunk": "",
+          "movement_lock": true,
+          "lock_prompt_min": 4,
+          "lock_prompt_max": 8,
+          "lock_release_chance": 36,
+          "lock_title": "Held Fast!",
+          "lock_text": "{item} clamps around {name}'s hips and thighs and simply will not let her walk.",
+          "content_pass": "cursed_blessed_pass_v1",
+          "alignment": "cursed"
+        }
+      ]
+    },
+    "cursed_teddy": {
+      "item_id": "cursed_teddy",
+      "category": "weapon",
+      "name": "Cursed Teddy Bear",
+      "desc": "A possessed teddy bear clamped onto your arm. It giggles when you swing it and cries when you try to put it down. A friendly face might be able to pry it off. It shines when you need to be brave.",
+      "atk": 3,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 0,
+      "childish": 10,
+      "cursed": true,
+      "magical_effects": [
+        {
+          "effect_id": "valorous_light",
+          "enabled": true,
+          "trigger_mode": "step",
+          "proc_min": 173,
+          "proc_max": 318,
+          "chance_percent": 90,
+          "cooldown": 24,
+          "popup_title": "Valorous Light",
+          "popup_text": "",
+          "popup_lines": [
+            "{item} shines, and for a moment {name} is nobody's baby at all.",
+            "A clean bright courage runs out of {item} and into {name}'s chest."
+          ],
+          "log_text": "{item} emboldens you: HP +6, Shame +10.",
+          "narrative_chunk": "",
+          "movement_lock": false,
+          "lock_prompt_min": 4,
+          "lock_prompt_max": 8,
+          "lock_release_chance": 35,
+          "lock_title": "Constricted!",
+          "lock_text": "You struggle against {item}...",
+          "content_pass": "cursed_blessed_pass_v1",
+          "alignment": "blessed",
+          "stat_delta": {
+            "health": 7,
+            "shame": 10
+          }
+        }
+      ],
+      "blessed": true
+    },
+    "diaper_hugger_diaper": {
+      "item_id": "diaper_hugger_diaper",
+      "category": "panties",
+      "name": "Diaper-Hugger's Embrace",
+      "desc": "A thick enchanted diaper that hugged itself snug around you and will NOT let go until it is completely full. It hums with the same soft, reshaping magic as a blessed diaper. Capacity 20. ATK -2, DEF -1, DEX -3.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -5,
+      "atk_mod": -2,
+      "def_mod": -1,
+      "dex_mod": -3,
+      "value": 0,
+      "childish": 10,
+      "bulk": 20,
+      "visual_bulk": 3,
+      "cursed": true,
+      "blessed": true,
+      "is_diaper": true
+    },
+    "diaper_school_issued": {
+      "item_id": "diaper_school_issued",
+      "category": "panties",
+      "name": "School-Issued Diaper",
+      "desc": "A thick institutional diaper. Your name has been written on the waistband in permanent marker. It feels like a declaration. It is not coming off without help. ATK -1, DEX -2.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -4,
+      "atk_mod": -1,
+      "def_mod": 0,
+      "dex_mod": -2,
+      "value": 0,
+      "childish": 10,
+      "bulk": 4,
+      "is_diaper": true,
+      "cursed": true
+    },
+    "enchanted_blankie": {
+      "item_id": "enchanted_blankie",
+      "category": "torso",
+      "name": "Enchanted Blankie",
+      "desc": "A tattered security blanket that glows faintly in darkness. Warm and comforting. +3 DEF, but very babyish.",
+      "atk": 0,
+      "def": 3,
+      "hp_restore": 0,
+      "value": 22,
+      "childish": 10
+    },
+    "enchanted_diaper": {
+      "item_id": "enchanted_diaper",
+      "category": "panties",
+      "name": "Enchanted Diaper",
+      "desc": "A softly glowing diaper infused with protective magic. Embarrassing, but it heals you over time. +1 HP per turn, +1 DEF. DEX -1.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 1,
+      "wet_resist": -2,
+      "atk_mod": 0,
+      "def_mod": 1,
+      "dex_mod": -1,
+      "value": 18,
+      "childish": 10,
+      "bulk": 3,
+      "is_diaper": true
+    },
+    "foam_mallet": {
+      "item_id": "foam_mallet",
+      "category": "weapon",
+      "name": "Foam Mallet",
+      "desc": "A gigantic padded foam mallet shaped like a toy. Deals {atk} damage and makes a very undignified BONK noise.",
+      "atk_min": 5,
+      "atk_max": 8,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 10,
+      "childish": 9
+    },
+    "ghost_bloomers": {
+      "item_id": "ghost_bloomers",
+      "category": "diaper_cover",
+      "name": "Ghost Bloomers",
+      "desc": "Semi-transparent bloomers woven from ectoplasm. They shimmer and phase in and out of sight - unfortunately, so does whatever's underneath.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": 0,
+      "value": 14,
+      "childish": 8,
+      "conceals_panties": true,
+      "bulk_threshold": 2,
+      "is_bloomers": true
+    },
+    "ghostly_onesie": {
+      "item_id": "ghostly_onesie",
+      "category": "torso",
+      "name": "Ghostly Onesie",
+      "desc": "A translucent onesie that phases in and out of visibility. Spooky AND embarrassing. +3 DEF. The lining is always faintly, unpleasantly damp.",
+      "atk": 0,
+      "def": 3,
+      "hp_restore": 0,
+      "value": 25,
+      "childish": 10,
+      "magical_effects": [
+        {
+          "effect_id": "clammy_lining",
+          "enabled": true,
+          "trigger_mode": "step",
+          "proc_min": 114,
+          "proc_max": 250,
+          "chance_percent": 80,
+          "cooldown": 16,
+          "popup_title": "",
+          "popup_text": "",
+          "popup_lines": [],
+          "log_text": "{item}'s lining goes clammy: Wet +6.",
+          "narrative_chunk": "",
+          "movement_lock": false,
+          "lock_prompt_min": 4,
+          "lock_prompt_max": 8,
+          "lock_release_chance": 35,
+          "lock_title": "Constricted!",
+          "lock_text": "You struggle against {item}...",
+          "content_pass": "cursed_blessed_pass_v1",
+          "alignment": "haunted",
+          "stat_delta": {
+            "wet": 6
+          }
+        }
+      ]
+    },
+    "goblin_plug": {
+      "item_id": "goblin_plug",
+      "category": "plug",
+      "name": "Goblin Rubber Plug",
+      "desc": "A crude rubber plug shoved in by goblins. It won't budge on its own. Keeps things in (+10 Tum Resist) but loosens the front (-1 Wet Resist).",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "tum_resist": 10,
+      "wet_resist": -1,
+      "value": 0,
+      "childish": 8,
+      "cursed": true
+    },
+    "goblin_rattle": {
+      "item_id": "goblin_rattle",
+      "category": "weapon",
+      "name": "Goblin Baby Rattle",
+      "desc": "An oversized rattle painted with goblins. Every swing makes humiliating rattling noises. Deals 4 damage. It giggles. You wish it would not.",
+      "atk": 4,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 0,
+      "childish": 10,
+      "magical_effects": [
+        {
+          "effect_id": "giggling_curse",
+          "enabled": true,
+          "trigger_mode": "step",
+          "proc_min": 173,
+          "proc_max": 306,
+          "chance_percent": 90,
+          "cooldown": 24,
+          "popup_title": "Giggling Curse",
+          "popup_text": "",
+          "popup_lines": [
+            "{item} lets out a high, delighted giggle and will not stop for a good while.",
+            "{item} laughs at {name} - properly laughs - and everyone nearby hears it."
+          ],
+          "log_text": "{item} giggles: Shame -16.",
+          "narrative_chunk": "",
+          "movement_lock": false,
+          "lock_prompt_min": 4,
+          "lock_prompt_max": 8,
+          "lock_release_chance": 35,
+          "lock_title": "Constricted!",
+          "lock_text": "You struggle against {item}...",
+          "content_pass": "cursed_blessed_pass_v1",
+          "alignment": "cursed",
+          "stat_delta": {
+            "shame": -16
+          }
+        }
+      ],
+      "cursed": true
+    },
+    "hair_bow": {
+      "item_id": "hair_bow",
+      "category": "head",
+      "name": "Big Hair Bow",
+      "desc": "An enormous ribbon bow. Impossible to ignore.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 5,
+      "childish": 8
+    },
+    "hospital_booties": {
+      "item_id": "hospital_booties",
+      "category": "shoes",
+      "name": "Hospital Booties",
+      "desc": "Soft, non-slip booties with grippy soles. The kind given to patients who aren't trusted with real shoes.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 1,
+      "childish": 5
+    },
+    "hospital_gown": {
+      "item_id": "hospital_gown",
+      "category": "torso",
+      "name": "Hospital Gown",
+      "desc": "A thin, open-backed hospital gown. Offers zero dignity and minimal warmth. Standard issue at Regression Research Hospital.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "value": 2,
+      "childish": 3,
+      "conceals_panties": false
+    },
+    "lockable_bloomers": {
+      "item_id": "lockable_bloomers",
+      "category": "diaper_cover",
+      "name": "Locked Nursery Bloomers",
+      "desc": "Thick pastel bloomers with a small padlock at the waistband. Covers the diaper fully - not that it helps much with dignity. Cannot be removed. DEF +1.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "value": 0,
+      "childish": 10,
+      "cursed": true,
+      "conceals_panties": true,
+      "bulk_threshold": 4,
+      "is_bloomers": true
+    },
+    "locking_bib": {
+      "item_id": "locking_bib",
+      "category": "torso",
+      "name": "Locking Feeder Bib",
+      "desc": "A heavy-duty bib with a magnetic clasp the NannyBots use for feeding. It clips around the neck and covers the front. Drool-resistant. DEF +1. The hem never stays where you put it.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "value": 0,
+      "childish": 10,
+      "cursed": true,
+      "magical_effects": [
+        {
+          "effect_id": "creeping_hem",
+          "enabled": true,
+          "trigger_mode": "step",
+          "proc_min": 148,
+          "proc_max": 245,
+          "chance_percent": 85,
+          "cooldown": 20,
+          "popup_title": "Creeping Hem",
+          "popup_text": "",
+          "popup_lines": [
+            "The hem of {item} climbs by itself, and {name} spends the next minute tugging it back down.",
+            "{item} rides up at exactly the worst moment, as though it planned it."
+          ],
+          "log_text": "{item} rides up: Shame -10, Excitement +6.",
+          "narrative_chunk": "",
+          "movement_lock": false,
+          "lock_prompt_min": 4,
+          "lock_prompt_max": 8,
+          "lock_release_chance": 35,
+          "lock_title": "Constricted!",
+          "lock_text": "You struggle against {item}...",
+          "content_pass": "cursed_blessed_pass_v1",
+          "alignment": "cursed",
+          "stat_delta": {
+            "shame": -10,
+            "excitement": 6
+          }
+        }
+      ]
+    },
+    "mary_janes": {
+      "item_id": "mary_janes",
+      "category": "shoes",
+      "name": "Mary Jane Shoes",
+      "desc": "Shiny patent leather with a single strap buckle. Very dainty.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 7,
+      "childish": 8
+    },
+    "max_absorbency_diaper": {
+      "item_id": "max_absorbency_diaper",
+      "category": "panties",
+      "name": "Maximum Absorbency Diaper",
+      "desc": "An industrial nursery diaper rated for 24-hour continuous capacity. It is enormous. The packaging says 'For VERY small adventurers'. ATK -3, DEX -4.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -6,
+      "atk_mod": -3,
+      "def_mod": 0,
+      "dex_mod": -4,
+      "value": 0,
+      "childish": 10,
+      "bulk": 4,
+      "is_diaper": true,
+      "cursed": false
+    },
+    "medical_wristband": {
+      "item_id": "medical_wristband",
+      "category": "accessory",
+      "name": "Patient Wristband",
+      "desc": "A plastic hospital wristband with your name, patient number, and 'REGRESSION PROGRAM - STAGE 2' printed in red. It occasionally runs a cold compliance scan.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 0,
+      "childish": 2,
+      "cursed": true,
+      "magical_effects": [
+        {
+          "effect_id": "patient_scan",
+          "enabled": true,
+          "trigger_mode": "step",
+          "proc_min": 50,
+          "proc_max": 100,
+          "chance_percent": 100,
+          "cooldown": 18,
+          "popup_title": "Patient Scan",
+          "popup_text": "",
+          "popup_lines": [
+            "{item} tightens and chirps: 'Compliance check in progress.'",
+            "A hospital rune flickers across {item}, cold and clinical."
+          ],
+          "log_text": "{item} runs a scan: wet +4, incontinence +1.",
+          "narrative_chunk": "",
+          "movement_lock": false,
+          "lock_prompt_min": 4,
+          "lock_prompt_max": 8,
+          "lock_release_chance": 45,
+          "lock_title": "Magical Snag!",
+          "lock_text": "{item} catches and holds {name} in place for a moment.",
+          "content_pass": "accessory_magic_pass_v1",
+          "stat_delta": {
+            "wet": 4,
+            "incontinence": 1
+          }
+        }
+      ]
+    },
+    "mushroom_plug": {
+      "item_id": "mushroom_plug",
+      "category": "plug",
+      "name": "Enchanted Mushroom Plug",
+      "desc": "A smooth, magically-grown mushroom cork. Firm but gentle. +8 Tum Resist, -2 Wet Resist.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "tum_resist": 8,
+      "wet_resist": -2,
+      "value": 14,
+      "childish": 6
+    },
+    "nighttime_diaper": {
+      "item_id": "nighttime_diaper",
+      "category": "panties",
+      "name": "Nighttime Diaper",
+      "desc": "An extra-thick overnight diaper. Enormous. Waddle-inducing. ATK -1, DEF -1, DEX -2.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -4,
+      "atk_mod": -1,
+      "def_mod": -1,
+      "dex_mod": -2,
+      "value": 8,
+      "childish": 10,
+      "bulk": 4,
+      "is_diaper": true
+    },
+    "nursery_booties": {
+      "item_id": "nursery_booties",
+      "category": "shoes",
+      "name": "Padded Nursery Booties",
+      "desc": "Thick foam booties that make no noise when you walk. The treads say 'BABY STEPS'. Snapped on by a NannyBot. DEF +2.",
+      "atk": 0,
+      "def": 2,
+      "hp_restore": 0,
+      "value": 7,
+      "childish": 10
+    },
+    "nursery_coverall": {
+      "item_id": "nursery_coverall",
+      "category": "torso",
+      "name": "Nursery Coverall",
+      "desc": "A snap-crotch coverall in pastel yellow. The snaps between the legs mean it has to come off completely for anything. DEF +2.",
+      "atk": 0,
+      "def": 2,
+      "hp_restore": 0,
+      "value": 12,
+      "childish": 10
+    },
+    "nursery_nappy": {
+      "item_id": "nursery_nappy",
+      "category": "panties",
+      "name": "Disposable Nursery Nappy",
+      "desc": "A thin flat disposable nappy printed with little ducks wearing tiny hats. Minimal protection, maximum childishness. ATK -1, DEX -1.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -2,
+      "atk_mod": -1,
+      "def_mod": 0,
+      "dex_mod": -1,
+      "value": 3,
+      "childish": 10,
+      "bulk": 2,
+      "is_diaper": true
+    },
+    "onesie": {
+      "item_id": "onesie",
+      "category": "torso",
+      "name": "Snuggle Onesie",
+      "desc": "Soft padding adds +2 DEF. It holds warmth the way a hug does.",
+      "atk": 0,
+      "def": 2,
+      "hp_restore": 0,
+      "value": 15,
+      "childish": 10,
+      "magical_effects": [
+        {
+          "effect_id": "warm_weave",
+          "enabled": true,
+          "trigger_mode": "step",
+          "proc_min": 118,
+          "proc_max": 232,
+          "chance_percent": 85,
+          "cooldown": 18,
+          "popup_title": "",
+          "popup_text": "",
+          "popup_lines": [],
+          "log_text": "{item} warms you through: HP +6.",
+          "narrative_chunk": "",
+          "movement_lock": false,
+          "lock_prompt_min": 4,
+          "lock_prompt_max": 8,
+          "lock_release_chance": 35,
+          "lock_title": "Constricted!",
+          "lock_text": "You struggle against {item}...",
+          "content_pass": "cursed_blessed_pass_v1",
+          "alignment": "blessed",
+          "stat_delta": {
+            "health": 6
+          }
+        }
+      ],
+      "blessed": true
+    },
+    "pacifier": {
+      "item_id": "pacifier",
+      "category": "mouth",
+      "name": "Blessed Pacifier",
+      "desc": "A soothing pacifier. Restores +1 HP at the start of each turn while equipped.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 1,
+      "value": 10,
+      "childish": 9
+    },
+    "pacifier_necklace": {
+      "item_id": "pacifier_necklace",
+      "category": "mouth",
+      "name": "Pacifier Necklace",
+      "desc": "A necklace with a big, silly pacifier. Makes you sound extra babyish!",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": 0,
+      "value": 5,
+      "childish": 10
+    },
+    "patient_pacifier": {
+      "item_id": "patient_pacifier",
+      "category": "mouth",
+      "name": "Patient Pacifier",
+      "desc": "A large adult-sized pacifier in clinical white. The nurses encourage patients to use these 'for anxiety management.' It works embarrassingly well.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 9,
+      "shame_delta": -8,
+      "magical_effects": [
+        {
+          "effect_id": "auto_feeder_cycle",
+          "enabled": true,
+          "trigger_mode": "step",
+          "proc_min": 40,
+          "proc_max": 80,
+          "chance_percent": 100,
+          "cooldown": 0,
+          "popup_title": "Automatic Feeding",
+          "popup_lines": [
+            "A hidden tube in {item} clicks open and feeds {name} warm milk.",
+            "{item} hums and dispenses a steady stream of milk into your mouth.",
+            "A soft chime from {item}: feeding cycle complete."
+          ],
+          "log_text": "{item} runs a feeding cycle: Wet +25, Tum +25, HP +50.",
+          "stat_delta": {
+            "wet": 25,
+            "tum": 25,
+            "health": 50
+          }
+        }
+      ]
+    },
+    "potty_pants": {
+      "item_id": "potty_pants",
+      "category": "pants",
+      "name": "Training Pants (Electronic)",
+      "desc": "Soft training pants with embedded moisture sensors. Every time the sensors detect an accident, they play a cheerful little JINGLE at full volume. DEF +1.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 10,
+      "conceals_panties": true,
+      "bulk_threshold": 3
+    },
+    "printed_diaper": {
+      "item_id": "printed_diaper",
+      "category": "panties",
+      "name": "Printed Diaper",
+      "desc": "A thick diaper printed with colorful stars. Very obvious. Very babyish. ATK -1, DEX -2.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -3,
+      "atk_mod": -1,
+      "def_mod": 0,
+      "dex_mod": -2,
+      "value": 7,
+      "childish": 10,
+      "bulk": 3,
+      "is_diaper": true
+    },
+    "printed_diaper_auto": {
+      "item_id": "printed_diaper_auto",
+      "category": "panties",
+      "name": "Printed Disposable (Rocket Ships)",
+      "desc": "A cute printed disposable from the nursery supply closet. Covered in rocket ships and stars. 'TO INFINITY AND BEYOND!' on the waistband. ATK -1, DEX -2.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -3,
+      "atk_mod": -1,
+      "def_mod": 0,
+      "dex_mod": -2,
+      "value": 4,
+      "childish": 10,
+      "bulk": 3,
+      "is_diaper": true
+    },
+    "ruffle_socks": {
+      "item_id": "ruffle_socks",
+      "category": "socks",
+      "name": "Ruffle Ankle Socks",
+      "desc": "Tiny frilly socks with a lace trim. Unmistakably babyish.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 4,
+      "childish": 9
+    },
+    "safety_helmet": {
+      "item_id": "safety_helmet",
+      "category": "head",
+      "name": "Padded Safety Helmet",
+      "desc": "A thick foam helmet that the nursery requires all residents to wear. Embarrassing, but DEF +3.",
+      "atk": 0,
+      "def": 3,
+      "hp_restore": 0,
+      "value": 8,
+      "childish": 8
+    },
+    "sensor_cap": {
+      "item_id": "sensor_cap",
+      "category": "head",
+      "name": "Bladder Sensor Cap",
+      "desc": "A monitoring cap that detects bladder pressure and broadcasts it over the local NannyBot network. DEF +0. Wet meter ticks 20% faster while worn. Deeply humiliating.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "wet_resist": -2,
+      "value": 0,
+      "childish": 10,
+      "cursed": true
+    },
+    "thick_medical_diaper": {
+      "item_id": "thick_medical_diaper",
+      "category": "panties",
+      "name": "Thick Medical Diaper",
+      "desc": "An absurdly thick adult diaper with clinical markings and a wetness indicator strip. Chrysalis Corporation branding on the waistband.",
+      "atk": 0,
+      "def": 2,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "value": 4,
+      "childish": 8,
+      "is_diaper": true,
+      "bulk": 4,
+      "wet_resist": -3,
+      "tum_resist": 0,
+      "atk_mod": 0,
+      "def_mod": 0,
+      "dex_mod": -2
+    },
+    "wet_moss_boots": {
+      "item_id": "wet_moss_boots",
+      "category": "shoes",
+      "name": "Wet Moss Boots",
+      "desc": "Boots grown from living moss. Always slightly damp. +2 DEF but -1 Wet Resist. They dance a little when nobody is watching.",
+      "atk": 0,
+      "def": 2,
+      "hp_restore": 0,
+      "wet_resist": -1,
+      "value": 15,
+      "childish": 4,
+      "magical_effects": [
+        {
+          "effect_id": "dancing_soles",
+          "enabled": true,
+          "trigger_mode": "step",
+          "proc_min": 138,
+          "proc_max": 283,
+          "chance_percent": 70,
+          "cooldown": 22,
+          "popup_title": "Dancing Soles",
+          "popup_text": "",
+          "popup_lines": [
+            "{item} taps out three cheerful beats and {name} cannot help grinning.",
+            "Something bright and silly runs up through {item} and {name}'s whole day improves."
+          ],
+          "log_text": "{item} dances: Shame +10, Stamina +5.",
+          "narrative_chunk": "",
+          "movement_lock": false,
+          "lock_prompt_min": 4,
+          "lock_prompt_max": 8,
+          "lock_release_chance": 35,
+          "lock_title": "Constricted!",
+          "lock_text": "You struggle against {item}...",
+          "content_pass": "cursed_blessed_pass_v1",
+          "alignment": "blessed",
+          "stat_delta": {
+            "shame": 10,
+            "stamina": 5
+          }
+        }
+      ],
+      "blessed": true
+    }
   }
 }

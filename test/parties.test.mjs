@@ -30,6 +30,22 @@ function recoveringParty(f){ // One member loses while the survivor finishes the
  return f.snap('bob').character.pendingDefeat;
 }
 
+test('shared defeat outfits affect only the losing member and survive stale re-entry and receipt replay',()=>{
+ const f=fixture();try{
+  f.player('alice');f.player('bob');f.join('bob');f.act('alice','dive_enter',{zone:'dive-quarters'});
+  const foe=f.snap('alice').dive.enemies.find(e=>e.type==='diaper_fairy');assert.ok(foe);
+  const before=f.snap('bob').character,old=structuredClone(before.loadout);f.engage('alice',foe.id);
+  const command=f.command('bob','submit');f.raw('bob',command);f.win('alice');
+  const settled=structuredClone(f.snap('bob').character.loadout);
+  assert.equal(settled.player_info.equipped_panties,'printed_diaper');assert.equal(settled.player_info.equipped_shoes,'mary_janes');
+  assert.equal(f.snap('alice').character.loadout.player_info.equipped_panties,undefined,'the winner does not receive the loser outfit');
+  assert.ok(f.snap('bob').character.loadoutRevision>before.revision);
+  f.raw('bob',command);assert.deepEqual(f.snap('bob').character.loadout,settled);
+  f.restart();f.act('bob','enter',{zone:'dive-quarters',combat_version:3,loadout:old,online_revision:before.revision});
+  assert.deepEqual(f.snap('bob').character.loadout,settled,'an old campaign snapshot cannot undo server equipment');
+ }finally{f.close();}
+});
+
 test('survivors start new battles without a downed member, who cannot act or finish recovery early',()=>{
  const f=fixture();try{
   const pending=recoveringParty(f),before=f.snap('bob').position;

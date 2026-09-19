@@ -4,6 +4,7 @@ import {addPinkMist,mistAt} from './dive-mist.mjs';
 import {createDiveLootRoller} from './dive-loot.mjs';
 import {readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
+import {applyDefeatEquipment} from './defeat-equipment.mjs';
 import {generateFloor,dressFloor,addFood,weeklyWindow,seeded,pathTo,walkable,inside,enemyRoams} from './dive-generation.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation} from './combat.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
@@ -30,7 +31,11 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function saveFloor(record){db.prepare('UPDATE dive_editions SET content=?,updated=? WHERE route=? AND edition=? AND depth=1').run(JSON.stringify(record.floor),record.updated,route,record.edition);}
  function progress(c,edition){const row=db.prepare('SELECT state FROM dive_progress WHERE character_id=? AND route=? AND edition=? AND depth=1').get(c.id,route,edition);return row?JSON.parse(row.state):{claimed:[],rolls:{},explored:[],completed:false,coinsPaid:0};}
  function saveProgress(c,edition,p){db.prepare('INSERT INTO dive_progress VALUES (?,?,?,1,?) ON CONFLICT(character_id,route,edition,depth) DO UPDATE SET state=excluded.state').run(c.id,route,edition,JSON.stringify(p));}
- function saveCharacter(c,state){c.revision++;c.state=JSON.stringify(state);db.prepare('UPDATE quest_characters SET revision=?,state=? WHERE id=?').run(c.revision,c.state,c.id);}
+ function saveCharacter(c,state){
+  const previous=JSON.parse(c.state??db.prepare('SELECT state FROM quest_characters WHERE id=?').get(c.id).state); // Roaming engagement supplies a compact identity without a state field.
+  if(JSON.stringify(state.loadout)!==JSON.stringify(previous.loadout))state.loadoutRevision=c.revision+1;
+  c.revision++;c.state=JSON.stringify(state);db.prepare('UPDATE quest_characters SET revision=?,state=? WHERE id=?').run(c.revision,c.state,c.id);
+ } // Tick/party settlements protect changed outfits from stale campaign imports too.
  function reveal(c,state,f,x,y){
   const p=progress(c,f.edition),seen=new Set(p.explored);
   function visible(tx,ty){let px=x,py=y,dx=Math.abs(tx-x),dy=Math.abs(ty-y),err=dx-dy;for(let n=0;n<dx+dy+2;n++){if(px===tx&&py===ty)return true;const e=err*2;if(e>-dy){err-=dy;px+=Math.sign(tx-x);}if(e<dx){err+=dx;py+=Math.sign(ty-y);}if(px===tx&&py===ty)return true;if(f.walls[py]?.[px]!==0)return false;}return false;} // Furniture shares the campaign's transparent CELL_PROP sight rules.
@@ -85,7 +90,8 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    if(['defeat','charm_backfire'].includes(outcome))run.hp=Math.max(1,Math.ceil(run.maxHp/4));
    if(record)relocate(c,state,entry(record.floor,state.dive.origin),defeatPresentation(run,outcome).defeatScene);
   }
-  syncRunHealth(state,run);state.lastResult={outcome,coins:0,rounds:1,zone:zoneId,log:run.log,...defeatPresentation(run,outcome)};state.run=null;
+  const equipment=applyDefeatEquipment(state,run,outcome);
+  syncRunHealth(state,run);state.lastResult={outcome,coins:0,rounds:1,zone:zoneId,log:run.log,...defeatPresentation(run,outcome),...(equipment?{defeatEquipment:equipment}:{})};state.run=null;
   if(state.dive)state.dive.safeUntil=now()+10*seconds;
   if(record)saveFloor(record);
  } // Combat settlement is independent of arena rounds, pots and handicaps.

@@ -19,9 +19,10 @@ export function equipmentLocked(p,item){
 export function changeEquipment(loadout,input,catalog,capacity){
  const next=structuredClone(loadout),p=next.player_info,bag=next.inventory;
  p.equipped_item_data??={};
- const carried=input.action==='companion_equip'&&Number.isInteger(input.slot)?bag[input.slot]:null;
+ const forced=input.action==='defeat_equip'; // Internal settlement supplies catalog items; no client equipment command can mint them.
+ const carried=forced?catalog[input.item_id]:(input.action==='companion_equip'&&Number.isInteger(input.slot)?bag[input.slot]:null);
  const incoming=carried?{...catalog[carried.item_id],...carried}:null;
- let slot=input.action==='companion_equip'?(incoming&&equipmentSlot(incoming,p)):input.slot;
+ let slot=forced||input.action==='companion_equip'?(incoming&&equipmentSlot(incoming,p)):input.slot;
  if(!gearSlots.includes(slot))fail('Choose wearable equipment.');
  if(incoming&&(incoming.item_id!==input.item_id||!catalog[incoming.item_id]))fail('That carried item changed. Refresh and choose it again.');
  if(input.action==='companion_equip'&&!incoming)fail('Choose an item in your bag.');
@@ -36,17 +37,17 @@ export function changeEquipment(loadout,input,catalog,capacity){
  const removeSlots=incoming?.category==='dress'?['torso','pants']:[slot];
  const removed=[];
  for(const key of removeSlots){const item=equippedItem(p,key,catalog);if(!item||item.category==='dress'&&key==='pants'&&p.equipped_torso===item.item_id)continue;
-  if(equipmentLocked(p,item))fail(item.name+' is cursed and cannot be removed.');
+  if(forced?item.cursed===true:equipmentLocked(p,item))fail(item.name+' is cursed and cannot be removed.'); // Automatic defeat outfits cannot unlock an existing curse.
   removed.push({slot:key,item,dispose:key==='panties'&&item.is_diaper&&(p.slot_wet_panties||num(p.diaper_wet_absorbed)>0||num(p.diaper_tum_absorbed)>0)});
  }
- if(bag.length-(incoming?1:0)+removed.filter(r=>!r.dispose).length>capacity)fail('Inventory full. Make room before changing equipment.');
+ if(bag.length-(incoming&&!forced?1:0)+removed.filter(r=>!r.dispose).length>capacity)fail('Inventory full. Make room before changing equipment.');
  function bonuses(item,key,sign){
   const fields=key==='weapon'?[['atk','str']]:key==='mouth'?[['hp_regen','hp_regen']]:key==='plug'?[['tum_resist','tum_resist'],['wet_resist','wet_resist']]:key==='panties'?
    [['wet_resist','wet_resist'],['atk_mod','str'],['def_mod','def'],['dex_mod','dex'],['int_mod','int'],['cha_mod','cha']]:[['def','def']];
   for(const [field,stat] of fields)p[stat]=num(p[stat])+sign*num(item[field]);
   if(key==='plug'||key.startsWith('accessory_'))p.shame=clamp(num(p.shame)+sign*num(item.shame_delta),1024);
  } // Apply the same slot-specific bonuses as campaign inventory use, once per physical item.
- if(incoming)bag.splice(input.slot,1);
+ if(incoming&&!forced)bag.splice(input.slot,1); // Forced outfits never consume a pre-existing copy from the player's bag.
  for(const entry of removed){const {item,slot:key,dispose}=entry;bonuses(item,key,-1);
   for(const s of item.category==='dress'?['torso','pants']:[key]){p['equipped_'+s]='';p['slot_wet_'+s]=false;delete p.equipped_item_data[s];}
   if(key==='panties'){

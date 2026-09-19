@@ -1,4 +1,5 @@
 import {randomUUID} from 'node:crypto';
+import {applyDefeatEquipment} from './defeat-equipment.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,enemyAction,tickEnemyEffects,awardExperience,defeatPresentation,combatData} from './combat.mjs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
 
@@ -74,7 +75,8 @@ export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progres
    const enemy=a.defeatEnemy??e.enemies[0].data;a.run.enemy={...enemy,exp:xp};if(xp)awardExperience(s,roll);syncRunHealth(s,a.run);
    if(bossDown){const p=progress(c,record.edition);p.completed=true;saveProgress(c,record.edition,p);}
    const coins=bossDown?pay(c,s,record,true):0,outcome=a.status==='active'?(win?'win':'abandoned'):a.status;
-   s.lastResult={outcome,coins,rounds:1,zone,log:e.events.map(v=>v.text),...defeatPresentation(a.run,outcome)};s.wins=(s.wins??0)+(win?1:0);s.run=null;
+   const equipment=applyDefeatEquipment(s,a.run,outcome); // Only this member's actual defeat opponent supplies their outfit, even when their party wins.
+   s.lastResult={outcome,coins,rounds:1,zone,log:[...e.events.map(v=>v.text),...(equipment?.changes.length?a.run.log.slice(-equipment.changes.length):[])],...defeatPresentation(a.run,outcome),...(equipment?{defeatEquipment:equipment}:{})};s.wins=(s.wins??0)+(win?1:0);s.run=null;
    if(s.dive)relocate(c,s,win&&!s.lastResult.defeatScene?e.origin:entry(record.floor,s.dive.origin),s.lastResult.defeatScene,a.downedAt); // A defeated member returns to their own gate even when the survivors win.
    if(force)back(c,s);
   }saveFloor(record);return true;

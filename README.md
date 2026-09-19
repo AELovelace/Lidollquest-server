@@ -1,5 +1,11 @@
 # LiDollQuest server
 
+## Dive defeat equipment
+
+Dive defeat, submission and failed charm apply the opponent's authored first/repeat outfit once during settlement. Shared battles affect only losing members, using their actual defeat opponent. Export Enemy Data kits and item definitions with the game's `python/export_online_combat.py`, then deploy `server/combat-data.json` with this service before updating the client. No database migration or weekly floor reset is required.
+
+Displaced gear retains its exact item data; equipment bonuses, dress mirrors and diaper state update through the equipment helper. Cursed slots, insufficient bag room and retired item IDs skip individual pieces with a settlement log message. No sale rights are minted for forced items. Durable encounter receipts and advancing loadout revisions protect reconnects and stale campaign imports. `lastResult.defeatEquipment` reports the selected variant and per-item results; client defeat scenes only present them. Run `node --test test/defeat-equipment.test.mjs test/dive.test.mjs test/parties.test.mjs test/companion-equipment.test.mjs` for focused coverage.
+
 ## MommyBot online announcements
 
 Set a dedicated `MOMMYBOT_ONLINE_TOKEN` (32-128 URL-safe random characters) to
