@@ -19,7 +19,15 @@ button:hover{background:#3b2a52}
 button.go{background:var(--rose);color:#2a0d1c;border-color:var(--rose);font-weight:600}
 button.bad{background:#4a1f2b;border-color:var(--red);color:var(--red)}
 button.sm{padding:3px 7px;font-size:12px}
-main{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;padding:14px;align-items:start}
+main{padding:14px}
+[hidden]{display:none!important}
+.tabs{display:flex;gap:6px;flex-basis:100%;min-width:0;overflow-x:auto;padding:3px 0}
+.tabs button{flex:none;white-space:nowrap;min-height:38px}
+.tabs button[aria-selected="true"]{background:var(--rose);border-color:var(--rose);color:#2a0d1c;font-weight:600}
+button:focus-visible,.tab-panel:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+.tab-panel{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:14px;align-items:start}
+.tab-panel>section{min-width:0;overflow-x:auto}
+@media(max-width:600px){header{padding:10px}.tabs{gap:4px}main{padding:10px}.tab-panel{grid-template-columns:minmax(0,1fr)}.row>*{max-width:100%}}
 section{background:var(--panel);border:1px solid var(--edge);border-radius:var(--radius);padding:14px}
 section.wide{grid-column:1/-1}
 table{width:100%;border-collapse:collapse}
@@ -88,35 +96,19 @@ tr.sel td{background:#2c1e3d}
   <span id="clock" class="mono"></span>
   <span id="who"></span>
   <button id="signout" style="margin-left:auto">Sign out</button>
+<nav class="tabs" role="tablist" aria-label="Gamemaster tools">
+  <button type="button" role="tab" id="tab-players" aria-controls="panel-players" aria-selected="true" tabindex="0">Players</button>
+  <button type="button" role="tab" id="tab-chat" aria-controls="panel-chat" aria-selected="false" tabindex="-1">Chat</button>
+  <button type="button" role="tab" id="tab-rp" aria-controls="panel-rp" aria-selected="false" tabindex="-1">RP Journal</button>
+  <button type="button" role="tab" id="tab-rpp" aria-controls="panel-rpp" aria-selected="false" tabindex="-1">RPP</button>
+  <button type="button" role="tab" id="tab-enchantments" aria-controls="panel-enchantments" aria-selected="false" tabindex="-1">Curses &amp; Blessings</button>
+  <button type="button" role="tab" id="tab-moderation" aria-controls="panel-moderation" aria-selected="false" tabindex="-1">Moderation</button>
+  <button type="button" role="tab" id="tab-performance" aria-controls="panel-performance" aria-selected="false" tabindex="-1">Performance</button>
+</nav>
 </header>
 <div id="flash" class="flash"></div>
 <main>
-
-  <section class="wide" aria-labelledby="perfHeading">
-    <h2 id="perfHeading">Server performance</h2>
-    <p id="perfStatus" class="note" role="status">Loading performance statistics...</p>
-    <div class="tot" style="margin-top:12px">
-      <div><b id="perfCpu">—</b><span>process CPU</span></div>
-      <div><b id="perfLoop">—</b><span>event loop busy</span></div>
-      <div><b id="perfDelay">—</b><span>loop delay p95</span></div>
-      <div><b id="perfMemory">—</b><span>resident memory</span></div>
-      <div><b id="perfRate">—</b><span>game requests / sec</span></div>
-      <div><b id="perfActive">—</b><span>active requests</span></div>
-    </div>
-    <p class="note">CPU: 100% means one fully occupied core; background threads can take it above 100%. This measures the Quest process, not the entire host. Event-loop busy time also includes blocking waits.</p>
-    <div class="row" style="margin-top:12px"><label for="perfRange">Recorded history</label><select id="perfRange"><option value="1">Last hour</option><option value="24">Last 24 hours</option></select><span class="note">Mint: CPU · Pink: event loop busy</span></div>
-    <svg id="perfChart" class="perf-chart" viewBox="0 0 900 190" role="img" aria-label="Recorded CPU and event-loop utilization"></svg>
-    <p id="perfHistory" class="note"></p>
-    <p id="perfRequests" class="note"></p>
-    <p id="perfWorkers" class="note"></p>
-    <details style="margin-top:12px"><summary>Work timings by operation and zone</summary>
-    <div class="row" style="margin-top:12px"><label for="perfTimingWindow">Interval</label><select id="perfTimingWindow"><option value="recorded">Latest recorded interval</option><option value="live">Current interval</option></select></div>
-    <p id="perfTimingStatus" class="note"></p>
-    <div class="scroll"><table><thead><tr><th>Work</th><th>Calls</th><th>Total ms</th><th>Mean ms</th><th>Max ms</th><th>Errors</th></tr></thead><tbody id="perfTimings"></tbody></table></div>
-    <p class="note">Timings are elapsed time, not CPU attribution. Nested synchronous scopes overlap; final snapshots are included in zone reads/refreshes. Worker execution overlaps the coordinator and other workers. worker.queue measures waiting; worker.roundtrip includes dispatch, execution and delivery; worker.stale.paths counts discarded results. Account timings include network waits. floor.read/write include SQLite work; floor.decode/encode measure JSON work. Delay sampling uses a 20 ms timer, so an idle loop normally reads near 20 ms.</p>
-    </details>
-  </section>
-
+<div class="tab-panel" id="panel-players" role="tabpanel" aria-labelledby="tab-players" tabindex="0">
   <section class="wide">
     <h2>Live server</h2>
     <div class="tot">
@@ -138,7 +130,8 @@ tr.sel td{background:#2c1e3d}
     <h2>Selected player</h2>
     <div id="detail"><p class="empty">Pick a player above to see their characters, sanctions and recent messages.</p></div>
   </section>
-
+</div>
+<div class="tab-panel" id="panel-chat" role="tabpanel" aria-labelledby="tab-chat" tabindex="0" hidden>
   <section class="wide">
     <h2>Area chat</h2>
     <div class="row">
@@ -155,7 +148,8 @@ tr.sel td{background:#2c1e3d}
     </div>
     <p class="note">Announcements post as an activity line, which clients already render apart from player speech.</p>
   </section>
-
+</div>
+<div class="tab-panel" id="panel-rp" role="tabpanel" aria-labelledby="tab-rp" tabindex="0" hidden>
   <section class="wide">
     <h2>RP journal</h2>
     <p class="note">Review shared narratives before awarding a level. First target: 1,000 words; +500 per RP level awarded. Only the author's writing counts. Any character level-up resets the current writing window; lifetime totals remain.</p>
@@ -164,6 +158,8 @@ tr.sel td{background:#2c1e3d}
     <div class="row"><button id="rpPrevious">Previous</button><span id="rpPage"></span><button id="rpNext">Next</button></div>
     <details><summary>Recent RP level awards</summary><div id="rpAwards" class="log"></div></details>
   </section>
+</div>
+<div class="tab-panel" id="panel-rpp" role="tabpanel" aria-labelledby="tab-rpp" tabindex="0" hidden>
   <section class="wide">
     <h2>RPP gifts and purchases</h2>
     <p class="note">RPP belongs to each character separately and buys permanent spells or passive abilities. Gifts do not change ordinary RP word-count level eligibility.</p>
@@ -172,6 +168,8 @@ tr.sel td{background:#2c1e3d}
     <p id="rppStatus" role="status"></p>
     <div id="rppLedger" class="log"></div>
   </section>
+</div>
+<div class="tab-panel" id="panel-enchantments" role="tabpanel" aria-labelledby="tab-enchantments" tabindex="0" hidden>
   <section class="wide" aria-labelledby="enchHeading">
     <h2 id="enchHeading">Curses &amp; blessings</h2>
     <p class="note">Every dropped copy of an item rolls against two rarity-scaled ramps: the curse chance falls as rarity rises, the blessing chance climbs. Edits here reach the next chest on every dive route without a restart. Loot a player already holds keeps the roll it was given.</p>
@@ -235,7 +233,8 @@ tr.sel td{background:#2c1e3d}
       <div class="row"><input id="eReason" class="grow" maxlength="240" placeholder="Why (recorded in the audit log)"><button class="go" id="eSave">Save enchantment</button><button id="eCancel">Cancel</button></div>
     </div>
   </section>
-
+</div>
+<div class="tab-panel" id="panel-moderation" role="tabpanel" aria-labelledby="tab-moderation" tabindex="0" hidden>
   <section>
     <h2>Sanctions in force</h2>
     <table><thead><tr><th>Account</th><th>Kind</th><th>Until</th><th></th></tr></thead><tbody id="sanctions"></tbody></table>
@@ -246,7 +245,33 @@ tr.sel td{background:#2c1e3d}
     <h2>Recent gamemaster actions</h2>
     <div id="audit" class="log"></div>
   </section>
-
+</div>
+<div class="tab-panel" id="panel-performance" role="tabpanel" aria-labelledby="tab-performance" tabindex="0" hidden>
+  <section class="wide" aria-labelledby="perfHeading">
+    <h2 id="perfHeading">Server performance</h2>
+    <p id="perfStatus" class="note" role="status">Loading performance statistics...</p>
+    <div class="tot" style="margin-top:12px">
+      <div><b id="perfCpu">—</b><span>process CPU</span></div>
+      <div><b id="perfLoop">—</b><span>event loop busy</span></div>
+      <div><b id="perfDelay">—</b><span>loop delay p95</span></div>
+      <div><b id="perfMemory">—</b><span>resident memory</span></div>
+      <div><b id="perfRate">—</b><span>game requests / sec</span></div>
+      <div><b id="perfActive">—</b><span>active requests</span></div>
+    </div>
+    <p class="note">CPU: 100% means one fully occupied core; background threads can take it above 100%. This measures the Quest process, not the entire host. Event-loop busy time also includes blocking waits.</p>
+    <div class="row" style="margin-top:12px"><label for="perfRange">Recorded history</label><select id="perfRange"><option value="1">Last hour</option><option value="24">Last 24 hours</option></select><span class="note">Mint: CPU · Pink: event loop busy</span></div>
+    <svg id="perfChart" class="perf-chart" viewBox="0 0 900 190" role="img" aria-label="Recorded CPU and event-loop utilization"></svg>
+    <p id="perfHistory" class="note"></p>
+    <p id="perfRequests" class="note"></p>
+    <p id="perfWorkers" class="note"></p>
+    <details style="margin-top:12px"><summary>Work timings by operation and zone</summary>
+    <div class="row" style="margin-top:12px"><label for="perfTimingWindow">Interval</label><select id="perfTimingWindow"><option value="recorded">Latest recorded interval</option><option value="live">Current interval</option></select></div>
+    <p id="perfTimingStatus" class="note"></p>
+    <div class="scroll"><table><thead><tr><th>Work</th><th>Calls</th><th>Total ms</th><th>Mean ms</th><th>Max ms</th><th>Errors</th></tr></thead><tbody id="perfTimings"></tbody></table></div>
+    <p class="note">Timings are elapsed time, not CPU attribution. Nested synchronous scopes overlap; final snapshots are included in zone reads/refreshes. Worker execution overlaps the coordinator and other workers. worker.queue measures waiting; worker.roundtrip includes dispatch, execution and delivery; worker.stale.paths counts discarded results. Account timings include network waits. floor.read/write include SQLite work; floor.decode/encode measure JSON work. Delay sampling uses a 20 ms timer, so an idle loop normally reads near 20 ms.</p>
+    </details>
+  </section>
+</div>
 </main>
 </div>
 
@@ -255,6 +280,21 @@ tr.sel td{background:#2c1e3d}
  "use strict";
  var token="",timer=null,state={zones:[],players:[]},selected=null; // The token lives only in this closure for the life of the tab.
  var $=function(id){return document.getElementById(id);};
+ var tabs=Array.from(document.querySelectorAll('[role="tab"]'));
+ function selectTab(id,focus){
+  tabs.forEach(function(tab){
+   var active=tab.id===id;tab.setAttribute("aria-selected",String(active));tab.tabIndex=active?0:-1;
+   $(tab.getAttribute("aria-controls")).hidden=!active;
+   if(active&&focus){tab.focus();tab.scrollIntoView({block:"nearest",inline:"nearest"});}
+  });
+ } // Keep existing panel nodes mounted so changing tools preserves drafts, filters and selected players.
+ tabs.forEach(function(tab,index){
+  tab.addEventListener("click",function(){selectTab(tab.id,false);window.scrollTo(0,0);});
+  tab.addEventListener("keydown",function(event){
+   var next=event.key==="ArrowRight"?(index+1)%tabs.length:event.key==="ArrowLeft"?(index+tabs.length-1)%tabs.length:event.key==="Home"?0:event.key==="End"?tabs.length-1:-1;
+   if(next<0)return;event.preventDefault();selectTab(tabs[next].id,true);window.scrollTo(0,0);
+  });
+ }); // Arrow keys, Home and End provide one keyboard stop for the tab strip; Tab enters the visible panel.
  var perfData=null,perfBusy=false,perfEpoch=0; // A late response from a signed-out session cannot repopulate the statistics.
 
  function el(tag,cls,text){var n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;} // textContent everywhere: player names and chat are untrusted input.
@@ -798,7 +838,7 @@ tr.sel td{background:#2c1e3d}
 
  function enter(){ // A confirmed gamemaster grant swaps the gate for the live panel.
   stopSignin();$("gateErr").className="flash";
-  $("gate").hidden=true;$("app").hidden=false;
+  selectTab("tab-players",false);$("gate").hidden=true;$("app").hidden=false;
   refresh();loadChat();loadRp();loadRpp();schedule();
  }
 
