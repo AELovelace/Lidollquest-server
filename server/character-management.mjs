@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {cleanDescription,descriptionFields,descriptionLimit} from './character-description.mjs';
 const fail=(status,message,code='character_management_failed')=>{throw Object.assign(Error(message),{status,code});};
 const id=value=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(value);
 export const appearanceFields=['gender','hair_style','hair_color','has_breasts','nipple_style','penis_style','pubes_style'];
@@ -14,16 +15,20 @@ export function createCharacterManagement(db,{walletClient,cloud,sprites,now=Dat
  managementSchema(db);const running=new Map();
  const atomic=work=>{db.exec('BEGIN IMMEDIATE');try{const result=work();db.exec('COMMIT');return result;}catch(error){db.exec('ROLLBACK');throw error;}};
  function prepare(owner,i){
-  if(!i||!id(i.request_id)||!id(i.character_id)||!['rename','appearance','delete'].includes(i.action))fail(400,'Choose a character management action.');
-  const payload=i.action==='rename'?{name:typeof i.name==='string'?i.name.trim():''}:i.action==='appearance'?appearanceChoices(i.appearance):{};
+  if(!i||!id(i.request_id)||!id(i.character_id)||!['rename','appearance','delete','description'].includes(i.action))fail(400,'Choose a character management action.');
+  if(i.action==='description'&&(typeof i.description!=='string'||Array.from(i.description).length>descriptionLimit))fail(400,'Use a description of up to 2,000 characters.');
+  const payload=i.action==='rename'?{name:typeof i.name==='string'?i.name.trim():''}:i.action==='appearance'?appearanceChoices(i.appearance):i.action==='description'?{description:cleanDescription(i.description)}:{};
+  if(i.action==='description'&&Array.from(payload.description).length>descriptionLimit)fail(400,'Use a description of up to 2,000 characters.'); // A few Unicode characters expand under normalization; the stored text must fit too.
   if(i.action==='rename'&&(!payload.name||payload.name.length>24||/[\x00-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069#]/.test(payload.name)))fail(400,'Use a character name of 1 to 24 characters.');
-  const fingerprint=JSON.stringify([i.character_id,i.action,i.revision,payload,i.confirm??null]);
+  const fingerprint=JSON.stringify([i.character_id,i.action,i.action==='description'?i.description_revision:i.revision,payload,i.confirm??null]);
   const old=db.prepare('SELECT * FROM quest_management WHERE owner=? AND request_id=?').get(owner,i.request_id);
   if(old){if(old.fingerprint!==fingerprint)fail(409,'This request ID describes another change.');return old;}
   const c=db.prepare('SELECT * FROM quest_characters WHERE owner=? AND id=?').get(owner,i.character_id);if(!c)fail(404,'Online character not found.');
-  if(!Number.isSafeInteger(i.revision)||i.revision!==c.revision)fail(409,'Character changed. Refresh before managing it.');
   const state=JSON.parse(c.state);
-  if(state.run||state.pendingPurchase||state.worldTurnDue||db.prepare('SELECT 1 FROM quest_presence WHERE character_id=? AND seen>?').get(c.id,now()-30000))fail(409,'Leave online rooms and finish pending battles or purchases before managing this character.');
+  if(i.action==='description'){
+   if(!Number.isSafeInteger(i.description_revision)||i.description_revision!==descriptionFields(state).description_revision)fail(409,'This description changed on another device. Refresh and review before saving.','description_conflict');
+  }else if(!Number.isSafeInteger(i.revision)||i.revision!==c.revision)fail(409,'Character changed. Refresh before managing it.');
+  if(i.action!=='description'&&(state.run||state.pendingPurchase||state.worldTurnDue||db.prepare('SELECT 1 FROM quest_presence WHERE character_id=? AND seen>?').get(c.id,now()-30000)))fail(409,'Leave online rooms and finish pending battles or purchases before managing this character.');
   if(db.prepare("SELECT 1 FROM quest_management WHERE character_id=? AND status='pending'").get(c.id))fail(409,'Another character change is still settling.','character_change_pending');
   if(i.action==='delete'&&i.confirm!==c.name)fail(400,'Type the character name to confirm permanent deletion.');
   if(i.action==='delete')sprites?.blockDeletion(c.id);
@@ -53,12 +58,16 @@ export function createCharacterManagement(db,{walletClient,cloud,sprites,now=Dat
      db.prepare('INSERT INTO quest_deleted_characters VALUES (?,?,?,?)').run(c.id,c.owner,c.creation_id,now());db.prepare('DELETE FROM quest_characters WHERE id=?').run(c.id);
      result={character_id:c.id,deleted:true}; // Keep shared friendships, wallet receipts, account reward caps and unpaid payouts intact.
     }else{
-     if(row.action==='rename'){c.name=payload.name;state.nameLocked=true;}
-     else state.profileAppearance=payload;
-     if(state.loadout?.player_info)Object.assign(state.loadout.player_info,{name:c.name},state.profileAppearance??{});
-     state.loadoutRevision=c.revision+1;c.revision++;
+     if(row.action==='description'){state.description=payload.description;state.description_revision=descriptionFields(state).description_revision+1;}
+     else{
+      if(row.action==='rename'){c.name=payload.name;state.nameLocked=true;}
+      else state.profileAppearance=payload;
+      if(state.loadout?.player_info)Object.assign(state.loadout.player_info,{name:c.name},state.profileAppearance??{});
+      state.loadoutRevision=c.revision+1;
+     } // Free profile edits work online without changing equipment or the loadout synchronization version.
+     c.revision++;
      db.prepare('UPDATE quest_characters SET name=?,revision=?,state=? WHERE id=?').run(c.name,c.revision,JSON.stringify(state),c.id);
-     result={character_id:c.id,name:c.name,revision:c.revision,appearance:state.profileAppearance??null,cost:row.cost};
+     result={character_id:c.id,name:c.name,revision:c.revision,appearance:state.profileAppearance??null,...descriptionFields(state),cost:row.cost};
     }
     db.prepare("UPDATE quest_management SET status='done',result=? WHERE owner=? AND request_id=?").run(JSON.stringify(result),row.owner,row.request_id);return result;
    });

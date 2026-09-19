@@ -6,6 +6,8 @@ import {createQuestZones} from '../server/zones.mjs';
 import {createCloudSaves} from '../server/cloud-saves.mjs';
 import {createCharacterManagement} from '../server/character-management.mjs';
 import {createQuestService} from '../server/service.mjs';
+import {inspectionProjection} from '../server/inspection.mjs';
+import {companionSheet} from '../server/companion.mjs';
 const appearance={gender:'Male',hair_style:2,hair_color:'Pink',has_breasts:false,nipple_style:0,penis_style:0,pubes_style:0};
 function fixture(){
  const db=new DatabaseSync(':memory:');let time=1000000,stars=20,lost=false;const payments=new Map();
@@ -16,6 +18,27 @@ function fixture(){
  const act=(c,action,extra={})=>{time+=500;return zones.act('token',{action,character_id:c.id,revision:c.revision,request_id:randomUUID(),controller:'window',...extra}).character;};
  return {db,zones,cloud,manager,create,act,payments,get stars(){return stars;},lose(){lost=true;},empty(){stars=0;}};
 }
+test('free descriptions work online, preserve loadouts, survive imports and protect other-device edits',async()=>{
+ const f=fixture();try{
+  let c=f.create();c=f.act(c,'enter',{zone:'honeydew-lantern',loadout:{player_info:{name:'Doll',level:4},inventory:[]}});
+  const before=JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(c.id).state);
+  const input={action:'description',character_id:c.id,description_revision:0,description:'A quiet traveller.\r\n\r\nLoves tea. #\u202e',request_id:'bio'};
+  await assert.rejects(()=>f.manager().act('other','token',input),e=>e.status===404);
+  const result=await f.manager().act('owner','token',input);assert.equal(result.description,'A quiet traveller.\n\nLoves tea.');assert.equal(result.description_revision,1);assert.equal(result.cost,0);
+  assert.deepEqual(await f.manager().act('owner','token',input),result);assert.equal(f.payments.size,0);
+  await assert.rejects(()=>f.manager().act('owner','token',{...input,request_id:'stale'}),e=>e.code==='description_conflict');
+  await assert.rejects(()=>f.manager().act('owner','token',{...input,description:'Changed receipt'}),/request ID/);
+  const row=f.db.prepare('SELECT * FROM quest_characters WHERE id=?').get(c.id),state=JSON.parse(row.state);
+  assert.deepEqual(state.loadout,before.loadout);assert.equal(state.loadoutRevision,before.loadoutRevision);
+  assert.equal(inspectionProjection(row).description,result.description);assert.equal(companionSheet(f.db,row,null).description,result.description);
+  c=f.zones.read('token',c.id).character;c=f.act(c,'leave');c=f.act(c,'enter',{zone:'honeydew-lantern',loadout:{player_info:{description:'Forged save text'},inventory:[]}});
+  assert.equal(c.description,result.description);
+  const cleared=await f.manager().act('owner','token',{...input,description_revision:1,request_id:'clear',description:''});assert.equal(cleared.description,'');assert.equal(cleared.description_revision,2);
+  const valid={...input,description_revision:2,request_id:'bounds'};
+  for(const description of [null,{},'a'.repeat(2001),'\u0344'.repeat(2000)])await assert.rejects(()=>f.manager().act('owner','token',{...valid,description}),e=>e.status===400);
+  assert.equal((await f.manager().act('owner','token',{...valid,description:'🌸'.repeat(2000)})).description.length,4000);
+ }finally{f.db.close();}
+});
 test('paid names and paperdolls charge once, survive lost responses, preserve gameplay and keep NPC sprites free',async()=>{
  const f=fixture();try{
   let c=f.create();c=f.act(c,'enter',{zone:'honeydew-lantern',loadout:{player_info:{name:'Campaign',class_id:'mage',level:4,str:11,gender:'Female',hair_color:'Brown'},inventory:[]}});c=f.act(c,'leave');
@@ -80,6 +103,9 @@ test('HTTP management requires save consent and star consent for purchases, reje
   assert.equal((await post('/characters/action',input)).status,403);assert.equal((await post('/characters/action',input,{Origin:'https://evil.invalid'})).status,403);
   assert.equal((await fetch(url+'/characters/action',{headers:{Authorization:'Bearer '+token}})).status,404);
   scope='wallet:read wallet:write stars:write';assert.equal((await post('/characters/action',input)).status,403);
-  scope='wallet:read wallet:write saves:write';const deleted=await post('/characters/action',{...input,action:'delete',confirm:'Doll'});assert.equal(deleted.status,200);assert.equal((await deleted.json()).deleted,true);
+  const description={action:'description',request_id:'bio',character_id:c.id,description_revision:0,description:'Hello!'};
+  assert.equal((await post('/characters/action',description)).status,403);
+  scope='wallet:read wallet:write saves:write';const saved=await post('/characters/action',description);assert.equal(saved.status,200);const updated=await saved.json();assert.equal(updated.description,'Hello!');
+  const deleted=await post('/characters/action',{...input,revision:updated.revision,action:'delete',confirm:'Doll'});assert.equal(deleted.status,200);assert.equal((await deleted.json()).deleted,true);
  }finally{service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));}
 });

@@ -1,5 +1,16 @@
 # LiDollQuest server
 
+## Public character descriptions
+
+`POST /characters/action` supports free `description` edits with `saves:write`.
+Send the owned `character_id`, `request_id`, `description` (up to 2,000 Unicode
+characters, blank to clear), and `description_revision` (initially zero). Conflicting
+profile edits return `description_conflict`; ordinary gameplay does not invalidate
+a draft. Descriptions live outside save/loadout imports and appear in inspection,
+companion and MommyBot profiles. RP posts capture the current description.
+Deploy with the updated omo-trainer companion and game client. No new environment
+settings or manual migration are required. `test/management.test.mjs` covers the API.
+
 ## Premium private sprites
 
 Deploy the tracker sprite routes and diamond-consent changes before the GX client.
