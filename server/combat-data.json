@@ -8,6 +8,8 @@
     "min_delay_ms": 1500,
     "max_delay_ms": 6000,
     "player_initial_fill": 0.5,
+    "enemy_delay_variance": 0.2,
+    "enemy_initial_stagger_ms": 400,
     "second_enemy_chance": 0.5,
     "third_enemy_chance": 0.25
   },

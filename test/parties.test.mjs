@@ -5,11 +5,11 @@ import {randomUUID} from 'node:crypto';
 import {createQuestZones} from '../server/zones.mjs';
 import {diveData} from '../server/dive.mjs';
 import {generateFloor,seeded,pathTo} from '../server/dive-generation.mjs';
-import {selectReinforcements,selectEncounterEnemies,actionDelay,applyCombatPatch} from '../server/dive-encounters.mjs';
+import {selectReinforcements,selectEncounterEnemies,actionDelay,enemyActionDelay,encounterTuning,applyCombatPatch} from '../server/dive-encounters.mjs';
 
-function fixture(){
+function fixture(roll=()=>0){
  const db=new DatabaseSync(':memory:');let time=Date.parse('2026-09-17T12:00:00Z'),zones;const ids={},awards=[];
- const setup=()=>zones=createQuestZones(db,{now:()=>time,roll:()=>0,grant:secret=>({id:secret,owner:secret,client:'lidollquest'}),wallet:()=>({coins:0}),adjust:(owner,asset,n)=>awards.push({owner,n}),diveOptions:{log:()=>{}}});setup();
+ const setup=()=>zones=createQuestZones(db,{now:()=>time,roll,grant:secret=>({id:secret,owner:secret,client:'lidollquest'}),wallet:()=>({coins:0}),adjust:(owner,asset,n)=>awards.push({owner,n}),diveOptions:{log:()=>{}}});setup();
  const loadout=(klass='fighter')=>({player_info:{class_id:klass,playerHealth:500,playerHealthMax:500,str:100,def:8,dex:8,int:20,cha:100,level:30,xp:0,stat_points:0},inventory:[],player_spells:['fireball','heal'],player_mp:100,player_mp_max:100});
  const snap=name=>zones.read(name,ids[name]);
  function command(name,action,extra={}){const s=snap(name);return {action,request_id:randomUUID(),controller:'window',character_id:ids[name],revision:s.character.revision,...(s.character.dive?{edition:s.dive.edition}:{}),...(s.encounter?{battle:s.encounter.id,cycle:s.character.run.cycle}:{}),...extra};}
@@ -190,6 +190,42 @@ test('shared live battle locks three enemies, preserves independent cycles and s
  }finally{f.close();}
 });
 
+test('enemy delay rolls retain variation at speed limits and zero variance preserves the base',()=>{
+ for(const dex of [0,8,8.123,999,-99]){
+  const low=enemyActionDelay(dex,()=>0),high=enemyActionDelay(dex,n=>n-1);
+  assert.ok(low>=encounterTuning.min_delay_ms);assert.ok(high<=encounterTuning.max_delay_ms);assert.ok(high>low);
+  assert.equal(enemyActionDelay(dex,()=>0,{...encounterTuning,enemy_delay_variance:0}),actionDelay(dex));
+ }
+});
+
+test('identical enemies open separately, reroll after attacking, and persist gauges through reads and restart',()=>{
+ let slow=false;const f=fixture(n=>slow?n-1:0);
+ try{
+  f.player('alice');f.act('alice','dive_enter',{zone:'dive-quarters'});
+  const visit=f.snap('alice').dive,record=f.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=? AND depth=1').get(visit.route,visit.edition),floor=JSON.parse(record.content);
+  for(const enemy of floor.enemies){enemy.type='diaper_fairy';enemy.roaming=false;} // A same-species group reproduces the original synchronized timers.
+  f.db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=? AND depth=1').run(JSON.stringify(floor),visit.route,visit.edition);
+  const start=f.engage(),opening=start.encounter.enemies;
+  assert.equal(opening.length,3);assert.equal(new Set(opening.map(e=>e.readyAt)).size,3);
+  assert.ok(diveData.enemies.diaper_fairy.dex>diveData.enemies.teddy_mimic.dex,'authored agile enemies have more Dexterity');
+  for(const [index,enemy] of opening.entries()){
+   assert.equal(enemy.dex,diveData.enemies.diaper_fairy.dex);
+   assert.equal(enemy.duration,enemyActionDelay(enemy.dex,()=>0)+index*encounterTuning.enemy_initial_stagger_ms,'real encounter timers consume exported Dexterity');
+  }
+  assert.deepEqual(f.snap('alice').encounter.enemies,opening,'reads do not reroll a displayed gauge');
+  f.advance(opening[0].readyAt-start.serverTime);
+  const first=f.snap('alice');assert.deepEqual(first.encounter.enemies.map(e=>e.turn),[1,0,0],'only the first ready enemy attacks');
+  assert.equal(first.encounter.enemies[1].readyAt,opening[1].readyAt);
+  slow=true;f.advance(first.encounter.enemies[0].readyAt-first.serverTime);
+  const next=f.snap('alice');assert.ok(next.encounter.enemies[0].duration>first.encounter.enemies[0].duration,'the next attack rolls a new speed');
+  f.restart();f.advance(10000);
+  const resumed=f.snap('alice');assert.deepEqual(resumed.encounter.enemies.map(e=>e.turn),next.encounter.enemies.map(e=>e.turn),'restart does not replay overdue attacks');
+  assert.equal(new Set(resumed.encounter.enemies.map(e=>e.readyAt)).size,3);
+  assert.ok(resumed.encounter.enemies.every(e=>e.readyAt>resumed.serverTime));
+  assert.deepEqual(f.snap('alice').encounter.enemies,resumed.encounter.enemies);
+ }finally{f.close();}
+});
+
 test('scoped needs changes preserve damage received while a popup is open',()=>{
  const l={player_info:{playerHealth:70,playerHealthMax:100,wet:40},inventory:[],player_spells:[]};const merged=applyCombatPatch(l,[{path:['player_info','wet'],before:20,after:25},{path:['player_info','playerHealth'],before:100,after:95}]);assert.equal(merged.player_info.playerHealth,65);assert.equal(merged.player_info.wet,45);assert.throws(()=>applyCombatPatch(l,[{path:['player_info','xp'],before:0,after:100}]),/Unsupported/);assert.equal(actionDelay(0),4000);assert.equal(actionDelay(999),1500);assert.equal(actionDelay(-99),6000);
 });
@@ -206,6 +242,8 @@ test('ally healing uses caster MP, live attacks continue during unprepared cycle
   // Use an exported spell the campaign actually teaches, preserving caster costs and target HP.
   const c=f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(f.ids.bob),s=JSON.parse(c.state);s.loadout.player_spells.push('heal_light');f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(s),f.ids.bob);
   f.act('bob','cast',{spell:'heal_light',target:f.ids.alice});assert.ok(f.snap('alice').character.loadout.player_info.playerHealth>before);assert.ok(f.snap('bob').character.loadout.player_mp<mp);
+  const shown=f.snap('alice').encounter.players.find(p=>p.id===f.ids.bob),caster=f.snap('bob').character.loadout;
+  assert.equal(shown.mp,caster.player_mp,'party HUD sees committed caster mana after an ally heal');assert.equal(shown.maxMp,caster.player_mp_max);
   f.act('bob','submit');assert.equal(f.snap('bob').character.run.status,'submit');assert.throws(()=>f.act('bob','party_leave'),/finish/);assert.ok(f.snap('alice').encounter);
   const result=f.win();assert.equal(result.encounter,null);assert.equal(f.snap('bob').character.lastResult.outcome,'submit');assert.ok(f.snap('bob').character.lastResult.defeatScene.id);
  }finally{f.close();}

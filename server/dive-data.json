@@ -37,6 +37,7 @@
       "hp": 100,
       "str": 8,
       "def": 4,
+      "dex": 8,
       "exp": 50,
       "enemy_spells": [
         "mandatory_feeding",
@@ -59,6 +60,7 @@
       "hp": 25.0,
       "str": 3.0,
       "def": 1.0,
+      "dex": 12.0,
       "exp": 12.0,
       "spell_cast_chance": 0.35,
       "enemy_spells": [
@@ -74,6 +76,7 @@
       "hp": 35.0,
       "str": 5.0,
       "def": 2.0,
+      "dex": 4.0,
       "exp": 15.0,
       "spell_cast_chance": 0.25,
       "enemy_spells": [
@@ -88,6 +91,7 @@
       "hp": 100,
       "str": 8,
       "def": 4,
+      "dex": 8,
       "exp": 50,
       "enemy_spells": [
         "mandatory_feeding",

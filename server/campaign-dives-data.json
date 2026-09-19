@@ -104,6 +104,7 @@
           "hp": 40.0,
           "str": 4.0,
           "def": 3.0,
+          "dex": 2.0,
           "exp": 18.0,
           "spell_cast_chance": 0.3,
           "enemy_spells": [
@@ -119,6 +120,7 @@
           "hp": 72.0,
           "str": 9.0,
           "def": 5.0,
+          "dex": 2.0,
           "exp": 36.0,
           "spell_cast_chance": 0.3,
           "enemy_spells": [
@@ -135,6 +137,7 @@
           "hp": 25.0,
           "str": 3.0,
           "def": 1.0,
+          "dex": 12.0,
           "exp": 12.0,
           "spell_cast_chance": 0.35,
           "enemy_spells": [
@@ -151,6 +154,7 @@
           "hp": 62.0,
           "str": 6.0,
           "def": 4.0,
+          "dex": 5.0,
           "exp": 30.0,
           "spell_cast_chance": 0.3,
           "enemy_spells": [
@@ -167,6 +171,7 @@
           "hp": 30.0,
           "str": 4.0,
           "def": 1.0,
+          "dex": 8.0,
           "exp": 10.0,
           "spell_cast_chance": 0,
           "enemy_spells": [],
@@ -180,6 +185,7 @@
           "hp": 50.0,
           "str": 8.0,
           "def": 3.0,
+          "dex": 3.0,
           "exp": 25.0,
           "spell_cast_chance": 0.2,
           "enemy_spells": [
@@ -195,6 +201,7 @@
           "hp": 46.0,
           "str": 6.0,
           "def": 2.0,
+          "dex": 6.0,
           "exp": 24.0,
           "spell_cast_chance": 0.4,
           "enemy_spells": [
@@ -211,6 +218,7 @@
           "hp": 70.0,
           "str": 10.0,
           "def": 5.0,
+          "dex": 2.0,
           "exp": 35.0,
           "spell_cast_chance": 0.3,
           "enemy_spells": [
@@ -227,6 +235,7 @@
           "hp": 45.0,
           "str": 6.0,
           "def": 2.0,
+          "dex": 7.0,
           "exp": 20.0,
           "spell_cast_chance": 0.3,
           "enemy_spells": [
@@ -243,6 +252,7 @@
           "hp": 38.0,
           "str": 5.0,
           "def": 2.0,
+          "dex": 11.0,
           "exp": 20.0,
           "spell_cast_chance": 0.35,
           "enemy_spells": [
@@ -259,6 +269,7 @@
           "hp": 35.0,
           "str": 5.0,
           "def": 2.0,
+          "dex": 4.0,
           "exp": 15.0,
           "spell_cast_chance": 0.25,
           "enemy_spells": [
@@ -22540,6 +22551,7 @@
           "hp": 75.0,
           "str": 8.0,
           "def": 5.0,
+          "dex": 6.0,
           "exp": 35.0,
           "spell_cast_chance": 0.3,
           "enemy_spells": [
@@ -22555,6 +22567,7 @@
           "hp": 75.0,
           "str": 9.0,
           "def": 6.0,
+          "dex": 2.0,
           "exp": 42.0,
           "spell_cast_chance": 0.35,
           "enemy_spells": [
@@ -22571,6 +22584,7 @@
           "hp": 30.0,
           "str": 4.0,
           "def": 1.0,
+          "dex": 1.0,
           "exp": 16.0,
           "spell_cast_chance": 0.2,
           "enemy_spells": [
@@ -22586,6 +22600,7 @@
           "hp": 45.0,
           "str": 5.0,
           "def": 2.0,
+          "dex": 2.0,
           "exp": 22.0,
           "spell_cast_chance": 0.35,
           "enemy_spells": [
@@ -22601,6 +22616,7 @@
           "hp": 140.0,
           "str": 14.0,
           "def": 9.0,
+          "dex": 7.0,
           "exp": 90.0,
           "spell_cast_chance": 0.45,
           "enemy_spells": [
@@ -22618,6 +22634,7 @@
           "hp": 60.0,
           "str": 5.0,
           "def": 3.0,
+          "dex": 4.0,
           "exp": 20.0,
           "spell_cast_chance": 0.3,
           "enemy_spells": [
@@ -22634,6 +22651,7 @@
           "hp": 90.0,
           "str": 12.0,
           "def": 7.0,
+          "dex": 5.0,
           "exp": 50.0,
           "spell_cast_chance": 0.4,
           "enemy_spells": [
@@ -22650,6 +22668,7 @@
           "hp": 35.0,
           "str": 4.0,
           "def": 2.0,
+          "dex": 4.0,
           "exp": 18.0,
           "spell_cast_chance": 0.25,
           "enemy_spells": [
@@ -44921,6 +44940,7 @@
           "hp": 120.0,
           "str": 12.0,
           "def": 6.0,
+          "dex": 5.0,
           "exp": 36.0,
           "spell_cast_chance": 0.25,
           "enemy_spells": [
@@ -44936,6 +44956,7 @@
           "hp": 240.0,
           "str": 17.0,
           "def": 11.0,
+          "dex": 8.0,
           "exp": 450.0,
           "spell_cast_chance": 0.45,
           "enemy_spells": [
@@ -44953,6 +44974,7 @@
           "hp": 190.0,
           "str": 17.0,
           "def": 10.0,
+          "dex": 6.0,
           "exp": 80.0,
           "spell_cast_chance": 0.4,
           "enemy_spells": [
@@ -44969,6 +44991,7 @@
           "hp": 135.0,
           "str": 13.0,
           "def": 5.0,
+          "dex": 7.0,
           "exp": 42.0,
           "spell_cast_chance": 0.4,
           "enemy_spells": [
@@ -44985,6 +45008,7 @@
           "hp": 95.0,
           "str": 8.0,
           "def": 4.0,
+          "dex": 12.0,
           "exp": 28.0,
           "spell_cast_chance": 0.3,
           "enemy_spells": [
@@ -67263,6 +67287,7 @@
           "hp": 70.0,
           "str": 8.0,
           "def": 5.0,
+          "dex": 1.0,
           "exp": 35.0,
           "spell_cast_chance": 0.3,
           "enemy_spells": [
@@ -67278,6 +67303,7 @@
           "hp": 25.0,
           "str": 3.0,
           "def": 1.0,
+          "dex": 12.0,
           "exp": 12.0,
           "spell_cast_chance": 0.35,
           "enemy_spells": [
@@ -67294,6 +67320,7 @@
           "hp": 80.0,
           "str": 10.0,
           "def": 4.0,
+          "dex": 8.0,
           "exp": 40.0,
           "spell_cast_chance": 0.35,
           "enemy_spells": [
@@ -67310,6 +67337,7 @@
           "hp": 30.0,
           "str": 4.0,
           "def": 1.0,
+          "dex": 8.0,
           "exp": 10.0,
           "spell_cast_chance": 0,
           "enemy_spells": [],
@@ -67323,6 +67351,7 @@
           "hp": 50.0,
           "str": 8.0,
           "def": 3.0,
+          "dex": 3.0,
           "exp": 25.0,
           "spell_cast_chance": 0.2,
           "enemy_spells": [
@@ -67338,6 +67367,7 @@
           "hp": 70.0,
           "str": 10.0,
           "def": 5.0,
+          "dex": 2.0,
           "exp": 35.0,
           "spell_cast_chance": 0.3,
           "enemy_spells": [
@@ -67354,6 +67384,7 @@
           "hp": 45.0,
           "str": 6.0,
           "def": 2.0,
+          "dex": 7.0,
           "exp": 20.0,
           "spell_cast_chance": 0.3,
           "enemy_spells": [
@@ -67370,6 +67401,7 @@
           "hp": 45.0,
           "str": 7.0,
           "def": 3.0,
+          "dex": 14.0,
           "exp": 28.0,
           "spell_cast_chance": 0.35,
           "enemy_spells": [
@@ -67386,6 +67418,7 @@
           "hp": 35.0,
           "str": 5.0,
           "def": 2.0,
+          "dex": 4.0,
           "exp": 15.0,
           "spell_cast_chance": 0.25,
           "enemy_spells": [
@@ -89673,6 +89706,7 @@
           "hp": 35.0,
           "str": 9.0,
           "def": 1.0,
+          "dex": 3.0,
           "exp": 30.0,
           "spell_cast_chance": 0.25,
           "enemy_spells": [
@@ -89688,6 +89722,7 @@
           "hp": 75.0,
           "str": 9.0,
           "def": 5.0,
+          "dex": 4.0,
           "exp": 45.0,
           "spell_cast_chance": 0.45,
           "enemy_spells": [
@@ -89703,6 +89738,7 @@
           "hp": 45.0,
           "str": 8.0,
           "def": 1.0,
+          "dex": 9.0,
           "exp": 26.0,
           "spell_cast_chance": 0.4,
           "enemy_spells": [
@@ -89718,6 +89754,7 @@
           "hp": 55.0,
           "str": 6.0,
           "def": 3.0,
+          "dex": 5.0,
           "exp": 28.0,
           "spell_cast_chance": 0.4,
           "enemy_spells": [
@@ -89733,6 +89770,7 @@
           "hp": 50.0,
           "str": 5.0,
           "def": 2.0,
+          "dex": 7.0,
           "exp": 25.0,
           "spell_cast_chance": 0.4,
           "enemy_spells": [
@@ -89748,6 +89786,7 @@
           "hp": 45.0,
           "str": 7.0,
           "def": 2.0,
+          "dex": 10.0,
           "exp": 22.0,
           "spell_cast_chance": 0.35,
           "enemy_spells": [
@@ -89764,6 +89803,7 @@
           "hp": 55.0,
           "str": 7.0,
           "def": 3.0,
+          "dex": 8.0,
           "exp": 30.0,
           "spell_cast_chance": 0.45,
           "enemy_spells": [
@@ -89780,6 +89820,7 @@
           "hp": 80.0,
           "str": 10.0,
           "def": 5.0,
+          "dex": 11.0,
           "exp": 50.0,
           "spell_cast_chance": 0.5,
           "enemy_spells": [
@@ -89796,6 +89837,7 @@
           "hp": 35.0,
           "str": 4.0,
           "def": 2.0,
+          "dex": 5.0,
           "exp": 18.0,
           "spell_cast_chance": 0.4,
           "enemy_spells": [
@@ -89811,6 +89853,7 @@
           "hp": 60.0,
           "str": 5.0,
           "def": 3.0,
+          "dex": 2.0,
           "exp": 18.0,
           "spell_cast_chance": 0.3,
           "enemy_spells": [
@@ -112097,6 +112140,7 @@
           "hp": 250.0,
           "str": 18.0,
           "def": 9.0,
+          "dex": 7.0,
           "exp": 65.0,
           "spell_cast_chance": 0.4,
           "enemy_spells": [
@@ -112112,6 +112156,7 @@
           "hp": 200.0,
           "str": 15.0,
           "def": 7.0,
+          "dex": 9.0,
           "exp": 50.0,
           "spell_cast_chance": 0.35,
           "enemy_spells": [
@@ -112127,6 +112172,7 @@
           "hp": 150.0,
           "str": 14.0,
           "def": 6.0,
+          "dex": 6.0,
           "exp": 40.0,
           "spell_cast_chance": 0.3,
           "enemy_spells": [
@@ -112143,6 +112189,7 @@
           "hp": 175.0,
           "str": 17.0,
           "def": 5.0,
+          "dex": 6.0,
           "exp": 60.0,
           "spell_cast_chance": 0.45,
           "enemy_spells": [
@@ -112158,6 +112205,7 @@
           "hp": 180.0,
           "str": 16.0,
           "def": 12.0,
+          "dex": 8.0,
           "exp": 55.0,
           "spell_cast_chance": 0.35,
           "enemy_spells": [
@@ -112173,6 +112221,7 @@
           "hp": 300.0,
           "str": 20.0,
           "def": 10.0,
+          "dex": 11.0,
           "exp": 80.0,
           "spell_cast_chance": 0.4,
           "enemy_spells": [
@@ -112189,6 +112238,7 @@
           "hp": 400.0,
           "str": 25.0,
           "def": 15.0,
+          "dex": 8.0,
           "exp": 120.0,
           "spell_cast_chance": 0.5,
           "enemy_spells": [

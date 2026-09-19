@@ -5,9 +5,16 @@ import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
 
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'encounter_conflict'});};
 const clone=structuredClone;
-const defaults={second_enemy_chance:0.5,third_enemy_chance:0.25,base_delay_ms:4000,dexterity_step_ms:100,min_delay_ms:1500,max_delay_ms:6000,player_initial_fill:0.5};
+const defaults={second_enemy_chance:0.5,third_enemy_chance:0.25,base_delay_ms:4000,dexterity_step_ms:100,min_delay_ms:1500,max_delay_ms:6000,player_initial_fill:0.5,enemy_delay_variance:0.2,enemy_initial_stagger_ms:400};
 export const encounterTuning={...defaults,...combatData.online_combat};
 export const actionDelay=(dex=0,tuning=encounterTuning)=>Math.max(tuning.min_delay_ms,Math.min(tuning.max_delay_ms,tuning.base_delay_ms-tuning.dexterity_step_ms*dex));
+
+export function enemyActionDelay(dex,roll,tuning=encounterTuning){
+ const base=actionDelay(dex,tuning),spread=tuning.enemy_delay_variance;
+ const low=Math.ceil(Math.max(tuning.min_delay_ms,base*(1-spread))),high=Math.floor(Math.min(tuning.max_delay_ms,base*(1+spread)));
+ if(high<=low)return base; // Zero/tiny variance also supports fractional Dexterity without an invalid random interval.
+ return low+roll(high-low+1); // Roll inside the legal interval so fast/slow enemies do not all clamp to the same endpoint.
+}
 
 export function selectReinforcements(floor,foe,data,roll,time,tuning=encounterTuning){
  const max=data.enemies[foe.type].hp,pool=floor.enemies.filter(e=>e.id!==foe.id&&!e.engaged&&e.respawnAt<=time&&data.enemies[e.type]?.hp<=max);
@@ -60,7 +67,10 @@ export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progres
    if(s.run||s.worldTurnDue||s.pendingPurchase||!s.loadout||s.loadout.player_info.stat_points>0||s.loadout.player_info.playerHealth<=0||s.dive?.edition!==record.edition||s.dive?.route!==route)fail(other.name+' must finish preparing before the party can fight.');
   }
   const e={id:randomUUID(),edition:record.edition,zone,route,origin:{x:foe.x,y:foe.y},created:now(),sequence:0,events:[],players:[],enemies:[]};
-  for(const selected of selectEncounterEnemies(record.floor,foe,data,roll,now())){selected.engaged=e.id;const enemy=clone(data.enemies[selected.type]);enemy.maxHp=enemy.hp;enemy.turn=0;e.enemies.push({id:selected.id,data:enemy,duration:actionDelay(enemy.dex??0),readyAt:now()+actionDelay(enemy.dex??0),dots:[],debuffs:[]});}
+  for(const selected of selectEncounterEnemies(record.floor,foe,data,roll,now())){selected.engaged=e.id;const enemy=clone(data.enemies[selected.type]);enemy.maxHp=enemy.hp;enemy.turn=0;
+   const duration=enemyActionDelay(enemy.dex??0,roll)+e.enemies.length*encounterTuning.enemy_initial_stagger_ms;
+   e.enemies.push({id:selected.id,data:enemy,duration,readyAt:now()+duration,dots:[],debuffs:[]});
+  } // Opening stagger separates identical enemies; later cycles reroll their own bounded delay.
   for(const row of rows){const {c:other,s}=row,enemy=clone(e.enemies[0].data);s.lastResult=null;s.run={kind:'dive',id:e.id,sharedEncounter:e.id,zone,edition:record.edition,encounter:foe.id,stage:1,phase:'fight',hp:s.loadout.player_info.playerHealth,maxHp:s.loadout.player_info.playerHealthMax,heals:0,pot:0,handicaps:[],enemy,acted:now(),log:[]};beginRound(s,z,roll,enemy);
    const duration=actionDelay(s.loadout.player_info.dex);const a={id:other.id,name:other.name,status:'active',run:s.run,cycle:1,duration,readyAt:now()+duration*(1-encounterTuning.player_initial_fill),prepared:false};e.players.push(a);row.a=a;
   }
@@ -113,16 +123,18 @@ export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progres
   for(const row of db.prepare("SELECT state FROM quest_dive_encounters WHERE route=? AND json_extract(state,'$.finished') IS NOT 1").all(route)){
    const e=JSON.parse(row.state);if(e.finished)continue;const record=getFloor(e.edition);if(!record)continue;const rows=roster(e);for(const v of rows)v.s.run=v.a.run;
    let changed=false;
-   if(restarted){for(const enemy of e.enemies)enemy.readyAt=Math.max(enemy.readyAt,now()+enemy.duration);for(const {a} of rows)if(!a.prepared)a.readyAt=Math.max(a.readyAt,now()+a.duration*(1-encounterTuning.player_initial_fill));changed=true;}
+   if(restarted){for(const [index,enemy] of e.enemies.entries()){
+    enemy.duration=Math.max(enemy.readyAt-now(),enemyActionDelay(enemy.data.dex??0,roll)+index*encounterTuning.enemy_initial_stagger_ms);enemy.readyAt=now()+enemy.duration;
+   }for(const {a} of rows)if(!a.prepared)a.readyAt=Math.max(a.readyAt,now()+a.duration*(1-encounterTuning.player_initial_fill));changed=true;} // Persist fresh staggered recovery timers once; polling never rerolls a running gauge.
    const forced=now()>=record.ends+600000||rows.every(v=>(db.prepare('SELECT seen FROM quest_presence WHERE character_id=?').get(v.c.id)?.seen??0)<now()-150000);
    if(!forced){for(const enemy of e.enemies){if(enemy.data.hp<=0||enemy.readyAt>now())continue;
     const active=rows.filter(v=>v.a.status==='active');if(!active.length)break;const target=active[roll(active.length)];target.a.run.enemy=enemy.data;target.a.run.dots=enemy.dots;target.a.run.debuffs=enemy.debuffs;target.a.run.log=[];
     tickEnemyEffects(target.a.run);if(enemy.data.hp>0&&enemyAction(target.s,z,roll)==='defeat')out(e,target.a,enemy.data,'defeat');
-    for(const line of target.a.run.log)message(e,line+' ('+target.a.name+')');enemy.duration=actionDelay(enemy.data.dex??0);enemy.readyAt=now()+enemy.duration;changed=true;
+    for(const line of target.a.run.log)message(e,line+' ('+target.a.name+')');enemy.duration=enemyActionDelay(enemy.data.dex??0,roll);enemy.readyAt=now()+enemy.duration;changed=true;
    }}
    if(forced||changed){settle(e,rows,record,forced);persist(e,rows);}
   }restarted=false;
  } // Process at most one action per enemy per tick; restart never replays a backlog of missed attacks.
- function snapshot(state){const e=fetch(state?.run?.sharedEncounter);if(!e||e.finished)return null;return {id:e.id,sequence:e.sequence,events:e.events,players:e.players.map(a=>({id:a.id,name:a.name,hp:a.run.hp,maxHp:a.run.maxHp,status:a.status,readyAt:a.readyAt,duration:a.duration,cycle:a.cycle,prepared:a.prepared,connected:(db.prepare('SELECT seen FROM quest_presence WHERE character_id=?').get(a.id)?.seen??0)>now()-30000})),enemies:e.enemies.map(v=>({id:v.id,...v.data,readyAt:v.readyAt,duration:v.duration}))};}
+ function snapshot(state){const e=fetch(state?.run?.sharedEncounter);if(!e||e.finished)return null;return {id:e.id,sequence:e.sequence,events:e.events,players:roster(e).map(({a,s})=>({id:a.id,name:a.name,hp:a.run.hp,maxHp:a.run.maxHp,mp:s.loadout?.player_mp??0,maxMp:s.loadout?.player_mp_max??0,status:a.status,readyAt:a.readyAt,duration:a.duration,cycle:a.cycle,prepared:a.prepared,connected:(db.prepare('SELECT seen FROM quest_presence WHERE character_id=?').get(a.id)?.seen??0)>now()-30000})),enemies:e.enemies.map(v=>({id:v.id,...v.data,readyAt:v.readyAt,duration:v.duration}))};} // Publish current committed mana, including ally casting, without duplicating it in encounter state.
  return {start,act,tick,snapshot};
 }

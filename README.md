@@ -1,5 +1,15 @@
 # LiDollQuest server
 
+## Enemy ATB variation
+
+Shared encounter player cards now receive `mp` and `maxMp` from each character's committed loadout. Reads never mutate or refill mana. Deploy the service before the rebuilt client for current/max MP on all party cards; newer clients can still display their own MP against older services using the local loadout.
+
+All authored enemy catalogs now export explicit `dex`: 1–14 by species, with Guardian Iris at 8. The game Enemies editor exposes DEX (ATB), while Iris is in Dungeon Dive > boss.dex. After edits, run `export_online_dive.py`, `export_online_desert.py`, `export_online_tundra.py` and `export_online_campaign_dives.py` (Quarters must precede campaign Dives). Deploy all four generated catalogs and restart the service. New encounters use the stats; already-persisted encounters retain their captured values. Weekly floors need no reset and existing clients already read the server timers.
+
+Shared Dive enemies independently reroll their Dexterity-derived delay each cycle within the existing min/max limits. `enemy_delay_variance` defaults to 0.2 (±20%); `enemy_initial_stagger_ms` adds 400 ms per roster index to opening and service-restart timers only. Occasional coincident attacks remain possible. Player timing and arena turns are unchanged. Persisted `duration`/`readyAt` keep reads and reconnects stable; restart grants staggered recovery without replaying missed attacks.
+
+Edit the corresponding `online_*` fields in the game's Combat Tuning editor and run `python/export_online_combat.py`. Deploy the updated service and `server/combat-data.json`, then restart; existing clients already display variable timers. No client rebuild, database migration or weekly reset is required. Verify with `node --test test/parties.test.mjs`.
+
 ## Dive defeat equipment
 
 Dive defeat, submission and failed charm apply the opponent's authored first/repeat outfit once during settlement. Shared battles affect only losing members, using their actual defeat opponent. Export Enemy Data kits and item definitions with the game's `python/export_online_combat.py`, then deploy `server/combat-data.json` with this service before updating the client. No database migration or weekly floor reset is required.
