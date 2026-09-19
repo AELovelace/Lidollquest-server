@@ -1,4 +1,5 @@
 import {syncCrawl} from './crawl.mjs';
+import {refreshMana} from './magic-balance.mjs';
 
 const fail=message=>{throw Object.assign(Error(message),{status:400,code:'invalid_loadout'});};
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
@@ -26,6 +27,7 @@ export function importLoadout(input) { // Campaign data is intentionally client-
  p.level=number(p.level,1,1);p.xp=number(p.xp,0);
  result.attack=number(result.attack,Math.max(1,p.str*2),1); // The client includes its existing class damage multiplier.
  result.player_mp_max=number(result.player_mp_max,0);result.player_mp=number(result.player_mp,0,0,result.player_mp_max);
+ refreshMana(result); // Mage capacity derives from INT, so old and new imports cannot double it repeatedly.
  if(!Array.isArray(result.player_spells)||result.player_spells.length>512||result.inventory.some(item=>!object(item)||typeof item.item_id!=='string'))fail('Invalid inventory or learned spells.');
  return result;
 }

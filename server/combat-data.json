@@ -44,6 +44,290 @@
         "weaken",
         "corrode"
       ]
+    ],
+    "mage_physical_multiplier": 0.5,
+    "mage_magic_multiplier": 1.5,
+    "mage_mp_multiplier": 2,
+    "rpp_shop": [
+      {
+        "id": "heal_light",
+        "kind": "spell",
+        "cost": 4,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "heal_medium",
+        "kind": "spell",
+        "cost": 8,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "heal_full",
+        "kind": "spell",
+        "cost": 12,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "calm_bladder",
+        "kind": "spell",
+        "cost": 6,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "settle_tummy",
+        "kind": "spell",
+        "cost": 6,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "refresh",
+        "kind": "spell",
+        "cost": 7,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "fortify",
+        "kind": "spell",
+        "cost": 5,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "empower",
+        "kind": "spell",
+        "cost": 5,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "haste",
+        "kind": "spell",
+        "cost": 5,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "fireball",
+        "kind": "spell",
+        "cost": 7,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "ice_shard",
+        "kind": "spell",
+        "cost": 6,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "poison_cloud",
+        "kind": "spell",
+        "cost": 8,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "shadow_bolt",
+        "kind": "spell",
+        "cost": 9,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "smite",
+        "kind": "spell",
+        "cost": 11,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "weaken",
+        "kind": "spell",
+        "cost": 5,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "corrode",
+        "kind": "spell",
+        "cost": 5,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "starfall",
+        "kind": "spell",
+        "cost": 12,
+        "level": 6,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "frostbite",
+        "kind": "spell",
+        "cost": 8,
+        "level": 3,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "emberstorm",
+        "kind": "spell",
+        "cost": 10,
+        "level": 5,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "moonwell",
+        "kind": "spell",
+        "cost": 12,
+        "level": 6,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "iron_will",
+        "kind": "spell",
+        "cost": 8,
+        "level": 3,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "clarity",
+        "kind": "spell",
+        "cost": 8,
+        "level": 3,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "dazzling_flash",
+        "kind": "spell",
+        "cost": 9,
+        "level": 4,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "sure_strike",
+        "kind": "ability",
+        "name": "Sure Strike",
+        "description": "Passive: physical attacks deal 10% more damage.",
+        "cost": 8,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "arcane_practice",
+        "kind": "ability",
+        "name": "Arcane Practice",
+        "description": "Passive: spells heal and deal 10% more damage, including fullness bonuses.",
+        "cost": 10,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "deep_reserves",
+        "kind": "ability",
+        "name": "Deep Reserves",
+        "description": "Passive: +20 base maximum MP, doubled for mages. Does not refill MP.",
+        "cost": 10,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage"
+        ]
+      },
+      {
+        "id": "silver_tongue",
+        "kind": "ability",
+        "name": "Silver Tongue",
+        "description": "Passive: +2 to Charm and Allure rolls.",
+        "cost": 8,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage",
+          "diplomat"
+        ]
+      }
     ]
   },
   "spells": {
@@ -985,6 +1269,104 @@
       "stat_effect": "crawling",
       "stat_amount": 1,
       "enemy_only": true
+    },
+    "starfall": {
+      "spell_id": "starfall",
+      "name": "Starfall",
+      "description": "A shower of starlight strikes one enemy.",
+      "type": "offense",
+      "target": "enemy",
+      "mp_cost": 18,
+      "power": 45,
+      "element": "holy",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0
+    },
+    "frostbite": {
+      "spell_id": "frostbite",
+      "name": "Frostbite",
+      "description": "Biting frost deals damage now and over four enemy turns.",
+      "type": "offense",
+      "target": "enemy",
+      "mp_cost": 12,
+      "power": 22,
+      "element": "ice",
+      "dot_turns": 4,
+      "dot_damage": 4,
+      "stat_effect": "",
+      "stat_amount": 0
+    },
+    "emberstorm": {
+      "spell_id": "emberstorm",
+      "name": "Emberstorm",
+      "description": "Engulf one enemy in embers that burn for three turns.",
+      "type": "offense",
+      "target": "enemy",
+      "mp_cost": 16,
+      "power": 35,
+      "element": "fire",
+      "dot_turns": 3,
+      "dot_damage": 6,
+      "stat_effect": "",
+      "stat_amount": 0
+    },
+    "moonwell": {
+      "spell_id": "moonwell",
+      "name": "Moonwell",
+      "description": "Moonlight restores a large amount of HP to yourself or an ally.",
+      "type": "heal",
+      "target": "ally",
+      "mp_cost": 18,
+      "power": 85,
+      "element": "holy",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "hp",
+      "stat_amount": 85
+    },
+    "iron_will": {
+      "spell_id": "iron_will",
+      "name": "Iron Will",
+      "description": "Strengthen your defence for five turns.",
+      "type": "buff",
+      "target": "self",
+      "mp_cost": 10,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 5,
+      "dot_damage": 0,
+      "stat_effect": "def",
+      "stat_amount": 7
+    },
+    "clarity": {
+      "spell_id": "clarity",
+      "name": "Clarity",
+      "description": "Sharpen your intelligence for four turns.",
+      "type": "buff",
+      "target": "self",
+      "mp_cost": 10,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 4,
+      "dot_damage": 0,
+      "stat_effect": "int",
+      "stat_amount": 6
+    },
+    "dazzling_flash": {
+      "spell_id": "dazzling_flash",
+      "name": "Dazzling Flash",
+      "description": "Dazzle one enemy, lowering its strength for four turns.",
+      "type": "debuff",
+      "target": "enemy",
+      "mp_cost": 12,
+      "power": 0,
+      "element": "holy",
+      "dot_turns": 4,
+      "dot_damage": 0,
+      "stat_effect": "str",
+      "stat_amount": -7
     }
   },
   "charms": {
@@ -1732,7 +2114,8 @@
       "def": 1,
       "hp_restore": 0,
       "value": 5,
-      "childish": 8
+      "childish": 8,
+      "rarity": "common"
     },
     "auto_diaper": {
       "item_id": "auto_diaper",
@@ -1752,7 +2135,8 @@
       "bulk": 3,
       "is_diaper": true,
       "cursed": true,
-      "curse_max": 4
+      "curse_max": 4,
+      "rarity": "uncommon"
     },
     "auto_tutu": {
       "item_id": "auto_tutu",
@@ -1763,7 +2147,8 @@
       "def": 1,
       "hp_restore": 0,
       "value": 0,
-      "childish": 10
+      "childish": 10,
+      "rarity": "common"
     },
     "blessed_pottypants_diaper": {
       "item_id": "blessed_pottypants_diaper",
@@ -1813,7 +2198,8 @@
             "wet": -6
           }
         }
-      ]
+      ],
+      "rarity": "uncommon"
     },
     "bloomers": {
       "item_id": "bloomers",
@@ -1829,7 +2215,8 @@
       "childish": 9,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "is_bloomers": true
+      "is_bloomers": true,
+      "rarity": "common"
     },
     "bramble_bow": {
       "item_id": "bramble_bow",
@@ -1840,13 +2227,14 @@
       "def": 1,
       "hp_restore": 0,
       "value": 12,
-      "childish": 7
+      "childish": 7,
+      "rarity": "common"
     },
     "bunny_onesie": {
       "item_id": "bunny_onesie",
       "category": "torso",
       "name": "Bunny Onesie",
-      "desc": "A fuzzy onesie with floppy bunny ears. Makes you want to hop and giggle! Something protective is woven into the thread.",
+      "desc": "A fuzzy onesie with floppy bunny ears. Makes you want to hop and giggle!",
       "atk": 0,
       "def": 1,
       "hp_restore": 0,
@@ -1854,41 +2242,13 @@
       "wet_resist": 0,
       "value": 12,
       "childish": 10,
-      "magical_effects": [
-        {
-          "effect_id": "guardian_thread",
-          "enabled": true,
-          "trigger_mode": "step",
-          "proc_min": 132,
-          "proc_max": 259,
-          "chance_percent": 90,
-          "cooldown": 20,
-          "popup_title": "",
-          "popup_text": "",
-          "popup_lines": [],
-          "log_text": "{item} shelters you: HP +4, Stamina +6.",
-          "narrative_chunk": "",
-          "movement_lock": false,
-          "lock_prompt_min": 4,
-          "lock_prompt_max": 8,
-          "lock_release_chance": 35,
-          "lock_title": "Constricted!",
-          "lock_text": "You struggle against {item}...",
-          "content_pass": "cursed_blessed_pass_v1",
-          "alignment": "blessed",
-          "stat_delta": {
-            "health": 5,
-            "stamina": 6
-          }
-        }
-      ],
-      "blessed": true
+      "rarity": "common"
     },
     "cobweb_diaper": {
       "item_id": "cobweb_diaper",
       "category": "panties",
       "name": "Cobweb Diaper",
-      "desc": "A thick diaper woven from enchanted cobwebs. Soft as clouds, embarrassing as everything. ATK -1, DEX -2. The leg elastic grips like it has fingers.",
+      "desc": "A thick diaper woven from enchanted cobwebs. Soft as clouds, embarrassing as everything. ATK -1, DEX -2.",
       "atk": 0,
       "def": 0,
       "hp_restore": 0,
@@ -1901,36 +2261,13 @@
       "childish": 10,
       "bulk": 4,
       "is_diaper": true,
-      "magical_effects": [
-        {
-          "effect_id": "clutching_elastic",
-          "enabled": true,
-          "trigger_mode": "step",
-          "proc_min": 228,
-          "proc_max": 458,
-          "chance_percent": 90,
-          "cooldown": 60,
-          "popup_title": "Clutching Elastic",
-          "popup_text": "",
-          "popup_lines": [],
-          "log_text": "",
-          "narrative_chunk": "",
-          "movement_lock": true,
-          "lock_prompt_min": 4,
-          "lock_prompt_max": 8,
-          "lock_release_chance": 36,
-          "lock_title": "Held Fast!",
-          "lock_text": "{item} clamps around {name}'s hips and thighs and simply will not let her walk.",
-          "content_pass": "cursed_blessed_pass_v1",
-          "alignment": "haunted"
-        }
-      ]
+      "rarity": "rare"
     },
     "cultist_robe_1": {
       "item_id": "cultist_robe_1",
       "category": "dress",
       "name": "Cultist Robe #1",
-      "desc": "A stylish cultist robe #1. Fills both torso and pants slots. It never seems to fit the same way twice.",
+      "desc": "A stylish cultist robe #1. Fills both torso and pants slots.",
       "atk": 0,
       "def": 1,
       "hp_restore": 0,
@@ -1938,37 +2275,7 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "magical_effects": [
-        {
-          "effect_id": "shrinking_stitches",
-          "enabled": true,
-          "trigger_mode": "step",
-          "proc_min": 148,
-          "proc_max": 283,
-          "chance_percent": 70,
-          "cooldown": 22,
-          "popup_title": "Shrinking Stitches",
-          "popup_text": "",
-          "popup_lines": [
-            "{item} draws in a size, then another, until {name} can barely breathe in it.",
-            "The stitching of {item} creeps tighter, hugging {name} like it means to keep her."
-          ],
-          "log_text": "{item} shrinks: Shame -14, Stamina -5.",
-          "narrative_chunk": "",
-          "movement_lock": false,
-          "lock_prompt_min": 4,
-          "lock_prompt_max": 8,
-          "lock_release_chance": 35,
-          "lock_title": "Constricted!",
-          "lock_text": "You struggle against {item}...",
-          "content_pass": "cursed_blessed_pass_v1",
-          "alignment": "haunted",
-          "stat_delta": {
-            "shame": -13,
-            "stamina": -4
-          }
-        }
-      ]
+      "rarity": "common"
     },
     "cursed_paci": {
       "item_id": "cursed_paci",
@@ -2005,7 +2312,8 @@
           "content_pass": "cursed_blessed_pass_v1",
           "alignment": "cursed"
         }
-      ]
+      ],
+      "rarity": "common"
     },
     "cursed_paci_forest": {
       "item_id": "cursed_paci_forest",
@@ -2019,7 +2327,8 @@
       "wet_resist": -2,
       "value": 0,
       "childish": 10,
-      "cursed": true
+      "cursed": true,
+      "rarity": "common"
     },
     "cursed_pottypants_diaper": {
       "item_id": "cursed_pottypants_diaper",
@@ -2064,7 +2373,8 @@
           "content_pass": "cursed_blessed_pass_v1",
           "alignment": "cursed"
         }
-      ]
+      ],
+      "rarity": "uncommon"
     },
     "cursed_teddy": {
       "item_id": "cursed_teddy",
@@ -2108,7 +2418,8 @@
           }
         }
       ],
-      "blessed": true
+      "blessed": true,
+      "rarity": "common"
     },
     "diaper_hugger_diaper": {
       "item_id": "diaper_hugger_diaper",
@@ -2129,7 +2440,8 @@
       "visual_bulk": 3,
       "cursed": true,
       "blessed": true,
-      "is_diaper": true
+      "is_diaper": true,
+      "rarity": "uncommon"
     },
     "diaper_school_issued": {
       "item_id": "diaper_school_issued",
@@ -2148,7 +2460,8 @@
       "childish": 10,
       "bulk": 4,
       "is_diaper": true,
-      "cursed": true
+      "cursed": true,
+      "rarity": "uncommon"
     },
     "enchanted_blankie": {
       "item_id": "enchanted_blankie",
@@ -2159,7 +2472,8 @@
       "def": 3,
       "hp_restore": 0,
       "value": 22,
-      "childish": 10
+      "childish": 10,
+      "rarity": "uncommon"
     },
     "enchanted_diaper": {
       "item_id": "enchanted_diaper",
@@ -2177,7 +2491,8 @@
       "value": 18,
       "childish": 10,
       "bulk": 3,
-      "is_diaper": true
+      "is_diaper": true,
+      "rarity": "rare"
     },
     "foam_mallet": {
       "item_id": "foam_mallet",
@@ -2189,7 +2504,8 @@
       "def": 0,
       "hp_restore": 0,
       "value": 10,
-      "childish": 9
+      "childish": 9,
+      "rarity": "common"
     },
     "ghost_bloomers": {
       "item_id": "ghost_bloomers",
@@ -2205,45 +2521,20 @@
       "childish": 8,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "is_bloomers": true
+      "is_bloomers": true,
+      "rarity": "common"
     },
     "ghostly_onesie": {
       "item_id": "ghostly_onesie",
       "category": "torso",
       "name": "Ghostly Onesie",
-      "desc": "A translucent onesie that phases in and out of visibility. Spooky AND embarrassing. +3 DEF. The lining is always faintly, unpleasantly damp.",
+      "desc": "A translucent onesie that phases in and out of visibility. Spooky AND embarrassing. +3 DEF.",
       "atk": 0,
       "def": 3,
       "hp_restore": 0,
       "value": 25,
       "childish": 10,
-      "magical_effects": [
-        {
-          "effect_id": "clammy_lining",
-          "enabled": true,
-          "trigger_mode": "step",
-          "proc_min": 114,
-          "proc_max": 250,
-          "chance_percent": 80,
-          "cooldown": 16,
-          "popup_title": "",
-          "popup_text": "",
-          "popup_lines": [],
-          "log_text": "{item}'s lining goes clammy: Wet +6.",
-          "narrative_chunk": "",
-          "movement_lock": false,
-          "lock_prompt_min": 4,
-          "lock_prompt_max": 8,
-          "lock_release_chance": 35,
-          "lock_title": "Constricted!",
-          "lock_text": "You struggle against {item}...",
-          "content_pass": "cursed_blessed_pass_v1",
-          "alignment": "haunted",
-          "stat_delta": {
-            "wet": 6
-          }
-        }
-      ]
+      "rarity": "rare"
     },
     "goblin_plug": {
       "item_id": "goblin_plug",
@@ -2257,49 +2548,20 @@
       "wet_resist": -1,
       "value": 0,
       "childish": 8,
-      "cursed": true
+      "cursed": true,
+      "rarity": "uncommon"
     },
     "goblin_rattle": {
       "item_id": "goblin_rattle",
       "category": "weapon",
       "name": "Goblin Baby Rattle",
-      "desc": "An oversized rattle painted with goblins. Every swing makes humiliating rattling noises. Deals 4 damage. It giggles. You wish it would not.",
+      "desc": "An oversized rattle painted with goblins. Every swing makes humiliating rattling noises. Deals 4 damage.",
       "atk": 4,
       "def": 0,
       "hp_restore": 0,
       "value": 0,
       "childish": 10,
-      "magical_effects": [
-        {
-          "effect_id": "giggling_curse",
-          "enabled": true,
-          "trigger_mode": "step",
-          "proc_min": 173,
-          "proc_max": 306,
-          "chance_percent": 90,
-          "cooldown": 24,
-          "popup_title": "Giggling Curse",
-          "popup_text": "",
-          "popup_lines": [
-            "{item} lets out a high, delighted giggle and will not stop for a good while.",
-            "{item} laughs at {name} - properly laughs - and everyone nearby hears it."
-          ],
-          "log_text": "{item} giggles: Shame -16.",
-          "narrative_chunk": "",
-          "movement_lock": false,
-          "lock_prompt_min": 4,
-          "lock_prompt_max": 8,
-          "lock_release_chance": 35,
-          "lock_title": "Constricted!",
-          "lock_text": "You struggle against {item}...",
-          "content_pass": "cursed_blessed_pass_v1",
-          "alignment": "cursed",
-          "stat_delta": {
-            "shame": -16
-          }
-        }
-      ],
-      "cursed": true
+      "rarity": "common"
     },
     "hair_bow": {
       "item_id": "hair_bow",
@@ -2310,7 +2572,8 @@
       "def": 0,
       "hp_restore": 0,
       "value": 5,
-      "childish": 8
+      "childish": 8,
+      "rarity": "common"
     },
     "hospital_booties": {
       "item_id": "hospital_booties",
@@ -2321,7 +2584,8 @@
       "def": 0,
       "hp_restore": 0,
       "value": 1,
-      "childish": 5
+      "childish": 5,
+      "rarity": "common"
     },
     "hospital_gown": {
       "item_id": "hospital_gown",
@@ -2333,7 +2597,8 @@
       "hp_restore": 0,
       "value": 2,
       "childish": 3,
-      "conceals_panties": false
+      "conceals_panties": false,
+      "rarity": "common"
     },
     "lockable_bloomers": {
       "item_id": "lockable_bloomers",
@@ -2348,50 +2613,20 @@
       "cursed": true,
       "conceals_panties": true,
       "bulk_threshold": 4,
-      "is_bloomers": true
+      "is_bloomers": true,
+      "rarity": "common"
     },
     "locking_bib": {
       "item_id": "locking_bib",
       "category": "torso",
       "name": "Locking Feeder Bib",
-      "desc": "A heavy-duty bib with a magnetic clasp the NannyBots use for feeding. It clips around the neck and covers the front. Drool-resistant. DEF +1. The hem never stays where you put it.",
+      "desc": "A heavy-duty bib with a magnetic clasp the NannyBots use for feeding. It clips around the neck and covers the front. Drool-resistant. DEF +1.",
       "atk": 0,
       "def": 1,
       "hp_restore": 0,
       "value": 0,
       "childish": 10,
-      "cursed": true,
-      "magical_effects": [
-        {
-          "effect_id": "creeping_hem",
-          "enabled": true,
-          "trigger_mode": "step",
-          "proc_min": 148,
-          "proc_max": 245,
-          "chance_percent": 85,
-          "cooldown": 20,
-          "popup_title": "Creeping Hem",
-          "popup_text": "",
-          "popup_lines": [
-            "The hem of {item} climbs by itself, and {name} spends the next minute tugging it back down.",
-            "{item} rides up at exactly the worst moment, as though it planned it."
-          ],
-          "log_text": "{item} rides up: Shame -10, Excitement +6.",
-          "narrative_chunk": "",
-          "movement_lock": false,
-          "lock_prompt_min": 4,
-          "lock_prompt_max": 8,
-          "lock_release_chance": 35,
-          "lock_title": "Constricted!",
-          "lock_text": "You struggle against {item}...",
-          "content_pass": "cursed_blessed_pass_v1",
-          "alignment": "cursed",
-          "stat_delta": {
-            "shame": -10,
-            "excitement": 6
-          }
-        }
-      ]
+      "rarity": "common"
     },
     "mary_janes": {
       "item_id": "mary_janes",
@@ -2402,7 +2637,8 @@
       "def": 0,
       "hp_restore": 0,
       "value": 7,
-      "childish": 8
+      "childish": 8,
+      "rarity": "common"
     },
     "max_absorbency_diaper": {
       "item_id": "max_absorbency_diaper",
@@ -2421,7 +2657,8 @@
       "childish": 10,
       "bulk": 4,
       "is_diaper": true,
-      "cursed": false
+      "cursed": false,
+      "rarity": "uncommon"
     },
     "medical_wristband": {
       "item_id": "medical_wristband",
@@ -2463,7 +2700,8 @@
             "incontinence": 1
           }
         }
-      ]
+      ],
+      "rarity": "common"
     },
     "mushroom_plug": {
       "item_id": "mushroom_plug",
@@ -2476,7 +2714,8 @@
       "tum_resist": 8,
       "wet_resist": -2,
       "value": 14,
-      "childish": 6
+      "childish": 6,
+      "rarity": "rare"
     },
     "nighttime_diaper": {
       "item_id": "nighttime_diaper",
@@ -2494,7 +2733,8 @@
       "value": 8,
       "childish": 10,
       "bulk": 4,
-      "is_diaper": true
+      "is_diaper": true,
+      "rarity": "rare"
     },
     "nursery_booties": {
       "item_id": "nursery_booties",
@@ -2505,7 +2745,8 @@
       "def": 2,
       "hp_restore": 0,
       "value": 7,
-      "childish": 10
+      "childish": 10,
+      "rarity": "common"
     },
     "nursery_coverall": {
       "item_id": "nursery_coverall",
@@ -2516,7 +2757,8 @@
       "def": 2,
       "hp_restore": 0,
       "value": 12,
-      "childish": 10
+      "childish": 10,
+      "rarity": "uncommon"
     },
     "nursery_nappy": {
       "item_id": "nursery_nappy",
@@ -2534,46 +2776,20 @@
       "value": 3,
       "childish": 10,
       "bulk": 2,
-      "is_diaper": true
+      "is_diaper": true,
+      "rarity": "uncommon"
     },
     "onesie": {
       "item_id": "onesie",
       "category": "torso",
       "name": "Snuggle Onesie",
-      "desc": "Soft padding adds +2 DEF. It holds warmth the way a hug does.",
+      "desc": "Soft padding adds +2 DEF.",
       "atk": 0,
       "def": 2,
       "hp_restore": 0,
       "value": 15,
       "childish": 10,
-      "magical_effects": [
-        {
-          "effect_id": "warm_weave",
-          "enabled": true,
-          "trigger_mode": "step",
-          "proc_min": 118,
-          "proc_max": 232,
-          "chance_percent": 85,
-          "cooldown": 18,
-          "popup_title": "",
-          "popup_text": "",
-          "popup_lines": [],
-          "log_text": "{item} warms you through: HP +6.",
-          "narrative_chunk": "",
-          "movement_lock": false,
-          "lock_prompt_min": 4,
-          "lock_prompt_max": 8,
-          "lock_release_chance": 35,
-          "lock_title": "Constricted!",
-          "lock_text": "You struggle against {item}...",
-          "content_pass": "cursed_blessed_pass_v1",
-          "alignment": "blessed",
-          "stat_delta": {
-            "health": 6
-          }
-        }
-      ],
-      "blessed": true
+      "rarity": "uncommon"
     },
     "pacifier": {
       "item_id": "pacifier",
@@ -2585,7 +2801,8 @@
       "hp_restore": 0,
       "hp_regen": 1,
       "value": 10,
-      "childish": 9
+      "childish": 9,
+      "rarity": "uncommon"
     },
     "pacifier_necklace": {
       "item_id": "pacifier_necklace",
@@ -2598,7 +2815,8 @@
       "hp_regen": 0,
       "wet_resist": 0,
       "value": 5,
-      "childish": 10
+      "childish": 10,
+      "rarity": "common"
     },
     "patient_pacifier": {
       "item_id": "patient_pacifier",
@@ -2633,7 +2851,8 @@
             "health": 50
           }
         }
-      ]
+      ],
+      "rarity": "common"
     },
     "potty_pants": {
       "item_id": "potty_pants",
@@ -2646,7 +2865,8 @@
       "value": 6,
       "childish": 10,
       "conceals_panties": true,
-      "bulk_threshold": 3
+      "bulk_threshold": 3,
+      "rarity": "common"
     },
     "printed_diaper": {
       "item_id": "printed_diaper",
@@ -2664,7 +2884,8 @@
       "value": 7,
       "childish": 10,
       "bulk": 3,
-      "is_diaper": true
+      "is_diaper": true,
+      "rarity": "rare"
     },
     "printed_diaper_auto": {
       "item_id": "printed_diaper_auto",
@@ -2682,7 +2903,8 @@
       "value": 4,
       "childish": 10,
       "bulk": 3,
-      "is_diaper": true
+      "is_diaper": true,
+      "rarity": "uncommon"
     },
     "ruffle_socks": {
       "item_id": "ruffle_socks",
@@ -2693,7 +2915,8 @@
       "def": 0,
       "hp_restore": 0,
       "value": 4,
-      "childish": 9
+      "childish": 9,
+      "rarity": "common"
     },
     "safety_helmet": {
       "item_id": "safety_helmet",
@@ -2704,7 +2927,8 @@
       "def": 3,
       "hp_restore": 0,
       "value": 8,
-      "childish": 8
+      "childish": 8,
+      "rarity": "uncommon"
     },
     "sensor_cap": {
       "item_id": "sensor_cap",
@@ -2717,7 +2941,8 @@
       "wet_resist": -2,
       "value": 0,
       "childish": 10,
-      "cursed": true
+      "cursed": true,
+      "rarity": "common"
     },
     "thick_medical_diaper": {
       "item_id": "thick_medical_diaper",
@@ -2736,51 +2961,21 @@
       "tum_resist": 0,
       "atk_mod": 0,
       "def_mod": 0,
-      "dex_mod": -2
+      "dex_mod": -2,
+      "rarity": "uncommon"
     },
     "wet_moss_boots": {
       "item_id": "wet_moss_boots",
       "category": "shoes",
       "name": "Wet Moss Boots",
-      "desc": "Boots grown from living moss. Always slightly damp. +2 DEF but -1 Wet Resist. They dance a little when nobody is watching.",
+      "desc": "Boots grown from living moss. Always slightly damp. +2 DEF but -1 Wet Resist.",
       "atk": 0,
       "def": 2,
       "hp_restore": 0,
       "wet_resist": -1,
       "value": 15,
       "childish": 4,
-      "magical_effects": [
-        {
-          "effect_id": "dancing_soles",
-          "enabled": true,
-          "trigger_mode": "step",
-          "proc_min": 138,
-          "proc_max": 283,
-          "chance_percent": 70,
-          "cooldown": 22,
-          "popup_title": "Dancing Soles",
-          "popup_text": "",
-          "popup_lines": [
-            "{item} taps out three cheerful beats and {name} cannot help grinning.",
-            "Something bright and silly runs up through {item} and {name}'s whole day improves."
-          ],
-          "log_text": "{item} dances: Shame +10, Stamina +5.",
-          "narrative_chunk": "",
-          "movement_lock": false,
-          "lock_prompt_min": 4,
-          "lock_prompt_max": 8,
-          "lock_release_chance": 35,
-          "lock_title": "Constricted!",
-          "lock_text": "You struggle against {item}...",
-          "content_pass": "cursed_blessed_pass_v1",
-          "alignment": "blessed",
-          "stat_delta": {
-            "shame": 10,
-            "stamina": 5
-          }
-        }
-      ],
-      "blessed": true
+      "rarity": "uncommon"
     }
   }
 }

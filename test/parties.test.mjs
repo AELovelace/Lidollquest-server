@@ -30,6 +30,16 @@ function recoveringParty(f){ // One member loses while the survivor finishes the
  return f.snap('bob').character.pendingDefeat;
 }
 
+test('banked stat points survive party travel and do not block shared fights',()=>{
+ const f=fixture();try{
+  for(const name of ['alice','bob']){f.player(name);const l=f.loadout();l.player_info.stat_points=6;f.act(name,'loadout',{loadout:l});}
+  f.join('bob');f.act('alice','dive_enter',{zone:'dive-quarters'});
+  const fight=f.engage();assert.equal(fight.encounter.players.length,2);
+  for(const name of ['alice','bob'])assert.equal(f.snap(name).character.loadout.player_info.stat_points,6);
+  f.restart();assert.equal(f.snap('alice').character.loadout.player_info.stat_points,6);
+ }finally{f.close();}
+});
+
 test('shared defeat outfits affect only the losing member and survive stale re-entry and receipt replay',()=>{
  const f=fixture();try{
   f.player('alice');f.player('bob');f.join('bob');f.act('alice','dive_enter',{zone:'dive-quarters'});

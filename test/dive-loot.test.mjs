@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createDiveLootRoller} from '../server/dive-loot.mjs';
 import {seeded} from '../server/dive-generation.mjs';
+import {createEnchanter} from '../server/enchantment.mjs';
 const catalog=name=>JSON.parse(readFileSync(new URL('../server/'+name,import.meta.url),'utf8'));
 const routes=[catalog('dive-data.json'),catalog('desert-data.json'),catalog('tundra-data.json'),...catalog('campaign-dives-data.json').routes];
 const plain=item=>item.category==='panties'&&!item.is_diaper;
@@ -10,6 +11,7 @@ function original(data,edition,character,chest){
  const rnd=seeded(`${data.config.route}:${edition}:1:${character}:${chest.id}`),pool=chest.kind==='food'?data.food_pool:chest.kind==='potion'?data.potion_pool:(data.item_pool??Object.keys(data.items).sort());
  const item=structuredClone(data.items[pool[rnd(pool.length)]]);
  if(item.atk_min!==undefined){item.atk=item.atk_min+rnd(item.atk_max-item.atk_min+1);if(typeof item.desc==='string')item.desc=item.desc.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}
+ createEnchanter(data.enchantments)(item,`${data.config.route}:${edition}:1:${character}:${chest.id}`); // The curse/blessing roll is part of the loot contract, not a mutation of it.
  return item;
 }
 test('nine online routes cap panties across chests and pickups, replacing only extra panty rolls',()=>{

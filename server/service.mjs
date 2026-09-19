@@ -6,6 +6,8 @@ import {createCharacterManagement} from './character-management.mjs';
 import {DAILY_COIN_CAP} from './hubs.mjs';
 import {createOnlineFeed} from './online-feed.mjs';
 import {createGameMasterPanel} from './gm.mjs';
+import {createEnchantmentStore} from './enchantment-store.mjs';
+import {diveData} from './dive.mjs';
 import {createPerformanceMonitor} from './performance.mjs';
 
 export function createQuestService({filename=':memory:',walletClient,now=Date.now,roll,log=console.warn,performanceOptions={},onlineToken=process.env.MOMMYBOT_ONLINE_TOKEN||'',gmAllow=process.env.LIDOLLQUEST_GM_ALLOW||'',gmEnabled=process.env.LIDOLLQUEST_GM_ENABLED!=='false',gmTrustProxy=process.env.LIDOLLQUEST_GM_TRUST_PROXY||'',gmRequireTls=process.env.LIDOLLQUEST_GM_REQUIRE_TLS==='true'}={}){
@@ -16,7 +18,7 @@ export function createQuestService({filename=':memory:',walletClient,now=Date.no
  let identity=null; // The simulation below is synchronous; the HTTP layer never awaits while this identity is in use.
  const onlineFeed=createOnlineFeed(db,{token:onlineToken,now});
  const metrics=createPerformanceMonitor(db,{log,...performanceOptions}); // Use real elapsed time even when a gameplay test supplies a simulated world clock.
- const gm=createGameMasterPanel(db,{walletClient,performanceSnapshot:metrics.snapshot,allow:gmAllow,trustProxy:gmTrustProxy,requireTls:gmRequireTls,enabled:gmEnabled,now,log}); // Staff moderation owns its own tables and never touches wallet credentials.
+ const gm=createGameMasterPanel(db,{walletClient,performanceSnapshot:metrics.snapshot,enchantments:createEnchantmentStore(db,{now}),enchantmentTable:()=>diveData.enchantments,allow:gmAllow,trustProxy:gmTrustProxy,requireTls:gmRequireTls,enabled:gmEnabled,now,log}); // Staff moderation owns its own tables and never touches wallet credentials.
  const zones=createQuestZones(db,{now,roll,measure:metrics.measure,onPresence:onlineFeed.record,enabled:owner=>!gm.suspended(owner),muted:gm.muted,grant:()=>{if(!identity)throw Error('Missing request identity');return identity;},wallet:owner=>({coins:db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(owner)?.coins??0}),adjust:(owner,asset,amount,id,reason)=>{
   if(asset!=='coins'||!Number.isSafeInteger(amount)||amount<1||amount>DAILY_COIN_CAP)throw Error('Invalid server award'); // A single entitlement can never exceed one day's whole allowance.
   db.prepare('INSERT INTO reward_outbox(id,owner,amount,reason) VALUES (?,?,?,?)').run(id,owner,amount,reason);

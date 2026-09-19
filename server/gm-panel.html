@@ -51,6 +51,16 @@ tr.sel td{background:#2c1e3d}
 .usercode{font-family:ui-monospace,Consolas,monospace;font-size:30px;letter-spacing:4px;color:var(--mint);margin:14px 0}
 .gate a{color:var(--rose)}
 #who{font-size:12px;color:var(--dim)}
+.ench{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-bottom:10px}
+.ench label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim);margin-bottom:3px}
+.ench input,.ench select{width:100%}
+.slots{display:flex;flex-wrap:wrap;gap:4px 12px;margin:4px 0 10px}
+.slots label{font-size:12px;color:var(--ink);text-transform:none;letter-spacing:0}
+.ench-form{border-top:1px solid var(--edge);margin-top:12px;padding-top:12px}
+.ench-form textarea{width:100%;font:inherit;color:var(--ink);background:#1b1226;border:1px solid var(--edge);border-radius:6px;padding:6px 9px}
+.curve{font-family:ui-monospace,Consolas,monospace;font-size:12px;white-space:pre;color:var(--mint);background:#1b1226;border:1px solid var(--edge);border-radius:8px;padding:8px;overflow-x:auto}
+.src{font-size:11px;color:var(--dim)}
+.src.custom{color:var(--mint)}.src.edited{color:var(--amber)}.src.retired{color:var(--red)}
 .scroll{overflow-x:auto}.perf-chart{display:block;width:100%;height:190px;background:#1b1226;border-radius:8px}.perf-chart text{fill:var(--dim);font-size:12px}.perf-chart .grid{stroke:var(--edge);stroke-width:1}.perf-chart .cpu{stroke:var(--mint);fill:none;stroke-width:2}.perf-chart .loop{stroke:var(--rose);fill:none;stroke-width:2}
 </style>
 </head>
@@ -143,6 +153,86 @@ tr.sel td{background:#2c1e3d}
       <button class="go" id="cast">Announce</button>
     </div>
     <p class="note">Announcements post as an activity line, which clients already render apart from player speech.</p>
+  </section>
+
+  <section class="wide">
+    <h2>RP journal</h2>
+    <p class="note">Review shared narratives before awarding a level. First target: 1,000 words; +500 per RP level awarded. Only the author's writing counts. Any character level-up resets the current writing window; lifetime totals remain.</p>
+    <div class="row"><label for="rpCharacter">Character</label><select id="rpCharacter"><option value="">Everyone</option></select><input id="rpSearch" class="grow" placeholder="Search author, partner, area, or narrative"><button id="rpLoad">Search</button></div>
+    <div id="rpProgress"></div><div id="rpPosts" class="log" style="max-height:650px"></div>
+    <div class="row"><button id="rpPrevious">Previous</button><span id="rpPage"></span><button id="rpNext">Next</button></div>
+    <details><summary>Recent RP level awards</summary><div id="rpAwards" class="log"></div></details>
+  </section>
+  <section class="wide">
+    <h2>RPP gifts and purchases</h2>
+    <p class="note">RPP belongs to each character separately and buys permanent spells or passive abilities. Gifts do not change ordinary RP word-count level eligibility.</p>
+    <div class="row"><label for="rppCharacter">Character</label><select id="rppCharacter"></select><button id="rppLoad">Refresh RPP</button><span id="rppBalance"></span></div>
+    <div class="row"><label for="rppAmount">Gift amount</label><input id="rppAmount" type="number" min="1" max="1000000" step="1" value="5" style="width:110px"><input id="rppReason" class="grow" maxlength="240" placeholder="Reason for this gift"><button class="go" id="rppGift">Gift RPP</button></div>
+    <p id="rppStatus" role="status"></p>
+    <div id="rppLedger" class="log"></div>
+  </section>
+  <section class="wide" aria-labelledby="enchHeading">
+    <h2 id="enchHeading">Curses &amp; blessings</h2>
+    <p class="note">Every dropped copy of an item rolls against two rarity-scaled ramps: the curse chance falls as rarity rises, the blessing chance climbs. Edits here reach the next chest on every dive route without a restart. Loot a player already holds keeps the roll it was given.</p>
+    <div class="row"><b id="enchCounts" class="mono"></b><button id="enchReload">Reload</button><button id="enchResetTuning">Reset rates</button><button class="bad" id="enchResetAll">Reset everything</button></div>
+
+    <h2 style="margin-top:14px">Rates</h2>
+    <div class="ench" id="enchTuning"></div>
+    <p id="enchCurve" class="curve"></p>
+    <div class="row"><input id="enchTuneReason" class="grow" maxlength="240" placeholder="Why this retune (recorded in the audit log)"><button class="go" id="enchTuneSave">Apply rates</button></div>
+
+    <h2 style="margin-top:14px">The table</h2>
+    <div class="row">
+      <select id="enchFilter"><option value="">Everything</option><option value="curse">Curses</option><option value="blessing">Blessings</option><option value="retired">Retired</option></select>
+      <input id="enchSearch" class="grow" placeholder="Search id, name or slot" maxlength="60">
+      <button class="go" id="enchNew">Write a new one</button>
+    </div>
+    <div class="scroll"><table><thead><tr><th>Name</th><th>Kind</th><th>Slots</th><th>Rarity band</th><th>Weight</th><th>Source</th><th></th></tr></thead><tbody id="enchList"></tbody></table></div>
+    <p id="enchEmpty" class="empty" hidden>Nothing matches that filter.</p>
+
+    <div id="enchEditor" class="ench-form" hidden>
+      <h2 id="enchEditorTitle">Edit enchantment</h2>
+      <div class="ench">
+        <div><label for="eId">Id</label><input id="eId" maxlength="48" placeholder="lowercase_with_underscores"></div>
+        <div><label for="eName">Display name</label><input id="eName" maxlength="60"></div>
+        <div><label for="eAlignment">Kind</label><select id="eAlignment"><option value="curse">Curse</option><option value="blessing">Blessing</option></select></div>
+        <div><label for="eFamily">Prose family</label><input id="eFamily" maxlength="24" placeholder="CUSTOM"></div>
+        <div><label for="eWeight">Pick weight</label><input id="eWeight" type="number" min="0.1" max="1000" step="0.1"></div>
+        <div><label for="eMin">Min rarity (0-1)</label><input id="eMin" type="number" min="0" max="1" step="0.01"></div>
+        <div><label for="eMax">Max rarity (0-1)</label><input id="eMax" type="number" min="0" max="1" step="0.01"></div>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" id="eSticky"> Sticky (needs the Cursed Altar; curses only)</label>
+        <label><input type="checkbox" id="eEnabled" checked> Enabled</label>
+      </div>
+      <label class="src">Slots it may roll onto</label>
+      <div class="slots" id="eSlots"></div>
+      <div class="ench">
+        <div style="grid-column:1/-1"><label for="eHint">Description hint appended to the item</label><input id="eHint" maxlength="240"></div>
+      </div>
+
+      <h2 style="margin-top:12px">The effect it installs</h2>
+      <div class="ench">
+        <div><label for="eTrigger">Trigger</label><select id="eTrigger"><option value="step">Every N steps</option><option value="time">Every N seconds</option></select></div>
+        <div><label for="eProcMin">Proc min</label><input id="eProcMin" type="number" min="30" step="1"></div>
+        <div><label for="eProcMax">Proc max</label><input id="eProcMax" type="number" min="30" step="1"></div>
+        <div><label for="eChance">Proc chance %</label><input id="eChance" type="number" min="0" max="100" step="1"></div>
+        <div><label for="eCooldown">Cooldown</label><input id="eCooldown" type="number" min="0" step="1"></div>
+        <div style="grid-column:1/-1"><label for="eTitle">Popup title (blank = log line only)</label><input id="eTitle" maxlength="80"></div>
+        <div style="grid-column:1/-1"><label for="eLog">Log line</label><input id="eLog" maxlength="240"></div>
+      </div>
+      <label class="src" for="eLines">Popup lines, one per line. {item} and {name} are substituted.</label>
+      <textarea id="eLines" rows="4"></textarea>
+      <label class="src" style="margin-top:8px;display:block">Stat change per proc</label>
+      <div class="ench" id="eDelta"></div>
+      <div class="row"><label><input type="checkbox" id="eLock"> Movement lock (traps the player until they struggle free)</label></div>
+      <div class="ench" id="eLockFields">
+        <div><label for="eLockTitle">Lock title</label><input id="eLockTitle" maxlength="80"></div>
+        <div><label for="eLockRelease">Release chance %</label><input id="eLockRelease" type="number" min="5" max="100" step="1"></div>
+        <div style="grid-column:1/-1"><label for="eLockText">Lock text</label><input id="eLockText" maxlength="400"></div>
+      </div>
+      <div class="row"><input id="eReason" class="grow" maxlength="240" placeholder="Why (recorded in the audit log)"><button class="go" id="eSave">Save enchantment</button><button id="eCancel">Cancel</button></div>
+    </div>
   </section>
 
   <section>
@@ -403,6 +493,267 @@ tr.sel td{background:#2c1e3d}
   api("/gm/chat?limit="+encodeURIComponent(limit)+(zone?"&zone="+encodeURIComponent(zone):"")).then(renderChat).catch(function(error){say("err",error.message);});
  }
 
+ var rppCharacters=[],pendingGift=null,rppBusy=false,rppEpoch=0;
+ function loadRpp(){
+  var epoch=++rppEpoch,session=perfEpoch,selected=$("rppCharacter").value;
+  return api("/gm/rpp?character="+encodeURIComponent(selected)).then(function(data){
+   if(epoch!==rppEpoch||session!==perfEpoch||!token)return;
+   rppCharacters=data.characters;clear($("rppCharacter"));data.characters.forEach(function(c){var option=el("option",null,c.name+" · "+short(c.id));option.value=c.id;$("rppCharacter").appendChild(option);});
+   if(data.characters.some(function(c){return c.id===selected;}))$("rppCharacter").value=selected;
+   var chosen=data.characters.find(function(c){return c.id===$("rppCharacter").value;});$("rppBalance").textContent=chosen?chosen.balance+" RPP":"No characters yet";
+   clear($("rppLedger"));data.ledger.forEach(function(entry){$("rppLedger").appendChild(el("p",null,when(entry.created)+" · "+(entry.name||entry.character_id)+" · "+(entry.amount>0?"+":"")+entry.amount+" RPP · balance "+entry.balance+" · "+entry.reason+(entry.kind==="gift"?" · staff "+short(entry.actor):"")));});
+  }).catch(function(error){say("err",error.message);});
+ }
+ $("rppLoad").addEventListener("click",loadRpp);$("rppCharacter").addEventListener("change",loadRpp);
+ $("rppGift").addEventListener("click",function(){
+  if(rppBusy)return;
+  if(!pendingGift){var amount=Number($("rppAmount").value),reason=$("rppReason").value.trim();if(!$("rppCharacter").value||!Number.isSafeInteger(amount)||amount<1||amount>1000000||!reason){$("rppStatus").textContent="Choose a character, positive whole amount and review note.";return;}pendingGift={action:"rpp_gift",character_id:$("rppCharacter").value,amount:amount,reason:reason,request_id:crypto.randomUUID()};}
+  rppBusy=true;["rppGift","rppCharacter","rppAmount","rppReason"].forEach(function(id){$(id).disabled=true;});$("rppStatus").textContent="Saving gift...";
+  api("/gm/action",{method:"POST",body:pendingGift}).then(function(response){$("rppStatus").textContent="Gift recorded: +"+response.result.amount+" RPP. Balance: "+response.result.balance+" RPP.";pendingGift=null;$("rppReason").value="";loadRpp();refresh();}).catch(function(error){
+   if(error.status>=400&&error.status<500&&error.status!==408&&error.status!==429)pendingGift=null;
+   $("rppStatus").textContent=error.message+(pendingGift?" Retry Gift RPP to check this same gift safely.":"");
+  }).finally(function(){rppBusy=false;$("rppGift").disabled=false;["rppCharacter","rppAmount","rppReason"].forEach(function(id){$(id).disabled=!!pendingGift;});});
+ }); // An uncertain HTTP response retains the same request ID and amount instead of risking a duplicate gift.
+
+ var rpPage=0,rpEpoch=0;
+ function loadRp(){
+  var epoch=++rpEpoch,session=perfEpoch,character=$("rpCharacter").value;
+  return api("/gm/rp?page="+rpPage+"&character="+encodeURIComponent(character)+"&search="+encodeURIComponent($("rpSearch").value)).then(function(data){
+   if(epoch!==rpEpoch||session!==perfEpoch||!token)return;
+   clear($("rpCharacter"));var all=el("option",null,"Everyone");all.value="";$("rpCharacter").appendChild(all);
+   data.characters.forEach(function(c){var option=el("option",null,c.name+" · level "+c.level+(c.eligible?" · ready for review":""));option.value=c.id;$("rpCharacter").appendChild(option);});$("rpCharacter").value=character;
+   clear($("rpProgress"));
+   data.characters.filter(function(c){return !character||c.id===character;}).forEach(function(c){
+    var row=el("div","row"),label=el("span","grow",c.name+": "+c.level_words+" / "+c.target+" words this level · "+c.level_chars+" characters since level-up · "+c.total_words+" lifetime words · "+c.total_chars+" lifetime characters · "+c.awards+" RP levels");row.appendChild(label);
+    var award=el("button","go","Award one level");award.disabled=!c.eligible;award.addEventListener("click",function(){var reason=prompt("Review note for "+c.name+"'s RP level:");if(!reason)return;award.disabled=true;act("rp_award",{character_id:c.id,expected_awards:c.awards,expected_level:c.level,reason:reason},"RP level awarded.").then(loadRp).catch(function(){award.disabled=false;});});row.appendChild(award);$("rpProgress").appendChild(row);
+   });
+   clear($("rpPosts"));if(!data.posts.length)$("rpPosts").appendChild(el("p","empty","No RP posts match this search."));
+   data.posts.forEach(function(p){var entry=el("details"),heading=el("summary",null,p.name+" with "+p.partners.map(function(m){return m.name;}).join(", ")+" · "+p.words+" words · "+p.chars+" characters · "+when(p.created));entry.appendChild(heading);entry.appendChild(el("p","note",p.area+" · post #"+p.id));var text=el("div",null,p.text);text.style.whiteSpace="pre-wrap";text.style.overflowWrap="anywhere";entry.appendChild(text);$("rpPosts").appendChild(entry);}); // textContent keeps narratives inert even when they contain HTML.
+   $("rpPage").textContent="Page "+(data.page+1)+" · "+data.total+" posts";$("rpPrevious").disabled=data.page===0;$("rpNext").disabled=(data.page+1)*25>=data.total;
+   clear($("rpAwards"));data.awards.forEach(function(a){$("rpAwards").appendChild(el("p",null,when(a.created)+" · "+a.character_id+" · level "+a.from_level+" → "+a.to_level+" · "+a.words+" words / "+a.target+" target · reviewed by "+a.actor+": "+a.reason));});
+  }).catch(function(error){say("err",error.message);});
+ } // Server pagination and author/partner filtering keep the journal useful as the archive grows.
+ $("rpLoad").addEventListener("click",function(){rpPage=0;loadRp();});
+ $("rpCharacter").addEventListener("change",function(){rpPage=0;loadRp();});
+ $("rpSearch").addEventListener("keydown",function(e){if(e.key==="Enter"){rpPage=0;loadRp();}});
+ $("rpPrevious").addEventListener("click",function(){rpPage=Math.max(0,rpPage-1);loadRp();});
+ $("rpNext").addEventListener("click",function(){rpPage++;loadRp();});
+
+ // ---- Curses & blessings -------------------------------------------------
+ var ench=null,enchEditing=null; // The live table as the panel last read it.
+
+ function enchNumber(id){var raw=$(id).value.trim();return raw===""?null:Number(raw);}
+
+ function renderEnchTuning(){
+  var host=$("enchTuning");clear(host);
+  ench.tuningKeys.forEach(function(key){
+   var bounds=ench.bounds[key]||[0,100],wrap=el("div");
+   var label=el("label",null,key.replace(/_/g," "));label.setAttribute("for","tune_"+key);
+   var input=el("input");input.id="tune_"+key;input.type="number";input.step="any";
+   input.min=String(bounds[0]);input.max=String(bounds[1]);
+   input.value=String(ench.tuning[key]!==undefined?ench.tuning[key]:"");
+   input.addEventListener("input",renderEnchCurve);
+   wrap.appendChild(label);wrap.appendChild(input);host.appendChild(wrap);
+  });
+  renderEnchCurve();
+ }
+
+ // Representative score per tier: the midpoint of each tier's band. Needs no item
+ // data, so the operator can see the shape of a change before applying it.
+ function tierScores(){
+  var tiers=(ench.tuning.rarity_tiers||[{name:"common",min_score:0}]),out=[];
+  for(var i=0;i<tiers.length;i++){
+   var lo=Number(tiers[i].min_score)||0,hi=i+1<tiers.length?Number(tiers[i+1].min_score):1;
+   out.push({name:tiers[i].name,score:(lo+hi)/2});
+  }
+  return out;
+ }
+
+ function renderEnchCurve(){
+  var lo=enchNumber("tune_curse_chance_low_rarity"),hi=enchNumber("tune_curse_chance_high_rarity");
+  var blo=enchNumber("tune_bless_chance_low_rarity"),bhi=enchNumber("tune_bless_chance_high_rarity");
+  if(lo===null||hi===null||blo===null||bhi===null){$("enchCurve").textContent="";return;}
+  var lines=["tier          cursed  blessed     any"],falling=true,previous=null;
+  tierScores().forEach(function(tier){
+   var c=lo+(hi-lo)*tier.score,b=blo+(bhi-blo)*tier.score;
+   if(previous!==null&&c>previous+0.05)falling=false;
+   previous=c;
+   lines.push((tier.name+"           ").slice(0,12)+("     "+c.toFixed(1)+"%").slice(-8)+("     "+b.toFixed(1)+"%").slice(-9)+("    "+(c+b).toFixed(1)+"%").slice(-8));
+  });
+  lines.push(falling?"curse chance falls as rarity rises: YES":"WARNING: curse chance does not fall as rarity rises");
+  $("enchCurve").textContent=lines.join("\n");
+ }
+
+ function renderEnchList(){
+  var filter=$("enchFilter").value,query=$("enchSearch").value.toLowerCase().trim();
+  var body=$("enchList");clear(body);var shown=0;
+  ench.entries.forEach(function(entry){
+   if(filter==="retired"&&!entry.retired)return;
+   if((filter==="curse"||filter==="blessing")&&(entry.retired||entry.alignment!==filter))return;
+   if(!filter&&entry.retired)return;
+   var hay=(entry.id+" "+entry.name+" "+entry.slots.join(" ")).toLowerCase();
+   if(query&&hay.indexOf(query)<0)return;
+   shown++;
+   var tr=el("tr");
+   var name=el("td");name.appendChild(el("span",null,entry.name||entry.id));
+   if(entry.sticky)name.appendChild(el("span","tag susp","sticky"));
+   if(entry.effect&&entry.effect.movement_lock)name.appendChild(el("span","tag fight","lock"));
+   if(entry.enabled===false&&!entry.retired)name.appendChild(el("span","tag mute","off"));
+   name.appendChild(el("div","mono",entry.id));
+   tr.appendChild(name);
+   tr.appendChild(el("td",null,entry.alignment==="curse"?"curse":"blessing"));
+   tr.appendChild(el("td",null,entry.slots.join(", ")));
+   tr.appendChild(el("td",null,Number(entry.min_score).toFixed(2)+" - "+Number(entry.max_score).toFixed(2)));
+   tr.appendChild(el("td",null,String(entry.weight)));
+   tr.appendChild(el("td","src "+(entry.retired?"retired":entry.source),entry.retired?"retired":entry.source));
+   var actions=el("td");
+   var edit=el("button","sm","Edit");edit.addEventListener("click",function(){openEnchEditor(entry);});
+   actions.appendChild(edit);
+   if(entry.retired){
+    var back=el("button","sm","Restore");back.addEventListener("click",function(){act("enchant_restore",{id:entry.id},"Restored "+entry.id+".").then(loadEnchantments);});
+    actions.appendChild(back);
+   }else{
+    var drop=el("button","sm bad",entry.source==="custom"?"Delete":"Retire");
+    drop.addEventListener("click",function(){
+     if(!window.confirm((entry.source==="custom"?"Delete ":"Retire ")+entry.id+"? Loot already rolled keeps it."))return;
+     act("enchant_delete",{id:entry.id},entry.id+" removed from the table.").then(loadEnchantments);
+    });
+    actions.appendChild(drop);
+   }
+   tr.appendChild(actions);
+   body.appendChild(tr);
+  });
+  $("enchEmpty").hidden=shown>0;
+  var live=ench.counts;
+  $("enchCounts").textContent=live.curses+" curses / "+live.blessings+" blessings live";
+ }
+
+ function renderSlotBoxes(selected){
+  var host=$("eSlots");clear(host);
+  ench.slots.forEach(function(slot){
+   var label=el("label"),box=el("input");
+   box.type="checkbox";box.value=slot;box.checked=selected.indexOf(slot)>=0;
+   label.appendChild(box);label.appendChild(document.createTextNode(" "+slot));
+   host.appendChild(label);
+  });
+ }
+
+ function renderDeltaBoxes(delta){
+  var host=$("eDelta");clear(host);
+  ench.statKeys.forEach(function(key){
+   var wrap=el("div"),label=el("label",null,key);label.setAttribute("for","delta_"+key);
+   var input=el("input");input.id="delta_"+key;input.type="number";input.step="1";input.min="-200";input.max="200";
+   input.value=delta&&delta[key]!==undefined?String(delta[key]):"";
+   wrap.appendChild(label);wrap.appendChild(input);host.appendChild(wrap);
+  });
+ }
+
+ function openEnchEditor(entry){
+  enchEditing=entry?entry.id:null;
+  var fx=(entry&&entry.effect)||{};
+  $("enchEditorTitle").textContent=entry?("Edit "+entry.id):"Write a new enchantment";
+  $("eId").value=entry?entry.id:"";
+  $("eId").disabled=Boolean(entry); // Changing an id would orphan it in save data, so edit keeps it fixed.
+  $("eName").value=entry?entry.name:"";
+  $("eAlignment").value=entry?entry.alignment:"curse";
+  $("eFamily").value=entry?entry.family:"CUSTOM";
+  $("eWeight").value=entry?entry.weight:10;
+  $("eMin").value=entry?entry.min_score:0;
+  $("eMax").value=entry?entry.max_score:1;
+  $("eSticky").checked=Boolean(entry&&entry.sticky);
+  $("eEnabled").checked=!entry||entry.enabled!==false;
+  $("eHint").value=entry?(entry.desc_hint||""):"";
+  $("eTrigger").value=fx.trigger_mode==="time"?"time":"step";
+  $("eProcMin").value=fx.proc_min!==undefined?fx.proc_min:140;
+  $("eProcMax").value=fx.proc_max!==undefined?fx.proc_max:260;
+  $("eChance").value=fx.chance_percent!==undefined?fx.chance_percent:85;
+  $("eCooldown").value=fx.cooldown!==undefined?fx.cooldown:20;
+  $("eTitle").value=fx.popup_title||"";
+  $("eLog").value=fx.log_text||"";
+  $("eLines").value=(fx.popup_lines||[]).join("\n");
+  $("eLock").checked=Boolean(fx.movement_lock);
+  $("eLockTitle").value=fx.lock_title||"Constricted!";
+  $("eLockText").value=fx.lock_text||"You struggle against {item}...";
+  $("eLockRelease").value=fx.lock_release_chance!==undefined?fx.lock_release_chance:35;
+  renderSlotBoxes(entry?entry.slots:[]);
+  renderDeltaBoxes(fx.stat_delta);
+  syncLockFields();
+  $("enchEditor").hidden=false;
+  $("eId").focus();
+ }
+
+ function syncLockFields(){$("eLockFields").hidden=!$("eLock").checked;}
+
+ function collectEnchEntry(){
+  var slots=[],boxes=$("eSlots").querySelectorAll("input");
+  for(var i=0;i<boxes.length;i++)if(boxes[i].checked)slots.push(boxes[i].value);
+  var delta={};
+  ench.statKeys.forEach(function(key){var raw=$("delta_"+key).value.trim();if(raw!=="")delta[key]=Number(raw);});
+  return {
+   id:$("eId").value.trim().toLowerCase(),name:$("eName").value.trim(),
+   alignment:$("eAlignment").value,family:$("eFamily").value.trim(),
+   weight:Number($("eWeight").value),min_score:Number($("eMin").value),max_score:Number($("eMax").value),
+   sticky:$("eSticky").checked,enabled:$("eEnabled").checked,desc_hint:$("eHint").value.trim(),
+   slots:slots,
+   effect:{
+    trigger_mode:$("eTrigger").value,proc_min:Number($("eProcMin").value),proc_max:Number($("eProcMax").value),
+    chance_percent:Number($("eChance").value),cooldown:Number($("eCooldown").value),
+    popup_title:$("eTitle").value.trim(),log_text:$("eLog").value.trim(),
+    popup_lines:$("eLines").value.split("\n").map(function(line){return line.trim();}).filter(Boolean),
+    stat_delta:delta,movement_lock:$("eLock").checked,
+    lock_title:$("eLockTitle").value.trim(),lock_text:$("eLockText").value.trim(),
+    lock_release_chance:Number($("eLockRelease").value)
+   }
+  };
+ }
+
+ function loadEnchantments(){
+  if(!token)return;
+  var epoch=perfEpoch;
+  return api("/gm/enchantments").then(function(payload){
+   if(epoch!==perfEpoch||!token)return;
+   ench=payload;renderEnchTuning();renderEnchList();
+  }).catch(function(error){say("err",error.message);});
+ }
+
+ $("enchReload").addEventListener("click",function(){loadEnchantments();});
+ $("enchFilter").addEventListener("change",function(){if(ench)renderEnchList();});
+ $("enchSearch").addEventListener("input",function(){if(ench)renderEnchList();});
+ $("enchNew").addEventListener("click",function(){if(ench)openEnchEditor(null);});
+ $("eCancel").addEventListener("click",function(){$("enchEditor").hidden=true;enchEditing=null;});
+ $("eLock").addEventListener("change",syncLockFields);
+ $("eAlignment").addEventListener("change",function(){if($("eAlignment").value!=="curse")$("eSticky").checked=false;});
+ $("eSave").addEventListener("click",function(){
+  if(!ench)return;
+  act("enchant_save",{entry:collectEnchEntry(),reason:$("eReason").value},"Enchantment saved.").then(function(result){
+   if(!result)return; // A rejection already showed its reason; keep the form so it can be corrected.
+   $("enchEditor").hidden=true;enchEditing=null;$("eReason").value="";
+   loadEnchantments();
+  });
+ });
+ $("enchTuneSave").addEventListener("click",function(){
+  if(!ench)return;
+  var patch={},bad=null;
+  ench.tuningKeys.forEach(function(key){
+   var value=enchNumber("tune_"+key);
+   if(value===null||!isFinite(value)){bad=bad||key;return;}
+   patch[key]=value;
+  });
+  if(bad){say("err","Fill in "+bad.replace(/_/g," ")+" before applying.");return;}
+  act("enchant_tune",{tuning:patch,reason:$("enchTuneReason").value},"Rates applied to every dive route.").then(function(result){
+   if(result)$("enchTuneReason").value="";
+   loadEnchantments();
+  });
+ });
+ $("enchResetTuning").addEventListener("click",function(){
+  if(!window.confirm("Put every rate back to what the last content export shipped?"))return;
+  act("enchant_reset",{scope:"tuning"},"Rates reset to the shipped values.").then(loadEnchantments);
+ });
+ $("enchResetAll").addEventListener("click",function(){
+  if(!window.confirm("Discard every rate change, edit and custom enchantment? Loot already rolled keeps what it was given."))return;
+  act("enchant_reset",{scope:"all"},"Enchantment table reset to the shipped content.").then(loadEnchantments);
+ });
+
  function refresh(){
   var epoch=perfEpoch;
   return api("/gm/overview").then(function(payload){
@@ -414,6 +765,7 @@ tr.sel td{background:#2c1e3d}
    $("clock").textContent="server "+when(payload.serverTime);
    renderZones();renderPlayers();renderSanctions(payload.sanctions);renderAudit(payload.audit);
    loadPerformance();
+   if(!ench)loadEnchantments(); // Read the table once per session; edits refresh it themselves.
    if(selected)loadPlayer(selected);
   }).catch(function(error){
    if(epoch!==perfEpoch)return;
@@ -431,6 +783,7 @@ tr.sel td{background:#2c1e3d}
   perfEpoch++;perfBusy=false;perfData=null;clear($("perfChart"));clear($("perfTimings")); // Discard old readings when the authenticated session ends.
   ["perfCpu","perfLoop","perfDelay","perfMemory","perfRate","perfActive","perfStatus","perfHistory","perfRequests","perfTimingStatus"].forEach(function(id){$(id).textContent="—";});
   token="";if(timer)clearInterval(timer);timer=null;selected=null;
+  ench=null;enchEditing=null;$("enchEditor").hidden=true;clear($("enchList"));clear($("enchTuning"));$("enchCurve").textContent="";
   if(poller){clearTimeout(poller);poller=null;}
   $("who").textContent="";$("pending").hidden=true;$("startRow").hidden=false;
   $("app").hidden=true;$("gate").hidden=false;
@@ -443,7 +796,7 @@ tr.sel td{background:#2c1e3d}
  function enter(){ // A confirmed gamemaster grant swaps the gate for the live panel.
   stopSignin();$("gateErr").className="flash";
   $("gate").hidden=true;$("app").hidden=false;
-  refresh();loadChat();schedule();
+  refresh();loadChat();loadRp();loadRpp();schedule();
  }
 
  function poll(deviceCode,intervalMs,deadline){

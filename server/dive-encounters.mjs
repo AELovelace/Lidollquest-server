@@ -33,7 +33,7 @@ export function selectEncounterEnemies(floor,foe,data,roll,time){
 
 export function applyCombatPatch(loadout,patch){
  if(!Array.isArray(patch)||patch.length>256||Buffer.byteLength(JSON.stringify(patch))>192*1024)fail('Invalid combat changes.');
- const result=clone(loadout),protectedKeys=new Set(['__proto__','prototype','constructor','level','xp','stat_points','playerHealthMax','player_mp_max','name','companions']);
+ const result=clone(loadout),protectedKeys=new Set(['__proto__','prototype','constructor','level','xp','stat_points','playerHealthMax','player_mp_max','name','companions','rpp_abilities']); // Paid passive unlocks only change through the server purchase ledger.
  for(const op of patch){
   if(!Array.isArray(op.path)||!op.path.length||op.path.length>8||op.path.some(k=>typeof k!=='string'||protectedKeys.has(k))||!['player_info','inventory','world','childish','player_mp'].includes(op.path[0]))fail('Unsupported combat change.');
   if(op.path.length===1&&op.path[0]==='inventory'&&Number.isSafeInteger(op.index)){
@@ -44,7 +44,7 @@ export function applyCombatPatch(loadout,patch){
   const key=op.path.at(-1),current=dest[key];
   if(typeof op.before==='number'&&typeof op.after==='number'&&typeof current==='number'){if(!Number.isFinite(op.before)||!Number.isFinite(op.after))fail('Invalid combat number.');dest[key]=current+op.after-op.before;}
   else {if(JSON.stringify(current??null)!==JSON.stringify(op.before))fail('This item or status changed; refresh before using it.');dest[key]=clone(op.after);}
- }return importLoadout(result);
+ }if(result.player_info&&typeof result.player_info==='object')result.player_info.rpp_abilities=clone(loadout.player_info.rpp_abilities??[]);return importLoadout(result); // A whole player_info replacement cannot bypass protected paid-ability paths.
 } // Numeric deltas preserve intervening attacks/heals; structural item edits require an unchanged baseline.
 
 export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate}){
@@ -64,7 +64,7 @@ export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progres
   const rows=people.map(other=>({c:other,s:other.id===c.id?state:JSON.parse(other.state)})).filter(({s})=>!s.pendingDefeat&&s.dive?.edition===record.edition&&s.dive?.route===route); // Downed or elsewhere members retain membership but do not enter this encounter.
   if(!rows.some(row=>row.c.id===c.id))fail('Finish recovering before entering combat.');
   for(const {c:other,s} of rows){
-   if(s.run||s.worldTurnDue||s.pendingPurchase||!s.loadout||s.loadout.player_info.stat_points>0||s.loadout.player_info.playerHealth<=0||s.dive?.edition!==record.edition||s.dive?.route!==route)fail(other.name+' must finish preparing before the party can fight.');
+   if(s.run||s.worldTurnDue||s.pendingPurchase||!s.loadout||s.loadout.player_info.playerHealth<=0||s.dive?.edition!==record.edition||s.dive?.route!==route)fail(other.name+' must finish preparing before the party can fight.'); // Banked stat points do not block this player or their party.
   }
   const e={id:randomUUID(),edition:record.edition,zone,route,origin:{x:foe.x,y:foe.y},created:now(),sequence:0,events:[],players:[],enemies:[]};
   for(const selected of selectEncounterEnemies(record.floor,foe,data,roll,now())){selected.engaged=e.id;const enemy=clone(data.enemies[selected.type]);enemy.maxHp=enemy.hp;enemy.turn=0;

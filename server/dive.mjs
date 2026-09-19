@@ -2,12 +2,14 @@ import {movementDelay} from './crawl.mjs';
 import {createDiveEncounters} from './dive-encounters.mjs';
 import {addPinkMist,mistAt} from './dive-mist.mjs';
 import {createDiveLootRoller} from './dive-loot.mjs';
+import {createEnchantmentStore} from './enchantment-store.mjs';
 import {readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {applyDefeatEquipment} from './defeat-equipment.mjs';
 import {generateFloor,dressFloor,addFood,weeklyWindow,seeded,pathTo,walkable,inside,enemyRoams} from './dive-generation.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation} from './combat.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
+import {manaCapacity} from './magic-balance.mjs';
 import {hubArrival,dungeonPortals,hubRooms,hubCatalog,DAILY_COIN_CAP} from './hubs.mjs';
 
 export const diveData=JSON.parse(readFileSync(new URL('./dive-data.json',import.meta.url),'utf8'));
@@ -16,9 +18,11 @@ const fail=(message,code='dive_conflict')=>{throw Object.assign(Error(message),{
 const clone=structuredClone;
 const seconds=1000,minutes=60000;
 
-export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,measure=(_name,work)=>work(),upgradeFloor=()=>false,travel=()=>false}){
+export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,measure=(_name,work)=>work(),upgradeFloor=()=>false,travel=()=>false,enchantments=null}){
  const config=data.config,route=config.route,zoneId=config.zone_id??DIVE_ZONE,theme=config.theme??'princess_quarters',name=config.name??"Princess' Quarters - Dungeon Dive",bossId=config.boss_id??'iris';
- const rollLoot=createDiveLootRoller(data); // One policy covers every online route and its personal floor progress.
+ // Only dive-data.json carries the curse/blessing table; Desert, Tundra, Taiga and
+ // the campaign weeklies share that one table rather than each shipping a copy.
+ const rollLoot=createDiveLootRoller(data,{table:data.enchantments??diveData.enchantments,enchantments:enchantments??createEnchantmentStore(db,{now})}); // One policy covers every online route and its personal floor progress; gamemaster retunes reach all of them.
  const owns=visit=>visit?.route===route; // Each route maintains only its own visits and encounter locks.
  const safe=(floor,x,y)=>(floor.safeRooms??[floor.rooms[0]]).some(r=>inside(r,x,y));
  const entry=(floor,origin)=>floor.entries?.[origin]??floor.entrance;
@@ -105,7 +109,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   return amount;
  }
  function start(c,state,record,foe){
-  if(state.pendingDefeat||state.run||state.loadout?.player_info.stat_points>0||state.loadout?.player_info.playerHealth<=0||!foe||foe.engaged||foe.respawnAt>now())fail('That encounter is not available.');
+  if(state.pendingDefeat||state.run||state.loadout?.player_info.playerHealth<=0||!foe||foe.engaged||foe.respawnAt>now())fail('That encounter is not available.'); // Saved stat points remain spendable after future encounters.
   if(!state.loadout)fail('Import your character before entering.');
   if(state.diveCombatVersion===3){encounters.start(c,state,record,foe);return;} // New clients share an encounter; unfinished legacy fights keep their original path.
   foe.engaged=c.id;const enemy=clone(data.enemies[foe.type]);enemy.maxHp=enemy.hp;enemy.turn=0;
@@ -141,7 +145,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const rnd=seeded(active.edition+':'+Math.floor(now()/seconds));
   for(const foe of f.enemies){
    if(foe.engaged||foe.respawnAt>now()||!enemyRoams(data,foe))continue;
-   const targets=players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return v.pendingDefeat||v.dive?.route!==route||v.dive?.edition!==active.edition||(!v.run&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0&&!v.loadout?.player_info.stat_points);});return ready&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.worldTurnDue&&!(s.loadout?.player_info.stat_points>0)&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);}); // Roaming enemies can engage survivors without enrolling downed party members.
+   const targets=players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return v.pendingDefeat||v.dive?.route!==route||v.dive?.edition!==active.edition||(!v.run&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0);});return ready&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.worldTurnDue&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);}); // Storing points cannot grant immunity from roaming enemies or block party encounters.
    let target=null,best=null;
    for(const p of targets){const path=measure('pathfinding.'+zoneId,()=>pathTo(f,foe,p,config.pursuit_steps));if(path&&(!best||path.length<best.length)){target=p;best=path;}} // Aggregate by authored zone, never by a player or enemy identifier.
    if(best?.length===0||best?.length===1){const c={id:target.character_id,owner:target.owner,revision:target.revision},s=JSON.parse(target.state);if(s.loadout?.player_info.playerHealth>0){start(c,s,active,foe);saveCharacter(c,s);target.state=c.state;target.revision=c.revision;}continue;}
@@ -206,15 +210,9 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(action==='dive_exit'||action==='leave'){if(state.run)fail('Finish or flee from the current fight first.');
    if(input.zone){const exit=f.exits?.find(e=>e.zone===input.zone);if(!exit||Math.abs(exit.x-p.x)+Math.abs(exit.y-p.y)>1)fail('Stand beside that hub exit.');}
    back(c,state,input.zone??config.parent_zone);return;} // Branch regions retreat to their parent; crossings retain their original hub return.
-  if(action==='chat'){
-   const text=String(input.text??'').replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069#]/g,' ').trim().slice(0,240);if(!text)fail('Write a message first.');
-   if(db.prepare('SELECT COUNT(*) AS n FROM quest_chat WHERE owner=? AND created>?').get(i.owner,now()-10000).n>=5)fail('Wait before sending another message.');
-   const area=chatArea(c,p);
-   db.prepare('INSERT INTO quest_chat(zone,owner,character_id,name,text,created) VALUES (?,?,?,?,?,?)').run(area.id,i.owner,c.id,c.name,text,now());
-   db.prepare('DELETE FROM quest_chat WHERE zone=? AND seq NOT IN (SELECT seq FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 100)').run(area.id,area.id);return;
-  }
+  // Chat is handled by the zone gateway before dungeon dispatch, sharing mute, block and rate-limit rules with every other area.
   if(action==='appearance'){state.avatar=input.avatar;return;} // The zone adapter validates the cosmetic allowlist before dispatch.
-  if(action==='allocate'){if(state.run||!['str','def','dex','int','cha'].includes(input.stat)||!(state.loadout.player_info.stat_points>0))fail('Choose an available stat point outside combat.');state.loadout.player_info[input.stat]++;state.loadout.player_info.stat_points--;if(input.stat==='int')state.loadout.player_mp_max=Math.max(0,10+state.loadout.player_info.int*5);return;}
+  if(action==='allocate'){if(state.run||!['str','def','dex','int','cha'].includes(input.stat)||!(state.loadout.player_info.stat_points>0))fail('Choose an available stat point outside combat.');state.loadout.player_info[input.stat]++;state.loadout.player_info.stat_points--;if(input.stat==='int')state.loadout.player_mp_max=manaCapacity(state.loadout);return;}
   if(record.edition!==latest()&&!state.run)fail('This weekly dungeon has ended.');
   if(action==='dive_claim_reward'){if(state.run)fail('Finish the current fight first.');const amount=pay(c,state,record);state.lastResult={outcome:'reward_claimed',coins:amount,zone:zoneId,log:[]};return;}
   if(action==='dive_claim'){
@@ -222,7 +220,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    claim(c,state,record,chest);return;
   }
   if(action==='move'||action==='dive_engage'){
-   if(state.run||state.loadout.player_info.stat_points>0)fail('Finish combat and spend level-up points first.');
+   if(state.run)fail('Finish combat first.'); // Exploration stays available while stat points are banked.
    if(action==='dive_engage'){const foe=f.enemies.find(e=>e.id===input.encounter);if(!foe||Math.abs(foe.x-p.x)+Math.abs(foe.y-p.y)>1)fail('Approach that enemy first.');start(c,state,record,foe);return;}
    if(now()-p.moved<movementDelay(state.loadout))fail('Movement is too fast.');const d={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];if(!d)fail('Choose a direction.');
    const x=p.x+d[0],y=p.y+d[1];if(!walkable(f,x,y))fail('That tile is blocked.');const foe=f.enemies.find(e=>e.x===x&&e.y===y&&e.respawnAt<=now());

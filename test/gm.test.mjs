@@ -58,6 +58,117 @@ function harness({allow='',enabled=true,identityDown=false,trustProxy='',require
   close:async()=>{service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));}};
 }
 
+test('enchantment tuning and authoring require staff authorization and are recorded',async()=>{
+ const h=harness();await h.started;try{
+  // Only a live gamemaster identity reaches the content tools, exactly like moderation.
+  assert.equal((await h.gm('/gm/enchantments',{token:playerToken})).status,403);
+  assert.equal((await h.gm('/gm/enchantments',{token:null})).status,401);
+
+  const view=await h.gm('/gm/enchantments');
+  assert.equal(view.status,200,JSON.stringify(view.body));
+  assert.equal(view.body.counts.curses,50);
+  assert.equal(view.body.counts.blessings,50);
+  assert.ok(view.body.slots.includes('panties'));
+  assert.ok(view.body.tuningKeys.includes('curse_chance_low_rarity'));
+  assert.equal(view.body.entries.every(entry=>entry.source==='shipped'),true);
+
+  // A player cannot retune the game, and a bad value is refused with its reason.
+  assert.equal((await h.act('enchant_tune',{tuning:{curse_chance_low_rarity:20}},{token:playerToken})).status,403);
+  const tooHigh=await h.act('enchant_tune',{tuning:{curse_chance_low_rarity:900}});
+  assert.equal(tooHigh.status,400);
+  assert.match(tooHigh.body.error_description,/between 0 and 60/);
+  assert.equal((await h.act('enchant_tune',{tuning:{made_up:1}})).status,400);
+
+  const tuned=await h.act('enchant_tune',{tuning:{curse_chance_low_rarity:22},reason:'Junk should bite harder.'});
+  assert.equal(tuned.status,200,JSON.stringify(tuned.body));
+  assert.equal(tuned.body.result.tuning.curse_chance_low_rarity,22);
+  assert.equal((await h.gm('/gm/enchantments')).body.tuning.curse_chance_low_rarity,22);
+
+  // Writing a new curse.
+  const entry={id:'panel_hex',alignment:'curse',name:'Panel Hex',slots:['panties'],weight:12,min_score:0,max_score:1,
+   sticky:true,desc_hint:'It was written by a gamemaster.',
+   effect:{proc_min:120,proc_max:240,chance_percent:80,cooldown:15,popup_title:'Hexed!',popup_lines:['{item} tightens around {name}.'],log_text:'{item} hexes you.',stat_delta:{shame:-8}}};
+  assert.equal((await h.act('enchant_save',{entry},{token:playerToken})).status,403);
+  const saved=await h.act('enchant_save',{entry,reason:'New content for the event.'});
+  assert.equal(saved.status,200,JSON.stringify(saved.body));
+  assert.equal(saved.body.result.entry.effect.effect_id,'panel_hex');
+  const withCustom=await h.gm('/gm/enchantments');
+  assert.equal(withCustom.body.counts.curses,51);
+  assert.equal(withCustom.body.entries.find(e=>e.id==='panel_hex').source,'custom');
+
+  // Malformed authoring is refused at the panel rather than reaching the roller.
+  assert.match((await h.act('enchant_save',{entry:{...entry,id:'bad_slots',slots:['helmet']}})).body.error_description,/not an item category/);
+  assert.match((await h.act('enchant_save',{entry:{...entry,id:'bad_proc',effect:{...entry.effect,proc_min:1}}})).body.error_description,/Proc min/);
+
+  // Retiring a shipped entry keeps a tombstone; a custom one is deleted outright.
+  const shipped=withCustom.body.entries.find(e=>e.source==='shipped'&&e.alignment==='curse');
+  const retired=await h.act('enchant_delete',{id:shipped.id,reason:'Too harsh for the event.'});
+  assert.equal(retired.status,200,JSON.stringify(retired.body));
+  assert.equal(retired.body.result.retired,true);
+  assert.equal((await h.gm('/gm/enchantments')).body.counts.curses,50);
+  assert.equal((await h.act('enchant_restore',{id:shipped.id})).status,200);
+  assert.equal((await h.gm('/gm/enchantments')).body.counts.curses,51);
+  assert.equal((await h.act('enchant_delete',{id:'panel_hex'})).body.result.retired,false);
+  assert.equal((await h.act('enchant_delete',{id:'not_a_thing'})).status,400);
+
+  // Reset returns to exactly what the last content export shipped.
+  assert.equal((await h.act('enchant_reset',{scope:'sideways'})).status,400);
+  assert.equal((await h.act('enchant_reset',{scope:'all'})).status,200);
+  const reset=await h.gm('/gm/enchantments');
+  assert.equal(reset.body.counts.curses,50);
+  assert.equal(reset.body.tuning.curse_chance_low_rarity,14);
+
+  // Every write names the gamemaster who made it, like all other staff actions.
+  const audit=(await h.gm('/gm/overview')).body.audit.map(row=>row.action);
+  for(const action of ['enchant_tune','enchant_save','enchant_delete','enchant_restore','enchant_reset'])
+   assert.ok(audit.includes(action),action+' should be recorded');
+  assert.equal((await h.gm('/gm/overview')).body.audit.every(row=>row.action.startsWith('enchant_')?row.actor===staff:true),true);
+ }finally{await h.close();}
+});
+
+test('a gamemaster retune changes the loot a dive hands out',async()=>{
+ const h=harness();await h.started;try{
+  // Switch both ramps off and every chest on every route should come back plain.
+  assert.equal((await h.act('enchant_tune',{tuning:{curse_chance_low_rarity:0,curse_chance_high_rarity:0,bless_chance_low_rarity:0,bless_chance_high_rarity:0}})).status,200);
+  // Build a store on the service's own database exactly as every dive route does,
+  // and confirm it reads back the panel's write.
+  const {createEnchantmentStore}=await import('../server/enchantment-store.mjs');
+  const {diveData}=await import('../server/dive.mjs');
+  const store=createEnchantmentStore(h.service.db),live=store.apply(diveData.enchantments);
+  assert.equal(live.tuning.curse_chance_low_rarity,0);
+  assert.equal(live.tuning.bless_chance_high_rarity,0);
+  assert.equal(live.curses.length,50,'switching the rates off must not empty the table');
+ }finally{await h.close();}
+});
+
+test('RP journals and level awards require live staff authorization and preserve HTTP receipts',async()=>{
+ const h=harness();await h.started;try{
+  await h.ok(playerToken,'create',{name:'Writer'});let a=await h.ok(playerToken,'enter',{zone:'princess-rose',loadout:{player_info:{playerHealth:50,playerHealthMax:50,level:2,str:10,def:10,dex:10,int:10},inventory:[]}});
+  await h.ok(mateToken,'create',{name:'Partner'});const b=await h.ok(mateToken,'enter',{zone:'princess-rose'});
+  const posted=await h.ok(playerToken,'rp_post',{text:Array(1000).fill('story').join(' '),partners:[b.character.id]});
+  assert.ok(posted.receipt.rpId);const read=await h.ok(mateToken,'rp_read',{rp_id:posted.receipt.rpId});assert.equal(read.receipt.rpPost.words,1000);
+  assert.equal((await h.gm('/gm/rp',{token:playerToken})).status,403);assert.equal((await h.gm('/gm/rp',{token:null})).status,401);
+  const journal=await h.gm('/gm/rp?search=Partner');assert.equal(journal.body.total,1);
+  const input={character_id:a.character.id,expected_awards:0,expected_level:2,reason:'Read and approved the scene.'};
+  assert.equal((await h.act('rp_award',input,{token:playerToken})).status,403);
+  const award=await h.act('rp_award',input);assert.equal(award.status,200,JSON.stringify(award.body));assert.equal(award.body.result.level,3);
+  assert.equal((await h.act('rp_award',input)).status,409);
+  assert.equal((await h.gm('/gm/rp')).body.awards[0].actor,staff);
+ }finally{await h.close();}
+});
+
+test('staff RPP gifts require authorization, survive retry, and publish per-character balances',async()=>{
+ const h=harness();await h.started;try{
+  await h.ok(playerToken,'create',{name:'Writer'});const s=await h.ok(playerToken,'enter',{zone:'princess-rose'});
+  const gift={character_id:s.character.id,amount:25,reason:'Reviewed a creative scene',request_id:randomUUID()};
+  assert.equal((await h.gm('/gm/rpp',{token:playerToken})).status,403);assert.equal((await h.act('rpp_gift',gift,{token:playerToken})).status,403);
+  const first=await h.act('rpp_gift',gift);assert.equal(first.status,200,JSON.stringify(first.body));assert.equal(first.body.result.balance,25);
+  assert.equal((await h.act('rpp_gift',gift)).body.result.replayed,true);assert.equal((await h.act('rpp_gift',{...gift,amount:26})).status,409);
+  const journal=await h.gm('/gm/rpp?character='+s.character.id);assert.equal(journal.body.ledger.length,1);assert.equal(journal.body.ledger[0].actor,staff);
+  assert.equal((await h.ok(playerToken,'heartbeat')).rpp.balance,25);
+ }finally{await h.close();}
+});
+
 test('only a LiDollID gamemaster reaches the panel',async()=>{
  const h=harness();await h.started;
  try{
@@ -334,6 +445,18 @@ test('player detail summarises an account without exposing its inventory',async(
   assert.equal(JSON.stringify(detail).includes('"inventory"'),false);
 
   assert.equal((await h.gm('/gm/player?character_id='+detail.characters[0].id)).body.owner,owner);
+ }finally{await h.close();}
+});
+
+test('staff can review and remove OOC messages through the global chat filter',async()=>{
+ const h=harness();await h.started;
+ try{
+  await h.ok(playerToken,'create',{name:'Speaker'});await h.ok(playerToken,'enter',{zone:'honeydew-lantern'});
+  await h.ok(playerToken,'chat',{channel:'global',text:'Global moderation check'});
+  const chat=await h.gm('/gm/chat?zone=global%3Aooc');assert.equal(chat.status,200);
+  assert.equal(chat.body.messages.length,1);assert.equal(chat.body.messages[0].zoneName,'Global chat (OOC)');
+  assert.equal((await h.act('delete_chat',{seq:chat.body.messages[0].seq})).status,200);
+  assert.equal((await h.gm('/gm/chat?zone=global%3Aooc')).body.messages.length,0);
  }finally{await h.close();}
 });
 

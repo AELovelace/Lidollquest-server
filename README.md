@@ -1,5 +1,37 @@
 # LiDollQuest server
 
+## Shared RP and admin journal
+
+`rp_post` accepts a narrative up to 12,000 Unicode characters and one to eight
+distinct partner character IDs in the author's current area-chat room. Active
+presence, controller, revision, dungeon edition, account blocks and mutes apply.
+The durable command receipt prevents duplicate posts/counts; an account can post
+once per ten seconds. Unicode letters/numbers form words (internal apostrophes
+and hyphens stay in a word). Trimmed, sanitized prose retains paragraphs; character
+counts include spaces and newlines. Only the author earns review credit.
+
+`rp` snapshots carry small summaries, valid partners and writing totals. `rp_read`
+loads a full post and its captured public paperdoll in the receipt without changing
+character revision. Authors/selected partners can reread after moving; others need
+to be in the original area. Blocked posts are hidden. Area chat uses a server-owned
+`rpId` link and the yellow notice "<name> posted an rp"; OOC receives no notice.
+
+Authenticated `/gm/rp` supports `search`, `character`, and zero-based `page`, with
+25 narratives per page and recent award history. `/gm/action` `rp_award` requires
+`character_id`, `expected_awards`, `expected_level` and a review `reason`. Staff
+must review 1,000 words initially, +500 for each previous RP level awarded. Awards
+give exactly one ordinary level, preserving existing XP and applying HP/stat points
+and mage spell unlocks. No automatic RP XP is paid. Any level change resets current
+word/character counters; lifetime totals and narratives persist. Award receipts in
+`quest_rp_awards` retain reviewer, target, words, characters and level transition.
+Transactions and expected-version checks reject stale/double awards.
+
+The schema is additive: `quest_rp_posts`, `quest_rp_partners`, `quest_rp_progress`,
+and `quest_rp_awards`; no map regeneration or tracker proxy change is required.
+Deploy this service before the GX client. Verify with
+`node --test test/roleplay.test.mjs test/gm.test.mjs` and the game's `--rp-only`
+two-client browser fixture. The existing short chat cleanup never deletes RP prose.
+
 ## Frostveil Taiga
 
 `dive-taiga` / `frostveil-taiga` adds an 80×80 weekly region with Forest and Tundra
@@ -73,6 +105,67 @@ hold the `gamemaster` role in Little Log user management. There is no panel toke
 to distribute, rotate or leak, and every action is recorded against the account
 that performed it. Set `LIDOLLQUEST_GM_ENABLED=false` to remove the surface
 entirely.
+
+### Live curse and blessing tuning
+
+The panel's **Curses & blessings** section edits the shared enchantment table that
+every dive route rolls against. It is behind the same live LiDollID gamemaster
+identity, address, origin and TLS rules as moderation, and every write is recorded
+in `gm_audit` against the account that made it.
+
+The shipped table arrives in `dive-data.json`, exported from the game checkout's
+`datafiles/generation/enchantments.json`. That baseline is never written to at
+runtime. Overrides live in `gm_enchant_tuning` and `gm_enchant_entries`, and
+`server/enchantment-store.mjs` layers them on top:
+
+- **Rates** - the eleven numeric knobs, chiefly the two ramps. Curse chance falls
+  as item rarity rises; blessing chance climbs. The panel previews the resulting
+  per-tier rates and warns if a change stops the curse rate falling.
+- **The table** - edit a shipped entry, retire it, or write a brand new curse or
+  blessing with its own garment gate, rarity band, proc and stat changes.
+
+Every field is validated server-side before storage, so a malformed entry is
+refused at the panel rather than reaching a live dive: ids must be unique and
+lowercase, slots must be real item categories, a proc cannot fire faster than
+every 30 steps, stat changes are bounded to +/-200, and a movement lock must leave
+at least a 5% escape chance. A shipped entry is **retired**, not deleted, because
+the next content export would otherwise bring it back.
+
+Edits reach the next chest on every route without a restart: the loot roller
+watches a revision fingerprint and rebuilds when it changes. Loot a player already
+holds is served from their visit's own receipts and is never rewritten. `enchant_reset`
+discards every override and returns to exactly what the last content export shipped.
+
+Run `node --test test/enchantment-store.test.mjs test/enchantment.test.mjs test/gm.test.mjs`.
+
+### Area and global OOC chat
+
+Snapshots retain room-scoped `chat`/`chatArea` and add `globalChatSupport: true`
+plus a separate `globalChat` array. Both histories have channel metadata, shared
+sequence IDs, a 40-message visible limit, a 100-row stored limit per stream, and a
+24-hour visibility window. Global speech uses `quest_chat.zone = 'global:ooc'`
+across all active multiplayer areas; it is never a movement destination.
+
+Send `{action: "chat", channel: "area" | "global", text: "...", ...}` through the
+ordinary authenticated, revision-checked command route. Omitting `channel` retains
+legacy area behavior. `both` is a client viewing option, not a destination: each
+message targets exactly one stream, and receipt replay cannot duplicate it.
+Dungeon commands retain their edition check. Presence/controller checks, blocks,
+mutes and the shared five-messages-per-ten-seconds budget apply to both channels,
+including dungeon speech. Activity announcements stay local. Gamemasters can select
+**Global chat (OOC)** in the existing chat filter and remove messages there.
+
+The GX action log's top-right button cycles Area / Global (OOC) / Both. Its permanent
+bottom input keeps history visible while typing and has an **Area / OOC** selector
+in Both mode. Click or press T to focus, Enter/Send to submit, Escape to release
+focus without losing the draft. Global log entries receive
+`ooc: ` before the speaker and render baby blue (`#89CFF0`); channel metadata
+controls the colour, never player text. Area speech keeps its existing colour.
+Deploy this service before the rebuilt GX client. Old clients stay area-only;
+new clients refuse OOC sends when the server does not advertise support.
+
+Run `node --test test/global-chat.test.mjs test/dive.test.mjs test/gm.test.mjs`.
+The game checkout's GX browser fixture supports `--global-chat-only`.
 
 ### Recorded server performance
 
@@ -777,6 +870,12 @@ Online door transfers update every member atomically. Campaign departure removes
 
 Run `node --test test/*.test.mjs`; `test/parties.test.mjs` covers reinforcement seeds/probabilities, all nine routes, invitations, atomic travel, ally healing, stale commands, large inventories/snapshots, reconnects and reset grace. Export `generation/combat_tuning.json` with the game's `python/export_online_combat.py`. The game-side `ONLINE_PARTIES_GUIDE.md` documents controls, tuning and rollout. Deploy compatible service/content before the new client; retain all databases and weekly editions.
 
+
+## Character RPP
+
+Multiplayer mage levels now increment authoritative `state.mageSpellPicks` once per level instead of automatically learning a spell. `mage_pick` redeems one for an eligible unknown shop spell and records a zero-RPP permanent unlock; normal receipt/revision checks prevent duplicate spending. RP-admin levels share this path. Existing known spells remain, without retroactive credits. Unspent stat points no longer block travel, encounters or party readiness; allocation remains unavailable during combat. Deploy this service before the GX client with stored-point controls and the centered MENU modal.
+
+RPP: `/gm` now includes character-specific gifts and a purchase ledger (`GET /gm/rpp`, authenticated `rpp_gift` action). `rpp_buy` uses the existing character/controller revision and durable request receipt, plus `offer` and `rpp_cost`. Wallet, debit and unlock updates are atomic; gifts have independently replay-safe IDs. Startup adds three RPP tables without resetting data. Exported `magic_tree.rpp_shop` controls costs/classes/levels; `magic-balance.mjs` matches the client's mage ×0.5 physical, ×1.5 magic/fullness and ×2 MP multipliers. Purchased abilities are authoritative even when campaign imports or combat patches replace player data. Deploy service and combat-data before the matching GX client. Tests: `test/rpp.test.mjs`, `test/gm.test.mjs`, `test/combat.test.mjs`; game-side `RPP_GUIDE.md` documents the UI and browser fixture.
 
 ## Market dumpsters
 

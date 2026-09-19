@@ -49,14 +49,14 @@ test('every player spell resolves with its campaign MP cost and one enemy turn',
  for(const id of playerSpells){const s=battle();const mp=s.loadout.player_mp;combatAction(s,{action:'cast',spell:id},z,zero);assert.equal(s.loadout.player_mp,mp-combatData.spells[id].mp_cost,id);assert.equal(s.run.enemy.turn,1,id);assert.equal(s.run.turnReady,false,id);assert.deepEqual(s.loadout.player_info.companions,{friend:{hp:12}},id);}
 });
 test('mage affinity, physical weakness and absorbed-protection bonus match the base formulas',()=>{
- const s=battle();assert.deepEqual(mageScaling(s.loadout),{magic:1.3,physical:0.7,flat:0});
- combatAction(s,{action:'attack'},z,zero);assert.equal(s.run.enemy.hp,988);assert.equal(s.run.hp,74,'normal attacks use enemy STR-1, not player DEF');
+ const s=battle();assert.deepEqual(mageScaling(s.loadout),{magic:1.3*1.5,physical:0.35,flat:0});
+ combatAction(s,{action:'attack'},z,zero);assert.equal(s.run.enemy.hp,994);assert.equal(s.run.hp,74,'normal attacks use enemy STR-1, not player DEF');
  next(s);s.loadout.player_info.diaper_wet_absorbed=3;s.loadout.player_info.diaper_tum_absorbed=2;
- combatAction(s,{action:'cast',spell:'fireball'},z,zero);assert.equal(s.run.enemy.hp,988-(Math.floor((combatData.spells.fireball.power+24)*1.3)+5));
+ combatAction(s,{action:'cast',spell:'fireball'},z,zero);assert.equal(s.run.enemy.hp,994-(Math.floor((combatData.spells.fireball.power+24)*1.3*1.5)+7));
 });
 test('healing and cure scaling restore the intended stat and still cost a turn',()=>{
  const s=battle();s.run.hp=10;s.loadout.player_info.playerHealth=10;
- combatAction(s,{action:'cast',spell:'heal_light'},z,zero);assert.equal(s.run.hp,10+Math.floor(41*1.3)-6);
+ combatAction(s,{action:'cast',spell:'heal_light'},z,zero);assert.equal(s.run.hp,10+Math.floor(41*1.3*1.5)-6);
  next(s);combatAction(s,{action:'cast',spell:'calm_bladder'},z,zero);assert.equal(s.loadout.player_info.wet,28);
  next(s);combatAction(s,{action:'cast',spell:'refresh'},z,zero);assert.equal(s.loadout.player_info.stamina,62);
 });
@@ -76,9 +76,22 @@ test('DOT kills prevent a counterattack; debuffs restore only the actual clamped
  for(let i=1;i<combatData.spells.weaken.dot_turns;i++){next(d);combatAction(d,{action:'attack'},z,zero);}
  assert.equal(d.run.enemy.str,3,'expiration must not increase an enemy beyond its original STR');
 });
+
+test('Clarity adjusts temporary mana capacity without refilling and restores it on expiration or exit',()=>{
+ for(const cls of ['mage','fighter']){
+  const s=battle(cls),factor=cls==='mage'?2:1;s.loadout.player_mp=40;
+  combatAction(s,{action:'cast',spell:'clarity'},z,zero);
+  assert.equal(s.loadout.player_info.int,16);assert.equal(s.loadout.player_mp_max,90*factor);assert.equal(s.loadout.player_mp,30);
+  s.loadout.player_mp=90*factor;
+  for(let turn=1;turn<4;turn++){next(s);combatAction(s,{action:'attack'},z,zero);}
+  next(s);assert.equal(s.loadout.player_info.int,8);assert.equal(s.loadout.player_mp_max,50*factor);assert.equal(s.loadout.player_mp,50*factor);
+  combatAction(s,{action:'cast',spell:'clarity'},z,zero);clearEffects(s);
+  assert.equal(s.loadout.player_mp_max,50*factor);assert.equal(s.loadout.player_mp,50*factor-10);
+ }
+});
 test('invalid casts and disallowed class actions fail before spending MP or advancing turns',()=>{
  const s=battle();s.loadout.player_spells=['fireball'];
- for(const spell of ['unknown','heal_light','curse_wet','__proto__']){assert.throws(()=>combatAction(s,{action:'cast',spell},z,zero));assert.equal(s.loadout.player_mp,200);assert.equal(s.run.enemy.turn,0);}
+ for(const spell of ['unknown','heal_light','curse_wet','__proto__']){assert.throws(()=>combatAction(s,{action:'cast',spell},z,zero));assert.equal(s.loadout.player_mp,100);assert.equal(s.run.enemy.turn,0);}
  s.loadout.player_mp=0;assert.throws(()=>combatAction(s,{action:'cast',spell:'fireball'},z,zero));assert.equal(s.run.enemy.turn,0);
  const d=battle('diplomat');assert.throws(()=>combatAction(d,{action:'cast',spell:'fireball'},z,zero));assert.throws(()=>combatAction(d,{action:'attack'},z,zero));
  assert.throws(()=>combatAction(s,{action:'allure'},z,zero));
@@ -96,9 +109,11 @@ test('enemy magic supports status, stat debuffs and compound effects with persis
  }
  const s=battle();s.run.enemy.enemy_spells=['haunting_urge'];s.run.enemy.spell_cast_chance=1;combatAction(s,{action:'attack'},z,zero);assert.ok(s.loadout.player_info.wet>70);
 });
-test('level-up gives campaign stat points and mage spell rewards without any currency',()=>{
+test('multiplayer levels bank stat points and one mage choice per level without learning or spending currency',()=>{
  const s=battle();s.loadout.player_info.level=2;s.loadout.player_info.xp=99;s.loadout.player_spells=['heal_light'];s.run.enemy.exp=5;
- awardExperience(s,zero);assert.equal(s.loadout.player_info.level,3);assert.equal(s.loadout.player_info.xp,4);assert.equal(s.loadout.player_info.stat_points,3);assert.equal(s.loadout.player_info.playerHealthMax,141);assert.ok(s.loadout.player_spells.includes('heal_medium'));assert.equal(s.loadout.gold,undefined);
+ awardExperience(s,zero);assert.equal(s.loadout.player_info.level,3);assert.equal(s.loadout.player_info.xp,4);assert.equal(s.loadout.player_info.stat_points,3);assert.equal(s.loadout.playerInfo,undefined);assert.equal(s.loadout.player_info.playerHealthMax,141);assert.deepEqual(s.loadout.player_spells,['heal_light']);assert.equal(s.mageSpellPicks,1);assert.equal(s.loadout.gold,undefined);
+ s.run.enemy.exp=350;awardExperience(s,zero);assert.equal(s.loadout.player_info.level,5);assert.equal(s.mageSpellPicks,3);assert.equal(s.loadout.player_info.stat_points,9);
+ const fighter=battle('fighter');fighter.run.enemy.exp=350;awardExperience(fighter,zero);assert.equal(fighter.mageSpellPicks,undefined);
 });
 
 function service(){
@@ -116,7 +131,7 @@ test('replayed turns, casts and banking never repeat MP, XP, HP, timers or coin 
   const prep=f.input('turn_ready',{loadout:f.character().loadout,forfeit:false});f.send(prep);const prepared=structuredClone(f.character());f.send(prep);assert.deepEqual(f.character(),prepared);
   const cast=f.input('cast',{spell:'fireball'});f.send(cast);assert.equal(f.character().run.phase,'interval');assert.equal(f.character().loadout.player_info.xp,27);
   const won=structuredClone(f.character());f.send(cast);assert.deepEqual(f.character(),won);
-  const bank=f.input('cashout');assert.equal(f.send(bank).coins,5);assert.equal(f.send(bank).coins,5);assert.equal(f.character().loadout.player_mp,200-combatData.spells.fireball.mp_cost);
+  const bank=f.input('cashout');assert.equal(f.send(bank).coins,5);assert.equal(f.send(bank).coins,5);assert.equal(f.character().loadout.player_mp,100-combatData.spells.fireball.mp_cost);
  }finally{f.db.close();}
 });
 test('failed casts roll back; snapshots and reconnect preserve active spells and spent MP',()=>{
@@ -138,7 +153,7 @@ test('level-up allocations are validated, persisted and replay-safe, including a
  const f=service();try{
   let l=structuredClone(f.character().loadout);l.player_info.level=2;l.player_info.xp=99;
   f.act('turn_ready',{loadout:l,forfeit:false});f.act('cast',{spell:'fireball'});assert.equal(f.character().loadout.player_info.stat_points,3);
-  const req=f.input('allocate',{stat:'int'});f.send(req);f.send(req);assert.equal(f.character().loadout.player_info.int,9);assert.equal(f.character().loadout.player_info.stat_points,2);assert.equal(f.character().loadout.player_mp_max,55);
+  const req=f.input('allocate',{stat:'int'});f.send(req);f.send(req);assert.equal(f.character().loadout.player_info.int,9);assert.equal(f.character().loadout.player_info.stat_points,2);assert.equal(f.character().loadout.player_mp_max,110);
   assert.throws(()=>f.act('allocate',{stat:'coins'}));f.act('cashout');f.act('allocate',{stat:'cha'});f.act('allocate',{stat:'dex'});assert.throws(()=>f.act('allocate',{stat:'str'}));
  }finally{f.db.close();}
 });

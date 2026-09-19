@@ -1,6 +1,8 @@
 import {BlockList,isIPv4,isIPv6} from 'node:net';
 import {readFileSync} from 'node:fs';
 import {hubCatalog,hubRooms,campaignDives} from './hubs.mjs';
+import {createRoleplay} from './roleplay.mjs';
+import {createRpp} from './rpp.mjs';
 
 const ONLINE_WINDOW=30000; // Matches the presence freshness window every other module already uses.
 const HUB_SPAWN={x:10,y:9}; // hubDefinition() falls back to this same tile when a lobby declares no spawn of its own.
@@ -10,6 +12,7 @@ const SIGNIN_SCOPE='wallet:read'; // The panel needs identity alone: no balance 
 const panelPage=readFileSync(new URL('./gm-panel.html',import.meta.url),'utf8'); // Read once at boot so a moderation click never touches the disk.
 
 export const gmZones=Object.freeze([
+ {id:'global:ooc',name:'Global chat (OOC)',kind:'chat',warp:false}, // Staff can review and remove global messages through the existing chat tools.
  ...hubCatalog.map(h=>({id:h.id,name:h.name,kind:'lobby',warp:true,spawn:HUB_SPAWN})),
  ...hubRooms.map(r=>({id:r.id,name:r.name,kind:r.kind,warp:true,spawn:r.spawn})),
  {id:'dive-quarters',name:"Princess' Quarters",kind:'dive',warp:false},
@@ -47,7 +50,9 @@ export function buildAllowList(text){ // Comma-separated addresses and CIDR bloc
  return list;
 } // Rejected loudly at construction so a typo cannot silently admit the whole network.
 
-export function createGameMasterPanel(db,{walletClient,performanceSnapshot=()=>null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn}={}){
+export function createGameMasterPanel(db,{walletClient,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn}={}){
+ const rp=createRoleplay(db,{now}); // RP journals use the same live staff authorization as every moderation tool.
+ const rpp=createRpp(db,{now}); // Staff-only RPP gifts and purchase history never touch premium currencies.
  db.exec(`CREATE TABLE IF NOT EXISTS gm_sanctions(owner TEXT NOT NULL,kind TEXT NOT NULL,until INTEGER NOT NULL,reason TEXT NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(owner,kind));
  CREATE TABLE IF NOT EXISTS gm_audit(id INTEGER PRIMARY KEY AUTOINCREMENT,action TEXT NOT NULL,target TEXT NOT NULL,detail TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE INDEX IF NOT EXISTS gm_audit_target ON gm_audit(target,id);`);
@@ -56,6 +61,17 @@ export function createGameMasterPanel(db,{walletClient,performanceSnapshot=()=>n
  const allowList=buildAllowList(allow);
  const trustList=(()=>{try{return buildAllowList(trustProxy);}catch(error){throw Error('LIDOLLQUEST_GM_TRUST_PROXY '+error.message.replace(/^LIDOLLQUEST_GM_ALLOW /,''));}})(); // Same address grammar, rejected just as loudly.
  const fail=(status,message,code)=>{throw Object.assign(Error(message),{status,code:code??'gm_request_failed'});}; // Mirrors the rejection shape the rest of the service already throws.
+ // The curse/blessing table a gamemaster edits. `enchantments` is the same store
+ // every dive route rolls through, so an edit here reaches the next chest without
+ // a restart; `enchantmentTable` is the shipped baseline it layers over.
+ const enchantStore=()=>enchantments??fail(503,'Enchantment tuning is not available on this deployment.','gm_enchantments_unavailable');
+ const baseTable=()=>(typeof enchantmentTable==='function'?enchantmentTable():enchantmentTable)??{tuning:{},curses:[],blessings:[]};
+ const enchantView=()=>{
+  const store=enchantStore(),live=store.apply(baseTable());
+  return {tuning:live.tuning,entries:store.list(baseTable()),revision:store.revision(),
+   slots:store.slots,statKeys:store.statKeys,tuningKeys:store.tuningKeys,bounds:store.bounds,
+   counts:{curses:live.curses.length,blessings:live.blessings.length}};
+ };
 
  function client(req){ // The address moderation decisions are made about.
   const direct=bareAddress(req.socket?.remoteAddress);
@@ -164,6 +180,8 @@ export function createGameMasterPanel(db,{walletClient,performanceSnapshot=()=>n
  }
 
  const actions={
+  rpp_gift(input,actor){const result=rpp.gift(input,actor);if(!result.replayed)record(actor,'rpp_gift',result.characterId,{...result,reason:input.reason});return result;},
+  rp_award(input,actor){const result=rp.award(input,actor);record(actor,'rp_award',result.characterId,result);return result;},
   kick(input,actor){
    const p=online(clean(input.owner,64))??fail(409,'That account is not in a zone right now.','gm_not_online');
    db.prepare('DELETE FROM quest_presence WHERE owner=?').run(p.owner); // The client's next command fails its presence check and the player returns to character select.
@@ -192,6 +210,33 @@ export function createGameMasterPanel(db,{walletClient,performanceSnapshot=()=>n
    db.prepare('DELETE FROM quest_chat WHERE zone=? AND seq NOT IN (SELECT seq FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 100)').run(zone.id,zone.id); // Keep the hundred-message ceiling every other writer respects.
    record(actor,'broadcast',zone.id,{text:message});
    return {zone:zone.id,zoneName:zone.name,text:message};
+  },
+  enchant_tune(input,actor){
+   const values=enchantStore().tune(input.tuning,actor);
+   record(actor,'enchant_tune','enchantments',{values,reason:clean(input.reason,240)});
+   return {tuning:enchantView().tuning,changed:values};
+  },
+  enchant_save(input,actor){
+   const entry=enchantStore().save(input.entry,actor); // Rejects a malformed entry before it can reach the roller.
+   record(actor,'enchant_save',entry.id,{alignment:entry.alignment,slots:entry.slots,name:entry.name,reason:clean(input.reason,240)});
+   return {entry,revision:enchantStore().revision()};
+  },
+  enchant_delete(input,actor){
+   const result=enchantStore().remove(input.id,baseTable(),actor); // Shipped entries are retired, not deleted: the next content push would bring them back.
+   record(actor,'enchant_delete',result.id,{...result,reason:clean(input.reason,240)});
+   return {...result,revision:enchantStore().revision()};
+  },
+  enchant_restore(input,actor){
+   const result=enchantStore().restore(input.id,actor);
+   record(actor,'enchant_restore',result.id,{reason:clean(input.reason,240)});
+   return {...result,revision:enchantStore().revision()};
+  },
+  enchant_reset(input,actor){
+   const scope=String(input.scope??'all');
+   if(!['all','tuning','entries'].includes(scope))fail(400,'Reset tuning, entries or all.','gm_invalid_enchantment');
+   const result=enchantStore().reset(scope);
+   record(actor,'enchant_reset','enchantments',{...result,reason:clean(input.reason,240)});
+   return {...result,revision:enchantStore().revision()};
   },
   delete_chat(input,actor){
    const seq=Number(input.seq);
@@ -263,6 +308,9 @@ export function createGameMasterPanel(db,{walletClient,performanceSnapshot=()=>n
    if(url.pathname==='/gm/whoami'&&req.method==='GET')return send(200,{owner:who,serverTime:now()});
    if(url.pathname==='/gm/overview'&&req.method==='GET')return send(200,{...overview(),actor:who});
    if(url.pathname==='/gm/performance'&&req.method==='GET')return send(200,performanceSnapshot()); // Reuses the live role, address, origin and TLS checks above; never exposed by /health.
+   if(url.pathname==='/gm/enchantments'&&req.method==='GET')return send(200,enchantView()); // Content tuning, behind the same staff identity as every moderation tool.
+   if(url.pathname==='/gm/rp'&&req.method==='GET')return send(200,rp.journal(Object.fromEntries(url.searchParams)));
+   if(url.pathname==='/gm/rpp'&&req.method==='GET')return send(200,rpp.journal(url.searchParams.get('character')??''));
    if(url.pathname==='/gm/chat'&&req.method==='GET'){
     const limit=Number(url.searchParams.get('limit')??'60');
     if(!Number.isSafeInteger(limit)||limit<1||limit>200)return send(400,{error:'gm_invalid_page'});
