@@ -73,6 +73,7 @@ tr.sel td{background:#2c1e3d}
 #panel-monsters{grid-template-columns:minmax(190px,260px) minmax(0,1fr)}
 #panel-monsters .wide{grid-column:auto}#monsterList{display:flex;flex-direction:column;max-height:65vh;overflow:auto}#monsterList button{text-align:left}
 .scene-workspace{display:grid;grid-template-columns:minmax(120px,1fr) minmax(150px,1fr) minmax(260px,3fr);gap:16px}.scene-workspace>div{min-width:0}.scene-workspace button{display:block;margin:5px 0}.scene-workspace label{display:block}.scene-workspace select{max-width:100%}
+.scene-workspace>div:nth-child(2) button{width:100%;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.scene-workspace>div:last-child>button{display:inline-block;margin:4px 4px 0 0}
 .scene-preview{background:var(--panel);color:var(--ink);border:1px solid var(--rose);border-radius:10px;width:min(700px,90vw)}.scene-preview p{white-space:pre-wrap}.scene-preview::backdrop{background:#000a}.monster-art canvas{image-rendering:pixelated;background:repeating-conic-gradient(#382d44 0% 25%,#251c2e 0% 50%) 50%/16px 16px}.monster-art{margin:10px 0}button[aria-current="step"]{border-color:var(--rose);color:var(--rose)}
 @media(max-width:900px){#panel-monsters,.scene-workspace{grid-template-columns:1fr}#monsterList{max-height:220px}}
 </style>

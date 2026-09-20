@@ -30,7 +30,7 @@ async function saveMonster(publish=false){
 function bindMonster(parent,label,key,type='text'){const s=monsterEditorState,input=worldField(parent,label,s.d[key],type);input.oninput=()=>{s.d[key]=type==='checkbox'?input.checked:type==='number'?Number(input.value):input.value;monsterChanged();};return input;}
 function renderMonsterEditor(){
  const s=monsterEditorState,d=s.d,host=$('monsterEditor');clear(host);host.appendChild(el('h2',null,d.name||'New monster'));
- const status=el('p',null,s.dirty?'Unsaved changes':s.row.revision?'Draft saved · revision '+s.row.revision:'New draft');status.id='monsterSaveState';host.appendChild(status);
+ const status=el('p',null,s.dirty?'Unsaved changes':s.row.revision?'Draft saved · revision '+s.row.revision:s.wizard?'New draft':'Game default ? no override');status.id='monsterSaveState';host.appendChild(status);
  const nav=el('div','row');nav.setAttribute('aria-label',s.wizard?'Creation steps':'Monster sections');host.appendChild(nav);
  monsterSteps.forEach((label,i)=>{const b=worldButton((s.wizard?(i+1)+'. ':'')+label,()=>{s.step=i;renderMonsterEditor();},nav);b.setAttribute('aria-current',s.step===i?'step':'false');});
  const panel=el('section');panel.id='monsterStep';host.appendChild(panel);

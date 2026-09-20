@@ -214,7 +214,7 @@ test('defeat scenes retain the authored opponent across duplicate commands, reco
    s=f.raw(command);assert.equal(s.character.run,null);assert.equal(s.character.lastResult.outcome,outcome);
    const result=structuredClone(s.character.lastResult),settled=structuredClone(s.character.loadout);
    if(outcome==='flee')assert.equal(result.defeatScene,undefined);
-   else {assert.deepEqual(result.defeatScene,{id:run.id,enemy_id:'diaper_fairy',name:run.enemy.name});assert.equal(settled.player_info.equipped_panties,'printed_diaper');assert.equal(settled.player_info.equipped_shoes,'mary_janes');assert.ok(result.defeatEquipment);}
+   else {const {content,...identity}=result.defeatScene;assert.deepEqual(identity,{id:run.id,enemy_id:'diaper_fairy',name:run.enemy.name});assert.ok(content.first.dialogue.length);assert.ok(content.repeat.aftermath.length);assert.equal(settled.player_info.equipped_panties,'printed_diaper');assert.equal(settled.player_info.equipped_shoes,'mary_janes');assert.ok(result.defeatEquipment);}
    assert.deepEqual(f.raw(command).character.lastResult,result);assert.deepEqual(f.snap(id).character.loadout,settled);
    f.restart();s=f.act(id,'enter',{zone:DIVE_ZONE,combat_version:2,defeat_version:1});assert.deepEqual(s.character.lastResult,result);assert.deepEqual(s.character.loadout,settled);
    if(outcome!=='flee'){

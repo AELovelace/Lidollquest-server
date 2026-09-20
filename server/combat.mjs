@@ -2,7 +2,7 @@ import {isCrawling,syncCrawl,standBlockReason,setCrawling} from './crawl.mjs';
 import {readFileSync} from 'node:fs';
 import {applyRunLoadout,syncRunHealth} from './loadout.mjs';
 import {mageBalance,hasAbility,manaCapacity,refreshMana} from './magic-balance.mjs';
-import {resolvedDefeat} from './defeat-scenes.mjs';
+import {resolvedDefeat,pinDefeat} from './defeat-scenes.mjs';
 
 export const combatData=JSON.parse(readFileSync(new URL('./combat-data.json',import.meta.url),'utf8'));
 const clamp=(n,lo,hi)=>Math.max(lo,Math.min(hi,n));
@@ -28,7 +28,7 @@ export function beginRound(state,z,roll,authoredEnemy=null){ // Arena rounds and
  syncCrawl(state.loadout); // A crawling entrant retains the normal first player action.
  const r=state.run;r.combatVersion=2;r.turn=(r.turn??0)+1;r.turnReady=false;r.buffs=[];r.debuffs=[];r.dots=[];
  r.charmFailures=0;r.charmLimit=1+roll(5);r.charmPressure=0;
- Object.assign(r.enemy,authoredEnemy??{str:z.attack+r.stage+1,def:Math.floor((r.stage-1)/2),exp:r.stage*5,enemy_id:'goblin',enemy_spells:r.stage>=3?[z.theme==='clockwork'?'assessment_scan':'haunting_urge']:[],spell_cast_chance:0.35});
+ Object.assign(r.enemy,authoredEnemy?pinDefeat(authoredEnemy):{str:z.attack+r.stage+1,def:Math.floor((r.stage-1)/2),exp:r.stage*5,enemy_id:'goblin',enemy_spells:r.stage>=3?[z.theme==='clockwork'?'assessment_scan':'haunting_urge']:[],spell_cast_chance:0.35});
  applyRunLoadout(r,state.loadout);
 }
 
