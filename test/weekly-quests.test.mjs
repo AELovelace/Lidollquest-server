@@ -5,10 +5,14 @@ import {validateQuestContent} from '../server/quest-content.mjs';
 import {hubData,hubCatalog,hubRooms} from '../server/hubs.mjs';
 import {districtData} from '../server/hub-districts.mjs';
 import {combatData} from '../server/combat.mjs';
+import {createWorldContent} from '../server/world-content.mjs';
+import {loadQuestPack} from '../server/service.mjs';
+import {DatabaseSync} from 'node:sqlite';
+import {fileURLToPath} from 'node:url';
 
-// content/weekly_quests.json is uploaded by scripts/upload-weekly-quests.mjs. Publishing it
-// runs the same validation the GM console does, so every reference is checked here instead
-// of failing halfway through a live upload.
+// content/weekly_quests.json goes live either by being named in LIDOLLQUEST_QUEST_PACK, which
+// loads it at boot, or by scripts/upload-weekly-quests.mjs. Both run the same validation the
+// GM console does, so every reference is checked here instead of failing on a live server.
 const pack=JSON.parse(readFileSync(new URL('../content/weekly_quests.json',import.meta.url),'utf8'));
 const equipment={...hubData.equipment,...combatData.defeat_items}; // Exactly what service.mjs hands the validator.
 const assetRef=value=>String(value??''); // Quests carry no artwork of their own; only NPCs do.
@@ -81,3 +85,32 @@ test('the pack is spread across all three hubs',()=>{
  }
  for(const [hub,n] of perHub)assert.ok(n>0,hub+' has no weekly quests.');
 });
+
+test('the pack loads as boot content without any upload',()=>{
+ const db=new DatabaseSync(':memory:');
+ const live=createWorldContent(db,{spells:combatData.spells,equipment,defeatEquipment:combatData.defeat_equipment,questPack:pack.quests});
+ const published=live.published().quests;
+ assert.equal(Object.keys(published).length,pack.quests.length,'Every quest in the pack should be live on boot.');
+ for(const quest of pack.quests)assert.equal(published[quest.id].name,quest.name);
+ assert.ok(live.view().quests.length>=pack.quests.length,'The panel should list shipped quests alongside saved ones.');
+ assert.equal(live.published().enabled,false,'Shipped quests must not flip the published-world-content gate for Dives.');
+}); // No GM sign-in, no address allowlist and no HTTP call: the deployed file is the content.
+
+test('loadQuestPack accepts the shipped file and refuses a malformed one',()=>{
+ assert.deepEqual(loadQuestPack(''),[],'An unset variable means no live quests, exactly as before.');
+ assert.equal(loadQuestPack(fileURLToPath(new URL('../content/weekly_quests.json',import.meta.url))).length,pack.quests.length);
+ assert.throws(()=>loadQuestPack(fileURLToPath(new URL('../package.json',import.meta.url))),/kind "quest"/);
+ assert.throws(()=>loadQuestPack('no/such/pack.json'),/could not be read/);
+});
+
+test('a saved row overlays a shipped quest, so the panel can still retire one',()=>{
+ const db=new DatabaseSync(':memory:');
+ const live=createWorldContent(db,{spells:combatData.spells,equipment,defeatEquipment:combatData.defeat_equipment,questPack:pack.quests});
+ const target=pack.quests[0];
+ const entry=live.entry('quest',target.id);
+ assert.equal(entry.revision,0,'A shipped quest starts at revision 0 until it is edited.');
+ live.once({action:'content_publish',kind:'quest',id:target.id,revision:0,entry:{...target,retired:true},request_id:'retire-one-quest'},'tester',
+  ()=>live.change({action:'content_publish',kind:'quest',id:target.id,revision:0,entry:{...target,retired:true}},'tester'));
+ assert.equal(live.published().quests[target.id].retired,true,'The saved row must win over the shipped baseline.');
+ assert.equal(Object.keys(live.published().quests).length,pack.quests.length,'Retiring one must not drop the rest.');
+}); // Same override model the shipped monster baselines already use.

@@ -496,6 +496,22 @@ the pack uses only `visit`, `talk`, `deliver`, `equipment`, `state` and `timer`
 objectives. It therefore needs no published NPCs, no published monsters and no zone
 placements, and it survives a monthly district layout replacement untouched.
 
+The simplest way to put it live is to name it in `/etc/lidollquest/server.env` and
+restart. The quests are then boot content: no gamemaster sign-in, no address allowlist,
+no HTTP call.
+
+```
+LIDOLLQUEST_QUEST_PACK=content/weekly_quests.json
+```
+
+The file is validated at startup, so a malformed pack stops the service rather than
+half-loading. The panel still lists every shipped quest and can edit or retire any one
+of them; a saved row overlays the shipped definition, exactly as it does for the shipped
+monster baselines. Leaving the variable unset means no live quests, as before.
+
+The uploader remains for publishing to a running server without a restart, or from a
+machine that is not the server:
+
 ```bash
 npm test                                            # includes test/weekly-quests.test.mjs
 node scripts/upload-weekly-quests.mjs --dry-run

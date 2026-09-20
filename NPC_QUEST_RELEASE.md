@@ -31,6 +31,18 @@ The GM Guide tab includes a first-quest walkthrough, tokens/deliveries, all obje
 compatible clients are out, because publishing live quest content enables the
 client-version requirement. From this checkout:
 
+Add one line to `/etc/lidollquest/server.env` and restart:
+
+```
+LIDOLLQUEST_QUEST_PACK=content/weekly_quests.json
+```
+
+That is the whole deployment. The quests are boot content, validated at startup, with
+no gamemaster sign-in and no upload step. The panel can still edit or retire any of
+them afterwards.
+
+To publish to a running server instead, without a restart, use the uploader:
+
 ```bash
 npm test
 node scripts/upload-weekly-quests.mjs --base https://<host> --signin
