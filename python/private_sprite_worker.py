@@ -55,6 +55,11 @@ def generate(prompt, client):
     character, _ = generation_stage("create", lambda: client.create_character_4dir(prompt, 64, "thin", "flat", "medium", "high top-down", None))
     idle = generation_stage("fetch", lambda: client.fetch_character_direction_images(character))
     walk, _ = generation_stage("animate", lambda: client.animate_character_walk(character, "walking, smooth looping walk cycle, in place", 8))
+    return pack_frames(idle, walk)
+
+
+def pack_frames(idle, walk):
+    """Pack downloaded frames without submitting any provider generation."""
     frames = []
     for direction in DIRECTIONS:
         if direction not in idle or len(walk.get(direction, [])) != 8:

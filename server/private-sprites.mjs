@@ -9,10 +9,10 @@ const diagnosticCodes=new Set(['python_dependency_missing','python_unavailable',
 const diagnosticStages=new Set(['startup','create','fetch','animate','pack']);
 function safeDiagnostic(value){const result={code:diagnosticCodes.has(value?.code)?value.code:'generation_failed',stage:diagnosticStages.has(value?.stage)?value.stage:'startup'};if(Number.isInteger(value?.http_status)&&value.http_status>=400&&value.http_status<=599)result.http_status=value.http_status;if(result.code==='incomplete_animation')for(const key of ['idle_count','south','north','east','west'])if(Number.isInteger(value?.[key])&&value[key]>=0&&value[key]<=256)result[key]=value[key];return result;} // Log only fixed labels, an HTTP status and bounded frame counts; never arbitrary Python/provider messages.
 const generationError=diagnostic=>Object.assign(Error('Sprite generation failed'),{diagnostic:safeDiagnostic(diagnostic)});
-export function pythonSpriteProvider({python=process.env.PIXELLAB_PYTHON??'python3',token=process.env.PIXELLAB_API_TOKEN,spawnWorker=spawn}={}){
+export function pythonSpriteProvider({python=process.env.PIXELLAB_PYTHON??'python3',token=process.env.PIXELLAB_API_TOKEN,spawnWorker=spawn,admin=false}={}){
  if(!token)return null;
  return (prompt,signal)=>new Promise((resolve,reject)=>{
-  const workerPath=fileURLToPath(new URL('../python/private_sprite_worker.py',import.meta.url));
+  const workerPath=fileURLToPath(new URL(admin?'../python/world_art_worker.py':'../python/private_sprite_worker.py',import.meta.url));
   if(!existsSync(workerPath))return reject(generationError({code:'worker_missing',stage:'startup'}));
   const child=spawnWorker(python,[workerPath],{windowsHide:true,stdio:['pipe','pipe','pipe'],env:{...process.env,PIXELLAB_API_TOKEN:token},signal});
   let result='',stderr='',size=0,failure=null;const timer=setTimeout(()=>{failure={code:'worker_timeout'};child.kill();},30*60000);timer.unref();
@@ -20,7 +20,7 @@ export function pythonSpriteProvider({python=process.env.PIXELLAB_PYTHON??'pytho
   child.stderr.on('data',chunk=>{if(stderr.length<8192)stderr+=chunk.toString().slice(0,8192-stderr.length);}); // Bound diagnostics even if an interpreter or dependency prints a long traceback.
   child.on('error',error=>{clearTimeout(timer);reject(generationError({code:error.code==='ENOENT'?'python_unavailable':'worker_start_failed',stage:'startup'}));});
   child.on('close',code=>{clearTimeout(timer);if(code!==0||failure){let diagnostic=failure;for(const line of stderr.split('\n')){try{const parsed=JSON.parse(line);if(!diagnostic&&parsed?.error)diagnostic=safeDiagnostic(parsed.error);}catch{}}return reject(generationError(diagnostic));}try{resolve(JSON.parse(result));}catch{reject(generationError({code:'invalid_sprite_output',stage:'pack'}));}});
-  child.stdin.on('error',()=>{});child.stdin.end(JSON.stringify({prompt}));
+  child.stdin.on('error',()=>{});child.stdin.end(JSON.stringify(admin?prompt:{prompt}));
  });
 } // Only the service process receives the provider key; subprocess arguments and browser packets contain no credentials.
 
