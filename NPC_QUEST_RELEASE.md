@@ -24,3 +24,19 @@ This correction needs only a quest-server update. Refresh the admin page after d
 ## GM Guide
 
 The GM Guide tab includes a first-quest walkthrough, tokens/deliveries, all objective types, branches, dialogue, placement, rewards, artwork, monsters, troubleshooting and an ID lookup. Help buttons in the authoring panels jump to the matching topic without discarding editor forms. This update needs only the quest-server package; restart the service and refresh the admin page. No tracker or game-client build is required.
+
+## Weekly hub quest pack
+
+`content/weekly_quests.json` ships with this repository and is published after the
+compatible clients are out, because publishing live quest content enables the
+client-version requirement. From this checkout:
+
+```bash
+npm test
+node scripts/upload-weekly-quests.mjs --base https://<host> --signin
+```
+
+The pack's givers are existing roaming district residents, so no NPC has to be
+published first and no zone placements are required. Re-running publishes only
+changed quests; `--retire` withdraws the pack from new acceptance while leaving
+accepted instances and their claims intact. See README.md for the full description.

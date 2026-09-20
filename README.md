@@ -487,6 +487,34 @@ weekly floor reset or GameMaker client rebuild is required, and the mute and
 suspension messages are ordinary rejection text existing clients already display.
 Verify with `node --test test/gm.test.mjs`.
 
+### Weekly hub quest pack
+
+`content/weekly_quests.json` holds 20 repeatable weekly quests for the three hubs:
+7 for Rose Court, 7 for Lantern Court and 6 for the Clockwork Coliseum. Every giver
+and turn-in is an existing roaming district resident, keyed `<hub>-garden:<id>`, and
+the pack uses only `visit`, `talk`, `deliver`, `equipment`, `state` and `timer`
+objectives. It therefore needs no published NPCs, no published monsters and no zone
+placements, and it survives a monthly district layout replacement untouched.
+
+```bash
+npm test                                            # includes test/weekly-quests.test.mjs
+node scripts/upload-weekly-quests.mjs --dry-run
+node scripts/upload-weekly-quests.mjs --base https://<host> --signin
+```
+
+`test/weekly-quests.test.mjs` validates the pack against `server/quest-content.mjs`,
+the live item catalogue and the zone/resident registries, so an unknown giver, zone,
+item or equip slot fails the suite rather than a live upload. The uploader publishes
+through the same `POST /gm/action` `content_publish` calls the panel makes, so it
+needs the gamemaster role and an address permitted by `LIDOLLQUEST_GM_ALLOW`.
+`--signin` runs the device authorisation above and prints the granted token for reuse
+through `--token` or `$LIDOLLQUEST_GM_TOKEN`.
+
+Each call carries a `request_id` derived from its payload, so re-running republishes
+only what changed and an unchanged quest replays its receipt. `--retire` withdraws the
+pack from new acceptance; instances players already accepted keep their pinned
+definitions and rewards either way.
+
 ## Unified accounts and cloud campaigns
 
 ### Character and save management
