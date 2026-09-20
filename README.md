@@ -168,6 +168,22 @@ to distribute, rotate or leak, and every action is recorded against the account
 that performed it. Set `LIDOLLQUEST_GM_ENABLED=false` to remove the surface
 entirely.
 
+### MommyBot account matching
+
+The tracker hashes `client_id + ":" + owner`, so MommyBot's `lidollbot` wallet ID
+must never be used directly as `quest_characters.owner`. Updated MommyBot first
+calls the tracker's authenticated `GET quest-account?client_id=lidollbot` and
+uses the returned `lidollquest` account ID for `/integrations/mommybot/character`.
+Deploy the Little Log tracker bridge before MommyBot. Existing character rows,
+wallet IDs and clients need no migration or rebuild. Keep the existing shared
+`MOMMYBOT_ONLINE_TOKEN` on the game and bot services.
+
+`node --test test/mommybot-tracker.test.mjs test/mommybot-profile.test.mjs` checks
+both real app-specific IDs against an existing character, cross-account denial,
+revocation and simulated showcase messages. The integration test uses sibling
+`omo-trainer` and `MommyBot` checkouts (override `TRACKER_ROOT`/`MOMMYBOT_ROOT`).
+The read-only owner diagnostic expects the translated game ID, not the bot ID.
+
 ### Paperdoll portraits
 
 `/integrations/mommybot/character` returns `portrait_png` (base64) and
