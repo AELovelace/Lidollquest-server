@@ -17,7 +17,7 @@ import {diveData} from './dive.mjs';
 import {createPerformanceMonitor} from './performance.mjs';
 import {createComputePool,computeWorkerCount} from './compute-pool.mjs';
 
-export function createQuestService({filename=':memory:',walletClient,spriteProvider,now=Date.now,roll,log=console.warn,performanceOptions={},workerCount=0,onlineToken=process.env.MOMMYBOT_ONLINE_TOKEN||'',gmAllow=process.env.LIDOLLQUEST_GM_ALLOW||'',gmEnabled=process.env.LIDOLLQUEST_GM_ENABLED!=='false',gmTrustProxy=process.env.LIDOLLQUEST_GM_TRUST_PROXY||'',gmRequireTls=process.env.LIDOLLQUEST_GM_REQUIRE_TLS==='true'}={}){
+export function createQuestService({filename=':memory:',walletClient,spriteProvider,artJobOptions={},now=Date.now,roll,log=console.warn,performanceOptions={},workerCount=0,onlineToken=process.env.MOMMYBOT_ONLINE_TOKEN||'',gmAllow=process.env.LIDOLLQUEST_GM_ALLOW||'',gmEnabled=process.env.LIDOLLQUEST_GM_ENABLED!=='false',gmTrustProxy=process.env.LIDOLLQUEST_GM_TRUST_PROXY||'',gmRequireTls=process.env.LIDOLLQUEST_GM_REQUIRE_TLS==='true'}={}){
  const poolSize=computeWorkerCount(workerCount);let compute=null; // Validate configuration before opening persistent resources.
  const db=new DatabaseSync(filename);db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;');
  db.exec(`CREATE TABLE IF NOT EXISTS wallet_cache(owner TEXT PRIMARY KEY,coins INTEGER NOT NULL);
@@ -29,7 +29,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
  const metrics=createPerformanceMonitor(db,{log,...performanceOptions,workers:()=>compute?.snapshot()??null}); // Process CPU includes workers; event-loop delay still describes the coordinator.
  if(poolSize)compute=createComputePool({size:poolSize,observe:metrics.observe});
  const live=createWorldContent(db,{now,spells:combatData.spells,equipment:{...hubData.equipment,...combatData.defeat_items},defeatEquipment:combatData.defeat_equipment});
- const artJobs=createWorldJobs(db,{live,now});
+ const artJobs=createWorldJobs(db,{live,now,...artJobOptions});
  const gm=createGameMasterPanel(db,{walletClient,live,artJobs,world:()=>zones.world,performanceSnapshot:metrics.snapshot,enchantments:createEnchantmentStore(db,{now}),enchantmentTable:()=>diveData.enchantments,allow:gmAllow,trustProxy:gmTrustProxy,requireTls:gmRequireTls,enabled:gmEnabled,now,log}); // Staff moderation owns its own tables and never touches wallet credentials.
  const zones=createQuestZones(db,{now,roll,compute,live,measure:metrics.measure,onPresence:onlineFeed.record,enabled:owner=>!gm.suspended(owner),muted:gm.muted,grant:()=>{if(!identity)throw Error('Missing request identity');return identity;},wallet:owner=>({coins:db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(owner)?.coins??0}),adjust:(owner,asset,amount,id,reason)=>{
   if(asset!=='coins'||!Number.isSafeInteger(amount)||amount<1||amount>DAILY_COIN_CAP)throw Error('Invalid server award'); // A single entitlement can never exceed one day's whole allowance.

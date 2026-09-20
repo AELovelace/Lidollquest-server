@@ -7,11 +7,11 @@ const defeats=new Set(['defeat','submit','submitted','charm_backfire']);
 
 export function applyDefeatEquipment(state,run,outcome){
  if(!['dive','hub_event'].includes(run.kind)||!defeats.has(outcome)||!state.loadout||state.defeatEquipmentReceipt===run.id)return;
- const enemy=run.enemy.enemy_id,kit=run.enemy.defeat_equipment??combatData.defeat_equipment?.[enemy]??(run.enemy.defeat?{first:[],repeat:[]}:null);
+ const enemy=run.enemy.enemy_id,kit=run.enemy.defeat_equipment??combatData.defeat_equipment?.[enemy]??(run.enemy.defeat&&!run.enemy.defeat_inherited?{first:[],repeat:[]}:null);
  if(!kit)return; // Arena templates and enemies with no authored outfit do not invent equipment rewards.
  const p=state.loadout.player_info,timers=p.enemy_loss_effect_turns??{};
  const worn=Object.entries(p).filter(([key,value])=>key.startsWith('equipped_')&&typeof value==='string').map(([,value])=>value);
- const repeat=!!(run.enemy.defeat&&state.worldDefeats?.[enemy])||kit.repeat.some(id=>worn.includes(id))||(timers[enemy]??0)>0||(['goblin','goblin_brute'].includes(enemy)&&Math.max(timers.goblin??0,timers.goblin_brute??0)>0);
+ const repeat=!!(run.enemy.defeat&&!run.enemy.defeat_inherited&&state.worldDefeats?.[enemy])||kit.repeat.some(id=>worn.includes(id))||(timers[enemy]??0)>0||(['goblin','goblin_brute'].includes(enemy)&&Math.max(timers.goblin??0,timers.goblin_brute??0)>0);
  const changes=[];
  for(const id of repeat?kit.repeat:kit.first){
   if(!catalog[id]){changes.push({item:id,equipped:false,reason:'Item is unavailable.'});run.log.push('Outfit piece unavailable: '+id+'.');continue;} // A retired item ID cannot suppress the remaining authored kit.

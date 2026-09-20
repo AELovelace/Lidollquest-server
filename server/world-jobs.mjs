@@ -1,20 +1,23 @@
 import {randomUUID} from 'node:crypto';
 import {pythonSpriteProvider} from './private-sprites.mjs';
+import {createStagedArt} from './world-art-stages.mjs';
 const fail=message=>{throw Object.assign(Error(message),{status:400,code:'world_generation_failed'});};
-export function createWorldJobs(db,{live,now=Date.now,walkProvider=pythonSpriteProvider(),token=process.env.PIXELLAB_API_TOKEN,fetcher=fetch}={}){
+export function createWorldJobs(db,{live,now=Date.now,walkProvider=pythonSpriteProvider(),token=process.env.PIXELLAB_API_TOKEN,fetcher=fetch,download}={}){
  db.exec('CREATE TABLE IF NOT EXISTS world_art_jobs(id TEXT PRIMARY KEY,prompt TEXT NOT NULL,status TEXT NOT NULL,stage TEXT NOT NULL,walking TEXT,reference TEXT,portraits TEXT,provider_job TEXT,error TEXT,created INTEGER NOT NULL)');
- db.prepare("UPDATE world_art_jobs SET status='failed',error='Walking generation was interrupted. Check provider usage before retrying.' WHERE status='running' AND stage='walking'").run();
- db.prepare("UPDATE world_art_jobs SET status='queued' WHERE status='running' AND stage='portrait' AND provider_job IS NOT NULL").run();
- db.prepare("UPDATE world_art_jobs SET status='failed',error='Portrait submission was interrupted. Check provider usage before retrying.' WHERE status='running' AND stage='portrait'").run();
+ const staged=createStagedArt(db,{live,now,token,fetcher,download});
+ db.prepare("UPDATE world_art_jobs SET status='failed',error='Walking generation was interrupted. Check provider usage before retrying.' WHERE details IS NULL AND status='running' AND stage='walking'").run();
+ db.prepare("UPDATE world_art_jobs SET status='queued' WHERE details IS NULL AND status='running' AND stage='portrait' AND provider_job IS NOT NULL").run();
+ db.prepare("UPDATE world_art_jobs SET status='failed',error='Portrait submission was interrupted. Check provider usage before retrying.' WHERE details IS NULL AND status='running' AND stage='portrait'").run();
  let busy=false,closed=false,controller=null,activeId=null;
  const get=id=>db.prepare('SELECT * FROM world_art_jobs WHERE id=?').get(id);
- function list(){return db.prepare('SELECT id,prompt,status,stage,walking,portraits,error,created FROM world_art_jobs ORDER BY created DESC LIMIT 100').all().map(r=>({...r,walking:r.walking?JSON.parse(r.walking):null,portraits:r.portraits?JSON.parse(r.portraits):[]}));}
- function act(input){
+ function list(){return db.prepare('SELECT id,prompt,status,stage,walking,portraits,error,created,details FROM world_art_jobs ORDER BY created DESC LIMIT 100').all().map(({details,...r})=>({...r,...staged.publicFields({details}),walking:r.walking?JSON.parse(r.walking):null,portraits:r.portraits?JSON.parse(r.portraits):[]}));}
+ function act(input,actor){
+  const result=staged.act(input,actor);if(result!==undefined){if(input.action==='art_cancel'&&activeId===input.id)controller?.abort();return result;}
   if(input.action==='art_generate'){
    if(!walkProvider||!token)fail('Sprite generation is not configured on the server.');
    if(typeof input.prompt!=='string'||!input.prompt.trim()||input.prompt.length>2000)fail('Describe the monster in up to 2,000 characters.');
    if(db.prepare("SELECT COUNT(*) n FROM world_art_jobs WHERE status IN ('queued','running')").get().n>=20)fail('The generation queue is full.');
-   const id=randomUUID();db.prepare("INSERT INTO world_art_jobs VALUES (?,?,'queued','walking',NULL,NULL,NULL,NULL,NULL,?)").run(id,input.prompt.trim(),now());return {id};
+   const id=randomUUID();db.prepare("INSERT INTO world_art_jobs(id,prompt,status,stage,created) VALUES (?,?,'queued','walking',?)").run(id,input.prompt.trim(),now());return {id};
   }
   const job=get(input.id);if(!job)fail('Generation job not found.');
   if(input.action==='art_cancel'){db.prepare("UPDATE world_art_jobs SET status='cancelled' WHERE id=? AND status IN ('running','queued')").run(job.id);if(activeId===job.id)controller?.abort();return {id:job.id};}
@@ -27,6 +30,7 @@ export function createWorldJobs(db,{live,now=Date.now,walkProvider=pythonSpriteP
  }
  async function pump(){if(busy||closed)return;const job=db.prepare("SELECT * FROM world_art_jobs WHERE status='queued' ORDER BY created LIMIT 1").get();if(!job)return;busy=true;activeId=job.id;controller=new AbortController();const timeout=setTimeout(()=>controller?.abort(),30*60000);timeout.unref();
   try{
+   if(job.details){await staged.pump(job,controller.signal,()=>closed);return;}
    db.prepare("UPDATE world_art_jobs SET status='running' WHERE id=?").run(job.id);
    if(job.stage==='walking'){
     const result=await walkProvider(job.prompt,controller.signal);if(closed||get(job.id).status==='cancelled')return;

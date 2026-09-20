@@ -70,6 +70,11 @@ tr.sel td{background:#2c1e3d}
 .src{font-size:11px;color:var(--dim)}
 .src.custom{color:var(--mint)}.src.edited{color:var(--amber)}.src.retired{color:var(--red)}
 .scroll{overflow-x:auto}.perf-chart{display:block;width:100%;height:190px;background:#1b1226;border-radius:8px}.perf-chart text{fill:var(--dim);font-size:12px}.perf-chart .grid{stroke:var(--edge);stroke-width:1}.perf-chart .cpu{stroke:var(--mint);fill:none;stroke-width:2}.perf-chart .loop{stroke:var(--rose);fill:none;stroke-width:2}
+#panel-monsters{grid-template-columns:minmax(190px,260px) minmax(0,1fr)}
+#panel-monsters .wide{grid-column:auto}#monsterList{display:flex;flex-direction:column;max-height:65vh;overflow:auto}#monsterList button{text-align:left}
+.scene-workspace{display:grid;grid-template-columns:minmax(120px,1fr) minmax(150px,1fr) minmax(260px,3fr);gap:16px}.scene-workspace>div{min-width:0}.scene-workspace button{display:block;margin:5px 0}.scene-workspace label{display:block}.scene-workspace select{max-width:100%}
+.scene-preview{background:var(--panel);color:var(--ink);border:1px solid var(--rose);border-radius:10px;width:min(700px,90vw)}.scene-preview p{white-space:pre-wrap}.scene-preview::backdrop{background:#000a}.monster-art canvas{image-rendering:pixelated;background:repeating-conic-gradient(#382d44 0% 25%,#251c2e 0% 50%) 50%/16px 16px}.monster-art{margin:10px 0}button[aria-current="step"]{border-color:var(--rose);color:var(--rose)}
+@media(max-width:900px){#panel-monsters,.scene-workspace{grid-template-columns:1fr}#monsterList{max-height:220px}}
 </style>
 </head>
 <body>
@@ -117,7 +122,7 @@ tr.sel td{background:#2c1e3d}
 <div id="panel-world" class="tab-panel" role="tabpanel" aria-labelledby="tab-world" hidden>
 <section class="wide"><h2>Live world</h2><select id="worldZone"></select><button id="worldMapLoad">Refresh map</button><p id="mapStatus"></p><div class="row"><select id="placeMonster"></select><label><input id="placeAggressive" type="checkbox">Roam and attack automatically</label><label><input id="placeRespawn" type="checkbox">Respawn</label><label><input id="removeMonster" type="checkbox">Remove mode</label></div><p class="note">Click a free map tile to place a monster, or click a monster in Remove mode. Refresh after players or monsters move.</p><canvas id="worldMap" style="max-width:100%;image-rendering:pixelated"></canvas><div class="row"><button id="regenerateMap">Regenerate Dive</button><button id="cancelMap" hidden>Cancel regeneration</button></div></section><section class="wide ench-form" id="zoneTuning"></section></div>
 <div id="panel-jobs" class="tab-panel" role="tabpanel" aria-labelledby="tab-jobs" hidden>
-<section class="wide ench-form"><h2>Monster artwork</h2><p>Generation uses the saved server PixelLab key and provider credits. Finished art can be selected in a monster draft before publishing.</p><label>Description<textarea id="artPrompt" maxlength="2000"></textarea></label><button id="artGenerate">Generate walking sprite and battle portrait</button><button id="artLoad">Refresh jobs</button><div id="artJobs"></div></section></div>
+<section class="wide ench-form"><h2>Monster artwork</h2><p>Generation uses the saved server PixelLab key and provider credits. Start generation from a monster?s Artwork step. Approve its design, then assign completed art to the draft.</p><button id="artLoad">Refresh jobs</button><div id="artJobs"></div></section></div>
 
 <div class="tab-panel" id="panel-players" role="tabpanel" aria-labelledby="tab-players" tabindex="0">
   <section class="wide">

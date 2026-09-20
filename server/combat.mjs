@@ -2,6 +2,7 @@ import {isCrawling,syncCrawl,standBlockReason,setCrawling} from './crawl.mjs';
 import {readFileSync} from 'node:fs';
 import {applyRunLoadout,syncRunHealth} from './loadout.mjs';
 import {mageBalance,hasAbility,manaCapacity,refreshMana} from './magic-balance.mjs';
+import {resolvedDefeat} from './defeat-scenes.mjs';
 
 export const combatData=JSON.parse(readFileSync(new URL('./combat-data.json',import.meta.url),'utf8'));
 const clamp=(n,lo,hi)=>Math.max(lo,Math.min(hi,n));
@@ -12,7 +13,7 @@ export const playerSpells=Object.keys(combatData.spells).filter(id=>!combatData.
 
 export function defeatPresentation(run,outcome){ // Preserve the settled opponent before the run is discarded; polling/retries keep one stable scene ID.
  if(!['defeat','charm_backfire','submit','submitted'].includes(outcome))return {};
- return {defeatScene:{id:run.id,enemy_id:['dive','hub_event'].includes(run.kind)?(run.enemy.enemy_id??''):'',name:run.enemy.name,...(run.enemy.defeat?{content:run.enemy.defeat}:{})}};
+ return {defeatScene:{id:run.id,enemy_id:['dive','hub_event'].includes(run.kind)?(run.enemy.enemy_id??''):'',name:run.enemy.name,...(run.enemy.defeat?{content:resolvedDefeat(run.enemy.defeat,run.id,outcome)}:{})}};
 } // Arena templates have no campaign identity; never mislabel their placeholder goblin stats as authored goblin scenes.
 
 export function classId(loadout){return ['fighter','mage','diplomat'].includes(loadout.player_info.class_id)?loadout.player_info.class_id:'fighter';} // Older saves without a class retain the original fighter actions.
