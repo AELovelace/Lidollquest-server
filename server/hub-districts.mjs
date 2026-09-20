@@ -55,7 +55,7 @@ export function generateDistrict(definition,window,data=districtData){
  return f;
 } // Host-specific geometry replaces the old universal path lattice; ordinary movement and monthly resets remain shared.
 
-export function createHubDistricts(db,{now=Date.now,data=districtData}={}){
+export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActivate=()=>{}}={}){
  db.exec('CREATE TABLE IF NOT EXISTS hub_district_editions(zone TEXT NOT NULL,edition TEXT NOT NULL,content TEXT NOT NULL,PRIMARY KEY(zone,edition)); CREATE TABLE IF NOT EXISTS hub_district_current(zone TEXT PRIMARY KEY,edition TEXT NOT NULL);');
  const cache=new Map();
  const visitors=id=>db.prepare('SELECT x,y FROM quest_presence WHERE zone=? AND seen>?').all(id,now()-30000);
@@ -65,6 +65,8 @@ export function createHubDistricts(db,{now=Date.now,data=districtData}={}){
   const id=def.hub+'-garden',window=monthlyWindow(now(),data.reset_hour),layoutKey=`${window.edition}:v${data.version}`,cached=cache.get(id);if(cached?.district.layoutKey===layoutKey){upgrade(id,cached,def);return cached;}
   const row=db.prepare('SELECT content FROM hub_district_editions WHERE zone=? AND edition=?').get(id,layoutKey);
   const f=row?JSON.parse(row.content):generateDistrict(def,window,data);
+  const prior=db.prepare('SELECT edition FROM hub_district_current WHERE zone=?').get(id);
+  if(prior&&prior.edition!==layoutKey){const old=db.prepare('SELECT content FROM hub_district_editions WHERE zone=? AND edition=?').get(id,prior.edition);try{beforeActivate(id,f);}catch(error){if(old)return JSON.parse(old.content);throw error;}}
   if(!row)db.prepare('INSERT INTO hub_district_editions VALUES (?,?,?)').run(id,layoutKey,JSON.stringify(f));
   else upgrade(id,f,def); // A resident-only update does not replace the layout or send visitors back to the entrance.
   const current=db.prepare('SELECT edition FROM hub_district_current WHERE zone=?').get(id);

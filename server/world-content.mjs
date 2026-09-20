@@ -1,3 +1,4 @@
+import {validateQuestContent,checkQuestReferences,objectiveTypes,stateFields,questStats} from './quest-content.mjs';
 import {validateWorldPng} from './world-png.mjs';
 import {createHash} from 'node:crypto';
 import {defaultScenes,compiledArtwork,defaultSceneRefs,registerDefaultScenes,pinDefeat} from './defeat-scenes.mjs';
@@ -14,7 +15,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  CREATE TABLE IF NOT EXISTS world_content_history(kind TEXT NOT NULL,id TEXT NOT NULL,revision INTEGER NOT NULL,body TEXT NOT NULL,actor TEXT NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(kind,id,revision));
  CREATE TABLE IF NOT EXISTS world_assets(id TEXT PRIMARY KEY,png TEXT NOT NULL,frames INTEGER NOT NULL,width INTEGER NOT NULL,height INTEGER NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS world_commands(actor TEXT NOT NULL,id TEXT NOT NULL,fingerprint TEXT NOT NULL,result TEXT NOT NULL,PRIMARY KEY(actor,id));`);
- const baselines={monster:new Map(),zone:new Map()},routes=new Map(),compiledSprites=new Set(['sprItem',...Object.keys(compiledArtwork)]);let cache=null;
+ const baselines={monster:new Map(),zone:new Map(),npc:new Map(),quest:new Map()},routes=new Map(),compiledSprites=new Set(['sprItem',...Object.keys(compiledArtwork)]);let cache=null;
  function register(data){ // Register route-local baselines without rewriting exported files or collapsing distinct aliases.
   const zone=data.config.zone_id??'dive-quarters';routes.set(zone,clone(data));
   for(const [key,raw] of Object.entries(data.enemies)){
@@ -27,10 +28,10 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  function rows(){return db.prepare('SELECT * FROM world_content').all();}
  function effective(value){const out=clone(value);if(!out.defeat&&defaultSceneRefs[out.enemy_id??out.id]){out.defeat_ref=defaultSceneRefs[out.enemy_id??out.id];out.defeat_inherited=true;}return out;} // Map definitions retain immutable references instead of copying every page into every room.
  function published(){
-  if(cache)return cache;const monsters=Object.fromEntries([...baselines.monster].map(([k,v])=>[k,clone(v)])),zones=Object.fromEntries([...baselines.zone].map(([k,v])=>[k,clone(v)]));let revision=0;
-  for(const row of rows()){if(row.published)(row.kind==='monster'?monsters:zones)[row.id]=JSON.parse(row.published);}
+  if(cache)return cache;const monsters=Object.fromEntries([...baselines.monster].map(([k,v])=>[k,clone(v)])),zones=Object.fromEntries([...baselines.zone].map(([k,v])=>[k,clone(v)]));let revision=0;const npcs={},quests={};
+  for(const row of rows()){if(row.published)({monster:monsters,zone:zones,npc:npcs,quest:quests}[row.kind])[row.id]=JSON.parse(row.published);}
   for(const key of Object.keys(monsters))monsters[key]=effective(monsters[key]);
-  revision=db.prepare('SELECT COALESCE(SUM(revision),0) n FROM (SELECT MAX(revision) revision FROM world_content_history GROUP BY kind,id)').get().n;return cache={monsters,zones,revision,enabled:rows().some(r=>r.published)};
+  revision=db.prepare('SELECT COALESCE(SUM(revision),0) n FROM (SELECT MAX(revision) revision FROM world_content_history GROUP BY kind,id)').get().n;return cache={monsters,zones,npcs,quests,revision,enabled:rows().some(r=>r.published)};
  }
  function entry(kind,key){const row=db.prepare('SELECT * FROM world_content WHERE kind=? AND id=?').get(kind,key),base=baselines[kind]?.get(key);if(!row&&!base)fail('Content not found.',404);const draft=row?JSON.parse(row.draft):clone(base);return {kind,id:key,revision:row?.revision??0,draft,published:row?.published?JSON.parse(row.published):clone(base??null),...(kind==='monster'?{effective_defeat:pinDefeat(effective(draft)).defeat??null,default_defeat:clone(defaultScenes[draft.enemy_id??key]??null),defeat_source:draft.defeat?'Admin override':'Game default'}:{}),history:db.prepare('SELECT revision,actor,created FROM world_content_history WHERE kind=? AND id=? ORDER BY revision DESC').all(kind,key)};}
  function assetRef(value){if(value===null||value==='')return '';if(typeof value!=='string'||value.length>100)fail('Choose an artwork asset.');if(value.startsWith('managed-')){if(!db.prepare('SELECT 1 FROM world_assets WHERE id=?').get(value))fail('Artwork is unavailable.');}else if(!compiledSprites.has(value)||!/^[A-Za-z][A-Za-z0-9_]*$/.test(value))fail('Choose a compiled sprite or uploaded artwork.');return value;}
@@ -41,6 +42,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  }
  function validate(kind,value){
   if(!value||!id(value.id))fail('Choose a stable lowercase content ID.');
+  if(['npc','quest'].includes(kind))return validateQuestContent(kind,value,{assetRef,spells,equipment});
   if(kind==='monster'){
    const out={id:value.id,enemy_id:value.enemy_id??value.id,name:text(value.name,100),retired:!!value.retired};if(!id(out.enemy_id))fail('Invalid enemy identity.');
    for(const key of ['hp','str','def','dex','exp'])out[key]=integer(value[key],key==='hp'?1:0,key==='hp'?100000:10000);
@@ -60,11 +62,13 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  }
  function checkReferences(kind,body){
   const live=published();
+  if(['npc','quest'].includes(kind)){checkQuestReferences(kind,body,live);referenceCheck?.(kind,body);}
   if(kind==='zone'){for(const key of [...body.pool.map(e=>e.enemy_id),body.boss_enemy_id].filter(Boolean))if(!live.monsters[key]||live.monsters[key].retired)fail('Publish every referenced monster first.');}
+  if(['monster','npc'].includes(kind)&&body.retired)for(const quest of Object.values(live.quests))if(!quest.retired&&(kind==='npc'&&(quest.givers.includes(body.id)||quest.turn_in.npc===body.id)||quest.stages.some(s=>s.objectives.some(o=>(kind==='monster'?o.type==='kill':o.type==='talk')&&o.target===body.id))))fail('Update or retire the quests referencing this definition first.');
   if(kind==='monster'&&body.retired)for(const z of Object.values(live.zones))if(z.boss_enemy_id===body.id||z.pool.some(e=>e.enemy_id===body.id))fail('Remove this monster from zone pools and bosses before retiring it.');
  }
  function change(input,actor){
-  const kind=input.kind,key=input.id;if(!['monster','zone'].includes(kind)||!id(key))fail('Unknown content kind or ID.');
+  const kind=input.kind,key=input.id;if(!['monster','zone','npc','quest'].includes(kind)||!id(key))fail('Unknown content kind or ID.');
   const row=db.prepare('SELECT * FROM world_content WHERE kind=? AND id=?').get(kind,key);if((row?.revision??0)!==input.revision)fail('This draft changed. Refresh before editing.',409);
   const revision=(row?.revision??0)+1;let body;
   if(input.action==='content_rollback'){const old=db.prepare('SELECT body FROM world_content_history WHERE kind=? AND id=? AND revision=?').get(kind,key,input.target_revision);if(!old)fail('Published revision not found.');body=JSON.parse(old.body);}
@@ -73,7 +77,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
   const encoded=JSON.stringify(body);db.prepare('INSERT INTO world_content VALUES (?,?,?,?,?) ON CONFLICT(kind,id) DO UPDATE SET revision=excluded.revision,draft=excluded.draft,published=excluded.published').run(kind,key,revision,encoded,publish?encoded:row?.published??null);
   if(publish)db.prepare('INSERT INTO world_content_history VALUES (?,?,?,?,?,?)').run(kind,key,revision,encoded,actor,now());cache=null;return entry(kind,key);
  }
- function view(){const live=published();return {revision:live.revision,enabled:live.enabled,monsters:[...new Set([...baselines.monster.keys(),...rows().filter(r=>r.kind==='monster').map(r=>r.id)])].map(key=>entry('monster',key)),zones:[...routes.keys()].map(key=>entry('zone',key)),compiledSprites:[...new Set([...baselines.monster.values()].flatMap(v=>[v.sprite,v.battle_sprite]).filter(Boolean))],spells:Object.keys(spells),equipment:Object.entries(equipment).map(([id,v])=>({id,name:v.name})),assets:db.prepare('SELECT id,frames,width,height FROM world_assets').all()};}
+ function view(){const live=published();return {revision:live.revision,enabled:live.enabled,npcs:rows().filter(r=>r.kind==='npc').map(r=>entry('npc',r.id)),quests:rows().filter(r=>r.kind==='quest').map(r=>entry('quest',r.id)),questCatalog:{objectiveTypes,stateFields,questStats},monsters:[...new Set([...baselines.monster.keys(),...rows().filter(r=>r.kind==='monster').map(r=>r.id)])].map(key=>entry('monster',key)),zones:[...routes.keys()].map(key=>entry('zone',key)),compiledSprites:[...compiledSprites],spells:Object.keys(spells),equipment:Object.entries(equipment).map(([id,v])=>({id,name:v.name})),assets:db.prepare('SELECT id,frames,width,height FROM world_assets').all()};}
  function resolve(data){ // Preserve route-specific shipped stats until a DM publishes an override for that monster ID.
   const out=clone(data),live=published(),zone=out.config.zone_id??'dive-quarters',t=live.zones[zone];
   out.enemies={...clone(live.monsters),...out.enemies}; // A pool may select any published or shipped monster, including another route's defaults.
@@ -95,5 +99,6 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
   if(typeof input.request_id!=='string'||! /^[A-Za-z0-9_-]{8,100}$/.test(input.request_id))fail('A request ID is required.');const fingerprint=JSON.stringify(input),prior=db.prepare('SELECT * FROM world_commands WHERE actor=? AND id=?').get(actor,input.request_id);
   if(prior){if(prior.fingerprint!==fingerprint)fail('Request ID was already used.',409);return JSON.parse(prior.result);}const result=work();db.prepare('INSERT INTO world_commands VALUES (?,?,?,?)').run(actor,input.request_id,fingerprint,JSON.stringify(result));return result;
  }
- return {register,published,entry,change,view,resolve,putAsset,asset,once,invalidate(){cache=null;}};
+ let referenceCheck=null;
+ return {mapReady:null,questEvent:null,placementPositions:null,setReferenceCheck(fn){referenceCheck=fn;},register,published,entry,change,view,resolve,putAsset,asset,once,invalidate(){cache=null;}};
 }
