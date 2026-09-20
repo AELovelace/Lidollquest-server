@@ -504,8 +504,9 @@ no HTTP call.
 LIDOLLQUEST_QUEST_PACK=content/weekly_quests.json
 ```
 
-The file is validated at startup, so a malformed pack stops the service rather than
-half-loading. The panel still lists every shipped quest and can edit or retire any one
+The path is relative to the installed release directory, not the working directory, and
+`content/` is copied into each release by the installer. The file is validated at
+startup, so a malformed pack stops the service rather than half-loading. The panel still lists every shipped quest and can edit or retire any one
 of them; a saved row overlays the shipped definition, exactly as it does for the shipped
 monster baselines. Leaving the variable unset means no live quests, as before.
 

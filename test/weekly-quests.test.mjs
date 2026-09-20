@@ -114,3 +114,19 @@ test('a saved row overlays a shipped quest, so the panel can still retire one',(
  assert.equal(live.published().quests[target.id].retired,true,'The saved row must win over the shipped baseline.');
  assert.equal(Object.keys(live.published().quests).length,pack.quests.length,'Retiring one must not drop the rest.');
 }); // Same override model the shipped monster baselines already use.
+
+test('the release ships the directories the pack and this test need',()=>{
+ const installer=readFileSync(new URL('../deploy/fedora.mjs',import.meta.url),'utf8');
+ const listed=installer.match(/for \(const name of \[([^\]]+)\]\)/)?.[1]??'';
+ const names=[...listed.matchAll(/'([^']+)'/g)].map(m=>m[1]);
+ assert.ok(names.includes('content'),"deploy/fedora.mjs must copy 'content' into each release, or LIDOLLQUEST_QUEST_PACK has no file to read and this test cannot run on the server.");
+ assert.ok(names.includes('test'),"deploy/fedora.mjs must copy 'test', which is how the installer verifies a candidate.");
+}); // The installer runs this suite from the staged release as nobody, so anything the tests read has to be staged too.
+
+test('a relative pack path resolves against the package root, not the working directory',()=>{
+ const cwd=process.cwd();
+ try{
+  process.chdir(fileURLToPath(new URL('../test',import.meta.url))); // The service runs with its release directory as cwd; a test runner does not.
+  assert.equal(loadQuestPack('content/weekly_quests.json').length,pack.quests.length);
+ }finally{process.chdir(cwd);}
+});
