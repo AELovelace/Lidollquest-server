@@ -1022,3 +1022,32 @@ Every hub market now advertises a solid `dumpster` at (34,20), approached from (
 
 
 Companion equipment: `companion_equip` takes inventory `slot`, `item_id`, and the private sheet `equipment_version`; `companion_unequip` takes equipment slot name instead. Both require the standard character revision, request ID and owner grant. Commands preserve the game lease, follow equipment rules, and create a new cloud version for offline cloud-backed characters. `test/companion-equipment.test.mjs` covers atomicity, save preservation and every hub/portal arrival. Permanent continence potions use ±200 internal units (20 percentage points). Temporary potions use continence_set 0 or 1000 for full continence/incontinence for 250 turns; the latest dose replaces the previous temporary potion.
+
+
+## Live world administration
+
+The GM panel includes Monsters, Zones and Generation Jobs. Content drafts,
+published history, managed PNGs, generation checkpoints and regeneration receipts
+live in `quest.sqlite`; exported JSON remains the baseline. Back up the complete
+SQLite database safely (SQLite backup API, or stop the service first), including
+WAL state if copying an active database. Never discard command/reward receipts.
+
+Deploy the quest service, the Little Log `content/asset` gateway route, and game
+clients advertising `content_version: 1` before publishing content. Older clients
+must update before entering published encounters. All new GM actions reuse the
+existing LiDollID gamemaster role, audit log and origin/TLS restrictions.
+
+PixelLab uses the existing server `PIXELLAB_API_TOKEN` and optional
+`PIXELLAB_PYTHON`. Admin generation spends provider credits directly; it never
+uses player diamond billing. Include `server/gm-world-panel.js` and the `python`
+worker directory in every release. Interrupted walking submissions require an
+explicit retry; completed walking art is retained when portraits fail.
+
+Whole-Dive regeneration waits for fights and unread defeat scenes, then moves
+all visitors to safe entrances. It resets treasure/boss claims with a new map
+identity; daily account-wide currency caps and historical receipts remain intact.
+Manual hub monsters default to interaction-only and one-off placement. Automatic
+aggression and respawning are explicit DM choices.
+
+Run `node --test test/world-controls.test.mjs` for focused coverage and `npm test`
+for the full suite. The game's `WORLD_ADMIN_GUIDE.md` describes authoring and rollout.

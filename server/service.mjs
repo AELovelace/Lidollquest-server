@@ -1,3 +1,7 @@
+import {createWorldContent} from './world-content.mjs';
+import {createWorldJobs} from './world-jobs.mjs';
+import {combatData} from './combat.mjs';
+import {hubData} from './hubs.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {createServer} from 'node:http';
 import {createQuestZones} from './zones.mjs';
@@ -24,8 +28,10 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
  const mommybotProfile=createMommybotProfile(db,{token:onlineToken,enabled:owner=>!gm.suspended(owner),now});
  const metrics=createPerformanceMonitor(db,{log,...performanceOptions,workers:()=>compute?.snapshot()??null}); // Process CPU includes workers; event-loop delay still describes the coordinator.
  if(poolSize)compute=createComputePool({size:poolSize,observe:metrics.observe});
- const gm=createGameMasterPanel(db,{walletClient,performanceSnapshot:metrics.snapshot,enchantments:createEnchantmentStore(db,{now}),enchantmentTable:()=>diveData.enchantments,allow:gmAllow,trustProxy:gmTrustProxy,requireTls:gmRequireTls,enabled:gmEnabled,now,log}); // Staff moderation owns its own tables and never touches wallet credentials.
- const zones=createQuestZones(db,{now,roll,compute,measure:metrics.measure,onPresence:onlineFeed.record,enabled:owner=>!gm.suspended(owner),muted:gm.muted,grant:()=>{if(!identity)throw Error('Missing request identity');return identity;},wallet:owner=>({coins:db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(owner)?.coins??0}),adjust:(owner,asset,amount,id,reason)=>{
+ const live=createWorldContent(db,{now,spells:combatData.spells,equipment:{...hubData.equipment,...combatData.defeat_items},defeatEquipment:combatData.defeat_equipment});
+ const artJobs=createWorldJobs(db,{live,now});
+ const gm=createGameMasterPanel(db,{walletClient,live,artJobs,world:()=>zones.world,performanceSnapshot:metrics.snapshot,enchantments:createEnchantmentStore(db,{now}),enchantmentTable:()=>diveData.enchantments,allow:gmAllow,trustProxy:gmTrustProxy,requireTls:gmRequireTls,enabled:gmEnabled,now,log}); // Staff moderation owns its own tables and never touches wallet credentials.
+ const zones=createQuestZones(db,{now,roll,compute,live,measure:metrics.measure,onPresence:onlineFeed.record,enabled:owner=>!gm.suspended(owner),muted:gm.muted,grant:()=>{if(!identity)throw Error('Missing request identity');return identity;},wallet:owner=>({coins:db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(owner)?.coins??0}),adjust:(owner,asset,amount,id,reason)=>{
   if(asset!=='coins'||!Number.isSafeInteger(amount)||amount<1||amount>DAILY_COIN_CAP)throw Error('Invalid server award'); // A single entitlement can never exceed one day's whole allowance.
   db.prepare('INSERT INTO reward_outbox(id,owner,amount,reason) VALUES (?,?,?,?)').run(id,owner,amount,reason);
  }});
@@ -59,7 +65,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
   if(mommybotProfile.route(req,res,url))return;
   if(await gm.route(req,res,url))return; // The staff surface authenticates itself and never reaches the player gateway below.
   if(url.pathname==='/health'&&req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});res.end('{"ok":true}');return;}
-  const methods={'/zones':'GET','/zones/action':'POST','/zones/inspect':'GET','/cloud':'GET','/cloud/action':'POST','/characters/action':'POST','/sprites':'GET','/sprites/asset':'GET','/sprites/action':'POST'};
+  const methods={'/content/asset':'GET','/zones':'GET','/zones/action':'POST','/zones/inspect':'GET','/cloud':'GET','/cloud/action':'POST','/characters/action':'POST','/sprites':'GET','/sprites/asset':'GET','/sprites/action':'POST'};
   if(methods[url.pathname]!==req.method)throw Object.assign(Error('Endpoint not found.'),{status:404});
   metrics.request(res); // Count gameplay load only; admin refreshes and health probes do not inflate request throughput.
   if(req.headers.origin)throw Object.assign(Error('Use the authenticated game gateway.'),{status:403});
@@ -74,6 +80,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
    const verified=await metrics.measureAsync('account.authenticate',()=>walletClient.authenticate(token));db.prepare('INSERT INTO wallet_cache VALUES (?,?) ON CONFLICT(owner) DO UPDATE SET coins=excluded.coins').run(verified.owner,verified.coins);
    if(gm.suspended(verified.owner))throw Object.assign(Error('This account is suspended from online play.'),{status:403,code:'account_suspended'}); // Checked before any command runs, so a suspension cannot be outlasted by a held connection.
    if(String(verified.scope??'').split(' ').includes('stars:write'))await management.recover(verified.owner,token); // Finish an already-authorized debit before accepting gameplay after reconnect.
+   if(url.pathname==='/content/asset'){if(!String(verified.scope??'').split(' ').includes('social:read'))throw Object.assign(Error('Approve social access.'),{status:403});const result=live.asset(url.searchParams.get('asset_id'));res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));return;}
    if(url.pathname.startsWith('/sprites')){
     const scopes=String(verified.scope??'').split(' ');if(!scopes.includes(req.method==='GET'?'saves:read':'saves:write'))throw Object.assign(Error('Reconnect to approve sprite storage access.'),{status:403});
     if(req.method==='POST'&&input?.action==='generate'&&!scopes.includes('diamonds:write'))throw Object.assign(Error('Reconnect and approve diamond spending.'),{status:403,code:'insufficient_scope'});
@@ -110,5 +117,5 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
  })().catch(error=>{if(res.destroyed)return;if(res.headersSent){res.destroy();return;}res.writeHead(error.status??503,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({error:error.code??'zone_request_failed',error_description:error.status?error.message:'Online zones are temporarily unavailable.'}));});});
  const diveTimer=setInterval(()=>metrics.measure('world.timer',()=>zones.tick()),1000);diveTimer.unref(); // Weekly resets and roaming continue without browser requests.
  const onlinePrune=setInterval(()=>onlineFeed.prune(),3600000);onlinePrune.unref();server.on('close',()=>clearInterval(onlinePrune));
- server.requestTimeout=10000;server.headersTimeout=5000;server.on('close',()=>{clearInterval(diveTimer);zones.close();void compute?.close();sprites.close();metrics.close();db.close();});return {server,db,gm,metrics,prepare:zones.prepare};
+ server.requestTimeout=10000;server.headersTimeout=5000;server.on('close',()=>{clearInterval(diveTimer);zones.close();artJobs.close();void compute?.close();sprites.close();metrics.close();db.close();});return {server,db,gm,metrics,live,artJobs,zones,prepare:zones.prepare};
 } // The standalone database owns characters, fights, chat, presence and durable payouts; the tracker owns only shared currency.

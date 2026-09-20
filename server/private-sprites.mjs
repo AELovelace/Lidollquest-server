@@ -16,7 +16,7 @@ export function pythonSpriteProvider({python=process.env.PIXELLAB_PYTHON??'pytho
   if(!existsSync(workerPath))return reject(generationError({code:'worker_missing',stage:'startup'}));
   const child=spawnWorker(python,[workerPath],{windowsHide:true,stdio:['pipe','pipe','pipe'],env:{...process.env,PIXELLAB_API_TOKEN:token},signal});
   let result='',stderr='',size=0,failure=null;const timer=setTimeout(()=>{failure={code:'worker_timeout'};child.kill();},30*60000);timer.unref();
-  child.stdout.on('data',chunk=>{size+=chunk.length;if(size>250000){failure={code:'invalid_sprite_output',stage:'pack'};child.kill();}else result+=chunk;});
+  child.stdout.on('data',chunk=>{size+=chunk.length;if(size>280000){failure={code:'invalid_sprite_output',stage:'pack'};child.kill();}else result+=chunk;});
   child.stderr.on('data',chunk=>{if(stderr.length<8192)stderr+=chunk.toString().slice(0,8192-stderr.length);}); // Bound diagnostics even if an interpreter or dependency prints a long traceback.
   child.on('error',error=>{clearTimeout(timer);reject(generationError({code:error.code==='ENOENT'?'python_unavailable':'worker_start_failed',stage:'startup'}));});
   child.on('close',code=>{clearTimeout(timer);if(code!==0||failure){let diagnostic=failure;for(const line of stderr.split('\n')){try{const parsed=JSON.parse(line);if(!diagnostic&&parsed?.error)diagnostic=safeDiagnostic(parsed.error);}catch{}}return reject(generationError(diagnostic));}try{resolve(JSON.parse(result));}catch{reject(generationError({code:'invalid_sprite_output',stage:'pack'}));}});

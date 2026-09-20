@@ -19,7 +19,7 @@ export function validateDesert(f){
 }
 export function generateDesert(data,edition,depth=1){
  const c=data.config,s=data.structure,rnd=seeded(`${c.route}:${edition}:${depth}:v${data.version}`),range=(a,b)=>a+rnd(b-a+1);
- if(![c.width,c.height].every(n=>Number.isInteger(n)&&n>=40&&n<=128)||!Number.isInteger(s.basin_count)||s.basin_count<2||s.basin_count>12||!Number.isInteger(c.enemies_per_room)||c.enemies_per_room<1||c.enemies_per_room>6)throw Error('Invalid Desert dimensions/density');
+ if(![c.width,c.height].every(n=>Number.isInteger(n)&&n>=40&&n<=128)||!Number.isInteger(s.basin_count)||s.basin_count<2||s.basin_count>12||!Number.isInteger(c.enemies_per_room)||c.enemies_per_room<0||c.enemies_per_room>6)throw Error('Invalid Desert dimensions/density');
  if(![c.food_per_room,c.potions_per_room,c.treasures_per_room].every(n=>Number.isInteger(n)&&n>=0&&n<=4))throw Error('Invalid Desert loot density');
  const f={route:c.route,edition,depth,theme:c.theme,generatorVersion:1,contentVersion:data.version,dressingVersion:data.dressing_version,foodVersion:data.food_version,width:c.width,height:c.height,
   walls:Array.from({length:c.height},(_,y)=>Array.from({length:c.width},(_,x)=>x===0||y===0||x===c.width-1||y===c.height-1?1:rnd(100)<s.fill_chance?1:0)),props:Array.from({length:c.height},()=>Array(c.width).fill(0)),rooms:[],enemies:[],chests:[],pickups:[],decorations:[]};

@@ -12,7 +12,7 @@ export const playerSpells=Object.keys(combatData.spells).filter(id=>!combatData.
 
 export function defeatPresentation(run,outcome){ // Preserve the settled opponent before the run is discarded; polling/retries keep one stable scene ID.
  if(!['defeat','charm_backfire','submit','submitted'].includes(outcome))return {};
- return {defeatScene:{id:run.id,enemy_id:run.kind==='dive'?(run.enemy.enemy_id??''):'',name:run.enemy.name}};
+ return {defeatScene:{id:run.id,enemy_id:['dive','hub_event'].includes(run.kind)?(run.enemy.enemy_id??''):'',name:run.enemy.name,...(run.enemy.defeat?{content:run.enemy.defeat}:{})}};
 } // Arena templates have no campaign identity; never mislabel their placeholder goblin stats as authored goblin scenes.
 
 export function classId(loadout){return ['fighter','mage','diplomat'].includes(loadout.player_info.class_id)?loadout.player_info.class_id:'fighter';} // Older saves without a class retain the original fighter actions.
