@@ -44,6 +44,7 @@ export function checkQuestReferences(kind,body,live){
  for(const key of body.prerequisites){if(key===body.id)fail('A quest cannot require itself.');quest(key);}
  const walk=(key,seen=new Set())=>{if(key===body.id)fail('Quest prerequisites cannot form a cycle.');if(seen.has(key))return;seen.add(key);for(const next of quests[key]?.prerequisites??[])walk(next,seen);};for(const key of body.prerequisites)walk(key);
  for(const key of [...body.givers,...(body.turn_in.mode==='npc'?[body.turn_in.npc]:[])])if(key&&!key.includes(':')&&!available(npcs,key))fail('Publish the referenced NPC first: '+key);
+ if(!body.givers.length&&body.turn_in.mode!=='npc'&&!Object.values(npcs).some(n=>!n.retired&&n.quests.includes(body.id)))fail('Choose at least one quest giver. Players accept quests by talking to NPCs.');
  if(body.turn_in.mode==='npc'&&!body.turn_in.npc)fail('Choose a turn-in NPC.');
  for(const s of body.stages)for(const o of s.objectives){if(['kill','talk','interact','collect','deliver','equipment'].includes(o.type)&&!o.target)fail('Choose an objective target.');if(o.type==='kill'&&!available(live.monsters,o.target))fail('Publish the objective monster first.');}
 } // Cross-references are checked at publication rather than while authors are assembling drafts.

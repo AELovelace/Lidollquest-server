@@ -9,6 +9,8 @@ import {createWorldContent} from '../server/world-content.mjs';
 import {loadQuestPack} from '../server/service.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {fileURLToPath} from 'node:url';
+import {createQuestZones} from '../server/zones.mjs';
+import {randomUUID} from 'node:crypto';
 
 // content/weekly_quests.json goes live either by being named in LIDOLLQUEST_QUEST_PACK, which
 // loads it at boot, or by scripts/upload-weekly-quests.mjs. Both run the same validation the
@@ -130,3 +132,33 @@ test('a relative pack path resolves against the package root, not the working di
   assert.equal(loadQuestPack('content/weekly_quests.json').length,pack.quests.length);
  }finally{process.chdir(cwd);}
 });
+
+test('a shipped quest is offered by, and accepted at, its roaming district resident',()=>{
+ const db=new DatabaseSync(':memory:');
+ const live=createWorldContent(db,{spells:combatData.spells,equipment,defeatEquipment:combatData.defeat_equipment,questPack:pack.quests});
+ let time=Date.parse('2026-09-20T12:00:00Z');
+ const api=createQuestZones(db,{live,now:()=>time,roll:()=>0,grant:()=>({owner:'alice',id:'grant',client:'lidollquest'}),wallet:()=>({coins:0}),adjust:()=>{},diveOptions:{log:()=>{}}});
+ try{
+  let c=null,last=null;
+  const act=(action,extra={})=>{last=api.act('',{action,controller:'control',request_id:randomUUID(),character_id:c?.id,revision:c?.revision,...extra});c=last.character;return last;};
+  act('create',{name:'Alice'});
+  act('enter',{zone:'princess-rose-garden',content_version:1,quest_version:1,combat_version:3,loadout:{player_info:{cha:2,playerHealth:20,playerHealthMax:20,level:1,xp:0},inventory:[],player_spells:[]}});
+
+  const quest=pack.quests.find(q=>q.givers[0]==='princess-rose-garden:castle-page');
+  assert.deepEqual(api.read('',c.id).onlineQuests.available,[],'The journal must not list unaccepted quests.');
+
+  const map=api.world.map('princess-rose-garden');
+  const resident=map.floor.fixtures.find(f=>f.kind==='npc'&&f.id==='castle-page');
+  assert.ok(resident,'The roaming resident must exist as a map fixture.');
+  db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(resident.x+1,resident.y,c.id);
+
+  assert.throws(()=>act('quest_accept',{quest:quest.id,quest_revision:'not-a-conversation-choice'}),/designated NPC/,'Accepting away from the giver must be refused.');
+
+  act('npc_talk',{placement:resident.id,edition:map.edition});
+  const talk=last.onlineQuests.conversation;
+  assert.equal(talk.npc,quest.givers[0],'Talking to a resident must identify it by its zone-qualified key.');
+  const choose=label=>{const t=last.onlineQuests.conversation,choice=t.choices.find(c=>c.label===label);assert.ok(choice,'Missing '+label);act('npc_choice',{conversation:t.id,page:t.page,choice:choice.index});};
+  choose('Ask about quests');choose(quest.name);choose('Accept quest');
+  assert.equal(last.onlineQuests.instances[0].quest,quest.id,'The quest must accept from an open conversation with its giver.');
+ }finally{api.close();db.close();}
+}); // Resident services stay intact; generated quest-offer pages use the same server-validated conversation actions as managed NPCs.

@@ -52,3 +52,7 @@ The pack's givers are existing roaming district residents, so no NPC has to be
 published first and no zone placements are required. Re-running publishes only
 changed quests; `--retire` withdraws the pack from new acceptance while leaving
 accepted instances and their claims intact. See README.md for the full description.
+
+## NPC-only quest acceptance
+
+Deploy the quest-server update and compatible browser/Windows clients. Quest givers, including existing residents, automatically offer eligible quests in a paged conversation menu. An authored offer choice takes precedence for its quest. Players accept or resume by selecting that offer while beside the NPC. The journal lists accepted attempts only; journal claiming remains an optional reward setting. Direct `quest_accept` commands are rejected, and published journal-claim quests must have a giver or existing NPC link. Previously published quests with no giver/link need a giver configured before new players can accept them. Existing accepted quests and pinned rewards are preserved. No tracker update is needed.
