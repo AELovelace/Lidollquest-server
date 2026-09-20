@@ -10,7 +10,7 @@ export function createStagedArt(db,{live,now,token,fetcher,download=pythonSprite
  for(const job of db.prepare("SELECT * FROM world_art_jobs WHERE details IS NOT NULL AND status='running'").all()){
   const m=meta(job);update(job.id,{status:m.submitting?'needs_review':'queued',error:m.submitting?'Submission was interrupted. Review provider usage before explicitly resubmitting.':null});
  }
- function checkMonster(input){const row=live.entry('monster',input.monster);if(row.revision!==input.revision)fail('This draft changed. Save or reload it before generating artwork.',409);return row;}
+ function checkMonster(input){const row=live.entry('monster',input.monster);if(row.revision!==input.revision)fail('This draft changed. Save or reload it before generating artwork.',409);if(!row.revision)fail('Save this monster draft before generating artwork.');return row;}
  function act(input,actor){
   if(input.action==='art_generate'&&input.monster){
    checkMonster(input);if(!token||!download)fail('Sprite generation is not configured on the server.');

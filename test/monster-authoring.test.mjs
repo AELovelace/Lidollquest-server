@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
+import {createHash} from 'node:crypto';
 import {createWorldContent} from '../server/world-content.mjs';
 import {createWorldJobs} from '../server/world-jobs.mjs';
-import {defaultScenes,resolvedDefeat,compiledArtwork} from '../server/defeat-scenes.mjs';
+import {defaultScenes,resolvedDefeat,compiledArtwork,pinDefeat} from '../server/defeat-scenes.mjs';
 import {defeatPresentation} from '../server/combat.mjs';
 const tiny='iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAN0lEQVR4nO3QQREAMAgDQYofTCKxhspUBZ+NgcvsudUvFpebcQcIECBAgAABAgQIECBAgACBTzBf6ALAS4QDIwAAAABJRU5ErkJggg==';
 const monster={id:'test_monster',enemy_id:'goblin',name:'Test',hp:20,str:4,def:2,dex:3,exp:5,sprite:'',battle_sprite:'',roaming:false};
@@ -12,8 +13,8 @@ function fixture(){const db=new DatabaseSync(':memory:'),live=createWorldContent
 test('defaults retain every variant without creating overrides on stat saves; old scenes and rollback remain valid',()=>{
  const {db,live,row}=fixture();try{
   assert.equal(row.defeat_source,'Game default');assert.equal(row.effective_defeat.first.dialogues.length,3);assert.ok(row.effective_defeat.repeat.dialogues[0].pages.length);assert.equal(row.draft.defeat,undefined);
-  let current=live.change({action:'content_publish',kind:'monster',id:monster.id,revision:row.revision,entry:{...row.draft,hp:99}},'dm');assert.equal(current.draft.defeat,undefined);assert.ok(live.published().monsters.test_monster.defeat);
-  const pinned=structuredClone(live.published().monsters.test_monster);const first=defeatPresentation({id:'battle-123',kind:'hub_event',enemy:pinned},'defeat');assert.ok(first.defeatScene.content.first.dialogue.length);
+  let current=live.change({action:'content_publish',kind:'monster',id:monster.id,revision:row.revision,entry:{...row.draft,hp:99}},'dm');assert.equal(current.draft.defeat,undefined);assert.ok(live.published().monsters.test_monster.defeat_ref);
+  const pinned=pinDefeat(structuredClone(live.published().monsters.test_monster));const first=defeatPresentation({id:'battle-123',kind:'hub_event',enemy:pinned},'defeat');assert.ok(first.defeatScene.content.first.dialogue.length);
   current=live.change({action:'content_publish',kind:'monster',id:monster.id,revision:current.revision,entry:{...current.draft,defeat:{first:{dialogue:[{text:'Custom scene',next:'close'}],aftermath:[]}}}},'dm');assert.equal(current.defeat_source,'Admin override');assert.equal(live.published().monsters.test_monster.defeat.first.dialogue[0].text,'Custom scene');assert.deepEqual(defeatPresentation({id:'battle-123',kind:'hub_event',enemy:pinned},'defeat'),first);
   current=live.change({action:'content_rollback',kind:'monster',id:monster.id,revision:current.revision,target_revision:2},'dm');assert.equal(current.defeat_source,'Game default');assert.equal(createWorldContent(db).entry('monster',monster.id).effective_defeat.first.dialogues.length,3);
  }finally{db.close();}
@@ -30,6 +31,10 @@ test('every exported default validates, numeric branches normalize, and large bo
 
 test('scene selection is stable across receipts and charm outcomes use their own variants',()=>{
  const value=Object.values(defaultScenes).find(v=>v.charm);assert.ok(value);const a=resolvedDefeat(value,'receipt','charm_backfire');assert.deepEqual(a,resolvedDefeat(value,'receipt','charm_backfire'));assert.equal(a.first.dialogue_variant,'charm');assert.deepEqual(a.first,a.repeat);
+});
+
+test('historical default references survive restart and are pinned independently of the current export',()=>{
+ const {db,live}=fixture();try{const old=structuredClone(defaultScenes.goblin);old.first.dialogues[0].pages[0].text='Earlier release';const body=JSON.stringify(old),hash=createHash('sha256').update(body).digest('hex');db.prepare('INSERT INTO world_default_scenes VALUES (?,?)').run(hash,body);createWorldContent(db);const pinned=pinDefeat({...monster,defeat_ref:hash});assert.equal(pinned.defeat.first.dialogues[0].pages[0].text,'Earlier release');assert.notEqual(live.entry('monster',monster.id).effective_defeat.first.dialogues[0].pages[0].text,'Earlier release');}finally{db.close();}
 });
 
 function generation(){

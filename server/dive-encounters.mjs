@@ -1,4 +1,5 @@
 import {randomUUID} from 'node:crypto';
+import {pinDefeat,publicEnemy} from './defeat-scenes.mjs';
 import {applyDefeatEquipment} from './defeat-equipment.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,enemyAction,tickEnemyEffects,awardExperience,defeatPresentation,combatData} from './combat.mjs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
@@ -68,7 +69,7 @@ export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progres
    if(s.run||s.worldTurnDue||s.pendingPurchase||!s.loadout||s.loadout.player_info.playerHealth<=0||!eligible(s,other))fail(other.name+' must finish preparing before the party can fight.'); // Banked stat points do not block this player or their party.
   }
   const e={id:randomUUID(),edition:record.edition,zone,route,origin:{x:foe.x,y:foe.y},created:now(),sequence:0,events:[],players:[],enemies:[]};
-  for(const selected of (context?[foe]:selectEncounterEnemies(record.floor,foe,data,roll,now()))){selected.engaged=e.id;const enemy=clone(selected.definition??data.enemies[selected.type]);enemy.maxHp=enemy.hp;enemy.turn=0;
+  for(const selected of (context?[foe]:selectEncounterEnemies(record.floor,foe,data,roll,now()))){selected.engaged=e.id;const enemy=pinDefeat(clone(selected.definition??data.enemies[selected.type]));enemy.maxHp=enemy.hp;enemy.turn=0;
    const duration=enemyActionDelay(enemy.dex??0,roll)+e.enemies.length*encounterTuning.enemy_initial_stagger_ms;
    e.enemies.push({id:selected.id,data:enemy,duration,readyAt:now()+duration,dots:[],debuffs:[]});
   } // Opening stagger separates identical enemies; later cycles reroll their own bounded delay.
@@ -136,6 +137,6 @@ export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progres
    if(forced||changed){settle(e,rows,record,forced);persist(e,rows);}
   }restarted=false;
  } // Process at most one action per enemy per tick; restart never replays a backlog of missed attacks.
- function snapshot(state){const e=fetch(state?.run?.sharedEncounter);if(!e||e.finished)return null;return {id:e.id,sequence:e.sequence,events:e.events,players:roster(e).map(({a,s})=>({id:a.id,name:a.name,hp:a.run.hp,maxHp:a.run.maxHp,mp:s.loadout?.player_mp??0,maxMp:s.loadout?.player_mp_max??0,status:a.status,readyAt:a.readyAt,duration:a.duration,cycle:a.cycle,prepared:a.prepared,connected:(db.prepare('SELECT seen FROM quest_presence WHERE character_id=?').get(a.id)?.seen??0)>now()-30000})),enemies:e.enemies.map(v=>({id:v.id,...v.data,readyAt:v.readyAt,duration:v.duration}))};} // Publish current committed mana, including ally casting, without duplicating it in encounter state.
+ function snapshot(state){const e=fetch(state?.run?.sharedEncounter);if(!e||e.finished)return null;return {id:e.id,sequence:e.sequence,events:e.events,players:roster(e).map(({a,s})=>({id:a.id,name:a.name,hp:a.run.hp,maxHp:a.run.maxHp,mp:s.loadout?.player_mp??0,maxMp:s.loadout?.player_mp_max??0,status:a.status,readyAt:a.readyAt,duration:a.duration,cycle:a.cycle,prepared:a.prepared,connected:(db.prepare('SELECT seen FROM quest_presence WHERE character_id=?').get(a.id)?.seen??0)>now()-30000})),enemies:e.enemies.map(v=>({id:v.id,...publicEnemy(v.data),readyAt:v.readyAt,duration:v.duration}))};} // Publish current committed mana, including ally casting, without duplicating it in encounter state.
  return {start,act,tick,snapshot};
 }

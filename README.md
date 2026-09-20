@@ -1067,3 +1067,8 @@ aggression and respawning are explicit DM choices.
 
 Run `node --test test/world-controls.test.mjs` for focused coverage and `npm test`
 for the full suite. The game's `WORLD_ADMIN_GUIDE.md` describes authoring and rollout.
+
+
+## Monster creation and scene authoring
+
+See [MONSTER_AUTHORING_RELEASE.md](MONSTER_AUTHORING_RELEASE.md) for the guided monster wizard, inherited default scene variants, approval-based artwork generation, upload instructions, and database/artwork backups. Deploy the `python/world_art_worker.py` helper with the server; no new environment key is needed.

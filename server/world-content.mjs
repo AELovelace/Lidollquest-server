@@ -1,6 +1,6 @@
 import {validateWorldPng} from './world-png.mjs';
 import {createHash} from 'node:crypto';
-import {defaultScenes,compiledArtwork} from './defeat-scenes.mjs';
+import {defaultScenes,compiledArtwork,defaultSceneRefs,registerDefaultScenes,pinDefeat} from './defeat-scenes.mjs';
 const clone=structuredClone;
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{status,code:'world_content_invalid'});};
 const id=value=>typeof value==='string'&&/^[a-z][a-z0-9_-]{1,79}$/.test(value)&&!['__proto__','constructor','prototype'].includes(value);
@@ -9,6 +9,7 @@ const number=(value,min,max)=>Number.isFinite(value)&&value>=min&&value<=max?val
 const integer=(value,min,max)=>Number.isSafeInteger(value)?number(value,min,max):fail('Use a whole number.');
 
 export function createWorldContent(db,{now=Date.now,spells={},equipment={},defeatEquipment={}}={}){
+ registerDefaultScenes(db);
  db.exec(`CREATE TABLE IF NOT EXISTS world_content(kind TEXT NOT NULL,id TEXT NOT NULL,revision INTEGER NOT NULL,draft TEXT NOT NULL,published TEXT,PRIMARY KEY(kind,id));
  CREATE TABLE IF NOT EXISTS world_content_history(kind TEXT NOT NULL,id TEXT NOT NULL,revision INTEGER NOT NULL,body TEXT NOT NULL,actor TEXT NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(kind,id,revision));
  CREATE TABLE IF NOT EXISTS world_assets(id TEXT PRIMARY KEY,png TEXT NOT NULL,frames INTEGER NOT NULL,width INTEGER NOT NULL,height INTEGER NOT NULL,created INTEGER NOT NULL);
@@ -24,14 +25,14 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
   baselines.zone.set(zone,{id:zone,spawning:true,enemies_per_room:data.config.enemies_per_room,enemy_respawn_seconds:data.config.enemy_respawn_seconds,boss_respawn_seconds:data.config.boss_respawn_seconds,pursuit_steps:data.config.pursuit_steps,roaming:true,boss_enemy_id:data.config.boss_enemy_id??(data.enemies.dive_iris?'dive_iris':null),pool:(data.enemy_types??[{enemy_id:'diaper_fairy',weight:60},{enemy_id:'teddy_mimic',weight:40}]).map(e=>({enemy_id:e.enemy_id,weight:e.weight??e.chance}))});cache=null;
  }
  function rows(){return db.prepare('SELECT * FROM world_content').all();}
- function effective(value){const out=clone(value);if(!out.defeat&&defaultScenes[out.enemy_id??out.id]){out.defeat=clone(defaultScenes[out.enemy_id??out.id]);out.defeat_inherited=true;}return out;} // Materialize only for encounters; drafts preserve inheritance.
+ function effective(value){const out=clone(value);if(!out.defeat&&defaultSceneRefs[out.enemy_id??out.id]){out.defeat_ref=defaultSceneRefs[out.enemy_id??out.id];out.defeat_inherited=true;}return out;} // Map definitions retain immutable references instead of copying every page into every room.
  function published(){
   if(cache)return cache;const monsters=Object.fromEntries([...baselines.monster].map(([k,v])=>[k,clone(v)])),zones=Object.fromEntries([...baselines.zone].map(([k,v])=>[k,clone(v)]));let revision=0;
   for(const row of rows()){if(row.published)(row.kind==='monster'?monsters:zones)[row.id]=JSON.parse(row.published);}
   for(const key of Object.keys(monsters))monsters[key]=effective(monsters[key]);
   revision=db.prepare('SELECT COALESCE(SUM(revision),0) n FROM (SELECT MAX(revision) revision FROM world_content_history GROUP BY kind,id)').get().n;return cache={monsters,zones,revision,enabled:rows().some(r=>r.published)};
  }
- function entry(kind,key){const row=db.prepare('SELECT * FROM world_content WHERE kind=? AND id=?').get(kind,key),base=baselines[kind]?.get(key);if(!row&&!base)fail('Content not found.',404);const draft=row?JSON.parse(row.draft):clone(base);return {kind,id:key,revision:row?.revision??0,draft,published:row?.published?JSON.parse(row.published):clone(base??null),...(kind==='monster'?{effective_defeat:effective(draft).defeat??null,default_defeat:clone(defaultScenes[draft.enemy_id??key]??null),defeat_source:draft.defeat?'Admin override':'Game default'}:{}),history:db.prepare('SELECT revision,actor,created FROM world_content_history WHERE kind=? AND id=? ORDER BY revision DESC').all(kind,key)};}
+ function entry(kind,key){const row=db.prepare('SELECT * FROM world_content WHERE kind=? AND id=?').get(kind,key),base=baselines[kind]?.get(key);if(!row&&!base)fail('Content not found.',404);const draft=row?JSON.parse(row.draft):clone(base);return {kind,id:key,revision:row?.revision??0,draft,published:row?.published?JSON.parse(row.published):clone(base??null),...(kind==='monster'?{effective_defeat:pinDefeat(effective(draft)).defeat??null,default_defeat:clone(defaultScenes[draft.enemy_id??key]??null),defeat_source:draft.defeat?'Admin override':'Game default'}:{}),history:db.prepare('SELECT revision,actor,created FROM world_content_history WHERE kind=? AND id=? ORDER BY revision DESC').all(kind,key)};}
  function assetRef(value){if(value===null||value==='')return '';if(typeof value!=='string'||value.length>100)fail('Choose an artwork asset.');if(value.startsWith('managed-')){if(!db.prepare('SELECT 1 FROM world_assets WHERE id=?').get(value))fail('Artwork is unavailable.');}else if(!compiledSprites.has(value)||!/^[A-Za-z][A-Za-z0-9_]*$/.test(value))fail('Choose a compiled sprite or uploaded artwork.');return value;}
  function beats(value){
   if(!Array.isArray(value)||value.length>64||value.some(v=>!v||typeof v!=='object'||Array.isArray(v)))fail('Use up to 64 scene pages.');const names=new Set(value.map((v,i)=>v.id??String(i)));if(names.size!==value.length)fail('Scene page IDs must be unique.');
