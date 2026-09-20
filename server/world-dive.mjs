@@ -10,7 +10,7 @@ export function createDiveControls(db,{now,data,live,current,getFloor,saveFloor,
  const activeJob=()=>db.prepare("SELECT * FROM world_regeneration WHERE route=? AND status IN ('queued','generating','draining') ORDER BY created LIMIT 1").get(route);
  const visitors=()=>db.prepare('SELECT * FROM quest_characters').all().filter(c=>JSON.parse(c.state).dive?.route===route);
  const blockers=()=>visitors().filter(c=>{const s=JSON.parse(c.state);return s.run||s.pendingDefeat;}).map(c=>({id:c.id,name:c.name}));
- function view(){const record=current();return {id:zone,kind:'dive',edition:record?.edition,revision:record?mapRevision(record):'',floor:record?.floor??null,players:visitors().map(c=>({id:c.id,name:c.name,...JSON.parse(c.state).dive.position})),job:activeJob(),blockers:blockers()};}
+ function view(){const record=current();return {id:zone,kind:'dive',edition:record?.edition,revision:record?mapRevision(record):'',floor:record?.floor??null,players:visitors().map(c=>({id:c.id,name:c.name,...JSON.parse(c.state).dive.position})),job:activeJob(),lastJob:db.prepare('SELECT id,status,error FROM world_regeneration WHERE route=? ORDER BY created DESC LIMIT 1').get(route)??null,blockers:blockers()};}
  function check(input){const record=current();if(!record||input.edition!==record.edition||input.revision!==mapRevision(record))fail('The map changed. Refresh before applying this action.');return record;}
  function place(input){const record=check(input),f=record.floor;if(activeJob())fail('Wait for regeneration to finish.');
   if(input.action==='world_remove'){const foe=f.enemies.find(e=>e.id===input.monster);if(!foe||foe.engaged)fail('Choose a monster outside combat.');f.enemies=f.enemies.filter(e=>e!==foe);}
@@ -33,6 +33,7 @@ export function createDiveControls(db,{now,data,live,current,getFloor,saveFloor,
   if(job.status!=='draining'||blockers().length)return;
   if(current()?.edition!==job.source){db.prepare("UPDATE world_regeneration SET status='cancelled',error='The active map changed.' WHERE id=?").run(job.id);return;}
   const floor=JSON.parse(job.candidate),window=weeklyWindow(now());
+  try{live.mapReady?.(zone,job.edition,floor);}catch(error){db.prepare("UPDATE world_regeneration SET status='failed',error=? WHERE id=?").run(error.message,job.id);return;}
   db.prepare('INSERT INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(route,job.edition,window.start,window.ends,JSON.stringify(floor),now());
   db.prepare('INSERT INTO world_routes VALUES (?,?,?) ON CONFLICT(route) DO UPDATE SET week=excluded.week,edition=excluded.edition').run(route,window.edition,job.edition);
   for(const c of visitors()){const s=JSON.parse(c.state),position=entry(floor,s.dive.origin);s.dive.edition=job.edition;s.dive.position={...position};s.dive.safeUntil=now()+10000;delete s.lastResult;s.lastResult=null;saveCharacter(c,s);db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(position.x,position.y,now(),c.id);}

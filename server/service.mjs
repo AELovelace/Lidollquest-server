@@ -65,7 +65,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
   if(mommybotProfile.route(req,res,url))return;
   if(await gm.route(req,res,url))return; // The staff surface authenticates itself and never reaches the player gateway below.
   if(url.pathname==='/health'&&req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});res.end('{"ok":true}');return;}
-  const methods={'/content/asset':'GET','/zones':'GET','/zones/action':'POST','/zones/inspect':'GET','/cloud':'GET','/cloud/action':'POST','/characters/action':'POST','/sprites':'GET','/sprites/asset':'GET','/sprites/action':'POST'};
+  const methods={'/quests/detail':'GET','/content/asset':'GET','/zones':'GET','/zones/action':'POST','/zones/inspect':'GET','/cloud':'GET','/cloud/action':'POST','/characters/action':'POST','/sprites':'GET','/sprites/asset':'GET','/sprites/action':'POST'};
   if(methods[url.pathname]!==req.method)throw Object.assign(Error('Endpoint not found.'),{status:404});
   metrics.request(res); // Count gameplay load only; admin refreshes and health probes do not inflate request throughput.
   if(req.headers.origin)throw Object.assign(Error('Use the authenticated game gateway.'),{status:403});
@@ -80,6 +80,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
    const verified=await metrics.measureAsync('account.authenticate',()=>walletClient.authenticate(token));db.prepare('INSERT INTO wallet_cache VALUES (?,?) ON CONFLICT(owner) DO UPDATE SET coins=excluded.coins').run(verified.owner,verified.coins);
    if(gm.suspended(verified.owner))throw Object.assign(Error('This account is suspended from online play.'),{status:403,code:'account_suspended'}); // Checked before any command runs, so a suspension cannot be outlasted by a held connection.
    if(String(verified.scope??'').split(' ').includes('stars:write'))await management.recover(verified.owner,token); // Finish an already-authorized debit before accepting gameplay after reconnect.
+   if(url.pathname==='/quests/detail'){if(!String(verified.scope??'').split(' ').includes('social:read'))throw Object.assign(Error('Approve social access.'),{status:403});identity=verified;let result;try{result=zones.questRead(token,url.searchParams.get('character_id'),url.searchParams.get('quest'));}finally{identity=null;}res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));return;}
    if(url.pathname==='/content/asset'){if(!String(verified.scope??'').split(' ').includes('social:read'))throw Object.assign(Error('Approve social access.'),{status:403});const result=live.asset(url.searchParams.get('asset_id'));res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));return;}
    if(url.pathname.startsWith('/sprites')){
     const scopes=String(verified.scope??'').split(' ');if(!scopes.includes(req.method==='GET'?'saves:read':'saves:write'))throw Object.assign(Error('Reconnect to approve sprite storage access.'),{status:403});

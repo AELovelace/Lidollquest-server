@@ -10,7 +10,7 @@ export function createHubEncounters(db,{now,roll,parties,live,definition,ids}){
   if(!ids.includes(zone))fail('Unknown hub.');if(engines.has(zone))return engines.get(zone);
   const route='hub-event:'+zone,data={config:{route,zone_id:zone,boss_id:'none',enemy_respawn_seconds:600,boss_respawn_seconds:600,theme:definition(zone).theme},enemies:live.published().monsters};
   function record(){const z=definition(zone),old=db.prepare('SELECT * FROM world_hub_maps WHERE zone=?').get(zone),floor=old?JSON.parse(old.content):{enemies:[]};
-   Object.assign(floor,{width:z.width??20,height:z.height??12,walls:z.walls,props:z.props,entrance:z.spawn??{x:10,y:9},fixtures:z.fixtures??[],rooms:z.rooms??[]});return {edition:old?.edition??'hub-'+zone,floor,updated:old?.updated??0};
+   Object.assign(floor,{width:z.width??20,height:z.height??12,walls:z.walls,props:z.props,entrance:z.spawn??{x:10,y:9},fixtures:z.fixtures??[],rooms:z.rooms??[],portals:z.portals??[],exits:z.exit?[z.exit]:[]});const edition=z.district?.layoutKey?'hub-'+zone+':'+z.district.layoutKey:old?.edition??'hub-'+zone;floor.managedOccupancy=live.placementPositions?.(zone,edition)??[];return {edition,floor,updated:old?.updated??0};
   }
   function saveFloor(r){db.prepare('INSERT INTO world_hub_maps VALUES (?,?,?,?) ON CONFLICT(zone) DO UPDATE SET edition=excluded.edition,content=excluded.content,updated=excluded.updated').run(zone,r.edition,JSON.stringify(r.floor),now());}
   function saveCharacter(c,s){c.revision++;s.loadoutRevision=c.revision;c.state=JSON.stringify(s);db.prepare('UPDATE quest_characters SET revision=?,state=? WHERE id=?').run(c.revision,c.state,c.id);}
@@ -18,7 +18,7 @@ export function createHubEncounters(db,{now,roll,parties,live,definition,ids}){
    if(scene&&s.deferDefeatReturn){s.pendingDefeat={id:scene.id,position,readyAt:downedAt+60000,sceneComplete:false,hub:zone};return;}
    s.hubSafeUntil=now()+10000;db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(position.x,position.y,c.id);
   }
-  const encounters=createDiveEncounters(db,{now,roll,data,parties,saveFloor,saveCharacter,progress:()=>({}),saveProgress:()=>{},pay:()=>0,back:()=>{},entry:f=>f.entrance,relocate,context:{eligible:(s,c)=>s.contentVersion===1&&db.prepare('SELECT zone FROM quest_presence WHERE character_id=?').get(c.id)?.zone===zone}});
+  const encounters=createDiveEncounters(db,{live,now,roll,data,parties,saveFloor,saveCharacter,progress:()=>({}),saveProgress:()=>{},pay:()=>0,back:()=>{},entry:f=>f.entrance,relocate,context:{eligible:(s,c)=>s.contentVersion===1&&db.prepare('SELECT zone FROM quest_presence WHERE character_id=?').get(c.id)?.zone===zone}});
   const players=()=>db.prepare('SELECT c.*,p.x,p.y,p.seen FROM quest_characters c JOIN quest_presence p ON p.character_id=c.id WHERE p.zone=?').all(zone);
   function view(){const r=record();return {id:zone,kind:'hub',edition:r.edition,revision:mapRevision(r),floor:r.floor,players:players().map(c=>({id:c.id,name:c.name,x:c.x,y:c.y}))};}
   function place(input){const r=record();if(input.edition!==r.edition||input.revision!==mapRevision(r))fail('The map changed. Refresh first.');

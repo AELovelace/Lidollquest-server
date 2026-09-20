@@ -72,18 +72,19 @@ function renderMonsterArtwork(panel){
 }
 async function refreshMonsterJobs(){const result=await api('/gm/jobs');monsterJobs=result.jobs;const host=$('monsterArtJobs');if(host)renderMonsterJobs(host);}
 function renderMonsterJobs(host){
- clear(host);const s=monsterEditorState;for(const job of monsterJobs.filter(j=>j.monster===s.d.id))renderArtworkJob(host,job,true);
+ clear(host);const s=monsterEditorState;for(const job of monsterJobs.filter(j=>j.monster===s.d.id&&(j.content_kind??'monster')==='monster'))renderArtworkJob(host,job,true);
 }
 function renderArtworkJob(host,job,inside=false){
  const section=el('section');host.appendChild(section);section.appendChild(el('h4',null,job.prompt));section.appendChild(el('p',null,job.status+' · '+job.stage+(job.error?' · '+job.error:'')));
- const action=async(kind,extra={})=>{await worldAction(kind,{id:job.id,job_revision:job.job_revision,...extra});await refreshMonsterJobs();if(!inside)await loadArtJobs();};
+ const action=async(kind,extra={})=>{await worldAction(kind,{id:job.id,job_revision:job.job_revision,...extra});await refreshMonsterJobs();if(!inside)await loadArtJobs();if(job.content_kind==='npc')await npcJobs();};
  if(job.design){section.appendChild(el('p',null,'Design: south · north · east · west'));monsterArtPreview(section,job.design.id);}
  if(job.status==='awaiting_approval')worldButton('Approve design and generate animation + portraits',()=>action('art_approve'),section);
  if(job.walking)monsterArtPreview(section,job.walking.id,true,4);
  for(const portrait of job.portraits??[]){monsterArtPreview(section,portrait.id);if(inside&&job.walking)worldButton('Use this portrait and walking sprite',async()=>{await saveMonster();const saved=await worldAction('art_assign',{id:job.id,job_revision:job.job_revision,revision:monsterEditorState.row.revision,portrait:portrait.id});const s=monsterEditorState;s.row=saved;s.d=structuredClone(saved.draft);s.dirty=false;sessionStorage.removeItem('gm-monster-draft');contentData=await api('/gm/content');renderMonsterEditor();},section);}
  if(['failed','needs_review'].includes(job.status))worldButton(job.status==='needs_review'?'Review and resubmit paid stage':'Retry failed stage',()=>{if(job.status==='needs_review'&&!confirm('Check PixelLab job history and usage first. Submit a new paid job for this stage?'))return;return action('art_retry',{confirm_resubmit:job.status==='needs_review'});},section);
  if(['queued','running','awaiting_approval','needs_review','failed'].includes(job.status))worldButton('Cancel',()=>action('art_cancel'),section);
- if(!inside&&job.monster)worldButton('Open monster',async()=>{await loadWorld();$('tab-monsters').click();editMonster(contentData.monsters.find(r=>r.id===job.monster));monsterEditorState.step=2;renderMonsterEditor();},section);
+ if(!inside&&job.content_kind==='npc')worldButton('Open NPC',async()=>{await loadWorld();$('tab-npcs').click();editAuthor('npc',contentData.npcs.find(r=>r.id===job.monster));authorEditors.npc.step=1;renderAuthor('npc');},section);
+ if(!inside&&job.monster&&job.content_kind!=='npc')worldButton('Open monster',async()=>{await loadWorld();$('tab-monsters').click();editMonster(contentData.monsters.find(r=>r.id===job.monster));monsterEditorState.step=2;renderMonsterEditor();},section);
 }
 function renderMonsterScenes(panel){
  const s=monsterEditorState,scenes=sceneModel(s.d.defeat??s.row.default_defeat),source=el('p',null,s.d.defeat?'Admin override':'Game default');panel.appendChild(source);

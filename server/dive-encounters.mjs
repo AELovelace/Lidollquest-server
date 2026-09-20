@@ -48,7 +48,7 @@ export function applyCombatPatch(loadout,patch){
  }if(result.player_info&&typeof result.player_info==='object')result.player_info.rpp_abilities=clone(loadout.player_info.rpp_abilities??[]);return importLoadout(result); // A whole player_info replacement cannot bypass protected paid-ability paths.
 } // Numeric deltas preserve intervening attacks/heals; structural item edits require an unchanged baseline.
 
-export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate,context=null}){
+export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate,context=null}){
  const config=data.config,zone=config.zone_id??'dive-quarters',route=config.route,boss=(config.boss_id??'iris')||'world_boss',z={theme:config.theme??'princess_quarters',activeTime:true};
  db.exec('CREATE TABLE IF NOT EXISTS quest_dive_encounters(id TEXT PRIMARY KEY,route TEXT NOT NULL,edition TEXT NOT NULL,state TEXT NOT NULL,updated INTEGER NOT NULL)');
  db.exec("CREATE INDEX IF NOT EXISTS quest_open_dive_encounters ON quest_dive_encounters(route) WHERE json_extract(state,'$.finished') IS NOT 1"); // Retain history without scanning every settled fight on each simulation tick.
@@ -90,6 +90,7 @@ export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progres
    const equipment=applyDefeatEquipment(s,a.run,outcome); // Only this member's actual defeat opponent supplies their outfit, even when their party wins.
    s.lastResult={outcome,coins,rounds:1,zone,log:[...e.events.map(v=>v.text),...(equipment?.changes.length?a.run.log.slice(-equipment.changes.length):[])],...defeatPresentation(a.run,outcome),...(equipment?{defeatEquipment:equipment}:{})};s.wins=(s.wins??0)+(win?1:0);s.run=null;
    if(s.dive||context)relocate(c,s,win&&!s.lastResult.defeatScene?e.origin:entry(record.floor,s.dive?.origin),s.lastResult.defeatScene,a.downedAt); // A defeated member returns to their own gate even when the survivors win.
+   if(!['flee','abandoned'].includes(outcome))for(const enemy of e.enemies.filter(v=>v.data.hp<=0))live?.questEvent?.(c,s,{id:'kill:'+e.id+':'+enemy.id,type:'kill',target:enemy.data.enemy_id??enemy.data.id,zone,created:e.created});
    if(force)back(c,s);
   }saveFloor(record);return true;
  } // All participants, enemy locks and reward entitlements settle in the caller's single database transaction.

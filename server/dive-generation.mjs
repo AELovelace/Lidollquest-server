@@ -16,7 +16,7 @@ export function weeklyWindow(now){
 } // Weekly boundaries remain 04:00 local across DST and server downtime.
 export function seeded(seed){let s=createHash('sha256').update(seed).digest().readUInt32LE(0);return n=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return Math.floor(s/4294967296*n);};}
 const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
-export const walkable=(f,x,y)=>Number.isInteger(x)&&Number.isInteger(y)&&y>=0&&y<f.height&&x>=0&&x<f.width&&f.walls[y][x]===0&&!f.props?.[y]?.[x]; // Furniture blocks movement without becoming a structural wall.
+export const walkable=(f,x,y)=>Number.isInteger(x)&&Number.isInteger(y)&&y>=0&&y<f.height&&x>=0&&x<f.width&&f.walls[y][x]===0&&!f.props?.[y]?.[x]&&!(f.managedOccupancy??[]).some(p=>p.x===x&&p.y===y); // Furniture blocks movement without becoming a structural wall.
 export const inside=(r,x,y)=>x>=r.x&&x<r.x+r.w&&y>=r.y&&y<r.y+r.h;
 export function pathTo(f,start,target,limit=Infinity){
  const queue=[{...start,path:[]}],seen=new Set([start.x+','+start.y]);

@@ -9,7 +9,7 @@ const HUB_SPAWN={x:10,y:9}; // hubDefinition() falls back to this same tile when
 const KINDS=Object.freeze(['mute','suspend']); // The only two sanctions a gamemaster can place on an account.
 const CONTROL=/[\x00-\x1f\x7f]/g; // Stripped from every stored string so no reason or announcement can smuggle in line breaks.
 const SIGNIN_SCOPE='wallet:read'; // The panel needs identity alone: no balance changes, saves, social data or character access.
-const panelPage=readFileSync(new URL('./gm-panel.html',import.meta.url),'utf8').replace('/* WORLD_PANEL */',()=>readFileSync(new URL('./gm-world-panel.js',import.meta.url),'utf8').replace('/* MONSTER_EDITOR */',()=>readFileSync(new URL('./gm-monster-editor.js',import.meta.url),'utf8'))); // Read once at boot so a moderation click never touches the disk.
+const panelPage=readFileSync(new URL('./gm-panel.html',import.meta.url),'utf8').replace('/* WORLD_PANEL */',()=>readFileSync(new URL('./gm-world-panel.js',import.meta.url),'utf8').replace('/* MONSTER_EDITOR */',()=>readFileSync(new URL('./gm-monster-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-quest-editor.js',import.meta.url),'utf8'))); // Read once at boot so a moderation click never touches the disk.
 
 export const gmZones=Object.freeze([
  {id:'global:ooc',name:'Global chat (OOC)',kind:'chat',warp:false}, // Staff can review and remove global messages through the existing chat tools.
@@ -309,7 +309,7 @@ export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,wo
    if(url.pathname==='/gm/whoami'&&req.method==='GET')return send(200,{owner:who,serverTime:now()});
    if(url.pathname==='/gm/overview'&&req.method==='GET')return send(200,{...overview(),actor:who});
    if(url.pathname==='/gm/performance'&&req.method==='GET')return send(200,performanceSnapshot()); // Reuses the live role, address, origin and TLS checks above; never exposed by /health.
-   if(url.pathname==='/gm/content'&&req.method==='GET')return send(200,{...live.view(),worldZones:world().catalog()});
+   if(url.pathname==='/gm/content'&&req.method==='GET')return send(200,{...live.view(),worldZones:world().catalog(),onlineNpcs:world().npcCatalog?.()??[]});
    if(url.pathname==='/gm/map'&&req.method==='GET')return send(200,world().map(url.searchParams.get('zone')));
    if(url.pathname==='/gm/jobs'&&req.method==='GET')return send(200,{jobs:artJobs.list()});
    if(url.pathname==='/gm/asset'&&req.method==='GET')return send(200,live.asset(url.searchParams.get('id')));
@@ -327,7 +327,7 @@ export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,wo
    if(url.pathname==='/gm/action'&&req.method==='POST'){
     const input=await body(req,1300000);
     if(live&&/^(content_|world_|art_)/.test(input?.action??'')){
-     db.exec('BEGIN IMMEDIATE');try{const result=live.once(input,who,()=>{let result;if(['content_save','content_publish','content_rollback'].includes(input.action))result=live.change(input,who);else if(input.action==='art_upload')result=live.putAsset(input);else if(['art_generate','art_retry','art_cancel','art_approve','art_assign'].includes(input.action))result=artJobs.act(input,who);else if(['world_place','world_remove','world_regenerate','world_cancel'].includes(input.action))result=world().act(input);else fail(400,'Unknown world action.');record(who,input.action,input.id??input.zone??result.id,{reason:clean(input.reason,240),revision:result.revision??null});return result;});db.exec('COMMIT');return send(200,{ok:true,result});}catch(e){db.exec('ROLLBACK');live.invalidate();throw e;}
+     db.exec('BEGIN IMMEDIATE');try{const result=live.once(input,who,()=>{let result;if(['content_save','content_publish','content_rollback'].includes(input.action))result=live.change(input,who);else if(input.action==='art_upload')result=live.putAsset(input);else if(['art_generate','art_retry','art_cancel','art_approve','art_assign'].includes(input.action))result=artJobs.act(input,who);else if(['world_place','world_remove','world_regenerate','world_cancel','world_place_content','world_remove_content'].includes(input.action))result=world().act(input);else fail(400,'Unknown world action.');record(who,input.action,input.id??input.zone??result.id,{reason:clean(input.reason,240),revision:result.revision??null});return result;});db.exec('COMMIT');return send(200,{ok:true,result});}catch(e){db.exec('ROLLBACK');live.invalidate();throw e;}
     }
     const handler=Object.hasOwn(actions,String(input?.action??''))?actions[input.action]:null; // Own-property lookup only, so no prototype key can be invoked as an action.
     if(!handler)return send(400,{error:'gm_unknown_action'});

@@ -1072,3 +1072,7 @@ for the full suite. The game's `WORLD_ADMIN_GUIDE.md` describes authoring and ro
 ## Monster creation and scene authoring
 
 See [MONSTER_AUTHORING_RELEASE.md](MONSTER_AUTHORING_RELEASE.md) for the guided monster wizard, inherited default scene variants, approval-based artwork generation, upload instructions, and database/artwork backups. Deploy the `python/world_art_worker.py` helper with the server; no new environment key is needed.
+
+## Live NPCs and quests
+
+The GM NPCs and Quests tabs support online drafts, publication, dialogue, managed artwork, objectives, party credit, repeat policies and durable rewards. See [NPC/quest release and backup instructions](NPC_QUEST_RELEASE.md) before enabling new content. Accepted quests retain pinned definitions; the offline campaign is unchanged.

@@ -10,22 +10,22 @@ export function createStagedArt(db,{live,now,token,fetcher,download=pythonSprite
  for(const job of db.prepare("SELECT * FROM world_art_jobs WHERE details IS NOT NULL AND status='running'").all()){
   const m=meta(job);update(job.id,{status:m.submitting?'needs_review':'queued',error:m.submitting?'Submission was interrupted. Review provider usage before explicitly resubmitting.':null});
  }
- function checkMonster(input){const row=live.entry('monster',input.monster);if(row.revision!==input.revision)fail('This draft changed. Save or reload it before generating artwork.',409);if(!row.revision)fail('Save this monster draft before generating artwork.');return row;}
+ function checkMonster(input){if(!['monster','npc'].includes(input.content_kind??'monster'))fail('Only monsters and NPCs support generated artwork.');const row=live.entry(input.content_kind??'monster',input.monster);if(row.revision!==input.revision)fail('This draft changed. Save or reload it before generating artwork.',409);if(!row.revision)fail('Save this monster draft before generating artwork.');return row;}
  function act(input,actor){
   if(input.action==='art_generate'&&input.monster){
    checkMonster(input);if(!token||!download)fail('Sprite generation is not configured on the server.');
    if(typeof input.prompt!=='string'||!input.prompt.trim()||input.prompt.length>2000)fail('Describe the monster in up to 2,000 characters.');
    if(db.prepare("SELECT COUNT(*) n FROM world_art_jobs WHERE status IN ('queued','running')").get().n>=20)fail('The generation queue is full.');
-   for(const prior of db.prepare("SELECT details FROM world_art_jobs WHERE details IS NOT NULL AND status IN ('queued','running')").all())if(meta(prior).monster===input.monster)fail('This monster already has artwork in progress. Wait for it or cancel it before starting another.');
-   const id=randomUUID(),details={monster:input.monster,draft_revision:input.revision,revision:1,animation:'lidoll-walk-'+randomUUID(),jobs:[],directions:[],submitting:false};
+   for(const prior of db.prepare("SELECT details FROM world_art_jobs WHERE details IS NOT NULL AND status IN ('queued','running')").all())if(meta(prior).monster===input.monster&&(meta(prior).content_kind??'monster')===(input.content_kind??'monster'))fail('This monster already has artwork in progress. Wait for it or cancel it before starting another.');
+   const id=randomUUID(),details={monster:input.monster,content_kind:input.content_kind??'monster',draft_revision:input.revision,revision:1,animation:'lidoll-walk-'+randomUUID(),jobs:[],directions:[],submitting:false};
    db.prepare("INSERT INTO world_art_jobs(id,prompt,status,stage,created,details) VALUES (?,?,'queued','design',?,?)").run(id,input.prompt.trim(),now(),JSON.stringify(details));return {id};
   }
   const job=typeof input.id==='string'?get(input.id):null;if(!job?.details)return undefined;const m=meta(job);
   if(input.job_revision!==m.revision)fail('This generation job changed. Refresh its progress.',409);
   if(input.action==='art_assign'){
-   const row=checkMonster({...input,monster:m.monster}),portraits=JSON.parse(job.portraits??'[]');
+   const row=checkMonster({...input,monster:m.monster,content_kind:m.content_kind}),portraits=JSON.parse(job.portraits??'[]');
    if(!job.walking||!portraits.some(p=>p.id===input.portrait))fail('Choose a completed walking sprite and portrait candidate.');
-   return live.change({action:'content_save',kind:'monster',id:m.monster,revision:row.revision,entry:{...row.draft,sprite:JSON.parse(job.walking).id,battle_sprite:input.portrait}},actor);
+   return live.change({action:'content_save',kind:m.content_kind??'monster',id:m.monster,revision:row.revision,entry:{...row.draft,sprite:JSON.parse(job.walking).id,battle_sprite:input.portrait}},actor);
   }
   if(input.action==='art_approve'){
    if(job.status!=='awaiting_approval')fail('This design is not waiting for approval.');
@@ -72,6 +72,6 @@ export function createStagedArt(db,{live,now,token,fetcher,download=pythonSprite
    if(!portraits.length)throw Error('PixelLab returned no portrait candidates.');save(job,m,{portraits:JSON.stringify(portraits),status:'complete'});
   }catch(error){if(active())update(job.id,{status:m.submitting?'needs_review':'failed',error:(error.diagnostic?'Artwork download failed: '+error.diagnostic.code+' ('+error.diagnostic.stage+').':String(error.message)).slice(0,240)});}
  }
- function publicFields(job){if(!job.details)return {};const m=meta(job);return {monster:m.monster,job_revision:m.revision,design:m.design??null,approved:!!m.approved};}
+ function publicFields(job){if(!job.details)return {};const m=meta(job);return {monster:m.monster,content_kind:m.content_kind??'monster',job_revision:m.revision,design:m.design??null,approved:!!m.approved};}
  return {act,pump,publicFields};
 }
