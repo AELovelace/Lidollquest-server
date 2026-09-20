@@ -1,4 +1,5 @@
 import {movementDelay} from './crawl.mjs';
+import {createDiveControls} from './world-dive.mjs';
 import {createDiveEncounters} from './dive-encounters.mjs';
 import {generateDesert} from './desert-generation.mjs';
 import {addPinkMist,mistAt} from './dive-mist.mjs';
@@ -19,8 +20,9 @@ const fail=(message,code='dive_conflict')=>{throw Object.assign(Error(message),{
 const clone=structuredClone;
 const seconds=1000,minutes=60000;
 
-export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,measure=(_name,work)=>work(),upgradeFloor=()=>false,travel=()=>false,enchantments=null,compute=null}){
- const config=data.config,route=config.route,zoneId=config.zone_id??DIVE_ZONE,theme=config.theme??'princess_quarters',name=config.name??"Princess' Quarters - Dungeon Dive",bossId=config.boss_id??'iris';
+export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,measure=(_name,work)=>work(),upgradeFloor=()=>false,travel=()=>false,enchantments=null,compute=null,live=null}){
+ const baseline=structuredClone(data);if(live){live.register(baseline);data=live.resolve(baseline);} // Each engine keeps mutable configuration isolated from shipped exports.
+ const config=data.config,route=config.route,zoneId=config.zone_id??DIVE_ZONE,theme=config.theme??'princess_quarters',name=config.name??"Princess' Quarters - Dungeon Dive",bossId=(config.boss_id??'iris')||'world_boss';
  // Only dive-data.json carries the curse/blessing table; Desert, Tundra, Taiga and
  // the campaign weeklies share that one table rather than each shipping a copy.
  const rollLoot=createDiveLootRoller(data,{table:data.enchantments??diveData.enchantments,enchantments:enchantments??createEnchantmentStore(db,{now})}); // One policy covers every online route and its personal floor progress; gamemaster retunes reach all of them.
@@ -34,8 +36,9 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  const floorQuery=db.prepare('SELECT * FROM dive_editions WHERE route=? AND edition=? AND depth=1');
  const existsQuery=db.prepare('SELECT 1 FROM dive_editions WHERE route=? AND edition=? AND depth=1');
  const enabledQuery=db.prepare('SELECT 1 FROM dive_editions WHERE route=? AND depth=1 LIMIT 1');
- const getFloor=edition=>{const row=measure('floor.read',()=>floorQuery.get(route,edition??null));return row?{...row,floor:measure('floor.decode',()=>JSON.parse(row.content))}:null;}; // Keep decoded mutable floors local to their operation so rollback cannot leak cached mutations.
- const latest=()=>db.prepare('SELECT edition FROM dive_editions WHERE route=? ORDER BY starts DESC LIMIT 1').get(route)?.edition;
+ const getFloor=edition=>{const row=measure('floor.read',()=>floorQuery.get(route,edition??null));if(!row)return null;const floor=measure('floor.decode',()=>JSON.parse(row.content));if(live)for(const foe of floor.enemies)foe.definition??=clone(baseline.enemies[foe.type]??data.enemies[foe.type]);return {...row,floor};}; // Keep decoded mutable floors local to their operation so rollback cannot leak cached mutations.
+ const latest=()=>controls&&db.prepare('SELECT edition FROM world_routes WHERE route=? AND week=?').get(route,weeklyWindow(now()).edition)?.edition||db.prepare('SELECT edition FROM dive_editions WHERE route=? ORDER BY starts DESC,updated DESC LIMIT 1').get(route)?.edition;
+ const controls=live?createDiveControls(db,{now,data,live,current,getFloor,saveFloor,saveCharacter,entry,generate,compute,generator:generate===generateDesert?'desert':'rooms',upgradeFloor:floor=>{upgradeFloor(floor);addPinkMist(floor);}}):null;
  function saveFloor(record){const content=measure('floor.encode',()=>JSON.stringify(record.floor));measure('floor.write',()=>db.prepare('UPDATE dive_editions SET content=?,updated=? WHERE route=? AND edition=? AND depth=1').run(content,record.updated,route,record.edition));}
  function progress(c,edition){const row=db.prepare('SELECT state FROM dive_progress WHERE character_id=? AND route=? AND edition=? AND depth=1').get(c.id,route,edition);return row?JSON.parse(row.state):{claimed:[],rolls:{},explored:[],completed:false,coinsPaid:0};}
  function saveProgress(c,edition,p){db.prepare('INSERT INTO dive_progress VALUES (?,?,?,1,?) ON CONFLICT(character_id,route,edition,depth) DO UPDATE SET state=excluded.state').run(c.id,route,edition,JSON.stringify(p));}
@@ -61,12 +64,13 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(closed||!config.enabled)return;
   const window=weeklyWindow(now());if(existsQuery.get(route,window.edition)||now()<retryAt)return;
   if(generationPending)return generationPending;
-  const install=floor=>{if(closed||weeklyWindow(now()).edition!==window.edition)return;upgradeFloor(floor);addPinkMist(floor);db.prepare('INSERT OR IGNORE INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(route,window.edition,window.start,window.ends,JSON.stringify(floor),now());log('dive_generation_ready',route,window.edition);};
+  const generationData=clone(data),generationRevision=data.contentRevision;
+  const install=floor=>{if(live&&live.published().revision!==generationRevision)return;if(live)for(const foe of floor.enemies)foe.definition=clone(generationData.enemies[foe.type]);if(closed||weeklyWindow(now()).edition!==window.edition)return;upgradeFloor(floor);addPinkMist(floor);db.prepare('INSERT OR IGNORE INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(route,window.edition,window.start,window.ends,JSON.stringify(floor),now());log('dive_generation_ready',route,window.edition);};
   const failed=error=>{if(closed)return;retryAt=now()+minutes;log('dive_generation_failed',route,String(error));};
   if(compute&&(generate===generateFloor||generate===generateDesert)){
-   generationPending=compute.submit('generate',{generator:generate===generateDesert?'desert':'rooms',data,edition:window.edition}).then(install).catch(failed).finally(()=>{generationPending=null;});return generationPending;
+   generationPending=compute.submit('generate',{generator:generate===generateDesert?'desert':'rooms',data:generationData,edition:window.edition}).then(install).catch(failed).finally(()=>{generationPending=null;});return generationPending;
   }
-  try{install(measure('generate.'+zoneId,()=>generate(data,window.edition)));}catch(error){failed(error);}
+  try{install(measure('generate.'+zoneId,()=>generate(generationData,window.edition)));}catch(error){failed(error);}
  } // Never replace a valid edition until its successor is fully generated and validated.
  function relocate(c,state,position,scene,downedAt=now()){ // Recovery needs both the completed scene and one real minute since defeat.
   if(state.deferDefeatReturn&&scene){state.pendingDefeat={id:scene.id,position:{...position},readyAt:downedAt+60000,sceneComplete:false};return;}
@@ -97,7 +101,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   clearEffects(state);
   if(outcome==='win'){
    awardExperience(state,roll);state.wins++;
-   if(foe){foe.engaged=null;foe.respawnAt=now()+(foe.id===bossId?config.boss_respawn_seconds:config.enemy_respawn_seconds)*seconds;foe.x=foe.spawn.x;foe.y=foe.spawn.y;}
+   if(foe){foe.dead=true;foe.diedAt=now();foe.engaged=null;foe.respawnAt=now()+(foe.id===bossId?config.boss_respawn_seconds:config.enemy_respawn_seconds)*seconds;foe.x=foe.spawn.x;foe.y=foe.spawn.y;}
    if(run.encounter===bossId){const p=progress(c,run.edition);p.completed=true;saveProgress(c,run.edition,p);}
   }else{
    if(foe){foe.engaged=null;foe.respawnAt=0;foe.x=foe.spawn.x;foe.y=foe.spawn.y;}
@@ -118,16 +122,22 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   return amount;
  }
  function start(c,state,record,foe){
+  if(controls?.draining())fail('This Dive is being regenerated. Finish existing battles first.');
+  if(live?.published().enabled&&state.contentVersion!==1)fail('Update the game to join this encounter.','client_update_required');
+  if(foe?.dead&&(!config.spawning||foe.manual&&!foe.respawning)&&live?.published().enabled)fail('This monster is not available.');
   if(state.pendingDefeat||state.run||state.loadout?.player_info.playerHealth<=0||!foe||foe.engaged||foe.respawnAt>now())fail('That encounter is not available.'); // Saved stat points remain spendable after future encounters.
   if(!state.loadout)fail('Import your character before entering.');
   if(state.diveCombatVersion===3){encounters.start(c,state,record,foe);return;} // New clients share an encounter; unfinished legacy fights keep their original path.
-  foe.engaged=c.id;const enemy=clone(data.enemies[foe.type]);enemy.maxHp=enemy.hp;enemy.turn=0;
+  foe.engaged=c.id;const enemy=clone(foe.definition??data.enemies[foe.type]);enemy.maxHp=enemy.hp;enemy.turn=0;
   state.lastResult=null;state.run={kind:'dive',id:randomUUID(),zone:zoneId,edition:record.edition,encounter:foe.id,stage:1,phase:'fight',hp:state.loadout.player_info.playerHealth,maxHp:state.loadout.player_info.playerHealthMax,heals:0,pot:0,handicaps:[],enemy,acted:now(),log:[enemy.name+' approaches.']};
   beginRound(state,{theme,attack:0},roll,enemy); // Keep authored encounter stats rather than the arena's progressive template.
   saveFloor(record);
  }
  function maintain(){
+  if(live&&data.contentRevision!==live.published().revision){const fresh=live.resolve(baseline);Object.assign(config,fresh.config);data.enemies=fresh.enemies;data.enemy_types=fresh.enemy_types;data.contentRevision=fresh.contentRevision;}
+  controls?.tick();
   ensure();let active=current();if(!active)return;
+  controls?.reconcile(active);
   if(upgradeFloor(active.floor))saveFloor(active); // Add a trail to an existing edition without rerolling rooms or claimed treasure.
   if(addPinkMist(active.floor))saveFloor(active); // Install a layer on existing editions once, preserving every room, enemy lock and personal claim.
   if(zoneId===DIVE_ZONE&&((active.floor.dressingVersion??0)<(data.dressing_version??2)||(active.floor.foodVersion??0)<(data.food_version??0))&&now()>=dressingRetryAt){
@@ -148,6 +158,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   encounters.tick(getFloor);
   // Expired editions are retained for audit and receipt replay, but cannot accept new exploration.
   active=current(); // Settlement above may have released locks; never overwrite it with the earlier floor copy.
+  if(controls?.draining())return;
   if(now()-active.updated<seconds)return;
   const players=roamingPlayers();
   if(compute&&players.length&&active.floor.enemies.some(e=>!e.engaged&&e.respawnAt<=now()&&enemyRoams(data,e))){scheduleRoaming(active,players);return;}
@@ -164,7 +175,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    measure('simulation.apply.'+zoneId,()=>{
     db.exec('BEGIN IMMEDIATE');try{
      const row=floorQuery.get(route,active.edition),currentPlayers=roamingPlayers();
-     if(latest()!==active.edition||weeklyWindow(now()).edition!==active.edition||!row||row.content!==active.content||row.updated!==active.updated||positions(currentPlayers)!==expectedPositions||now()-scheduledAt>seconds){measure('worker.stale.paths',()=>{});db.exec('COMMIT');return;}
+     if(controls?.draining()||latest()!==active.edition||!active.edition.startsWith(weeklyWindow(now()).edition)||!row||row.content!==active.content||row.updated!==active.updated||positions(currentPlayers)!==expectedPositions||now()-scheduledAt>seconds){measure('worker.stale.paths',()=>{});db.exec('COMMIT');return;}
      const plans=new Map(starts.map((start,index)=>[start.id,new Map(currentPlayers.map((p,target)=>[p.character_id,paths[index][target]]))]));
      roam({...row,floor:JSON.parse(row.content)},currentPlayers,plans,scheduledAt);db.exec('COMMIT');
     }catch(error){db.exec('ROLLBACK');throw error;}
@@ -177,7 +188,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const rnd=seeded(active.edition+':'+Math.floor(tickAt/seconds));
   for(const foe of f.enemies){
    if(foe.engaged||foe.respawnAt>now()||!enemyRoams(data,foe))continue;
-   const targets=players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return v.pendingDefeat||v.dive?.route!==route||v.dive?.edition!==active.edition||(!v.run&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0);});return ready&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.worldTurnDue&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);}); // Storing points cannot grant immunity from roaming enemies or block party encounters.
+   const targets=players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return v.pendingDefeat||v.dive?.route!==route||v.dive?.edition!==active.edition||(!v.run&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0);});return ready&&(!live?.published().enabled||s.contentVersion===1)&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.worldTurnDue&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);}); // Storing points cannot grant immunity from roaming enemies or block party encounters.
    let target=null,best=null;
    for(const p of targets){const path=plans?plans.get(foe.id)?.get(p.character_id):measure('pathfinding.'+zoneId,()=>pathTo(f,foe,p,config.pursuit_steps));if(path&&(!best||path.length<best.length)){target=p;best=path;}} // Worker paths are consumed only against revalidated coordinates; combat remains on the coordinator.
    if(best?.length===0||best?.length===1){const c={id:target.character_id,owner:target.owner,revision:target.revision},s=JSON.parse(target.state);if(s.loadout?.player_info.playerHealth>0){start(c,s,active,foe);saveCharacter(c,s);target.state=c.state;target.revision=c.revision;}continue;}
@@ -188,13 +199,13 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   }
   active.updated=tickAt;saveFloor(active); // Preserve the scheduled tick boundary; worker delivery latency must not halve the one-second movement cadence.
  }
- function tick(){if(closed||now()-lastTick<seconds)return;lastTick=now();measure('simulation.'+zoneId,()=>{db.exec('BEGIN IMMEDIATE');try{maintain();db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');lastTick=-Infinity;log('dive_tick_failed',String(error));}});} // Never await workers while holding a transaction or request identity.
+ function tick(){if(closed||now()-lastTick<seconds)return;lastTick=now();measure('simulation.'+zoneId,()=>{db.exec('BEGIN IMMEDIATE');try{maintain();db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');lastTick=-Infinity;log('dive_tick_failed',error.stack??String(error));}});} // Never await workers while holding a transaction or request identity.
  function snapshot(c,p){
   const state=c?JSON.parse(c.state):null,record=owns(state?.dive)?getFloor(state.dive.edition):current(),personal=c&&record?progress(c,record.edition):null;
   const summary={enabled:config.enabled&&!!record,version:1,route,zone:zoneId,name,boss:bossId,edition:record?.edition??'',resetsAt:record?.ends??weeklyWindow(now()).ends,completed:personal?.completed??false,claimed:record?.floor.chests.filter(ch=>personal?.claimed.includes(ch.id)).length??0,total:record?.floor.chests.length??0,pickupsClaimed:(record?.floor.pickups??[]).filter(ch=>personal?.claimed.includes(ch.id)).length,pickupsTotal:record?.floor.pickups?.length??0,claimableCoins:personal?.completed?Math.max(0,config.boss_coins-personal.coinsPaid):0};
   if(!record||p?.zone!==zoneId||!owns(state?.dive))return {dive:summary};
   const f=record.floor;
-  return {dive:{...summary,depth:1,origin:state.dive.origin,explored:personal.explored,enemies:f.enemies.map(e=>({...e,name:data.enemies[e.type].name,sprite:data.enemies[e.type].sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",exits:f.exits??[],theme,mist:f.mist,walls:f.walls,props:f.props,geometryVersion:f.geometryVersion??0,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,decorations:f.decorations}};
+  return {dive:{...summary,depth:1,origin:state.dive.origin,explored:personal.explored,enemies:f.enemies.filter(e=>!(e.manual&&!e.respawning&&e.dead)).map(e=>({...e,definition:undefined,name:(e.definition??data.enemies[e.type]).name,sprite:(e.definition??data.enemies[e.type]).sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",exits:f.exits??[],theme,mist:f.mist,walls:f.walls,props:f.props,geometryVersion:f.geometryVersion??0,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,decorations:f.decorations}};
  } // Snapshots expose claim status but never another character's inventory or chest rolls.
  function claim(c,state,record,chest,automatic=false){
   const personal=progress(c,record.edition);if(personal.claimed.includes(chest.id)){if(automatic)return;fail('You already claimed this treasure this week.');}
@@ -207,6 +218,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function act(i,c,state,input,p){
   const action=input.action;
   if(action==='dive_enter'||action==='enter'){
+   if(controls?.draining()&&!state.dive)fail('This Dive is being regenerated.');
    if(state.dive&&input.zone&&input.zone!==zoneId)fail('Leave your current dungeon before changing routes.'); // Re-entry cannot change a live visit's route or imported inventory.
    if(!config.enabled)fail('Dungeon Dive is not enabled.');
    const existing=db.prepare('SELECT * FROM quest_presence WHERE owner=?').get(i.owner);
@@ -288,6 +300,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   }
  }
  function arrive(c,state,source){
+  if(controls?.draining())fail('This Dive is being regenerated.');
   const record=current(),position=record?.floor.entries?.[source];
   if(!config.enabled||!position)fail('That connecting trail is unavailable.');
   if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(zoneId,now()-30000,c.owner).n>=64)fail('The dive is full.');
@@ -297,5 +310,5 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(zoneId,position.x,position.y,now(),c.id);
   reveal(c,state,record.floor,position.x,position.y); // Revisit this route's own claims and fog; never re-import stale campaign equipment.
  }
- return {tick,snapshot,handles,act,chatArea,arrive,prepare:ensure,close(){closed=true;},available:()=>Boolean(config.enabled&&enabledQuery.get(route)),encounterSnapshot:state=>encounters.snapshot(state)};
+ return {tick,snapshot,handles,act,chatArea,arrive,controls,prepare:ensure,close(){closed=true;controls?.close();},available:()=>Boolean(config.enabled&&enabledQuery.get(route)),encounterSnapshot:state=>encounters.snapshot(state)};
 } // All mutations run inside the zone command transaction; scheduled simulation owns its own transaction.

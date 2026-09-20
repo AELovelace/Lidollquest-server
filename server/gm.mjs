@@ -9,7 +9,7 @@ const HUB_SPAWN={x:10,y:9}; // hubDefinition() falls back to this same tile when
 const KINDS=Object.freeze(['mute','suspend']); // The only two sanctions a gamemaster can place on an account.
 const CONTROL=/[\x00-\x1f\x7f]/g; // Stripped from every stored string so no reason or announcement can smuggle in line breaks.
 const SIGNIN_SCOPE='wallet:read'; // The panel needs identity alone: no balance changes, saves, social data or character access.
-const panelPage=readFileSync(new URL('./gm-panel.html',import.meta.url),'utf8'); // Read once at boot so a moderation click never touches the disk.
+const panelPage=readFileSync(new URL('./gm-panel.html',import.meta.url),'utf8').replace('/* WORLD_PANEL */',()=>readFileSync(new URL('./gm-world-panel.js',import.meta.url),'utf8')); // Read once at boot so a moderation click never touches the disk.
 
 export const gmZones=Object.freeze([
  {id:'global:ooc',name:'Global chat (OOC)',kind:'chat',warp:false}, // Staff can review and remove global messages through the existing chat tools.
@@ -17,6 +17,7 @@ export const gmZones=Object.freeze([
  ...hubRooms.map(r=>({id:r.id,name:r.name,kind:r.kind,warp:true,spawn:r.spawn})),
  {id:'dive-quarters',name:"Princess' Quarters",kind:'dive',warp:false},
  {id:'dive-desert',name:'Dustbreak Desert',kind:'dive',warp:false},
+ {id:'dive-taiga',name:'Frostveil Taiga',kind:'dive',warp:false},
  {id:'dive-tundra',name:'Frostveil Tundra',kind:'dive',warp:false},
  ...campaignDives.map(({config})=>({id:config.zone_id,name:config.name,kind:'dive',warp:false})),
 ].map(Object.freeze)); // Dives are edition-scoped instances, so they are listed for observation but never offered as warp destinations.
@@ -50,7 +51,7 @@ export function buildAllowList(text){ // Comma-separated addresses and CIDR bloc
  return list;
 } // Rejected loudly at construction so a typo cannot silently admit the whole network.
 
-export function createGameMasterPanel(db,{walletClient,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn}={}){
+export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn}={}){
  const rp=createRoleplay(db,{now}); // RP journals use the same live staff authorization as every moderation tool.
  const rpp=createRpp(db,{now}); // Staff-only RPP gifts and purchase history never touch premium currencies.
  db.exec(`CREATE TABLE IF NOT EXISTS gm_sanctions(owner TEXT NOT NULL,kind TEXT NOT NULL,until INTEGER NOT NULL,reason TEXT NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(owner,kind));
@@ -247,10 +248,10 @@ export function createGameMasterPanel(db,{walletClient,performanceSnapshot=()=>n
    return {seq,zone:row.zone,zoneName:zoneName(row.zone)};
   }};
 
- async function body(req){
+ async function body(req,limit=16*1024){
   if(!String(req.headers['content-type']??'').startsWith('application/json'))fail(415,'Send JSON.','gm_bad_content_type');
   let size=0;const chunks=[];
-  for await(const chunk of req){size+=chunk.length;if(size>16*1024)fail(413,'Request too large.','gm_body_too_large');chunks.push(chunk);} // Moderation commands are tiny; this cap sits far below the gameplay gateway's.
+  for await(const chunk of req){size+=chunk.length;if(size>limit)fail(413,'Request too large.','gm_body_too_large');chunks.push(chunk);} // Moderation commands are tiny; this cap sits far below the gameplay gateway's.
   try{return JSON.parse(Buffer.concat(chunks));}catch{return fail(400,'Invalid JSON.','gm_bad_json');}
  }
 
@@ -308,6 +309,10 @@ export function createGameMasterPanel(db,{walletClient,performanceSnapshot=()=>n
    if(url.pathname==='/gm/whoami'&&req.method==='GET')return send(200,{owner:who,serverTime:now()});
    if(url.pathname==='/gm/overview'&&req.method==='GET')return send(200,{...overview(),actor:who});
    if(url.pathname==='/gm/performance'&&req.method==='GET')return send(200,performanceSnapshot()); // Reuses the live role, address, origin and TLS checks above; never exposed by /health.
+   if(url.pathname==='/gm/content'&&req.method==='GET')return send(200,{...live.view(),worldZones:world().catalog()});
+   if(url.pathname==='/gm/map'&&req.method==='GET')return send(200,world().map(url.searchParams.get('zone')));
+   if(url.pathname==='/gm/jobs'&&req.method==='GET')return send(200,{jobs:artJobs.list()});
+   if(url.pathname==='/gm/asset'&&req.method==='GET')return send(200,live.asset(url.searchParams.get('id')));
    if(url.pathname==='/gm/enchantments'&&req.method==='GET')return send(200,enchantView()); // Content tuning, behind the same staff identity as every moderation tool.
    if(url.pathname==='/gm/rp'&&req.method==='GET')return send(200,rp.journal(Object.fromEntries(url.searchParams)));
    if(url.pathname==='/gm/rpp'&&req.method==='GET')return send(200,rpp.journal(url.searchParams.get('character')??''));
@@ -320,7 +325,11 @@ export function createGameMasterPanel(db,{walletClient,performanceSnapshot=()=>n
    }
    if(url.pathname==='/gm/player'&&req.method==='GET')return send(200,player(url.searchParams.get('owner')||null,url.searchParams.get('character_id')||null));
    if(url.pathname==='/gm/action'&&req.method==='POST'){
-    const input=await body(req),handler=Object.hasOwn(actions,String(input?.action??''))?actions[input.action]:null; // Own-property lookup only, so no prototype key can be invoked as an action.
+    const input=await body(req,1300000);
+    if(live&&/^(content_|world_|art_)/.test(input?.action??'')){
+     db.exec('BEGIN IMMEDIATE');try{const result=live.once(input,who,()=>{let result;if(['content_save','content_publish','content_rollback'].includes(input.action))result=live.change(input,who);else if(input.action==='art_upload')result=live.putAsset(input);else if(['art_generate','art_retry','art_cancel'].includes(input.action))result=artJobs.act(input);else if(['world_place','world_remove','world_regenerate','world_cancel'].includes(input.action))result=world().act(input);else fail(400,'Unknown world action.');record(who,input.action,input.id??input.zone??result.id,{reason:clean(input.reason,240),revision:result.revision??null});return result;});db.exec('COMMIT');return send(200,{ok:true,result});}catch(e){db.exec('ROLLBACK');live.invalidate();throw e;}
+    }
+    const handler=Object.hasOwn(actions,String(input?.action??''))?actions[input.action]:null; // Own-property lookup only, so no prototype key can be invoked as an action.
     if(!handler)return send(400,{error:'gm_unknown_action'});
     return send(200,{ok:true,action:input.action,serverTime:now(),result:handler(input,who)});
    }

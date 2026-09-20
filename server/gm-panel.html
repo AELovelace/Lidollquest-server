@@ -104,10 +104,21 @@ tr.sel td{background:#2c1e3d}
   <button type="button" role="tab" id="tab-enchantments" aria-controls="panel-enchantments" aria-selected="false" tabindex="-1">Curses &amp; Blessings</button>
   <button type="button" role="tab" id="tab-moderation" aria-controls="panel-moderation" aria-selected="false" tabindex="-1">Moderation</button>
   <button type="button" role="tab" id="tab-performance" aria-controls="panel-performance" aria-selected="false" tabindex="-1">Performance</button>
+<button type="button" role="tab" id="tab-monsters" aria-controls="panel-monsters" aria-selected="false" tabindex="-1">Monsters</button>
+<button type="button" role="tab" id="tab-world" aria-controls="panel-world" aria-selected="false" tabindex="-1">Zones</button>
+<button type="button" role="tab" id="tab-jobs" aria-controls="panel-jobs" aria-selected="false" tabindex="-1">Generation Jobs</button>
 </nav>
 </header>
 <div id="flash" class="flash"></div>
 <main>
+<div id="panel-monsters" class="tab-panel" role="tabpanel" aria-labelledby="tab-monsters" hidden>
+<section><h2>Monster library</h2><button id="worldLoad">Refresh library</button><button id="monsterNew">New monster</button><div id="monsterList" class="slots"></div></section>
+<section class="wide"><div id="monsterEditor" class="ench-form">Choose a monster to edit its draft. Publish when it is ready for new encounters.</div></section></div>
+<div id="panel-world" class="tab-panel" role="tabpanel" aria-labelledby="tab-world" hidden>
+<section class="wide"><h2>Live world</h2><select id="worldZone"></select><button id="worldMapLoad">Refresh map</button><p id="mapStatus"></p><div class="row"><select id="placeMonster"></select><label><input id="placeAggressive" type="checkbox">Roam and attack automatically</label><label><input id="placeRespawn" type="checkbox">Respawn</label><label><input id="removeMonster" type="checkbox">Remove mode</label></div><p class="note">Click a free map tile to place a monster, or click a monster in Remove mode. Refresh after players or monsters move.</p><canvas id="worldMap" style="max-width:100%;image-rendering:pixelated"></canvas><div class="row"><button id="regenerateMap">Regenerate Dive</button><button id="cancelMap" hidden>Cancel regeneration</button></div></section><section class="wide ench-form" id="zoneTuning"></section></div>
+<div id="panel-jobs" class="tab-panel" role="tabpanel" aria-labelledby="tab-jobs" hidden>
+<section class="wide ench-form"><h2>Monster artwork</h2><p>Generation uses the saved server PixelLab key and provider credits. Finished art can be selected in a monster draft before publishing.</p><label>Description<textarea id="artPrompt" maxlength="2000"></textarea></label><button id="artGenerate">Generate walking sprite and battle portrait</button><button id="artLoad">Refresh jobs</button><div id="artJobs"></div></section></div>
+
 <div class="tab-panel" id="panel-players" role="tabpanel" aria-labelledby="tab-players" tabindex="0">
   <section class="wide">
     <h2>Live server</h2>
@@ -888,6 +899,7 @@ tr.sel td{background:#2c1e3d}
   act("broadcast",{zone:zone,text:text,speaker:$("castName").value.trim()},"Announced to that room.").then(function(){$("castText").value="";loadChat();});
  });
  $("castText").addEventListener("keydown",function(e){if(e.key==="Enter")$("cast").click();});
+ /* WORLD_PANEL */
  })();
 </script>
 </body>

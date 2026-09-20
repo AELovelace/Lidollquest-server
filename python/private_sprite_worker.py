@@ -8,7 +8,7 @@ import sys
 try:
     import requests
     from PIL import Image
-    from pixellab_walk_core import PixelLabClient, DIRECTIONS
+    from pixellab_walk_core import PixelLabClient, DIRECTIONS, compute_combined_bbox
 except ImportError:
     if __name__ == "__main__":
         print(json.dumps({"error": {"code": "python_dependency_missing", "stage": "startup"}}), file=sys.stderr)
@@ -61,15 +61,29 @@ def generate(prompt, client):
             error = ValueError("Incomplete directional walk cycle")
             error.sprite_counts = {"idle_count": len(idle), **{d: len(walk.get(d, [])) for d in DIRECTIONS}}
             raise error  # Paid generations must contain actual animations; no static-frame substitutes.
+    pictures = []
     for data in [idle[d] for d in DIRECTIONS] + [f for d in DIRECTIONS for f in walk[d]]:
         picture = Image.open(io.BytesIO(data))
         if picture.width > 256 or picture.height > 256:
             raise ValueError("Unexpected frame size")
-        picture = picture.convert("RGBA")
-        picture.thumbnail((64, 64), Image.Resampling.NEAREST)
+        pictures.append(picture.convert("RGBA"))  # Decode every frame first; the crop below must see the whole cycle at once.
+    sheet_w = max(picture.width for picture in pictures)
+    sheet_h = max(picture.height for picture in pictures)  # Frames may differ slightly, so measure one shared canvas before cropping.
+    padded = []
+    for picture in pictures:
+        canvas = Image.new("RGBA", (sheet_w, sheet_h))
+        canvas.alpha_composite(picture, ((sheet_w-picture.width)//2, sheet_h-picture.height))
+        padded.append(canvas)  # Bottom-center each frame onto that canvas so every pose shares one baseline.
+    left, top, right, bottom = compute_combined_bbox(padded, sheet_w, sheet_h)  # One union box over all 36 frames; per-frame crops would make the sprite bob while walking.
+    box = (left, top, right+1, bottom+1)
+    scale = min(64/max(1, box[2]-box[0]), 64/max(1, box[3]-box[1]))  # Fill the 64px cell the way compiled NPC sprites do instead of leaving transparent margin.
+    art_w = max(1, min(64, int(round((box[2]-box[0])*scale))))
+    art_h = max(1, min(64, int(round((box[3]-box[1])*scale))))
+    for picture in padded:
+        art = picture.crop(box).resize((art_w, art_h), Image.Resampling.NEAREST)  # Identical crop and scale per frame keeps the walk cycle steady.
         frame = Image.new("RGBA", (64, 64))
-        frame.alpha_composite(picture, ((64-picture.width)//2, 64-picture.height))
-        frames.append(frame)  # Preserve frame padding so feet do not jump between walk frames.
+        frame.alpha_composite(art, ((64-art_w)//2, 64-art_h))
+        frames.append(frame)  # Bottom-center leaves the character standing on the tile's lower edge.
     strip = Image.new("RGBA", (64 * 36, 64))
     for index, frame in enumerate(frames):
         strip.alpha_composite(frame, (64 * index, 0))
@@ -77,7 +91,9 @@ def generate(prompt, client):
     strip.save(out, format="PNG")
     if len(out.getvalue()) > 180000:
         raise ValueError("Sprite strip exceeds delivery limit")
-    return {"png": base64.b64encode(out.getvalue()).decode("ascii"), "frames": 36}
+    reference = io.BytesIO()
+    frames[0].save(reference, format="PNG")  # Use the same character as the shared monster portrait reference.
+    return {"png": base64.b64encode(out.getvalue()).decode("ascii"), "frames": 36, "reference": base64.b64encode(reference.getvalue()).decode("ascii")}
 
 
 if __name__ == "__main__":

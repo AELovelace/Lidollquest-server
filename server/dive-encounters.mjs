@@ -17,7 +17,7 @@ export function enemyActionDelay(dex,roll,tuning=encounterTuning){
 }
 
 export function selectReinforcements(floor,foe,data,roll,time,tuning=encounterTuning){
- const max=data.enemies[foe.type].hp,pool=floor.enemies.filter(e=>e.id!==foe.id&&!e.engaged&&e.respawnAt<=time&&data.enemies[e.type]?.hp<=max);
+ const max=(foe.definition??data.enemies[foe.type]).hp,pool=floor.enemies.filter(e=>!e.manual&&!foe.manual&&e.id!==foe.id&&!e.engaged&&e.respawnAt<=time&&(e.definition??data.enemies[e.type])?.hp<=max);
  const chosen=[foe];if(pool.length&&roll(10000)<tuning.second_enemy_chance*10000){
   chosen.push(pool.splice(roll(pool.length),1)[0]);
   if(pool.length&&roll(10000)<tuning.third_enemy_chance*10000)chosen.push(pool.splice(roll(pool.length),1)[0]);
@@ -26,7 +26,7 @@ export function selectReinforcements(floor,foe,data,roll,time,tuning=encounterTu
 
 export function selectEncounterEnemies(floor,foe,data,roll,time){
  const guards={matron_rosalind_boss:'nanny_sentinel',slime_queen_boss:'bottle_slime',school_nurse:'teachers_pet',school_nurse_boss:'teachers_pet'};
- const guard=guards[data.enemies[foe.type].enemy_id];
+ const guard=guards[(foe.definition??data.enemies[foe.type]).enemy_id];
  if(guard&&data.enemies[guard])return [foe,...[1,2].map(index=>({id:foe.id+':escort:'+index,type:guard}))];
  return selectReinforcements(floor,foe,data,roll,time);
 } // Campaign-authored boss escorts replace random picks and disappear with their encounter; floor residents stay available.
@@ -47,8 +47,8 @@ export function applyCombatPatch(loadout,patch){
  }if(result.player_info&&typeof result.player_info==='object')result.player_info.rpp_abilities=clone(loadout.player_info.rpp_abilities??[]);return importLoadout(result); // A whole player_info replacement cannot bypass protected paid-ability paths.
 } // Numeric deltas preserve intervening attacks/heals; structural item edits require an unchanged baseline.
 
-export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate}){
- const config=data.config,zone=config.zone_id??'dive-quarters',route=config.route,boss=config.boss_id??'iris',z={theme:config.theme??'princess_quarters',activeTime:true};
+export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate,context=null}){
+ const config=data.config,zone=config.zone_id??'dive-quarters',route=config.route,boss=(config.boss_id??'iris')||'world_boss',z={theme:config.theme??'princess_quarters',activeTime:true};
  db.exec('CREATE TABLE IF NOT EXISTS quest_dive_encounters(id TEXT PRIMARY KEY,route TEXT NOT NULL,edition TEXT NOT NULL,state TEXT NOT NULL,updated INTEGER NOT NULL)');
  db.exec("CREATE INDEX IF NOT EXISTS quest_open_dive_encounters ON quest_dive_encounters(route) WHERE json_extract(state,'$.finished') IS NOT 1"); // Retain history without scanning every settled fight on each simulation tick.
  const fetch=id=>{const row=db.prepare('SELECT state FROM quest_dive_encounters WHERE id=? AND route=?').get(id??'',route);return row?JSON.parse(row.state):null;};
@@ -61,17 +61,18 @@ export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progres
  function out(e,a,enemy,outcome){a.status=outcome;a.defeatEnemy=clone(enemy);a.prepared=false;a.downedAt=now();message(e,a.name+' '+(outcome==='defeat'?'is down.':outcome==='flee'?'retreats from the fight.':'is out of the fight.'));} // Recovery time starts when this member goes down, not when the survivors finish fighting.
  function start(c,state,record,foe){
   const members=parties?.members(c.id)??[],people=members.length?members:[c];
-  const rows=people.map(other=>({c:other,s:other.id===c.id?state:JSON.parse(other.state)})).filter(({s})=>!s.pendingDefeat&&s.dive?.edition===record.edition&&s.dive?.route===route); // Downed or elsewhere members retain membership but do not enter this encounter.
+  const eligible=(s,other)=>context?context.eligible(s,other,record):s.dive?.edition===record.edition&&s.dive?.route===route;
+  const rows=people.map(other=>({c:other,s:other.id===c.id?state:JSON.parse(other.state)})).filter(({s,c:other})=>!s.pendingDefeat&&eligible(s,other)); // Downed or elsewhere members retain membership but do not enter this encounter.
   if(!rows.some(row=>row.c.id===c.id))fail('Finish recovering before entering combat.');
   for(const {c:other,s} of rows){
-   if(s.run||s.worldTurnDue||s.pendingPurchase||!s.loadout||s.loadout.player_info.playerHealth<=0||s.dive?.edition!==record.edition||s.dive?.route!==route)fail(other.name+' must finish preparing before the party can fight.'); // Banked stat points do not block this player or their party.
+   if(s.run||s.worldTurnDue||s.pendingPurchase||!s.loadout||s.loadout.player_info.playerHealth<=0||!eligible(s,other))fail(other.name+' must finish preparing before the party can fight.'); // Banked stat points do not block this player or their party.
   }
   const e={id:randomUUID(),edition:record.edition,zone,route,origin:{x:foe.x,y:foe.y},created:now(),sequence:0,events:[],players:[],enemies:[]};
-  for(const selected of selectEncounterEnemies(record.floor,foe,data,roll,now())){selected.engaged=e.id;const enemy=clone(data.enemies[selected.type]);enemy.maxHp=enemy.hp;enemy.turn=0;
+  for(const selected of (context?[foe]:selectEncounterEnemies(record.floor,foe,data,roll,now()))){selected.engaged=e.id;const enemy=clone(selected.definition??data.enemies[selected.type]);enemy.maxHp=enemy.hp;enemy.turn=0;
    const duration=enemyActionDelay(enemy.dex??0,roll)+e.enemies.length*encounterTuning.enemy_initial_stagger_ms;
    e.enemies.push({id:selected.id,data:enemy,duration,readyAt:now()+duration,dots:[],debuffs:[]});
   } // Opening stagger separates identical enemies; later cycles reroll their own bounded delay.
-  for(const row of rows){const {c:other,s}=row,enemy=clone(e.enemies[0].data);s.lastResult=null;s.run={kind:'dive',id:e.id,sharedEncounter:e.id,zone,edition:record.edition,encounter:foe.id,stage:1,phase:'fight',hp:s.loadout.player_info.playerHealth,maxHp:s.loadout.player_info.playerHealthMax,heals:0,pot:0,handicaps:[],enemy,acted:now(),log:[]};beginRound(s,z,roll,enemy);
+  for(const row of rows){const {c:other,s}=row,enemy=clone(e.enemies[0].data);s.lastResult=null;s.run={kind:context?'hub_event':'dive',id:e.id,sharedEncounter:e.id,zone,edition:record.edition,encounter:foe.id,stage:1,phase:'fight',hp:s.loadout.player_info.playerHealth,maxHp:s.loadout.player_info.playerHealthMax,heals:0,pot:0,handicaps:[],enemy,acted:now(),log:[]};beginRound(s,z,roll,enemy);
    const duration=actionDelay(s.loadout.player_info.dex);const a={id:other.id,name:other.name,status:'active',run:s.run,cycle:1,duration,readyAt:now()+duration*(1-encounterTuning.player_initial_fill),prepared:false};e.players.push(a);row.a=a;
   }
   message(e,e.enemies.map(v=>v.data.name).join(', ')+' approach.');saveFloor(record);persist(e,rows,c);return e;
@@ -80,14 +81,14 @@ export function createDiveEncounters(db,{now,roll,data,parties,saveFloor,progres
   const win=e.enemies.every(v=>v.data.hp<=0);if(!force&&!win&&e.players.some(a=>a.status==='active'))return false;
   const xp=e.enemies.filter(v=>v.data.hp<=0).reduce((n,v)=>n+(v.data.exp??0),0),bossDown=e.enemies.some(v=>v.id===boss&&v.data.hp<=0);
   e.finished=true;message(e,win?'The encounter is cleared.':'The encounter is over.');
-  for(const enemy of e.enemies){const foe=record.floor.enemies.find(v=>v.id===enemy.id);if(!foe)continue;foe.engaged=null;foe.respawnAt=enemy.data.hp<=0?now()+(foe.id===boss?config.boss_respawn_seconds:config.enemy_respawn_seconds)*1000:0;Object.assign(foe,foe.spawn);}
+  for(const enemy of e.enemies){const foe=record.floor.enemies.find(v=>v.id===enemy.id);if(!foe)continue;foe.dead=enemy.data.hp<=0;foe.diedAt=foe.dead?now():null;foe.engaged=null;foe.respawnAt=enemy.data.hp<=0?now()+(foe.id===boss?config.boss_respawn_seconds:config.enemy_respawn_seconds)*1000:0;Object.assign(foe,foe.spawn);}
   for(const {a,c,s} of rows){s.run=a.run;clearEffects(s);if(['defeat','charm_backfire'].includes(a.status))a.run.hp=Math.max(1,Math.ceil(a.run.maxHp/4));
    const enemy=a.defeatEnemy??e.enemies[0].data;a.run.enemy={...enemy,exp:xp};if(xp)awardExperience(s,roll);syncRunHealth(s,a.run);
    if(bossDown){const p=progress(c,record.edition);p.completed=true;saveProgress(c,record.edition,p);}
    const coins=bossDown?pay(c,s,record,true):0,outcome=a.status==='active'?(win?'win':'abandoned'):a.status;
    const equipment=applyDefeatEquipment(s,a.run,outcome); // Only this member's actual defeat opponent supplies their outfit, even when their party wins.
    s.lastResult={outcome,coins,rounds:1,zone,log:[...e.events.map(v=>v.text),...(equipment?.changes.length?a.run.log.slice(-equipment.changes.length):[])],...defeatPresentation(a.run,outcome),...(equipment?{defeatEquipment:equipment}:{})};s.wins=(s.wins??0)+(win?1:0);s.run=null;
-   if(s.dive)relocate(c,s,win&&!s.lastResult.defeatScene?e.origin:entry(record.floor,s.dive.origin),s.lastResult.defeatScene,a.downedAt); // A defeated member returns to their own gate even when the survivors win.
+   if(s.dive||context)relocate(c,s,win&&!s.lastResult.defeatScene?e.origin:entry(record.floor,s.dive?.origin),s.lastResult.defeatScene,a.downedAt); // A defeated member returns to their own gate even when the survivors win.
    if(force)back(c,s);
   }saveFloor(record);return true;
  } // All participants, enemy locks and reward entitlements settle in the caller's single database transaction.

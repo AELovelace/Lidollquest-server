@@ -30,7 +30,7 @@ export function enemyRoams(data,foe){ // Resolve legacy editions from authored m
 } // Explicit stationary flags win; Quarters keeps its original fairy/mimic behavior and crossings keep their existing roaming flags.
 export function generateFloor(data,edition,depth=1){
  const c=data.config,s=data.structure,rnd=seeded(`${c.route}:${edition}:${depth}:v${data.version}`);
- if(!Number.isInteger(c.width)||!Number.isInteger(c.height)||c.width<24||c.height<24||c.width>128||c.height>128||!Number.isInteger(c.enemies_per_room)||c.enemies_per_room<1||c.enemies_per_room>6||s.max_depth<1||s.max_depth>5)throw Error('Dive dimensions/density are outside supported bounds');
+ if(!Number.isInteger(c.width)||!Number.isInteger(c.height)||c.width<24||c.height<24||c.width>128||c.height>128||!Number.isInteger(c.enemies_per_room)||c.enemies_per_room<0||c.enemies_per_room>6||s.max_depth<1||s.max_depth>5)throw Error('Dive dimensions/density are outside supported bounds');
  if(!Array.isArray(c.themes)||c.themes.length!==1||!['princess_quarters','dungeon','nursery','school','forest','mansion','hospital'].includes(c.themes[0]))throw Error('Unsupported Dive theme');
  const f={route:c.route,edition,depth,theme:c.themes[(depth-1)%c.themes.length],generatorVersion:1,contentVersion:data.version,width:c.width,height:c.height,rooms:[],walls:Array.from({length:c.height},()=>Array(c.width).fill(1)),enemies:[],chests:[],decorations:[]};
  const carve=(x,y)=>{if(x>0&&y>0&&x<f.width-1&&y<f.height-1)f.walls[y][x]=0;};
@@ -57,7 +57,7 @@ export function generateFloor(data,edition,depth=1){
   } // Authored route pools preserve the original Quarters random sequence when absent.
   for(let j=0;j<2&&data.decorations.length;j++)f.decorations.push({...free(room),sprite:data.decorations[rnd(data.decorations.length)]});
  }
- const boss=free(far);f.bossId=c.boss_id??'iris';f.enemies.push({id:f.bossId,type:c.boss_enemy_id??'dive_iris',...boss,spawn:{...boss},roaming:false,engaged:null,respawnAt:0});
+ const boss=free(far);f.bossId=c.boss_id??'iris';f.spawning=c.spawning!==false;if(f.spawning)f.enemies.push({id:f.bossId,type:c.boss_enemy_id??'dive_iris',...boss,spawn:{...boss},roaming:false,engaged:null,respawnAt:0});
  if(data.room_types?.length)f.rooms.forEach((room,index)=>room.type=data.room_types[index%data.room_types.length]); // Native painters receive room identities without firing campaign story events.
  dressFloor(data,f);addFood(data,f);validateFloor(f);return f;
 } // Generate one materialized floor; the route/edition/depth key is ready for later lazy descent.
@@ -103,7 +103,7 @@ export function dressFloor(data,f,visitors=[]){
 export function validateFloor(f){
  if(f.rooms.length<2||!walkable(f,f.entrance.x,f.entrance.y))throw Error('Invalid entrance');
  const seen=new Set();for(const entity of [...f.enemies,...f.chests,...(f.pickups??[])]){const key=entity.x+','+entity.y;if(seen.has(key)||!pathTo(f,f.entrance,entity)||inside(f.rooms[0],entity.x,entity.y))throw Error('Unreachable or unsafe content');seen.add(key);}
- if(!f.enemies.some(e=>e.id===(f.bossId??'iris')))throw Error('Missing guardian');
+ if(f.spawning!==false&&!f.enemies.some(e=>e.id===(f.bossId??'iris')))throw Error('Missing guardian');
  return true;
 }
 
