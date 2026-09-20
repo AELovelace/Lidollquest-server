@@ -17,7 +17,7 @@
         <p><strong>What you need:</strong> the NPCs, Quests, and Zones tabs. Use a hub you can visit easily. Keep the NPC stationary and leave timers and extra conditions off for this first try.</p>
         <h4>1. Create and publish the guide</h4>
         <p>Open <strong>NPCs → New NPC</strong>. In Basics, set <strong>Stable ID</strong> to <code>parcel_guide</code>, Name to <strong>Parcel Guide</strong>, and Wander radius to <strong>0</strong>. Save and continue. Choose an existing walking sprite in Artwork.</p>
-        <p>In Dialogue, write: “I lost a parcel nearby. Open your quest journal while speaking to me to accept The Lost Parcel.” Leave its destination at End conversation. Leave Quest links empty for now. In Review, preview the dialogue and click <strong>Publish</strong>.</p>
+        <p>In Dialogue, write: “I lost a parcel nearby. Ask me about quests if you would like to help.” Leave its destination at End conversation. Leave Quest links empty for now. In Review, preview the dialogue and click <strong>Publish</strong>.</p>
         <button type="button" data-gm-tool="npcs">Open NPCs</button>
         <h4>2. Create the quest</h4>
         <p>Open <strong>Quests → New quest</strong>. Set Stable ID to <code>lost_parcel</code> and Name to <strong>The Lost Parcel</strong>. Write a short description. Keep Repeat policy at <strong>once</strong> and Time limit seconds at <strong>0</strong>. Choose <strong>Return to NPC</strong>, select Parcel Guide as the Turn-in NPC, and tick Parcel Guide under Quest givers.</p>
@@ -45,17 +45,17 @@
         <h4>6. Play it once</h4>
         <ol>
           <li>Enter that online hub with a test character. Stand beside the guide and press <strong>E</strong>.</li>
-          <li>Open <strong>Quest journal</strong> from the conversation, select The Lost Parcel, and choose <strong>Accept quest</strong>.</li>
+          <li>Choose <strong>Ask about quests</strong> in the conversation, select The Lost Parcel, review the offer, and choose <strong>Accept quest</strong>. The accepted quest now appears in the journal.</li>
           <li>Close the journal, stand beside the parcel, and press <strong>E</strong>. Check that the objective is complete.</li>
           <li>Return to the guide, press E, open the quest journal, and choose <strong>Turn in to NPC</strong>.</li>
           <li>Check the claim receipt. Claiming again must not award another reward.</li>
         </ol>
         <p>This simple version requires collection and a return visit. To consume the parcel as a delivery, use the two-stage recipe in <button type="button" data-guide-topic="delivery">Tokens and delivery</button>.</p>
-        <p>Optional polish: after publishing the quest, edit Parcel Guide's Quest links and tick The Lost Parcel, or add a dialogue choice with Quest action <code>offer</code>. Publish the NPC again. The explicit Quest givers setting already supports the journal acceptance path above.</p>
+        <p>Optional polish: after publishing the quest, edit Parcel Guide's Quest links and tick The Lost Parcel, or add a dialogue choice with Quest action <code>offer</code>. Publish the NPC again. The Quest givers setting automatically adds the conversation offer above. You do not need to write an offer choice by hand. An authored offer choice for that quest takes the place of its automatic offer.</p>
       </article>
       <article data-guide-id="ids" tabindex="-1" hidden>
         <h3>Names, IDs, drafts, and publishing</h3>
-        <p>A <strong>Name</strong> is what players read. A <strong>Stable ID</strong> connects your content. Use lowercase letters, numbers, underscores, or hyphens, starting with a letter: <code>parcel_guide</code>, not “Parcel Guide”. Choose it before the first save; saved definition IDs are locked.</p>
+        <p>Players discover, accept, and resume quests by speaking to their NPC givers. The journal only lists quests already accepted; it cannot start or resume a quest. A <strong>Name</strong> is what players read. A <strong>Stable ID</strong> connects your content. Use lowercase letters, numbers, underscores, or hyphens, starting with a letter: <code>parcel_guide</code>, not “Parcel Guide”. Choose it before the first save; saved definition IDs are locked.</p>
         <table><thead><tr><th>Field</th><th>What it identifies</th></tr></thead><tbody>
           <tr><td>NPC / quest Stable ID</td><td>The whole NPC or quest definition.</td></tr>
           <tr><td>Stage ID</td><td>A step inside one quest; another stage's destination can point here.</td></tr>
@@ -109,7 +109,7 @@
         <p>Without branches, Next stage selects what happens when the stage finishes. <strong>Quest complete</strong> makes rewards ready to claim; <strong>Quest failed</strong> displays the failure message without rewards.</p>
         <p>With branches, the player chooses an eligible branch after the objectives finish. Each branch needs a unique ID, a readable Choice label, and a Destination. Branch destinations replace that stage's ordinary Next stage. Example: “Return the parcel” goes to the delivery stage, while “Leave it behind” goes to Quest failed.</p>
         <p>Connect every stage. Stages cannot loop back into a cycle. Use Repeat policy to make the whole quest replayable instead of linking its final stage to the start.</p>
-        <p><strong>Conditions (all required)</strong> are extra checks, not scripts. <code>gte</code> means at least, <code>lte</code> means at most, and <code>eq</code> means exactly. Basics conditions restrict acceptance; objective conditions restrict credit; branch conditions restrict that choice. Leave them empty unless your story needs them. Make sure players can reach at least one branch.</p>
+        <p><strong>Conditions (all required)</strong> are extra checks, not scripts. <code>gte</code> means at least, <code>lte</code> means at most, and <code>eq</code> means exactly. Basics conditions restrict which NPC offers are available; objective conditions restrict credit; branch conditions restrict that choice. Leave them empty unless your story needs them. Make sure players can reach at least one branch.</p>
         <p><strong>Time limit seconds</strong> in Basics is a deadline for the whole quest; 0 disables it. A timer objective waits for its own count of seconds in its stage. With the <strong>online</strong> clock, time follows connected play and pauses after the presence lease expires or the server stops. With <strong>realtime</strong>, the deadline continues offline. Keep the deadline longer than any required wait.</p>
         <p>Once means once per character. Daily and weekly use UTC periods; cooldown counts from a successful claim. Abandoning does not reset an attempt's timer or allow duplicate rewards.</p>
       </article>
@@ -123,7 +123,7 @@
           <tr><td><code>turn_in</code></td><td>Requesting a reward claim for the selected quest. The player must be ready, and this must be its designated turn-in NPC unless journal claiming is enabled.</td></tr>
           <tr><td><code>branch</code></td><td>Selecting a named quest branch when that quest is waiting for a choice. Enter the branch's ID, not a dialogue page ID.</td></tr>
         </tbody></table>
-        <p>Quest links lists published quests associated with the NPC. In the quest's Basics, explicitly choose Quest givers and Turn-in NPC so the intended acceptance and return path is clear.</p>
+        <p>Quest links lists published quests associated with the NPC. In the quest's Basics, choose Quest givers and Turn-in NPC. Each giver automatically gets a paged Ask about quests menu for eligible quests that do not already have an authored offer choice. These choices preserve existing dialogue and services.</p>
         <p>Preview page starts at the selected page; Preview conversation starts at the beginning. Both use your current text and never accept quests or grant rewards. Publish the NPC when finished.</p>
         <p>Existing online residents can be selected in the quest's giver and turn-in lists. They keep their normal dialogue and services; the game adds an Ask about quests option. This editor does not create new shops or companion services.</p>
         <button type="button" data-gm-tool="npcs">Open NPCs</button>
@@ -156,7 +156,7 @@
           <li><strong>Permanent stat changes:</strong> adjust only the supported fields shown. A negative value reduces that stat. Review these carefully, especially on repeatable quests.</li>
           <li><strong>Forced equipment / existing cursed items:</strong> equips the selected existing items with their existing effects. Explain those consequences in the quest description as well as reviewing the reward summary.</li>
         </ul>
-        <p>Return to NPC is the normal claim method. From journal allows claiming without the return visit; it does not remove a designated giver requirement for acceptance. Finish battles, defeat acknowledgements, and pending inventory transactions before claiming.</p>
+        <p>Return to NPC is the normal claim method. From journal allows claiming completed rewards without a return visit. It never allows accepting a quest from the journal: choose a Quest giver even when journal claiming is enabled. Finish battles, defeat acknowledgements, and pending inventory transactions before claiming.</p>
         <p>Accepted quests pin their rewards. Changing the published reward later changes future acceptances, not players' current attempts.</p>
         <button type="button" data-gm-tool="quests">Open Quests</button>
       </article>
@@ -188,7 +188,7 @@
         <h3>Something is not working</h3>
         <dl>
           <dt>The NPC is published but invisible</dt><dd>Publish creates a definition, not a placement. Place it in Zones, then check the player is in that exact online zone and map instance.</dd>
-          <dt>The quest is missing or cannot be accepted</dt><dd>Check that it is published and not retired, the giver is correct, prerequisites and conditions are met, and repeat eligibility has not been used. A character can hold up to 16 active quests.</dd>
+          <dt>The quest is missing or cannot be accepted</dt><dd>New quests do not appear in the journal. Speak to the giver and choose Ask about quests. Check that it is published and not retired, the giver is correct, prerequisites and conditions are met, and repeat eligibility has not been used. A character can hold up to 16 active quests.</dd>
           <dt>The token does not count</dt><dd>Accept first, activate the collection stage, tick Quest-bound token, and match the two Target IDs exactly. Stand beside the token and press E. One placement only supplies one token per collection stage.</dd>
           <dt>I need three tokens but only get one</dt><dd>Place three distinct tokens with the same target ID. Increasing the objective count does not create more pickups.</dd>
           <dt>Talking did not finish my objective</dt><dd>Speak again after accepting and while the talk stage is active. Check the NPC ID, including the zone prefix for an existing resident.</dd>
@@ -196,7 +196,7 @@
           <dt>The quest is ready but rewards are missing</dt><dd>Ready is not claimed. Speak to the designated turn-in NPC or use journal claiming if enabled. Clear inventory space and finish any battle or defeat acknowledgement. Check the receipt for the coin cap.</dd>
           <dt>“Every stage must be reachable” or a cycle error</dt><dd>Connect the previous stage's Next stage to the newly added stage before saving. With branches, connect branch destinations instead. No stage may point back around a loop.</dd>
           <dt>“Publish the referenced…”</dt><dd>Publish the NPC or monster first, then the quest. Add NPC choices that reference the quest afterward.</dd>
-          <dt>My edits do not change a player's quest</dt><dd>Accepted quests deliberately keep the version accepted. Test a fresh acceptance on another eligible character or with a new quest ID. Abandon and Resume does not refresh that version.</dd>
+          <dt>My edits do not change a player's quest</dt><dd>Accepted quests deliberately keep the version accepted. Test a fresh acceptance on another eligible character or with a new quest ID. Abandoning and then resuming through the NPC conversation does not refresh that version.</dd>
           <dt>“This quest changed” in a conversation</dt><dd>Speak to the NPC again and review the current offer before choosing it.</dd>
           <dt>“The map changed” or no reachable tile</dt><dd>Refresh the live map, then choose a tile away from terrain, entrances, fixtures, and occupants. Do not regenerate the Dive just to retry placement.</dd>
           <dt>Generation finished but the old art remains</dt><dd>Assign the result to the draft, then publish it. Refresh the map/client; ongoing encounters keep the art they started with.</dd>
