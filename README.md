@@ -1076,3 +1076,7 @@ See [MONSTER_AUTHORING_RELEASE.md](MONSTER_AUTHORING_RELEASE.md) for the guided 
 ## Live NPCs and quests
 
 The GM NPCs and Quests tabs support online drafts, publication, dialogue, managed artwork, objectives, party credit, repeat policies and durable rewards. See [NPC/quest release and backup instructions](NPC_QUEST_RELEASE.md) before enabling new content. Accepted quests retain pinned definitions; the offline campaign is unchanged.
+
+### GM authoring help
+
+Open **GM Guide** in the admin console for the lost-parcel tutorial, searchable reference topics and live content-ID lookup. NPCs, Quests, Monsters, Zones and Generation Jobs also have contextual help buttons. The guide ships with the server; no external documentation login is needed.

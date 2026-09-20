@@ -1,0 +1,237 @@
+<div id="panel-guide" class="tab-panel" role="tabpanel" aria-labelledby="tab-guide" hidden>
+<section class="wide gm-guide">
+  <h2>GM Guide</h2>
+  <p class="guide-intro">Start with one NPC, one parcel, and one reward. You can build a bigger story once that small quest works.</p>
+  <div class="guide-layout">
+    <aside>
+      <label for="guideSearch">Find help</label>
+      <input id="guideSearch" type="search" placeholder="Try tokens, rewards, or publish">
+      <button type="button" id="guideClear">Show all topics</button>
+      <p id="guideResults" class="note" role="status" aria-live="polite"></p>
+      <nav id="guideTopics" aria-label="GM guide topics"></nav>
+    </aside>
+    <div id="guideArticles">
+      <article data-guide-id="first-quest" tabindex="-1">
+        <h3>Your first quest: the lost parcel</h3>
+        <p>The player speaks to a guide, accepts a quest, finds a parcel, and returns for a reward. This example uses a quest token: a personal collectible that does not fill the normal inventory.</p>
+        <p><strong>What you need:</strong> the NPCs, Quests, and Zones tabs. Use a hub you can visit easily. Keep the NPC stationary and leave timers and extra conditions off for this first try.</p>
+        <h4>1. Create and publish the guide</h4>
+        <p>Open <strong>NPCs → New NPC</strong>. In Basics, set <strong>Stable ID</strong> to <code>parcel_guide</code>, Name to <strong>Parcel Guide</strong>, and Wander radius to <strong>0</strong>. Save and continue. Choose an existing walking sprite in Artwork.</p>
+        <p>In Dialogue, write: “I lost a parcel nearby. Open your quest journal while speaking to me to accept The Lost Parcel.” Leave its destination at End conversation. Leave Quest links empty for now. In Review, preview the dialogue and click <strong>Publish</strong>.</p>
+        <button type="button" data-gm-tool="npcs">Open NPCs</button>
+        <h4>2. Create the quest</h4>
+        <p>Open <strong>Quests → New quest</strong>. Set Stable ID to <code>lost_parcel</code> and Name to <strong>The Lost Parcel</strong>. Write a short description. Keep Repeat policy at <strong>once</strong> and Time limit seconds at <strong>0</strong>. Choose <strong>Return to NPC</strong>, select Parcel Guide as the Turn-in NPC, and tick Parcel Guide under Quest givers.</p>
+        <h4>3. Set one collection objective</h4>
+        <p>In <strong>Stages and objectives</strong>, keep the initial stage, name it “Find the parcel,” and write “Find the parcel near the guide, then return.” Click <strong>Add objective</strong> and enter:</p>
+        <table><caption>First quest objective fields</caption><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>
+          <tr><td>Objective ID</td><td><code>find_parcel</code></td></tr>
+          <tr><td>Type</td><td><code>collect</code></td></tr>
+          <tr><td>Player instructions</td><td>Find the lost parcel.</td></tr>
+          <tr><td>Target ID</td><td><code>lost_parcel_token</code></td></tr>
+          <tr><td>Required count / timer seconds</td><td><strong>1</strong></td></tr>
+          <tr><td>Credit</td><td>Personal</td></tr>
+          <tr><td>Quest-bound token</td><td><strong>Checked</strong></td></tr>
+          <tr><td>Next stage</td><td>Quest complete</td></tr>
+        </tbody></table>
+        <p>Leave Zone restriction at Any zone for this example. Quest complete means the quest is <em>ready to turn in</em>; it does not immediately award anything.</p>
+        <h4>4. Review and publish</h4>
+        <p>The Placements step is a reminder of what to place; you will place it on the map next. In Rewards, try <strong>5 XP</strong> and leave other rewards at zero. In Review, click <strong>Preview quest</strong>, simulate completion, close the preview, then <strong>Publish</strong>. Previews do not create player progress or pay rewards.</p>
+        <button type="button" data-gm-tool="quests">Open Quests</button>
+        <h4>5. Place the guide and parcel</h4>
+        <p>Open <strong>Zones</strong> and choose a hub. Select placement kind <strong>NPC</strong>, choose Parcel Guide, keep Persistent, and click a free map tile.</p>
+        <p>Switch the placement kind to <strong>Quest token</strong>. Enter <code>lost_parcel_token</code> in Objective target ID and “Lost parcel” in Display name. Choose an <strong>Object / token sprite</strong> or upload a PNG. Check the 32×32 preview, keep Persistent, and click another free tile near the guide.</p>
+        <p><strong>The essential match:</strong> the collection objective's Target ID and the placed token's Objective target ID must both be <code>lost_parcel_token</code>. The quest ID and Objective ID are different labels and do not go in that placement field.</p>
+        <button type="button" data-gm-tool="world">Open Zones</button>
+        <h4>6. Play it once</h4>
+        <ol>
+          <li>Enter that online hub with a test character. Stand beside the guide and press <strong>E</strong>.</li>
+          <li>Open <strong>Quest journal</strong> from the conversation, select The Lost Parcel, and choose <strong>Accept quest</strong>.</li>
+          <li>Close the journal, stand beside the parcel, and press <strong>E</strong>. Check that the objective is complete.</li>
+          <li>Return to the guide, press E, open the quest journal, and choose <strong>Turn in to NPC</strong>.</li>
+          <li>Check the claim receipt. Claiming again must not award another reward.</li>
+        </ol>
+        <p>This simple version requires collection and a return visit. To consume the parcel as a delivery, use the two-stage recipe in <button type="button" data-guide-topic="delivery">Tokens and delivery</button>.</p>
+        <p>Optional polish: after publishing the quest, edit Parcel Guide's Quest links and tick The Lost Parcel, or add a dialogue choice with Quest action <code>offer</code>. Publish the NPC again. The explicit Quest givers setting already supports the journal acceptance path above.</p>
+      </article>
+      <article data-guide-id="ids" tabindex="-1" hidden>
+        <h3>Names, IDs, drafts, and publishing</h3>
+        <p>A <strong>Name</strong> is what players read. A <strong>Stable ID</strong> connects your content. Use lowercase letters, numbers, underscores, or hyphens, starting with a letter: <code>parcel_guide</code>, not “Parcel Guide”. Choose it before the first save; saved definition IDs are locked.</p>
+        <table><thead><tr><th>Field</th><th>What it identifies</th></tr></thead><tbody>
+          <tr><td>NPC / quest Stable ID</td><td>The whole NPC or quest definition.</td></tr>
+          <tr><td>Stage ID</td><td>A step inside one quest; another stage's destination can point here.</td></tr>
+          <tr><td>Objective ID</td><td>A particular task inside a stage. Give each task its own ID.</td></tr>
+          <tr><td>Target ID</td><td>What the task acts on: an NPC, monster, item, zone, or placed objective target.</td></tr>
+          <tr><td>Page ID / Branch ID</td><td>A dialogue destination / a named quest outcome. These are different kinds of links.</td></tr>
+        </tbody></table>
+        <p><strong>Save draft</strong> keeps work on the server. <strong>Publish</strong> makes it available to online play. Publishing an NPC or monster does not place it; publishing a quest does not add its objects to the map.</p>
+        <p>Publish dependencies in this order: <strong>NPC first → quest second → NPC quest links or quest-action choices last</strong>. Ordinary NPC dialogue can be published before the quest exists.</p>
+        <p>Switching tools or opening this guide leaves editor forms in place. Save before closing the browser. Recover unsaved draft can recover the editor's session copy when available; it is not a substitute for saving.</p>
+        <p>Use <button type="button" data-guide-topic="lookup">Look up content IDs</button> to find IDs on this server. An item ID identifies the item; its sprite ID only identifies artwork.</p>
+        <p>If another DM saved first, the editor reports a revision conflict. Copy your unsaved text somewhere safe before choosing Reload server draft; then reapply your changes. Roll back and publish makes a previous published revision current again.</p>
+        <p><strong>Retire / Restore</strong> changes the draft: publish it to apply that change. Retired quests stop new acceptance; accepted quests keep their original rules and rewards. Republishing will not update the quest already held by your test character. Abandoning and resuming also keeps that accepted version; use a fresh quest ID or another eligible test character to test a changed definition.</p>
+      </article>
+      <article data-guide-id="objectives" tabindex="-1" hidden>
+        <h3>Which objective type should I use?</h3>
+        <p>Give every objective a clear Player instructions sentence. Target IDs must match the actual content; names alone do not connect anything.</p>
+        <table><thead><tr><th>Type</th><th>Target and player action</th></tr></thead><tbody>
+          <tr><td><code>talk</code></td><td>Target: NPC ID. Speak to that NPC while this stage is active. For an existing resident, use its zone-qualified ID from Look up content IDs, not its display name.</td></tr>
+          <tr><td><code>visit</code></td><td>Target: a runtime zone ID, or a Location objective's target ID. Enter the zone, or step directly onto the placed location marker. Required count 1 is best for an arrival check.</td></tr>
+          <tr><td><code>interact</code></td><td>Target: an Interaction object's target ID. Stand beside it and press E.</td></tr>
+          <tr><td><code>collect</code></td><td>With Quest-bound token checked: target a Quest token placement and press E beside it. Otherwise: target an existing inventory item ID; the player must hold the required number.</td></tr>
+          <tr><td><code>deliver</code></td><td>Target: item or token ID. Set Delivery NPC ID and the token checkbox to match what is being delivered. Use Deliver in the online journal while speaking to that NPC. This consumes the requirements.</td></tr>
+          <tr><td><code>kill</code></td><td>Target: a published monster ID. Defeat that monster in an online encounter. Publishing the monster alone does not make it spawn.</td></tr>
+          <tr><td><code>equipment</code></td><td>Target: an existing item ID. Leave Equipment slot empty to accept any equipped slot, or enter a supported slot such as <code>head</code>. The character must wear it.</td></tr>
+          <tr><td><code>state</code></td><td>Choose State field, Comparison, and Required state value. Target ID is unused. For example, <code>health</code> with <code>gte</code> and 10 means at least 10 current health.</td></tr>
+          <tr><td><code>timer</code></td><td>Required count / timer seconds is the wait duration for this stage. Target ID is unused. This is different from the whole quest's time limit.</td></tr>
+        </tbody></table>
+        <p><strong>Zone restriction</strong> narrows event objectives to that zone; it does not create a destination or replace Target ID. Use a visit objective to require a location.</p>
+        <p>Normal inventory collection counts items currently held; it does not consume them. Equipment and state objectives must still hold when the other objectives in that stage finish.</p>
+        <p><strong>Credit:</strong> Personal is the easiest starting point. Nearby party credit requires connected party members within eight tiles in the same map instance with the matching objective active. Combat credit uses eligible encounter participants. Each character must still accept and claim individually; shared delivery credit does not copy items into anyone's inventory.</p>
+      </article>
+      <article data-guide-id="delivery" tabindex="-1" hidden>
+        <h3>Quest tokens and a two-stage delivery quest</h3>
+        <p>A quest token is a private quest counter, not a tradable inventory item. A sprite only changes its appearance. Picking a potion icon does not make the token a usable potion.</p>
+        <p>For one parcel, use one token placement, count 1, and the same target ID everywhere. For three tokens, place three distinct tokens with that target ID; the same placement cannot be harvested repeatedly in one collection stage.</p>
+        <h4>Stage A: collect the parcel</h4>
+        <p>Set Stage ID to <code>gather</code>. Add a <code>collect</code> objective with Target ID <code>lost_parcel_token</code>, count 1, and Quest-bound token checked.</p>
+        <h4>Stage B: hand it over</h4>
+        <p>Add a stage with ID <code>deliver_parcel</code>. Add a <code>deliver</code> objective with the same Target ID, count 1, Quest-bound token checked, and Delivery NPC ID <code>parcel_guide</code>. Set this stage's Next stage to Quest complete.</p>
+        <p>Return to the gather stage and set its <strong>Next stage</strong> to the delivery stage <em>before saving</em>. Every stage must be reachable from the first stage; an unconnected new stage cannot be saved.</p>
+        <p>After collecting, the player speaks to the guide, opens the quest journal, and chooses <strong>Deliver lost_parcel_token</strong>. Delivery consumes the token and makes the quest ready. The player then turns in the quest for rewards.</p>
+        <h4>Using real inventory items instead</h4>
+        <p>Uncheck Quest-bound token in both objectives and use an existing item ID. Supply the item through an existing shop, drop, or reward. An Interaction object with that ID does not create an inventory item. A delivery removes the required items from the delivering character atomically.</p>
+        <button type="button" data-gm-tool="quests">Open Quests</button>
+        <button type="button" data-gm-tool="world">Open Zones</button>
+      </article>
+      <article data-guide-id="branches" tabindex="-1" hidden>
+        <h3>Stages, choices, conditions, and timers</h3>
+        <p>Stages run in order from the first stage. Choose Objectives required <strong>all</strong> when every task must finish, or <strong>any</strong> when one is enough. Each stage needs at least one objective.</p>
+        <p>Without branches, Next stage selects what happens when the stage finishes. <strong>Quest complete</strong> makes rewards ready to claim; <strong>Quest failed</strong> displays the failure message without rewards.</p>
+        <p>With branches, the player chooses an eligible branch after the objectives finish. Each branch needs a unique ID, a readable Choice label, and a Destination. Branch destinations replace that stage's ordinary Next stage. Example: “Return the parcel” goes to the delivery stage, while “Leave it behind” goes to Quest failed.</p>
+        <p>Connect every stage. Stages cannot loop back into a cycle. Use Repeat policy to make the whole quest replayable instead of linking its final stage to the start.</p>
+        <p><strong>Conditions (all required)</strong> are extra checks, not scripts. <code>gte</code> means at least, <code>lte</code> means at most, and <code>eq</code> means exactly. Basics conditions restrict acceptance; objective conditions restrict credit; branch conditions restrict that choice. Leave them empty unless your story needs them. Make sure players can reach at least one branch.</p>
+        <p><strong>Time limit seconds</strong> in Basics is a deadline for the whole quest; 0 disables it. A timer objective waits for its own count of seconds in its stage. With the <strong>online</strong> clock, time follows connected play and pauses after the presence lease expires or the server stops. With <strong>realtime</strong>, the deadline continues offline. Keep the deadline longer than any required wait.</p>
+        <p>Once means once per character. Daily and weekly use UTC periods; cooldown counts from a successful claim. Abandoning does not reset an attempt's timer or allow duplicate rewards.</p>
+      </article>
+      <article data-guide-id="dialogue" tabindex="-1" hidden>
+        <h3>NPC dialogue and quest offers</h3>
+        <p>Create the NPC's Basics and Artwork first. Wander radius 0 keeps a quest giver easy to find. A positive radius allows bounded wandering around its placement.</p>
+        <p>In Dialogue, select a page on the left and edit its text. Continue to selects the next page when there are no choices. Add choice creates a player button with its own Go to page destination. End conversation is the end of that conversation, not quest completion.</p>
+        <table><thead><tr><th>Quest action</th><th>Use it for</th></tr></thead><tbody>
+          <tr><td><code>none</code></td><td>Ordinary conversation navigation with no quest effect.</td></tr>
+          <tr><td><code>offer</code></td><td>Accepting the selected quest. Publish the quest first and configure this NPC as an eligible giver. Rewards and forced equipment are disclosed before acceptance.</td></tr>
+          <tr><td><code>turn_in</code></td><td>Requesting a reward claim for the selected quest. The player must be ready, and this must be its designated turn-in NPC unless journal claiming is enabled.</td></tr>
+          <tr><td><code>branch</code></td><td>Selecting a named quest branch when that quest is waiting for a choice. Enter the branch's ID, not a dialogue page ID.</td></tr>
+        </tbody></table>
+        <p>Quest links lists published quests associated with the NPC. In the quest's Basics, explicitly choose Quest givers and Turn-in NPC so the intended acceptance and return path is clear.</p>
+        <p>Preview page starts at the selected page; Preview conversation starts at the beginning. Both use your current text and never accept quests or grant rewards. Publish the NPC when finished.</p>
+        <p>Existing online residents can be selected in the quest's giver and turn-in lists. They keep their normal dialogue and services; the game adds an Ask about quests option. This editor does not create new shops or companion services.</p>
+        <button type="button" data-gm-tool="npcs">Open NPCs</button>
+      </article>
+      <article data-guide-id="placement" tabindex="-1" hidden>
+        <h3>Placing NPCs, tokens, objects, and locations</h3>
+        <p>Open Zones, choose a hub or Dive, and wait for its live map. Select what to place, then click a free tile. The selector comes from the running server and includes Taiga and the other Dives.</p>
+        <ul>
+          <li><strong>NPC:</strong> select a published NPC definition. Its name and artwork come from that definition.</li>
+          <li><strong>Quest token:</strong> enter an objective target ID, display name, and sprite. Use it with a collect objective with Quest-bound token checked.</li>
+          <li><strong>Interaction object:</strong> enter a target ID, name, and sprite. Use it with an interact objective.</li>
+          <li><strong>Location objective:</strong> enter a target ID and name. Use it with a visit objective; the player steps onto its marker.</li>
+          <li><strong>Monster:</strong> select a published monster. See Monsters and live encounters for spawn behavior.</li>
+        </ul>
+        <p>For tokens and objects, Object / token sprite offers shipped icons and managed artwork; Upload sprite PNG adds your own single-image artwork. The preview is 32×32. Choosing artwork does not change the objective target ID.</p>
+        <p><strong>Persistent</strong> placements survive map replacement and relocate to reachable tiles if necessary. <strong>Current map only</strong> placements expire with that map. Use persistent for ordinary quests. If an expiring placement would strand active quests, replacement is blocked until you provide a persistent replacement or explicitly fail the affected quests.</p>
+        <p>Walls, entrances, fixtures, occupants, and their protected nearby tiles cannot be used. “The map changed” means refresh the map and choose again. Remove mode removes a clicked placement; required objectives report affected quests and require a replacement or explicit failure decision.</p>
+        <p><strong>You do not need to regenerate terrain just to place quest content.</strong> Regenerate Dive replaces the whole Dive and resets its treasure and boss rewards after confirmation. Existing fights and defeat scenes must finish first; use the displayed blockers or cancel regeneration.</p>
+        <button type="button" data-gm-tool="world">Open Zones</button>
+      </article>
+      <article data-guide-id="rewards" tabindex="-1" hidden>
+        <h3>Rewards and consequences</h3>
+        <p>Start small while testing. Each character accepts and claims their own quest. Repeated clicks, polling, or reconnecting do not pay a second claim.</p>
+        <ul>
+          <li><strong>XP:</strong> ordinary character experience.</li>
+          <li><strong>Coins:</strong> LiDollCoins under the existing account-wide cap. The claim receipt shows the paid amount and any excluded excess; excess is not saved for a later day.</li>
+          <li><strong>RPP:</strong> character roleplay points.</li>
+          <li><strong>Items:</strong> choose existing items and quantities. Leave enough inventory space; a full inventory keeps the reward waiting.</li>
+          <li><strong>Spell unlocks:</strong> choose existing spells.</li>
+          <li><strong>Permanent stat changes:</strong> adjust only the supported fields shown. A negative value reduces that stat. Review these carefully, especially on repeatable quests.</li>
+          <li><strong>Forced equipment / existing cursed items:</strong> equips the selected existing items with their existing effects. Explain those consequences in the quest description as well as reviewing the reward summary.</li>
+        </ul>
+        <p>Return to NPC is the normal claim method. From journal allows claiming without the return visit; it does not remove a designated giver requirement for acceptance. Finish battles, defeat acknowledgements, and pending inventory transactions before claiming.</p>
+        <p>Accepted quests pin their rewards. Changing the published reward later changes future acceptances, not players' current attempts.</p>
+        <button type="button" data-gm-tool="quests">Open Quests</button>
+      </article>
+      <article data-guide-id="artwork" tabindex="-1" hidden>
+        <h3>Artwork and generation</h3>
+        <p>NPC and monster Artwork steps support existing art, PNG uploads, and generation. Selecting existing art is the quickest way to test a quest. Map characters display at 32×32; portraits are separate artwork.</p>
+        <ol>
+          <li>Save the draft and describe the character in its Artwork step.</li>
+          <li>Generate a design. This uses the saved server PixelLab key and provider credits, not player diamonds or private-sprite slots.</li>
+          <li>Review the directional design. Approve it only when you want walking animation and portrait work to start.</li>
+          <li>Wait for those stages; refresh generation progress or open Generation Jobs.</li>
+          <li>Choose the portrait and explicitly assign the successful artwork to the draft. Review and publish separately.</li>
+        </ol>
+        <p>Generation and assignment never publish by themselves. Partial failures keep successful stages. Read the job's failure message and retry only the failed stage; an uncertain paid submission needs review before another request. Cancellation keeps already completed artwork.</p>
+        <p>Tokens and interaction objects have their own sprite selector and single-image PNG upload in Zones. They do not need a generated enemy or NPC to supply an icon.</p>
+        <button type="button" data-gm-tool="jobs">Open Generation Jobs</button>
+      </article>
+      <article data-guide-id="monsters" tabindex="-1" hidden>
+        <h3>Monsters and live encounters</h3>
+        <p>Use Monsters to create or duplicate a definition, edit combat stats and existing spells, select artwork, and author defeat scenes. Review then publish. Shipped defeat content is labelled Game default; editing combat stats does not require replacing its dialogue. Restore default removes a scene override.</p>
+        <p>Use Preview page for one starting page or Preview scene for dialogue followed by aftermath. First/repeat variants and branch destinations matter; previews never equip items or run consequences.</p>
+        <p>After publication, use Zones to place a monster manually or add it to a Dive's weighted spawn pool. A larger weight makes that monster more likely relative to the other pool entries. Monsters per room controls population; publishing spawn settings affects later spawns and protects active fights.</p>
+        <p>Manual monsters are one-off by default; Respawn is optional. Hub monsters normally start battles through interaction. Roam and attack automatically opts into automatic engagement. A manually placed boss template does not automatically grant that Dive's boss-completion reward.</p>
+        <p>For a kill quest, use the monster's stable definition ID as the objective Target ID. The monster must actually exist in the player's online area and be defeated during the active stage.</p>
+        <button type="button" data-gm-tool="monsters">Open Monsters</button>
+        <button type="button" data-gm-tool="world">Open Zones</button>
+      </article>
+      <article data-guide-id="troubleshooting" tabindex="-1" hidden>
+        <h3>Something is not working</h3>
+        <dl>
+          <dt>The NPC is published but invisible</dt><dd>Publish creates a definition, not a placement. Place it in Zones, then check the player is in that exact online zone and map instance.</dd>
+          <dt>The quest is missing or cannot be accepted</dt><dd>Check that it is published and not retired, the giver is correct, prerequisites and conditions are met, and repeat eligibility has not been used. A character can hold up to 16 active quests.</dd>
+          <dt>The token does not count</dt><dd>Accept first, activate the collection stage, tick Quest-bound token, and match the two Target IDs exactly. Stand beside the token and press E. One placement only supplies one token per collection stage.</dd>
+          <dt>I need three tokens but only get one</dt><dd>Place three distinct tokens with the same target ID. Increasing the objective count does not create more pickups.</dd>
+          <dt>Talking did not finish my objective</dt><dd>Speak again after accepting and while the talk stage is active. Check the NPC ID, including the zone prefix for an existing resident.</dd>
+          <dt>My visit marker does not count</dt><dd>Step onto it, rather than standing beside it and pressing E. Match the location target ID and any zone restriction.</dd>
+          <dt>The quest is ready but rewards are missing</dt><dd>Ready is not claimed. Speak to the designated turn-in NPC or use journal claiming if enabled. Clear inventory space and finish any battle or defeat acknowledgement. Check the receipt for the coin cap.</dd>
+          <dt>“Every stage must be reachable” or a cycle error</dt><dd>Connect the previous stage's Next stage to the newly added stage before saving. With branches, connect branch destinations instead. No stage may point back around a loop.</dd>
+          <dt>“Publish the referenced…”</dt><dd>Publish the NPC or monster first, then the quest. Add NPC choices that reference the quest afterward.</dd>
+          <dt>My edits do not change a player's quest</dt><dd>Accepted quests deliberately keep the version accepted. Test a fresh acceptance on another eligible character or with a new quest ID. Abandon and Resume does not refresh that version.</dd>
+          <dt>“This quest changed” in a conversation</dt><dd>Speak to the NPC again and review the current offer before choosing it.</dd>
+          <dt>“The map changed” or no reachable tile</dt><dd>Refresh the live map, then choose a tile away from terrain, entrances, fixtures, and occupants. Do not regenerate the Dive just to retry placement.</dd>
+          <dt>Generation finished but the old art remains</dt><dd>Assign the result to the draft, then publish it. Refresh the map/client; ongoing encounters keep the art they started with.</dd>
+          <dt>Lost work or conflicting edits</dt><dd>Try Recover unsaved draft for this browser session. Save copies of your text before reloading a conflicting server draft. Coordinate edits with the other DM.</dd>
+        </dl>
+        <p>When reporting a problem, include the zone, NPC/quest ID, active stage, and exact error text. Do not include account tokens or environment keys.</p>
+      </article>
+      <article data-guide-id="lookup" tabindex="-1" hidden>
+        <h3>Look up content IDs</h3>
+        <p>Load the current server catalog, choose a kind, and search by name or ID. Select an ID below to copy it into a Target ID or Delivery NPC ID field. Loading this list does not save or publish anything.</p>
+        <div class="row">
+          <button type="button" id="guideLoadIds">Load / refresh IDs</button>
+          <label>Kind <select id="guideIdKind"><option value="npcs">NPCs and residents</option><option value="monsters">Monsters</option><option value="equipment">Inventory items</option><option value="worldZones">Zones</option><option value="quests">Quests</option><option value="spells">Spells</option></select></label>
+          <label>Name or ID <input id="guideIdSearch" type="search"></label>
+        </div>
+        <p id="guideIdStatus" role="status" aria-live="polite">Load the catalog to begin.</p>
+        <div id="guideIdList"></div>
+        <p>Only published, non-retired custom definitions are listed. Placed token, object, and location targets are IDs you choose yourself in Zones; they must match the objective Target ID and are not inventory item IDs.</p>
+      </article>
+      <article data-guide-id="checklist" tabindex="-1" hidden>
+        <h3>Before inviting players</h3>
+        <ul>
+          <li>All referenced NPCs, monsters, and quests are published; objectives and their placements use matching target IDs.</li>
+          <li>Each stage is connected, has objectives, and offers at least one reachable outcome.</li>
+          <li>The giver, delivery NPC, and turn-in NPC are clear in the instructions and reachable on the map.</li>
+          <li>Persistent placements are used for ongoing quests. Temporary event placements have an end-of-event plan.</li>
+          <li>Rewards, forced equipment, repeat policy, deadlines, and party credit are intentional.</li>
+          <li>Preview every dialogue choice and quest branch, then play accept → progress → deliver if needed → claim using a test character.</li>
+          <li>Reconnect mid-quest and confirm the same progress, conversation, and rewards. Test both success and failure paths.</li>
+        </ul>
+        <p>The admin console edits live online overrides. The desktop game editor edits shipped offline source content; those changes require an export/release. They are separate workflows.</p>
+        <p>Before a server update, back up the live database safely and retain managed artwork, published history, jobs, and quest receipts. The deployment guide covers the database and data-directory backup procedure.</p>
+        <button type="button" data-guide-topic="first-quest">Return to the first quest walkthrough</button>
+      </article>
+    </div>
+  </div>
+</section>
+</div>

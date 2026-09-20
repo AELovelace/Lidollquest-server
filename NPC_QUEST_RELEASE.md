@@ -16,3 +16,11 @@ Player quest instances pin their definitions and rewards at acceptance. Publicat
 Server changes add `npc` and `quest` content kinds, `world_place_content`/`world_remove_content` GM actions, NPC-associated staged art jobs, online quest/conversation actions through `/zones/action`, authenticated `/quests/detail`, and additive snapshot fields `onlineQuests`, `worldPlacements`, `worldInstance`, `questNpcLinks` and `questVersion`. Compatible clients enter with `quest_version: 1`. Quest mutations include the reviewed `quest_revision`; ordinary command IDs, controller leases and character revisions still apply.
 
 The desktop editor continues to modify offline campaign sources. Online overrides are not written into shipped exports by the admin console. New shops/services, arbitrary scripts and automatic campaign-quest migration are not part of this release.
+
+## Quest token artwork correction
+
+This correction needs only a quest-server update. Refresh the admin page after deployment. Tokens and interaction objects now have their own sprite selector, 32?32 preview and PNG upload; shipped inventory icons are included. The server validates and persists the chosen artwork. Existing compatible browser/Windows clients already consume placement sprite references; no client or tracker update is required for this correction.
+
+## GM Guide
+
+The GM Guide tab includes a first-quest walkthrough, tokens/deliveries, all objective types, branches, dialogue, placement, rewards, artwork, monsters, troubleshooting and an ID lookup. Help buttons in the authoring panels jump to the matching topic without discarding editor forms. This update needs only the quest-server package; restart the service and refresh the admin page. No tracker or game-client build is required.

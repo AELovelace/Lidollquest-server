@@ -35,7 +35,8 @@ export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQues
    const npc=input.placement_kind==='npc'?live.published().npcs[input.content]:null;if(input.placement_kind==='npc'&&(!npc||npc.retired))fail('Choose a published NPC.');
    const {x,y}=input;if(!tiles(map.floor).some(t=>t.x===x&&t.y===y)||[...obstacles(map.floor),...map.placements,...map.players].some(p=>Math.abs(p.x-x)+Math.abs(p.y-y)<=1))fail('Choose a reachable tile away from entrances, fixtures and occupants.');
    const key=String(input.content??'');if(!/^[a-z][a-z0-9_-]{1,79}$/.test(key))fail('Use a stable content/objective target ID.');
-   const p={id:'place-'+randomUUID(),zone:input.zone,kind:input.placement_kind,content:key,name:npc?.name??String(input.name??key).slice(0,100),sprite:npc?.sprite??'',x,y,lifetime:input.lifetime==='temporary'?'temporary':'persistent',edition:map.edition,created:now()};
+   const sprite=npc?.sprite??live.assetRef(input.sprite??''); // Persist validated token/object artwork independently of monster definitions.
+   const p={id:'place-'+randomUUID(),zone:input.zone,kind:input.placement_kind,content:key,name:npc?.name??String(input.name??key).slice(0,100),sprite,x,y,lifetime:input.lifetime==='temporary'?'temporary':'persistent',edition:map.edition,created:now()};
    db.prepare('INSERT INTO world_placements VALUES (?,?,?)').run(p.id,p.zone,JSON.stringify(p));
   }
   return view(input.zone);

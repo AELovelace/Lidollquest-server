@@ -76,6 +76,18 @@ tr.sel td{background:#2c1e3d}
 .scene-workspace>div:nth-child(2) button{width:100%;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.scene-workspace>div:last-child>button{display:inline-block;margin:4px 4px 0 0}
 .scene-preview{background:var(--panel);color:var(--ink);border:1px solid var(--rose);border-radius:10px;width:min(700px,90vw)}.scene-preview p{white-space:pre-wrap}.scene-preview::backdrop{background:#000a}.monster-art canvas{image-rendering:pixelated;background:repeating-conic-gradient(#382d44 0% 25%,#251c2e 0% 50%) 50%/16px 16px}.monster-art{margin:10px 0}button[aria-current="step"]{border-color:var(--rose);color:var(--rose)}
 @media(max-width:900px){#panel-monsters,.scene-workspace{grid-template-columns:1fr}#monsterList{max-height:220px}}
+#panel-guide .guide-intro{font-size:17px;max-width:65ch}
+.guide-layout{display:grid;grid-template-columns:minmax(180px,240px) minmax(0,1fr);gap:24px}
+.guide-layout aside{min-width:0}.guide-layout aside input{display:block;width:100%;margin:6px 0}
+#guideTopics button{display:block;width:100%;text-align:left;margin:6px 0;padding:9px}
+#guideTopics button[aria-current="true"]{border-color:var(--mint);color:var(--mint)}
+#guideArticles{min-width:0;max-width:85ch}#guideArticles article{scroll-margin-top:150px}
+#guideArticles h3{font-size:23px;color:var(--rose);margin-top:0}#guideArticles h4{font-size:17px;color:var(--mint);margin-bottom:8px}
+#guideArticles p,#guideArticles li,#guideArticles dd{font-size:15px;line-height:1.65}#guideArticles li{margin:8px 0}
+#guideArticles code{color:var(--mint);overflow-wrap:anywhere}#guideArticles th{color:var(--mint)}#guideArticles caption{text-align:left;color:var(--dim)}
+#guideArticles dt{font-weight:600;color:var(--amber);margin-top:18px}#guideArticles dd{margin:4px 0 16px}#guideArticles button{margin:4px 2px}
+#guideIdList label{display:block;margin:12px 0}#guideIdList input{display:block;width:100%;font-family:ui-monospace,Consolas,monospace}
+@media(max-width:700px){.guide-layout{grid-template-columns:1fr}#guideTopics{display:flex;flex-wrap:wrap;gap:4px}#guideTopics button{width:auto;flex:1 1 150px;margin:0}#guideArticles table{font-size:12px}#guideArticles td{overflow-wrap:anywhere}}
 </style>
 </head>
 <body>
@@ -115,19 +127,21 @@ tr.sel td{background:#2c1e3d}
 <button type="button" role="tab" id="tab-quests" aria-controls="panel-quests" aria-selected="false" tabindex="-1">Quests</button>
 <button type="button" role="tab" id="tab-world" aria-controls="panel-world" aria-selected="false" tabindex="-1">Zones</button>
 <button type="button" role="tab" id="tab-jobs" aria-controls="panel-jobs" aria-selected="false" tabindex="-1">Generation Jobs</button>
+<button type="button" role="tab" id="tab-guide" aria-controls="panel-guide" aria-selected="false" tabindex="-1">GM Guide</button>
 </nav>
 </header>
 <div id="flash" class="flash"></div>
 <main>
+<!-- GM_GUIDE -->
 <div id="panel-monsters" class="tab-panel" role="tabpanel" aria-labelledby="tab-monsters" hidden>
-<section><h2>Monster library</h2><button id="worldLoad">Refresh library</button><button id="monsterNew">New monster</button><div id="monsterList" class="slots"></div></section>
+<section><h2>Monster library</h2><button type="button" data-guide-topic="monsters">Monster help</button><button id="worldLoad">Refresh library</button><button id="monsterNew">New monster</button><div id="monsterList" class="slots"></div></section>
 <section class="wide"><div id="monsterEditor" class="ench-form">Choose a monster to edit its draft. Publish when it is ready for new encounters.</div></section></div>
-<div id="panel-npcs" class="tab-panel" role="tabpanel" aria-labelledby="tab-npcs" hidden><section><h2>NPC library</h2><input id="npcSearch" aria-label="Search NPC"><button id="npcNew">New NPC</button><button id="npcRecover">Recover unsaved draft</button><div id="npcList"></div></section><section class="wide ench-form" id="npcEditor">Choose a draft or create one.</section></div>
-<div id="panel-quests" class="tab-panel" role="tabpanel" aria-labelledby="tab-quests" hidden><section><h2>quest library</h2><input id="questSearch" aria-label="Search quest"><button id="questNew">New quest</button><button id="questRecover">Recover unsaved draft</button><div id="questList"></div></section><section class="wide ench-form" id="questEditor">Choose a draft or create one.</section></div>
+<div id="panel-npcs" class="tab-panel" role="tabpanel" aria-labelledby="tab-npcs" hidden><section><h2>NPC library</h2><button type="button" data-guide-topic="dialogue">NPC help</button><input id="npcSearch" aria-label="Search NPC"><button id="npcNew">New NPC</button><button id="npcRecover">Recover unsaved draft</button><div id="npcList"></div></section><section class="wide ench-form" id="npcEditor">Choose a draft or create one.</section></div>
+<div id="panel-quests" class="tab-panel" role="tabpanel" aria-labelledby="tab-quests" hidden><section><h2>quest library</h2><button type="button" data-guide-topic="first-quest">How to create a quest</button><input id="questSearch" aria-label="Search quest"><button id="questNew">New quest</button><button id="questRecover">Recover unsaved draft</button><div id="questList"></div></section><section class="wide ench-form" id="questEditor">Choose a draft or create one.</section></div>
 <div id="panel-world" class="tab-panel" role="tabpanel" aria-labelledby="tab-world" hidden>
-<section class="wide"><h2>Live world</h2><select id="worldZone"></select><button id="worldMapLoad">Refresh map</button><p id="mapStatus"></p><div class="row"><select id="placeKind"><option value="monster">Monster</option><option value="npc">NPC</option><option value="interact">Interaction object</option><option value="token">Quest token</option><option value="location">Location objective</option></select><select id="placeMonster"></select><input id="placeTarget" placeholder="Objective target ID"><input id="placeName" placeholder="Display name"><select id="placeLifetime"><option value="persistent">Persistent</option><option value="temporary">Current map only</option></select><label><input id="placeAggressive" type="checkbox">Roam and attack automatically</label><label><input id="placeRespawn" type="checkbox">Respawn</label><label><input id="removeMonster" type="checkbox">Remove mode</label></div><p class="note">Click a free map tile to place a monster, or click a monster in Remove mode. Refresh after players or monsters move.</p><canvas id="worldMap" style="max-width:100%;image-rendering:pixelated"></canvas><div class="row"><button id="regenerateMap">Regenerate Dive</button><button id="cancelMap" hidden>Cancel regeneration</button></div></section><section class="wide ench-form" id="zoneTuning"></section></div>
+<section class="wide"><h2>Live world</h2><button type="button" data-guide-topic="placement">Placement help</button><select id="worldZone"></select><button id="worldMapLoad">Refresh map</button><p id="mapStatus"></p><div class="row"><select id="placeKind"><option value="monster">Monster</option><option value="npc">NPC</option><option value="interact">Interaction object</option><option value="token">Quest token</option><option value="location">Location objective</option></select><label id="placeDefinition"><span id="placeDefinitionLabel">Monster</span><select id="placeMonster"></select></label><div id="placeArtwork" hidden><label>Object / token sprite<select id="placeSprite"></select></label><div id="placeSpritePreview"></div><label>Upload sprite PNG<input id="placeSpriteUpload" type="file" accept="image/png"></label></div><input id="placeTarget" placeholder="Objective target ID"><input id="placeName" placeholder="Display name"><select id="placeLifetime"><option value="persistent">Persistent</option><option value="temporary">Current map only</option></select><label><input id="placeAggressive" type="checkbox">Roam and attack automatically</label><label><input id="placeRespawn" type="checkbox">Respawn</label><label><input id="removeMonster" type="checkbox">Remove mode</label></div><p class="note">Click a free map tile to place the selected content, or click a placed character or objective in Remove mode. Refresh after players or monsters move.</p><canvas id="worldMap" style="max-width:100%;image-rendering:pixelated"></canvas><div class="row"><button id="regenerateMap">Regenerate Dive</button><button id="cancelMap" hidden>Cancel regeneration</button></div></section><section class="wide ench-form" id="zoneTuning"></section></div>
 <div id="panel-jobs" class="tab-panel" role="tabpanel" aria-labelledby="tab-jobs" hidden>
-<section class="wide ench-form"><h2>World artwork</h2><p>Generation uses the saved server PixelLab key and provider credits. Start generation from a monster?s Artwork step. Approve its design, then assign completed art to the draft.</p><button id="artLoad">Refresh jobs</button><div id="artJobs"></div></section></div>
+<section class="wide ench-form"><h2>World artwork</h2><button type="button" data-guide-topic="artwork">Generation help</button><p>Generation uses the saved server PixelLab key and provider credits. Start generation from a monster or NPC Artwork step. Approve its design, then assign completed art to the draft.</p><button id="artLoad">Refresh jobs</button><div id="artJobs"></div></section></div>
 
 <div class="tab-panel" id="panel-players" role="tabpanel" aria-labelledby="tab-players" tabindex="0">
   <section class="wide">
@@ -910,6 +924,7 @@ tr.sel td{background:#2c1e3d}
  });
  $("castText").addEventListener("keydown",function(e){if(e.key==="Enter")$("cast").click();});
  /* WORLD_PANEL */
+/* GM_GUIDE_SCRIPT */
  })();
 </script>
 </body>

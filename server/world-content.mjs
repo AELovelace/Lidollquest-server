@@ -100,5 +100,5 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
   if(prior){if(prior.fingerprint!==fingerprint)fail('Request ID was already used.',409);return JSON.parse(prior.result);}const result=work();db.prepare('INSERT INTO world_commands VALUES (?,?,?,?)').run(actor,input.request_id,fingerprint,JSON.stringify(result));return result;
  }
  let referenceCheck=null;
- return {mapReady:null,questEvent:null,placementPositions:null,setReferenceCheck(fn){referenceCheck=fn;},register,published,entry,change,view,resolve,putAsset,asset,once,invalidate(){cache=null;}};
+ return {mapReady:null,questEvent:null,placementPositions:null,setReferenceCheck(fn){referenceCheck=fn;},register,published,entry,change,view,resolve,putAsset,asset,assetRef,once,invalidate(){cache=null;}}; // Placements share the editor's compiled/immutable artwork validation.
 }
