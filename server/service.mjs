@@ -4,7 +4,8 @@ import {combatData} from './combat.mjs';
 import {hubData} from './hubs.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
-import {resolve} from 'node:path';
+import {isAbsolute} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {createServer} from 'node:http';
 import {createQuestZones} from './zones.mjs';
 import {createCloudSaves} from './cloud-saves.mjs';
@@ -21,8 +22,9 @@ import {createComputePool,computeWorkerCount} from './compute-pool.mjs';
 
 export function loadQuestPack(path){ // LIDOLLQUEST_QUEST_PACK names a shipped quest file; unset means no live quests, exactly as before.
  if(!path)return [];
+ const file=isAbsolute(path)?path:fileURLToPath(new URL('../'+path,import.meta.url)); // Relative to the package root, so the service's working directory cannot change which file loads.
  let pack;
- try{pack=JSON.parse(readFileSync(resolve(path),'utf8'));}
+ try{pack=JSON.parse(readFileSync(file,'utf8'));}
  catch(error){throw Error('LIDOLLQUEST_QUEST_PACK could not be read: '+error.message);}
  if(pack?.kind!=='quest'||!Array.isArray(pack.quests))throw Error('LIDOLLQUEST_QUEST_PACK must be a JSON object with kind "quest" and a quests array.');
  if(new Set(pack.quests.map(q=>q?.id)).size!==pack.quests.length)throw Error('LIDOLLQUEST_QUEST_PACK contains duplicate quest IDs.');
