@@ -1,0 +1,623 @@
+{
+  "_comment": "20 weekly online quests for the three shared hubs. Upload with python/upload_weekly_quests.py. Every giver is an existing roaming district resident and every objective type is placement-free, so this pack needs no published NPCs, no published monsters and no Zones-tab placements. See QUEST_MAKING_GUIDE.md.",
+  "kind": "quest",
+  "version": 1,
+  "quests": [
+    {
+      "id": "rose_pages_long_way",
+      "name": "The Long Way Round",
+      "description": "Pip has delivered this invitation twice and found the right room only once. He will not say why he keeps doubling back past the Hall Steward, but he goes pink when you ask. Walk the route with him so he only has to do it once.",
+      "repeat": "weekly",
+      "givers": ["princess-rose-garden:castle-page"],
+      "turn_in": {"mode": "npc", "npc": "princess-rose-garden:castle-page"},
+      "failure_text": "The invitation is late again. Pip will re-copy it and try next week.",
+      "stages": [
+        {
+          "id": "walk_the_route",
+          "name": "Walk the route",
+          "text": "Pip sets off at a brisk, slightly urgent pace. Keep up.",
+          "mode": "all",
+          "next": "hand_it_over",
+          "objectives": [
+            {"id": "through_the_castle", "type": "visit", "target": "princess-rose-garden", "text": "Cross The Castle district with Pip", "count": 1},
+            {"id": "past_the_market", "type": "visit", "target": "princess-rose-shops", "text": "Follow him down the Market Hall stairs", "count": 1}
+          ],
+          "branches": []
+        },
+        {
+          "id": "hand_it_over",
+          "name": "Hand it over",
+          "text": "Celia is collecting things people left in the parlours. She will know which room the invitation belongs to.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "ask_celia", "type": "talk", "target": "princess-rose-garden:castle-librarian", "text": "Ask Celia which room the invitation belongs to", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 90, "coins": 35, "items": [{"id": "baby_wipes", "count": 1}]}
+    },
+    {
+      "id": "rose_borrowed_books",
+      "name": "Biscuit for a Bookmark",
+      "description": "Celia is gathering books abandoned in the rose parlours. Most have something tucked in them. If the bookmark is a biscuit, she assumes the reader left in a hurry, and she would rather not think about why.",
+      "repeat": "weekly",
+      "givers": ["princess-rose-garden:castle-librarian"],
+      "turn_in": {"mode": "npc", "npc": "princess-rose-garden:castle-librarian"},
+      "failure_text": "The parlour shelves stay uneven for another week.",
+      "stages": [
+        {
+          "id": "replace_the_biscuits",
+          "name": "Replace the biscuits",
+          "text": "She will not name the reader. She would just like the biscuit replaced before anyone notices the gap.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "two_tarts", "type": "deliver", "target": "berry_tart", "text": "Bring Celia 2 Berry Tarts from a Market Hall apothecary", "count": 2},
+            {"id": "check_the_hall", "type": "visit", "target": "princess-rose-shops", "text": "Visit the Rose Market Hall", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 80, "coins": 30, "items": [{"id": "herbal_tea", "count": 1}]}
+    },
+    {
+      "id": "rose_half_a_note",
+      "name": "Half a Note Flat",
+      "description": "One of the castle music boxes is half a note flat. Orin has been following the sound for days and keeps losing it. He would like company while he listens, and he does not walk quickly, which he insists is a tuning decision.",
+      "repeat": "weekly",
+      "givers": ["princess-rose-garden:castle-tuner"],
+      "turn_in": {"mode": "npc", "npc": "princess-rose-garden:castle-tuner"},
+      "failure_text": "The flat note wanders off again. Orin is philosophical about it.",
+      "timer": {"mode": "online", "seconds": 0},
+      "stages": [
+        {
+          "id": "listen_with_him",
+          "name": "Listen with him",
+          "text": "Stay in the district and let the tune come to you. Orin says hurrying is how he lost it last time.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "stay_and_listen", "type": "timer", "text": "Spend four minutes walking The Castle with Orin", "count": 240},
+            {"id": "footsore", "type": "state", "field": "stamina", "op": "lte", "value": 45, "text": "Walk until your legs tell you it has been four minutes", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 100, "coins": 40, "items": []}
+    },
+    {
+      "id": "rose_roses_take_their_turn",
+      "name": "The Roses Take Their Turn",
+      "description": "Fern gives the roses a turn in the light every afternoon and takes the long way round doing it. She has watered them, watered them again, and would like someone to walk with who will not comment on how often she stops.",
+      "repeat": "weekly",
+      "givers": ["princess-rose-garden:castle-gardener"],
+      "turn_in": {"mode": "npc", "npc": "princess-rose-garden:castle-gardener"},
+      "failure_text": "The roses get their turn without you. Fern manages, as she always does.",
+      "stages": [
+        {
+          "id": "the_long_way",
+          "name": "The long way round",
+          "text": "Fern's watering-can routine is, she admits, contagious.",
+          "mode": "all",
+          "next": "sympathy_pains",
+          "objectives": [
+            {"id": "walk_the_beds", "type": "visit", "target": "princess-rose-garden", "text": "Walk the rose beds with Fern", "count": 1},
+            {"id": "five_minutes", "type": "timer", "text": "Keep her company for five minutes", "count": 300}
+          ],
+          "branches": []
+        },
+        {
+          "id": "sympathy_pains",
+          "name": "Sympathy pains",
+          "text": "She refills the can. You watch her refill the can. You begin to understand why she takes the long way round.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "very_full", "type": "state", "field": "wet", "op": "gte", "value": 70, "text": "Reach a bladder of 70 or more without excusing yourself", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 110, "coins": 45, "items": [{"id": "water_bottle", "count": 2}]}
+    },
+    {
+      "id": "rose_presentable_for_court",
+      "name": "Presentable for Court",
+      "description": "Pip has been told to find someone who can stand in the Rose Court lobby looking composed for a full minute. He has been told this by someone who did not ask whether it was easy. Dress properly, padding included, and keep your chin up.",
+      "repeat": "weekly",
+      "givers": ["princess-rose-garden:castle-page"],
+      "turn_in": {"mode": "npc", "npc": "princess-rose-garden:castle-page"},
+      "failure_text": "Court carries on without a presentable stand-in. Pip is not blamed, which is the important part.",
+      "stages": [
+        {
+          "id": "dress_the_part",
+          "name": "Dress the part",
+          "text": "Crown on top. Protection underneath. Nobody is to be able to tell which one you are thinking about.",
+          "mode": "all",
+          "next": "hold_your_composure",
+          "objectives": [
+            {"id": "crown", "type": "equipment", "target": "princess_tiara", "slot": "head", "text": "Wear the Princess Tiara", "count": 1},
+            {"id": "padding", "type": "equipment", "target": "printed_diaper", "slot": "panties", "text": "Wear a Printed Diaper under it all", "count": 1},
+            {"id": "cover", "type": "equipment", "target": "bloomers", "slot": "diaper_cover", "text": "Hide it under Puffy Bloomers", "count": 1}
+          ],
+          "branches": []
+        },
+        {
+          "id": "hold_your_composure",
+          "name": "Hold your composure",
+          "text": "Stand where the court can see you and look like someone who has never once been caught short.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "in_the_lobby", "type": "visit", "target": "princess-rose", "text": "Present yourself in the Rose Court lobby", "count": 1},
+            {"id": "dignity", "type": "state", "field": "shame", "op": "gte", "value": 512, "text": "Keep your composure above 512 while you stand there", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 120, "coins": 50, "items": [], "equipment": ["hair_bow"]}
+    },
+    {
+      "id": "rose_the_quiet_hour",
+      "name": "The Quiet Hour",
+      "description": "Celia keeps the reading rooms open to everyone, which means she has seen every possible reason a person might need to leave a chapter unfinished. She suggests going first. She suggests it kindly, and only once.",
+      "repeat": "weekly",
+      "givers": ["princess-rose-garden:castle-librarian"],
+      "turn_in": {"mode": "npc", "npc": "princess-rose-garden:castle-librarian"},
+      "failure_text": "The quiet hour passes. Celia re-shelves without comment.",
+      "stages": [
+        {
+          "id": "go_first",
+          "name": "Go first",
+          "text": "Empty, then rest. That is the whole of the lesson.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "to_the_beds", "type": "visit", "target": "princess-rose-beds", "text": "Take yourself to the Rose Resting Hall", "count": 1},
+            {"id": "went_first", "type": "state", "field": "wet", "op": "lte", "value": 20, "text": "Arrive with your bladder at 20 or below", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 70, "coins": 30, "items": [{"id": "baby_wipes", "count": 2}]}
+    },
+    {
+      "id": "rose_down_the_quarters_stair",
+      "name": "Down the Quarters Stair",
+      "description": "Fern would like a cutting from the Quarters floor, and she would like it fetched by someone who will come back up the stair afterwards rather than sitting down at the bottom of it. She has had trouble with that before.",
+      "repeat": "weekly",
+      "givers": ["princess-rose-garden:castle-gardener"],
+      "turn_in": {"mode": "npc", "npc": "princess-rose-garden:castle-gardener"},
+      "failure_text": "The cutting stays where it is. Fern will ask again next week.",
+      "stages": [
+        {
+          "id": "go_down",
+          "name": "Go down",
+          "text": "Through the Dive Hall and onto the Quarters floor.",
+          "mode": "all",
+          "next": "come_back_up",
+          "objectives": [
+            {"id": "dive_hall", "type": "visit", "target": "princess-rose-dives", "text": "Enter the Rose Dive Hall", "count": 1},
+            {"id": "quarters_floor", "type": "visit", "target": "dive-quarters", "text": "Set foot on the weekly Princess' Quarters floor", "count": 1}
+          ],
+          "branches": []
+        },
+        {
+          "id": "come_back_up",
+          "name": "Come back up",
+          "text": "The stair is the hard part. It always is.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "back_to_court", "type": "visit", "target": "princess-rose", "text": "Return to the Rose Court lobby", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 160, "coins": 60, "items": [{"id": "stamina_potion", "count": 1}]}
+    },
+    {
+      "id": "lantern_second_opinion_on_bread",
+      "name": "A Second Opinion on Bread",
+      "description": "Bram is comparing the smells from every bread stall in the square. It is, he says, serious work. He needs a second nose, a second opinion, and eventually a second lunch, in that order.",
+      "repeat": "weekly",
+      "givers": ["honeydew-lantern-garden:market-taster"],
+      "turn_in": {"mode": "npc", "npc": "honeydew-lantern-garden:market-taster"},
+      "failure_text": "Bram finishes the survey alone. He is not sure the results are reliable.",
+      "stages": [
+        {
+          "id": "the_survey",
+          "name": "The survey",
+          "text": "He wants a proper sample. Two of them, ideally.",
+          "mode": "all",
+          "next": "the_consequence",
+          "objectives": [
+            {"id": "two_lunches", "type": "deliver", "target": "adult_food", "text": "Bring Bram 2 servings of Adult Food", "count": 2}
+          ],
+          "branches": []
+        },
+        {
+          "id": "the_consequence",
+          "name": "The consequence",
+          "text": "He insists you help eat the evidence. He is very persuasive and you were already hungry.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "too_full", "type": "state", "field": "tum", "op": "gte", "value": 60, "text": "Let your tummy reach 60 or more alongside him", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 90, "coins": 35, "items": [{"id": "cheese_sandwich", "count": 1}]}
+    },
+    {
+      "id": "lantern_firm_instruction",
+      "name": "A Very Firm Instruction",
+      "description": "A letter for the ribbon seller, a parcel for the tea stall, and a very firm instruction not to dawdle. Tansy would like to hand the whole round to someone else this week. She does not say why, and her walk is a little stiff.",
+      "repeat": "weekly",
+      "givers": ["honeydew-lantern-garden:market-courier"],
+      "turn_in": {"mode": "npc", "npc": "honeydew-lantern-garden:market-courier"},
+      "failure_text": "Tansy walks the round herself. She makes it. Mostly.",
+      "stages": [
+        {
+          "id": "the_round",
+          "name": "The round",
+          "text": "Three stops. No dawdling. Tansy is watching the clock and something else besides.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "market_hall", "type": "visit", "target": "honeydew-lantern-shops", "text": "Deliver to the Lantern Market Hall", "count": 1},
+            {"id": "the_square", "type": "visit", "target": "honeydew-lantern-garden", "text": "Cut back through Market Square", "count": 1},
+            {"id": "resting_hall", "type": "visit", "target": "honeydew-lantern-beds", "text": "Finish at the Lantern Resting Hall", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 110, "coins": 45, "items": []}
+    },
+    {
+      "id": "lantern_no_sad_verses",
+      "name": "No Sad Verses",
+      "description": "Merri is trying out a tune with no sad verses in it and has not decided how it ends. She would like an audience who will stay for the whole thing, and one more pair of ears than she currently has.",
+      "repeat": "weekly",
+      "givers": ["honeydew-lantern-garden:market-busker"],
+      "turn_in": {"mode": "npc", "npc": "honeydew-lantern-garden:market-busker"},
+      "failure_text": "The tune ends the way it always does. Merri hums something else.",
+      "stages": [
+        {
+          "id": "stay_for_it",
+          "name": "Stay for the whole thing",
+          "text": "Leaving partway is the one thing she asks you not to do.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "five_minutes", "type": "timer", "text": "Listen for five minutes without walking off", "count": 300},
+            {"id": "fetch_wren", "type": "talk", "target": "honeydew-lantern-garden:market-browser", "text": "Talk Wren into coming to listen", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 100, "coins": 40, "items": [{"id": "sippy_juice", "count": 1}]}
+    },
+    {
+      "id": "lantern_one_spool_of_thread",
+      "name": "One Spool of Thread",
+      "description": "Wren came to the square for one spool of thread. So far she has found a lovely cup, three ribbons and absolutely no thread. She would like help finishing the list before she talks herself into a fourth ribbon.",
+      "repeat": "weekly",
+      "givers": ["honeydew-lantern-garden:market-browser"],
+      "turn_in": {"mode": "npc", "npc": "honeydew-lantern-garden:market-browser"},
+      "failure_text": "Wren goes home with four ribbons and no thread. She is not sorry.",
+      "stages": [
+        {
+          "id": "finish_the_list",
+          "name": "Finish the list",
+          "text": "Two items. Only two. Wren promises.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "the_bow", "type": "deliver", "target": "hair_bow", "text": "Bring Wren a Big Hair Bow", "count": 1},
+            {"id": "the_socks", "type": "deliver", "target": "ruffle_socks", "text": "Bring Wren a pair of Ruffle Ankle Socks", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 95, "coins": 40, "items": [{"id": "berry_tart", "count": 1}]}
+    },
+    {
+      "id": "lantern_the_dry_run",
+      "name": "The Dry Run",
+      "description": "Tansy wants to know whether her round can be walked end to end without stopping. She has her own reasons for asking. She would rather you found out than her, and she will not be offended by whatever happens at the end of it.",
+      "repeat": "weekly",
+      "givers": ["honeydew-lantern-garden:market-courier"],
+      "turn_in": {"mode": "npc", "npc": "honeydew-lantern-garden:market-courier"},
+      "failure_text": "The question goes unanswered for another week. Tansy keeps taking the short way.",
+      "stages": [
+        {
+          "id": "no_stopping",
+          "name": "No stopping",
+          "text": "Walk the whole round. Do not stop. Tansy is very clear about the not stopping.",
+          "mode": "all",
+          "next": "one_way_or_another",
+          "objectives": [
+            {"id": "desperate", "type": "state", "field": "wet", "op": "gte", "value": 85, "text": "Carry a bladder of 85 or more", "count": 1},
+            {"id": "reach_the_hall", "type": "visit", "target": "honeydew-lantern-shops", "text": "Reach the Market Hall without excusing yourself", "count": 1}
+          ],
+          "branches": []
+        },
+        {
+          "id": "one_way_or_another",
+          "name": "One way or another",
+          "text": "The round is walked. How it ended is between you and Tansy, and she has already promised not to ask.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "relief", "type": "state", "field": "wet", "op": "lte", "value": 15, "text": "Empty out, whichever way it happens", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 140, "coins": 55, "items": [{"id": "printed_diaper", "count": 1}, {"id": "baby_wipes", "count": 1}]}
+    },
+    {
+      "id": "lantern_padding_for_the_road",
+      "name": "Padding for the Road",
+      "description": "Bram has opinions about walking the square on a full stomach, and one strong opinion about what to wear while doing it. He delivers it cheerfully, at volume, in the middle of a crowded market.",
+      "repeat": "weekly",
+      "givers": ["honeydew-lantern-garden:market-taster"],
+      "turn_in": {"mode": "npc", "npc": "honeydew-lantern-garden:market-taster"},
+      "failure_text": "Bram's advice goes untaken. He will offer it again, louder.",
+      "stages": [
+        {
+          "id": "take_the_advice",
+          "name": "Take the advice",
+          "text": "He will check. He will not be subtle about checking.",
+          "mode": "all",
+          "next": "walk_it_off",
+          "objectives": [
+            {"id": "padded", "type": "equipment", "target": "nighttime_diaper", "slot": "panties", "text": "Wear a Nighttime Diaper", "count": 1},
+            {"id": "covered", "type": "equipment", "target": "plastic_panties", "slot": "diaper_cover", "text": "Wear a Crinkly Diaper Cover over it", "count": 1}
+          ],
+          "branches": []
+        },
+        {
+          "id": "walk_it_off",
+          "name": "Walk it off",
+          "text": "Now cross the square in it, where everyone can hear you coming.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "cross_the_square", "type": "visit", "target": "honeydew-lantern-garden", "text": "Walk the length of Market Square", "count": 1},
+            {"id": "three_minutes", "type": "timer", "text": "Stay out among the stalls for three minutes", "count": 180}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 125, "coins": 50, "items": [{"id": "nighttime_diaper", "count": 1}]}
+    },
+    {
+      "id": "lantern_the_long_crossing",
+      "name": "The Long Crossing",
+      "description": "Wren has heard the Dustbreak crossing comes out somewhere with better ribbons. She will not walk it herself. She would, however, very much like a report, and she is prepared to pay for one.",
+      "repeat": "weekly",
+      "givers": ["honeydew-lantern-garden:market-browser"],
+      "turn_in": {"mode": "npc", "npc": "honeydew-lantern-garden:market-browser"},
+      "failure_text": "The crossing goes unreported. Wren decides the ribbons here are fine.",
+      "stages": [
+        {
+          "id": "into_the_sand",
+          "name": "Into the sand",
+          "text": "The desert floor is long, hot and short on privacy. Pack accordingly.",
+          "mode": "all",
+          "next": "out_the_other_side",
+          "objectives": [
+            {"id": "dive_hall", "type": "visit", "target": "honeydew-lantern-dives", "text": "Enter the Lantern Dive Hall", "count": 1},
+            {"id": "the_desert", "type": "visit", "target": "dive-desert", "text": "Step onto the Dustbreak Desert crossing", "count": 1}
+          ],
+          "branches": []
+        },
+        {
+          "id": "out_the_other_side",
+          "name": "Out the other side",
+          "text": "Wren wants to know what the far end looks like. Go and see.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "clockwork", "type": "visit", "target": "littlebig-clockwork", "text": "Arrive in the Clockwork Coliseum", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 180, "coins": 70, "items": [{"id": "desert_electrolyte", "count": 2}]}
+    },
+    {
+      "id": "clockwork_twice_by_the_benches",
+      "name": "Twice by the Benches",
+      "description": "Ellis checks the lamps nearest the benches twice, because people linger there and a good conversation deserves good light. He would like someone to sit under one while he works, to prove the light is worth checking.",
+      "repeat": "weekly",
+      "givers": ["littlebig-clockwork-garden:night-lamplighter"],
+      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork-garden:night-lamplighter"},
+      "failure_text": "The benches stay empty. Ellis checks the lamps anyway.",
+      "stages": [
+        {
+          "id": "sit_a_while",
+          "name": "Sit a while",
+          "text": "Stay under the lamp. That is the entire job.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "the_district", "type": "visit", "target": "littlebig-clockwork-garden", "text": "Find the benches in the Red Light District", "count": 1},
+            {"id": "four_minutes", "type": "timer", "text": "Linger under the lamps for four minutes", "count": 240}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 85, "coins": 35, "items": [{"id": "herbal_tea", "count": 1}]}
+    },
+    {
+      "id": "clockwork_off_duty_feet",
+      "name": "Off-Duty Feet",
+      "description": "Vesper's next set is a while off and she is giving her feet a walk before asking them to dance. She would like company who understands that some things cannot be pushed through, only waited out.",
+      "repeat": "weekly",
+      "givers": ["littlebig-clockwork-garden:night-performer"],
+      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork-garden:night-performer"},
+      "failure_text": "Vesper dances on tired feet. She has done it before.",
+      "stages": [
+        {
+          "id": "walk_them_out",
+          "name": "Walk them out",
+          "text": "Walk until you are genuinely done, then admit it.",
+          "mode": "all",
+          "next": "wait_it_out",
+          "objectives": [
+            {"id": "worn_out", "type": "state", "field": "stamina", "op": "lte", "value": 25, "text": "Wear your stamina down to 25 or less", "count": 1},
+            {"id": "to_the_beds", "type": "visit", "target": "littlebig-clockwork-beds", "text": "Take her to the Clockwork Resting Hall", "count": 1}
+          ],
+          "branches": []
+        },
+        {
+          "id": "wait_it_out",
+          "name": "Wait it out",
+          "text": "Rest properly. She will know if you cut it short.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "rested", "type": "state", "field": "stamina", "op": "gte", "value": 80, "text": "Rest your stamina back up to 80 or more", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 115, "coins": 45, "items": [{"id": "stamina_potion", "count": 1}]}
+    },
+    {
+      "id": "clockwork_late_bloomers",
+      "name": "Late Bloomers, All of Us",
+      "description": "Nell's flowers open after sunset. She says there is no prize for having your bloom first, and she says it to everyone, but she is looking at you when she does.",
+      "repeat": "weekly",
+      "givers": ["littlebig-clockwork-garden:night-florist"],
+      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork-garden:night-florist"},
+      "failure_text": "The flowers open and close without an audience. Nell does not mind.",
+      "stages": [
+        {
+          "id": "something_warm",
+          "name": "Something warm",
+          "text": "She keeps a pot going for whoever stops. Contribute to it.",
+          "mode": "all",
+          "next": "someone_to_share_it",
+          "objectives": [
+            {"id": "two_teas", "type": "deliver", "target": "herbal_tea", "text": "Bring Nell 2 cups of Herbal Tea", "count": 2}
+          ],
+          "branches": []
+        },
+        {
+          "id": "someone_to_share_it",
+          "name": "Someone to share it",
+          "text": "Rowan is somewhere nearby, still hunting a rhyme. Fetch him before the tea goes cold.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "fetch_rowan", "type": "talk", "target": "littlebig-clockwork-garden:night-poet", "text": "Bring Rowan over for a cup", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 100, "coins": 40, "items": [{"id": "herbal_tea", "count": 2}]}
+    },
+    {
+      "id": "clockwork_rhyme_for_lantern",
+      "name": "A Rhyme for Lantern",
+      "description": "Rowan has almost got a rhyme for lantern and is walking until the next line arrives. At this rate, he says, the line will arrive in another district entirely. He may be right.",
+      "repeat": "weekly",
+      "givers": ["littlebig-clockwork-garden:night-poet"],
+      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork-garden:night-poet"},
+      "failure_text": "The rhyme does not arrive. Rowan is unbothered and keeps walking.",
+      "stages": [
+        {
+          "id": "go_find_one",
+          "name": "Go and find one",
+          "text": "If the word will not come to the poet, take the poet to the word.",
+          "mode": "all",
+          "next": "bring_it_back",
+          "objectives": [
+            {"id": "the_square", "type": "visit", "target": "honeydew-lantern-garden", "text": "Walk Market Square in Lantern Court", "count": 1}
+          ],
+          "branches": []
+        },
+        {
+          "id": "bring_it_back",
+          "name": "Bring it back",
+          "text": "Carry the line home before you lose it.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "back_home", "type": "visit", "target": "littlebig-clockwork-garden", "text": "Return to the Red Light District", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 150, "coins": 60, "items": []}
+    },
+    {
+      "id": "clockwork_house_rules",
+      "name": "House Rules",
+      "description": "Everyone sets their own pace here, and Ellis would like you to set yours somewhere visible. Wear something that says you are not in a hurry to be taken seriously, and stay out long enough for it to count.",
+      "repeat": "weekly",
+      "givers": ["littlebig-clockwork-garden:night-lamplighter"],
+      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork-garden:night-lamplighter"},
+      "failure_text": "The evening passes quietly. Nobody minds, which is rather the point.",
+      "stages": [
+        {
+          "id": "dress_for_it",
+          "name": "Dress for the evening",
+          "text": "The district has no dress code. It does have a mood.",
+          "mode": "all",
+          "next": "set_your_pace",
+          "objectives": [
+            {"id": "necklace", "type": "equipment", "target": "pacifier_necklace", "text": "Wear a Pacifier Necklace where it shows", "count": 1}
+          ],
+          "branches": []
+        },
+        {
+          "id": "set_your_pace",
+          "name": "Set your pace",
+          "text": "Stay out under the lamps and let the evening get to you.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "flushed", "type": "state", "field": "excitement", "op": "gte", "value": 120, "text": "Let your excitement climb past 120", "count": 1},
+            {"id": "out_and_about", "type": "visit", "target": "littlebig-clockwork-garden", "text": "Be seen in the Red Light District", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 130, "coins": 50, "items": [], "equipment": ["pacifier"]}
+    },
+    {
+      "id": "clockwork_a_quiet_chat",
+      "name": "A Quiet Chat",
+      "description": "Vesper reckons you can learn a district by talking to four people in it. She has picked the four. None of them will ask you a single difficult question, which she says is the whole reason this neighbourhood is worth living in.",
+      "repeat": "weekly",
+      "givers": ["littlebig-clockwork-garden:night-performer"],
+      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork-garden:night-performer"},
+      "failure_text": "The round of introductions goes unmade. The district survives.",
+      "stages": [
+        {
+          "id": "all_four",
+          "name": "All four of them",
+          "text": "Ellis, Nell, Rowan, and Vesper herself. In any order. Take your time.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "meet_ellis", "type": "talk", "target": "littlebig-clockwork-garden:night-lamplighter", "text": "Talk with Ellis the Lamplighter", "count": 1},
+            {"id": "meet_nell", "type": "talk", "target": "littlebig-clockwork-garden:night-florist", "text": "Talk with Nell the Night Florist", "count": 1},
+            {"id": "meet_rowan", "type": "talk", "target": "littlebig-clockwork-garden:night-poet", "text": "Talk with Rowan the Pavement Poet", "count": 1},
+            {"id": "meet_vesper", "type": "talk", "target": "littlebig-clockwork-garden:night-performer", "text": "Talk with Vesper herself", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 140, "coins": 55, "items": [{"id": "nanny_juice_box", "count": 1}]}
+    }
+  ]
+}
