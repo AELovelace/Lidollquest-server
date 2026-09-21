@@ -40,7 +40,11 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  const existsQuery=db.prepare('SELECT 1 FROM dive_editions WHERE route=? AND edition=? AND depth=1');
  const enabledQuery=db.prepare('SELECT 1 FROM dive_editions WHERE route=? AND depth=1 LIMIT 1');
  const getFloor=edition=>{const row=measure('floor.read',()=>floorQuery.get(route,edition??null));if(!row)return null;const floor=measure('floor.decode',()=>JSON.parse(row.content));if(live)for(const foe of floor.enemies)foe.definition??=clone(baseline.enemies[foe.type]??data.enemies[foe.type]);floor.managedOccupancy=live?.placementPositions?.(zoneId,row.edition)??[];return {...row,floor};}; // Keep decoded mutable floors local to their operation so rollback cannot leak cached mutations.
- const latest=()=>controls&&db.prepare('SELECT edition FROM world_routes WHERE route=? AND week=?').get(route,weeklyWindow(now()).edition)?.edition||db.prepare('SELECT edition FROM dive_editions WHERE route=? ORDER BY starts DESC,updated DESC LIMIT 1').get(route)?.edition;
+ const latest=()=>{
+  const newest=db.prepare('SELECT edition FROM dive_editions WHERE route=? ORDER BY starts DESC,updated DESC LIMIT 1').get(route)?.edition; // Most recently installed floor, whatever week it came from.
+  const week=config.static&&newest?newest.slice(0,10):weeklyWindow(now()).edition; // Static routes stay pinned to their newest floor's week instead of the calendar week.
+  return controls&&db.prepare('SELECT edition FROM world_routes WHERE route=? AND week=?').get(route,week)?.edition||newest; // A gamemaster regeneration for that week wins over the automatic floor.
+ };
  const controls=live?createDiveControls(db,{now,data,live,current,getFloor,saveFloor,saveCharacter,entry,generate,compute,generator:generate===generateDesert?'desert':'rooms',upgradeFloor:floor=>{upgradeFloor(floor);addPinkMist(floor);}}):null;
  function saveFloor(record){const content=measure('floor.encode',()=>JSON.stringify(record.floor));measure('floor.write',()=>db.prepare('UPDATE dive_editions SET content=?,updated=? WHERE route=? AND edition=? AND depth=1').run(content,record.updated,route,record.edition));}
  function progress(c,edition){const row=db.prepare('SELECT state FROM dive_progress WHERE character_id=? AND route=? AND edition=? AND depth=1').get(c.id,route,edition);return row?JSON.parse(row.state):{claimed:[],rolls:{},explored:[],completed:false,coinsPaid:0};}
@@ -65,6 +69,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  } // Scope by committed position, route, edition and floor; clients cannot choose another room's chat.
  function ensure(){
   if(closed||!config.enabled)return;
+  if(config.static&&enabledQuery.get(route))return; // Static routes keep their existing floor forever; only a brand-new route generates once.
   const window=weeklyWindow(now());if(existsQuery.get(route,window.edition)||now()<retryAt)return;
   if(generationPending)return generationPending;
   const generationData=clone(data),generationRevision=data.contentRevision;
@@ -188,7 +193,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    measure('simulation.apply.'+zoneId,()=>{
     db.exec('BEGIN IMMEDIATE');try{
      const row=floorQuery.get(route,active.edition),currentPlayers=roamingPlayers();
-     if(controls?.draining()||latest()!==active.edition||!active.edition.startsWith(weeklyWindow(now()).edition)||!row||row.content!==active.content||row.updated!==active.updated||positions(currentPlayers)!==expectedPositions||now()-scheduledAt>seconds){measure('worker.stale.paths',()=>{});db.exec('COMMIT');return;}
+     if(controls?.draining()||latest()!==active.edition||!config.static&&!active.edition.startsWith(weeklyWindow(now()).edition)||!row||row.content!==active.content||row.updated!==active.updated||positions(currentPlayers)!==expectedPositions||now()-scheduledAt>seconds){measure('worker.stale.paths',()=>{});db.exec('COMMIT');return;}
      const plans=new Map(starts.map((start,index)=>[start.id,new Map(currentPlayers.map((p,target)=>[p.character_id,paths[index][target]]))]));
      roam({...row,floor:JSON.parse(row.content)},currentPlayers,plans,scheduledAt);db.exec('COMMIT');
     }catch(error){db.exec('ROLLBACK');throw error;}
@@ -215,7 +220,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function tick(){if(closed||now()-lastTick<seconds)return;lastTick=now();measure('simulation.'+zoneId,()=>{db.exec('BEGIN IMMEDIATE');try{maintain();db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');lastTick=-Infinity;log('dive_tick_failed',error.stack??String(error));}});} // Never await workers while holding a transaction or request identity.
  function snapshot(c,p){
   const state=c?JSON.parse(c.state):null,record=owns(state?.dive)?getFloor(state.dive.edition):current(),personal=c&&record?progress(c,record.edition):null;
-  const summary={enabled:config.enabled&&!!record,version:1,route,zone:zoneId,category,name,boss:bossId,edition:record?.edition??'',resetsAt:record?.ends??weeklyWindow(now()).ends,completed:personal?.completed??false,claimed:record?.floor.chests.filter(ch=>personal?.claimed.includes(ch.id)).length??0,total:record?.floor.chests.length??0,pickupsClaimed:(record?.floor.pickups??[]).filter(ch=>personal?.claimed.includes(ch.id)).length,pickupsTotal:record?.floor.pickups?.length??0,claimableCoins:personal?.completed?Math.max(0,config.boss_coins-personal.coinsPaid):0};
+  const summary={enabled:config.enabled&&!!record,version:1,route,zone:zoneId,category,name,boss:bossId,edition:record?.edition??'',static:!!config.static,resetsAt:config.static?0:record?.ends??weeklyWindow(now()).ends,completed:personal?.completed??false,claimed:record?.floor.chests.filter(ch=>personal?.claimed.includes(ch.id)).length??0,total:record?.floor.chests.length??0,pickupsClaimed:(record?.floor.pickups??[]).filter(ch=>personal?.claimed.includes(ch.id)).length,pickupsTotal:record?.floor.pickups?.length??0,claimableCoins:personal?.completed?Math.max(0,config.boss_coins-personal.coinsPaid):0};
   if(!record||p?.zone!==zoneId||!owns(state?.dive))return {dive:summary};
   const f=record.floor;
   return {dive:{...summary,depth:1,origin:state.dive.origin,explored:personal.explored,enemies:f.enemies.filter(e=>!(e.manual&&!e.respawning&&e.dead)).map(e=>({...e,definition:undefined,name:(e.definition??data.enemies[e.type]).name,sprite:(e.definition??data.enemies[e.type]).sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",category,exits:f.exits??[],theme,mist:f.mist,walls:f.walls,props:f.props,geometryVersion:f.geometryVersion??0,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,decorations:f.decorations}};

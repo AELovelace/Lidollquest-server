@@ -25,7 +25,7 @@ export function createDiveControls(db,{now,data,live,current,getFloor,saveFloor,
  function cancel(input){const job=activeJob();if(!job||input.job!==job.id)fail('Regeneration job changed.');db.prepare("UPDATE world_regeneration SET status='cancelled' WHERE id=?").run(job.id);return view();}
  function tick(){
   const job=activeJob();if(!job||closed)return;
-  if(job.week!==weeklyWindow(now()).edition){db.prepare("UPDATE world_regeneration SET status='cancelled',error='Weekly reset superseded this request.' WHERE id=?").run(job.id);return;}
+  if(!data.config.static&&job.week!==weeklyWindow(now()).edition){ /* Static routes never roll over, so a queued regeneration survives the Monday boundary. */db.prepare("UPDATE world_regeneration SET status='cancelled',error='Weekly reset superseded this request.' WHERE id=?").run(job.id);return;}
   if(job.status==='queued'&&!pending){pending=true;db.prepare("UPDATE world_regeneration SET status='generating' WHERE id=?").run(job.id);const snapshot=structuredClone(data);
    const work=compute?compute.submit('generate',{generator,data:snapshot,edition:job.edition}):Promise.resolve().then(()=>generate(snapshot,job.edition));
    work.then(floor=>{if(closed)return;for(const foe of floor.enemies)foe.definition=structuredClone(snapshot.enemies[foe.type]);upgradeFloor(floor);db.prepare("UPDATE world_regeneration SET status='draining',candidate=? WHERE id=? AND status='generating'").run(JSON.stringify(floor),job.id);}).catch(()=>{if(!closed)db.prepare("UPDATE world_regeneration SET status='failed',error='Map generation failed; the current map is unchanged.' WHERE id=? AND status='generating'").run(job.id);}).finally(()=>{pending=false;});return;
@@ -35,7 +35,7 @@ export function createDiveControls(db,{now,data,live,current,getFloor,saveFloor,
   const floor=JSON.parse(job.candidate),window=weeklyWindow(now());
   try{live.mapReady?.(zone,job.edition,floor);}catch(error){db.prepare("UPDATE world_regeneration SET status='failed',error=? WHERE id=?").run(error.message,job.id);return;}
   db.prepare('INSERT INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(route,job.edition,window.start,window.ends,JSON.stringify(floor),now());
-  db.prepare('INSERT INTO world_routes VALUES (?,?,?) ON CONFLICT(route) DO UPDATE SET week=excluded.week,edition=excluded.edition').run(route,window.edition,job.edition);
+  db.prepare('INSERT INTO world_routes VALUES (?,?,?) ON CONFLICT(route) DO UPDATE SET week=excluded.week,edition=excluded.edition').run(route,job.week,job.edition);/* Pin under the requested week (equal to the current week for weekly routes) so static routes find it too. */
   for(const c of visitors()){const s=JSON.parse(c.state),position=entry(floor,s.dive.origin);s.dive.edition=job.edition;s.dive.position={...position};s.dive.safeUntil=now()+10000;delete s.lastResult;s.lastResult=null;saveCharacter(c,s);db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(position.x,position.y,now(),c.id);}
   db.prepare("UPDATE world_regeneration SET status='complete' WHERE id=?").run(job.id);
  } // Called within the simulation transaction: map switch, visitors and fresh claim namespace commit together.
