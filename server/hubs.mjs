@@ -21,9 +21,9 @@ export const hubCatalog=Object.freeze([
 ]); // A single catalog supplies lobby identity, annexes and legacy entry validation.
 export function dungeonPortals(parent){
  const quarters={x:6,y:4,name:"Princess' Quarters",target:'dive-quarters',style:'warp'};
- const desert={x:14,y:4,name:'Dustbreak Desert',target:'dive-desert',style:'warp'};
- const tundra={x:14,y:4,name:'Frostveil Tundra',target:'dive-tundra',style:'warp'};
- const existing=parent==='princess-rose'?[quarters,tundra]:parent==='honeydew-lantern'?[desert,{...tundra,x:6,y:4}]:parent==='littlebig-clockwork'?[desert]:[]; // Lantern's crossings mirror one another across the back row.
+ const west={x:0,y:5,w:1,h:2,style:'gap',side:'left'},east={x:19,y:5,w:1,h:2,style:'gap',side:'right'}; // Wall openings matching the lobby's Beds/District gaps.
+ const desert={name:'Dustbreak Desert',target:'dive-desert'},tundra={name:'Frostveil Tundra',target:'dive-tundra'};
+ const existing=parent==='princess-rose'?[quarters,{...tundra,...east}]:parent==='honeydew-lantern'?[{...tundra,...west},{...desert,...east}]:parent==='littlebig-clockwork'?[{...desert,...west}]:[]; // West-to-east: Rose | Tundra | Lantern | Desert | LittleBig.
  return [...existing,...campaignDives.filter(d=>d.config.hub===parent).map(({config:c})=>({...c.pad,name:c.name,target:c.zone_id,style:'warp'}))];
 } // Princess' Quarters belongs only to Rose Court; these coordinates also drive client labels and return arrivals.
 export const hubRooms=hubCatalog.flatMap(root=>['garden','beds','shops','dives'].map(kind=>({
@@ -38,7 +38,8 @@ export const hubRooms=hubCatalog.flatMap(root=>['garden','beds','shops','dives']
 }))); // Each hub has its own presence/chat scope; fixtures are presentation data, never campaign NPCs.
 export const hubPortals=parent=>[{x:0,y:5,w:1,h:2,name:districtData.districts.find(d=>d.hub===parent)?.name??'District',target:parent+'-garden',style:'gap',side:'left'},{x:19,y:5,w:1,h:2,name:'Beds',target:parent+'-beds',style:'gap',side:'right'},{x:15,y:8,name:'Shops',target:parent+'-shops',style:'stairs'},{x:10,y:2,name:'Dungeon Dive',target:parent+'-dives',style:'door'}];
 export const inHubGap=(gap,x,y)=>x>=gap.x&&x<gap.x+(gap.w??1)&&y>=gap.y&&y<gap.y+(gap.h??1);
-export const hubGaps=z=>z.parent?(z.exit?.style==='gap'?[{...z.exit,target:z.parent}]:[]):hubPortals(z.id).filter(p=>p.style==='gap'); // Only declared wall openings are traversable; all other perimeter cells remain walls.
+export const hubGaps=z=>z.parent?[...(z.exit?.style==='gap'?[{...z.exit,target:z.parent}]:[]),...(z.kind==='dives'?dungeonPortals(z.parent).filter(p=>p.style==='gap'):[])]:hubPortals(z.id).filter(p=>p.style==='gap'); // Dive Hall side walls open onto the wilderness routes.
+export const LOBBY_EXIT=Object.freeze({x:1,y:10,style:'stairs'}); // Bottom-left stairs back to the singleplayer campaign. // Only declared wall openings are traversable; all other perimeter cells remain walls.
 export const hubBlocked=(z,x,y)=>z.fixtures?.some(f=>f.solid!==false&&x>=f.x&&y>=f.y&&x<f.x+(f.span_w??1)&&y<f.y+(f.span_h??1))??false;
 export function shopOffers(zone,shop,time){
  const day=Math.floor(time/86400000),rnd=seeded(`${zone}:${shop.id}:${day}`),pool=[...shop.pool],offers=[];
@@ -51,7 +52,7 @@ export function shopOffers(zone,shop,time){
   offers.push({id:`${day}-${slot}`,price,item});
  }return offers;
 } // Stock is shared, deterministic and inexhaustible; purchases never consume somebody else's offer.
-export function hubDefinition(z,time){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??{x:10,y:10,style:'stairs'},restTickMs:c.rest_tick_ms,portals:z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z.id),fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:shopOffers(z.id,hubData.shops.find(s=>s.id===f.id),time)}:f)};}
+export function hubDefinition(z,time){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??LOBBY_EXIT,restTickMs:c.rest_tick_ms,portals:z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z.id),fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:shopOffers(z.id,hubData.shops.find(s=>s.id===f.id),time)}:f)};}
 export function nearbyFixture(z,p,id,kind){const f=z.fixtures?.find(f=>f.id===id&&f.kind===kind);if(!f||Math.abs(f.x-p.x)+Math.abs(f.y-p.y)>1)fail('Stand next to that '+kind+'.');return f;}
 
 export function createHubPurchases(db,{now,origins}){

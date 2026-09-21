@@ -12,7 +12,7 @@ test('Quarters entry belongs only to Rose; retired hub entries resume and return
  const place=(x,y)=>db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(x,y,c.id);
  const expected={
   'princess-rose':['dive-quarters','dive-tundra','dive-dungeon'],
-  'honeydew-lantern':['dive-desert','dive-tundra','dive-nursery','dive-school','dive-forest'],
+  'honeydew-lantern':['dive-tundra','dive-desert','dive-nursery','dive-school','dive-forest'],
   'littlebig-clockwork':['dive-desert','dive-mansion','dive-hospital'],
  };
  try{
@@ -29,7 +29,7 @@ test('Quarters entry belongs only to Rose; retired hub entries resume and return
    }else{
     for(const action of ['enter','dive_enter'])assert.throws(()=>act(action,{zone:'dive-quarters'}),/glowing portal/);
     assert.throws(()=>act('dive_enter'),/glowing portal/); // Older clients cannot bypass the revised destination list.
-    const desert=pads.find(p=>p.target==='dive-desert');assert.deepEqual([desert.x,desert.y],[14,4]);
+    const desert=pads.find(p=>p.target==='dive-desert');assert.deepEqual([desert.x,desert.y,desert.side],hub==='honeydew-lantern'?[19,5,'right']:[0,5,'left']); // Desert opens through Lantern's east wall and LittleBig's west wall.
    }
    place(10,9);act('hub_visit',{zone:hub});act('leave');
   }
