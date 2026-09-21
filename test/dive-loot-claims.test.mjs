@@ -17,7 +17,7 @@ test('successful claims alone use the floor allowance; full bags, duplicate comm
  const edit=fn=>{const state=JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(c.id).state);fn(state);db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),c.id);};
  const place=p=>{edit(state=>{if(state.dive){state.dive.position={x:p.x,y:p.y};state.dive.safeUntil=now+60000;}});db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(p.x,p.y,c.id);};
  const progress=()=>JSON.parse(db.prepare('SELECT state FROM dive_progress WHERE character_id=? AND route=? AND edition=?').get(c.id,'quarters-pilot',c.dive.edition).state);
- function enter(){act('enter',{zone:'princess-rose',loadout:{player_info:{playerHealth:100,playerHealthMax:100},inventory:[]}});place({x:10,y:3});act('hub_visit',{zone:'princess-rose-dives'});place({x:6,y:5});return act('dive_enter',{zone:'dive-quarters'});}
+ function enter(){act('enter',{zone:'princess-rose',loadout:{player_info:{playerHealth:100,playerHealthMax:100},inventory:[]}});place({x:9,y:0});act('hub_visit',{zone:'princess-rose-dives'});place({x:6,y:5});return act('dive_enter',{zone:'dive-quarters'});}
  try{
   setup();act('create',{name:'Alice'});const entered=enter();
   const candidates=[...entered.dive.chests,...entered.dive.pickups.filter(p=>p.kind==='treasure')].filter(ch=>diveData.item_pool[seeded(`quarters-pilot:${c.dive.edition}:1:${c.id}:${ch.id}`)(31)]==='cotton_panties');

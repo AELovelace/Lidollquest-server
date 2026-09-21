@@ -15,7 +15,7 @@ test('hall portals validate proximity, preserve inventory, restore on reconnect 
   act('create',{name:'Alice'});
   for(const root of ['honeydew-lantern','littlebig-clockwork','princess-rose']){
    act('enter',{zone:root,loadout:{player_info:{playerHealth:50,playerHealthMax:50},inventory:[{item_id:'adult_food'}]}});
-   place(10,3);const hall=act('hub_visit',{zone:root+'-dives'});assert.equal(hall.zone,root+'-dives');
+   place(9,0);const hall=act('hub_visit',{zone:root+'-dives'});assert.equal(hall.zone,root+'-dives');
    for(const portal of hall.zones.find(z=>z.id===hall.zone).portals){
     place(2,9); // Expanded halls can legitimately offer a pad next to their arrival tile.
     assert.throws(()=>act('dive_enter',{zone:portal.target}),portal.style==='gap'?/wall opening/:/glowing portal/);
@@ -45,7 +45,7 @@ test('walking back onto every Dive portal returns to the hall after needs settle
   act('create',{name:'Walker'});
   for(const hub of ['princess-rose','honeydew-lantern','littlebig-clockwork']){
    act('enter',{zone:hub,loadout:{player_info:{playerHealth:50,playerHealthMax:50},inventory:[{item_id:'adult_food'}]}});
-   place(10,3);const hall=act('hub_visit',{zone:hub+'-dives'});
+   place(9,0);const hall=act('hub_visit',{zone:hub+'-dives'});
    for(const pad of hall.zones.find(z=>z.id===hall.zone).portals){
     place(pad.x,pad.y);const entered=act('dive_enter',{zone:pad.target});
     const floor=entered.zones.find(z=>z.id===pad.target),portal=floor.exits.find(e=>e.zone===hub)??floor.entrance;

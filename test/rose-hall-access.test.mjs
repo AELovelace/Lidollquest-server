@@ -20,7 +20,7 @@ test('Quarters entry belongs only to Rose; retired hub entries resume and return
   for(const hub of ['honeydew-lantern','littlebig-clockwork','princess-rose']){
    act('enter',{zone:hub,loadout:{player_info:{playerHealth:50},inventory:[{item_id:'adult_food'}]}});
    if(hub!=='princess-rose')for(const action of ['enter','dive_enter'])assert.throws(()=>act(action,{zone:'dive-quarters'}),/glowing portal/);
-   place(10,3);const hall=act('hub_visit',{zone:hub+'-dives'}),pads=hall.zones.find(z=>z.id===hall.zone).portals;
+   place(9,0);const hall=act('hub_visit',{zone:hub+'-dives'}),pads=hall.zones.find(z=>z.id===hall.zone).portals;
    assert.deepEqual(pads.map(p=>p.target),expected[hub]);
    place(6,4);
    if(hub==='princess-rose'){

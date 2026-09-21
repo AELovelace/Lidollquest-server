@@ -45,7 +45,7 @@ test('Dive activity uses the committed room, route and weekly edition',()=>{
  const act=(action,extra={})=>{time+=400;const s=api.act('',{action,controller:'a',character_id:c?.id,revision:c?.revision,request_id:randomUUID(),...(c?.dive?{edition:c.dive.edition}:{}),...extra});c=s.character;return s;};
  try{
   act('create',{name:'Alice'});act('enter',{zone:'princess-rose',loadout:{player_info:{},inventory:[]}});
-  db.prepare('UPDATE quest_presence SET x=10,y=3 WHERE character_id=?').run(c.id);
+  db.prepare('UPDATE quest_presence SET x=9,y=0 WHERE character_id=?').run(c.id);
   act('hub_visit',{zone:'princess-rose-dives'});
   db.prepare('UPDATE quest_presence SET x=6,y=5 WHERE character_id=?').run(c.id);
   const entered=act('dive_enter',{zone:'dive-quarters'}),loadout=structuredClone(c.loadout);loadout.player_info.online_accident_seq=1;
