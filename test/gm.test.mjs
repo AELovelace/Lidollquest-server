@@ -183,7 +183,12 @@ test('only a LiDollID gamemaster reaches the panel',async()=>{
 
   const page=await fetch(h.base()+'/gm');
   assert.equal(page.status,200);assert.match(page.headers.get('content-type'),/text\/html/);    // The sign-in shell loads for anyone who can reach it.
-  assert.doesNotMatch(await page.text(),new RegExp(staffToken));                                 // It carries no credential of its own.
+  const shell=await page.text();
+  assert.doesNotMatch(shell,new RegExp(staffToken));                                             // It carries no credential of its own.
+  assert.match(shell,/localStorage\.setItem\(GRANT/);                                            // A granted sign-in survives a reload instead of repeating the device dance.
+  assert.match(shell,/api\("\/gm\/whoami"\)/);                                                   // A restored grant is proven against the server before the panel appears.
+  assert.match(shell,/forgetGrant\(\);if\(timer\)/);                                              // Signing out discards the stored grant, not only this tab's copy.
+  assert.match(shell,/response\.status===401&&token/);                                           // A revoked or expired grant returns to the gate rather than leaving a dead panel.
   assert.equal((await fetch(h.base()+'/gm',{method:'POST'})).status,405);
   assert.equal((await h.gm('/gm/nowhere')).status,404);
   assert.equal((await h.gm('/gm/overview',{headers:{Origin:'https://evil.invalid'}})).status,403);

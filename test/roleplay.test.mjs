@@ -2,11 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {createQuestZones} from '../server/zones.mjs';
 import {createRoleplay} from '../server/roleplay.mjs';
 
-function fixture(){
- const db=new DatabaseSync(':memory:'),blocked={},muted=new Set();let now=Date.parse('2026-09-19T12:00:00Z');
+function fixture(filename=':memory:'){
+ const db=new DatabaseSync(filename),blocked={},muted=new Set();let now=Date.parse('2026-09-19T12:00:00Z');
  const api=createQuestZones(db,{now:()=>now,grant:owner=>({owner,id:owner,client:'lidollquest',blockedAccounts:blocked[owner]??[]}),wallet:()=>({coins:0}),adjust:()=>{},muted:owner=>muted.has(owner)}),ids={};
  const read=owner=>api.read(owner,ids[owner]);
  const command=(owner,action,extra={})=>{const s=read(owner);return {action,request_id:randomUUID(),controller:owner,character_id:s.character?.id,revision:s.character?.revision,...(s.character?.dive?{edition:s.dive.edition}:{}),...extra};};
@@ -16,6 +19,34 @@ function fixture(){
  const rp=createRoleplay(db,{now:()=>now,roll:()=>0});
  return {db,ids,api,rp,blocked,muted,read,raw,act,command,player,advance:ms=>now+=ms,close:()=>db.close()};
 }
+test('RP read cursor survives database reopen, remains character-specific and allows later posts',()=>{
+ const directory=mkdtempSync(join(tmpdir(),'quest-rp-read-')),filename=join(directory,'quest.sqlite'),f=fixture(filename);let reopened;
+ try{
+  f.player('Alice');f.player('Bob');f.player('Cara');
+  const id=f.act('Alice','rp_post',{text:'A saved scene.',partners:[f.ids.Bob,f.ids.Cara]}).receipt.rpId;
+  const before=f.read('Bob');assert.equal(before.rp.seen,0);
+  const command=f.command('Bob','rp_read',{rp_id:id}),opened=f.raw('Bob',command);
+  assert.equal(opened.rp.seen,id,'Read response already contains the durable cursor');assert.equal(opened.character.revision,before.character.revision);
+  f.raw('Bob',command);assert.equal(f.read('Cara').rp.seen,0,'Other recipients have their own read state');
+  f.advance(11000);f.act('Bob','heartbeat');
+  const next=f.act('Alice','rp_post',{text:'A new scene.',partners:[f.ids.Bob]}).receipt.rpId;
+  assert.ok(next>f.read('Bob').rp.seen,'New posts still notify after a read');
+  f.act('Bob','rp_read',{rp_id:next});f.act('Bob','rp_read',{rp_id:id});assert.equal(f.read('Bob').rp.seen,next,'Reopening older history never rewinds delivery');
+  f.close();reopened=new DatabaseSync(filename);const rp=createRoleplay(reopened),bob=reopened.prepare('SELECT * FROM quest_characters WHERE id=?').get(f.ids.Bob);
+  assert.equal(rp.snapshot(bob,'princess-rose').seen,next,'Fresh process state reads the persisted cursor');
+  assert.equal(rp.read(bob,id,'princess-rose').text,'A saved scene.','Read history remains available');
+ }finally{if(reopened)reopened.close();else if(f.db.isOpen)f.close();rmSync(directory,{recursive:true,force:true});}
+});
+test('unavailable RP reads and ordinary snapshots never advance delivery state',()=>{
+ const f=fixture();try{
+  f.player('Alice');f.player('Bob');f.player('Cara','honeydew-lantern');
+  const id=f.act('Alice','rp_post',{text:'A shared scene.',partners:[f.ids.Bob]}).receipt.rpId;
+  assert.equal(f.read('Bob').rp.seen,0);assert.equal(f.read('Bob').rp.seen,0);
+  assert.throws(()=>f.act('Cara','rp_read',{rp_id:id}),/not available/);assert.equal(f.read('Cara').rp.seen,0);
+  f.blocked.Bob=['Alice'];assert.throws(()=>f.act('Bob','rp_read',{rp_id:id}),/not available/);assert.equal(f.read('Bob').rp.seen,0);
+  assert.throws(()=>f.act('Bob','rp_read',{rp_id:999999}),/not available/);assert.equal(f.db.prepare('SELECT count(*) n FROM quest_rp_reads').get().n,0);
+ }finally{f.close();}
+});
 test('shared RP persists paragraphs, appearance, notices and author-only counts exactly once',()=>{
  const f=fixture();try{
   f.player('Alice');f.player('Bob');f.player('Cara');

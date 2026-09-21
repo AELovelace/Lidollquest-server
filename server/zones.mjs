@@ -185,7 +185,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    const c=character(i.owner,input.character_id),fingerprint=createHash('sha256').update(JSON.stringify(Object.keys(input).sort().map(k=>[k,canonical(input[k])]))).digest('hex'); // Preserve legacy flat command fingerprints while stabilizing nested loadout data.
    if(db.prepare("SELECT 1 FROM quest_management WHERE character_id=? AND status='pending'").get(c.id))fail(409,'Your character change is still settling.','character_change_pending');
    const old=db.prepare('SELECT * FROM quest_commands WHERE character_id=? AND request_id=?').get(c.id,input.request_id);
-   if(input.action==='rp_read'){const p=presence(i,c,input.controller);return {...response(i,c),receipt:{action:'rp_read',request_id:input.request_id,rpPost:rp.read(c,input.rp_id,rpArea(c,p),i.blockedAccounts??[])}};} // Reading never alters character revision, writing credit, or the command journal.
+   if(input.action==='rp_read'){const p=presence(i,c,input.controller),rpPost=rp.read(c,input.rp_id,rpArea(c,p),i.blockedAccounts??[]);return {...response(i,c),receipt:{action:'rp_read',request_id:input.request_id,rpPost}};} // Include the persisted read cursor immediately; character revision, writing credit and the command journal stay unchanged.
    if(old){if(old.fingerprint!==fingerprint)fail(409,'This request ID already describes another action.');return {...response(i,c),receipt:JSON.parse(old.result)};}
    if(input.action==='heartbeat'){
     presence(i,c,input.controller);db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);return response(i,c);
