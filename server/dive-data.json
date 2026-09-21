@@ -5,7 +5,8 @@
   "config": {
     "_comment": "Weekly server-owned pilot. Export with python/export_online_dive.py after editing; campaign generation is unchanged.",
     "enabled": true,
-    "route": "quarters-pilot",
+    "route": "quarters-pilot",
+    "zone_category": "dive",
     "themes": [
       "princess_quarters"
     ],

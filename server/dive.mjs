@@ -13,6 +13,7 @@ import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPre
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
 import {manaCapacity} from './magic-balance.mjs';
 import {hubArrival,dungeonPortals,hubRooms,hubCatalog,DAILY_COIN_CAP} from './hubs.mjs';
+import {routeCategory} from './zone-categories.mjs';
 
 export const diveData=JSON.parse(readFileSync(new URL('./dive-data.json',import.meta.url),'utf8'));
 export const DIVE_ZONE='dive-quarters';
@@ -23,6 +24,7 @@ const seconds=1000,minutes=60000;
 export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,measure=(_name,work)=>work(),upgradeFloor=()=>false,travel=()=>false,enchantments=null,compute=null,live=null}){
  const baseline=structuredClone(data);if(live){live.register(baseline);data=live.resolve(baseline);} // Each engine keeps mutable configuration isolated from shipped exports.
  const config=data.config,route=config.route,zoneId=config.zone_id??DIVE_ZONE,theme=config.theme??'princess_quarters',name=config.name??"Princess' Quarters - Dungeon Dive",bossId=(config.boss_id??'iris')||'world_boss';
+ const category=routeCategory(config); // 'dive' for instanced boss routes, 'overworld' for open wilderness; fails fast on bad authored data.
  // Only dive-data.json carries the curse/blessing table; Desert, Tundra, Taiga and
  // the campaign weeklies share that one table rather than each shipping a copy.
  const rollLoot=createDiveLootRoller(data,{table:data.enchantments??diveData.enchantments,enchantments:enchantments??createEnchantmentStore(db,{now})}); // One policy covers every online route and its personal floor progress; gamemaster retunes reach all of them.
@@ -212,10 +214,10 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function tick(){if(closed||now()-lastTick<seconds)return;lastTick=now();measure('simulation.'+zoneId,()=>{db.exec('BEGIN IMMEDIATE');try{maintain();db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');lastTick=-Infinity;log('dive_tick_failed',error.stack??String(error));}});} // Never await workers while holding a transaction or request identity.
  function snapshot(c,p){
   const state=c?JSON.parse(c.state):null,record=owns(state?.dive)?getFloor(state.dive.edition):current(),personal=c&&record?progress(c,record.edition):null;
-  const summary={enabled:config.enabled&&!!record,version:1,route,zone:zoneId,name,boss:bossId,edition:record?.edition??'',resetsAt:record?.ends??weeklyWindow(now()).ends,completed:personal?.completed??false,claimed:record?.floor.chests.filter(ch=>personal?.claimed.includes(ch.id)).length??0,total:record?.floor.chests.length??0,pickupsClaimed:(record?.floor.pickups??[]).filter(ch=>personal?.claimed.includes(ch.id)).length,pickupsTotal:record?.floor.pickups?.length??0,claimableCoins:personal?.completed?Math.max(0,config.boss_coins-personal.coinsPaid):0};
+  const summary={enabled:config.enabled&&!!record,version:1,route,zone:zoneId,category,name,boss:bossId,edition:record?.edition??'',resetsAt:record?.ends??weeklyWindow(now()).ends,completed:personal?.completed??false,claimed:record?.floor.chests.filter(ch=>personal?.claimed.includes(ch.id)).length??0,total:record?.floor.chests.length??0,pickupsClaimed:(record?.floor.pickups??[]).filter(ch=>personal?.claimed.includes(ch.id)).length,pickupsTotal:record?.floor.pickups?.length??0,claimableCoins:personal?.completed?Math.max(0,config.boss_coins-personal.coinsPaid):0};
   if(!record||p?.zone!==zoneId||!owns(state?.dive))return {dive:summary};
   const f=record.floor;
-  return {dive:{...summary,depth:1,origin:state.dive.origin,explored:personal.explored,enemies:f.enemies.filter(e=>!(e.manual&&!e.respawning&&e.dead)).map(e=>({...e,definition:undefined,name:(e.definition??data.enemies[e.type]).name,sprite:(e.definition??data.enemies[e.type]).sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",exits:f.exits??[],theme,mist:f.mist,walls:f.walls,props:f.props,geometryVersion:f.geometryVersion??0,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,decorations:f.decorations}};
+  return {dive:{...summary,depth:1,origin:state.dive.origin,explored:personal.explored,enemies:f.enemies.filter(e=>!(e.manual&&!e.respawning&&e.dead)).map(e=>({...e,definition:undefined,name:(e.definition??data.enemies[e.type]).name,sprite:(e.definition??data.enemies[e.type]).sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",category,exits:f.exits??[],theme,mist:f.mist,walls:f.walls,props:f.props,geometryVersion:f.geometryVersion??0,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,decorations:f.decorations}};
  } // Snapshots expose claim status but never another character's inventory or chest rolls.
  function claim(c,state,record,chest,automatic=false){
   const personal=progress(c,record.edition);if(personal.claimed.includes(chest.id)){if(automatic)return;fail('You already claimed this treasure this week.');}
@@ -339,5 +341,5 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(zoneId,position.x,position.y,now(),c.id);
   reveal(c,state,f,position.x,position.y); // Personal fog and claims for this edition are reused, never reset.
  }
- return {tick,snapshot,handles,act,chatArea,arrive,gmPlace,parentZone:config.parent_zone??null,controls,prepare:ensure,close(){closed=true;controls?.close();},available:()=>Boolean(config.enabled&&enabledQuery.get(route)),encounterSnapshot:state=>encounters.snapshot(state)};
+ return {category,tick,snapshot,handles,act,chatArea,arrive,gmPlace,parentZone:config.parent_zone??null,controls,prepare:ensure,close(){closed=true;controls?.close();},available:()=>Boolean(config.enabled&&enabledQuery.get(route)),encounterSnapshot:state=>encounters.snapshot(state)};
 } // All mutations run inside the zone command transaction; scheduled simulation owns its own transaction.

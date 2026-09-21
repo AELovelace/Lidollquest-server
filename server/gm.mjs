@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import {hubCatalog,hubRooms,campaignDives} from './hubs.mjs';
 import {createRoleplay} from './roleplay.mjs';
 import {createRpp} from './rpp.mjs';
+import {routeCategory,ZONE_CATEGORY} from './zone-categories.mjs';
 
 const ONLINE_WINDOW=30000; // Matches the presence freshness window every other module already uses.
 const HUB_SPAWN={x:10,y:9}; // hubDefinition() falls back to this same tile when a lobby declares no spawn of its own.
@@ -12,15 +13,15 @@ const SIGNIN_SCOPE='wallet:read'; // The panel needs identity alone: no balance 
 const panelPage=readFileSync(new URL('./gm-panel.html',import.meta.url),'utf8').replace('<!-- GM_GUIDE -->',()=>readFileSync(new URL('./gm-guide.html',import.meta.url),'utf8')).replace('/* GM_GUIDE_SCRIPT */',()=>readFileSync(new URL('./gm-guide.js',import.meta.url),'utf8')).replace('/* WORLD_PANEL */',()=>readFileSync(new URL('./gm-world-panel.js',import.meta.url),'utf8').replace('/* MONSTER_EDITOR */',()=>readFileSync(new URL('./gm-monster-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-quest-editor.js',import.meta.url),'utf8'))); // Read once at boot so a moderation click never touches the disk.
 
 export const gmZones=Object.freeze([
- {id:'global:ooc',name:'Global chat (OOC)',kind:'chat',warp:false}, // Staff can review and remove global messages through the existing chat tools.
- ...hubCatalog.map(h=>({id:h.id,name:h.name,kind:'lobby',warp:true,spawn:HUB_SPAWN})),
- ...hubRooms.map(r=>({id:r.id,name:r.name,kind:r.kind,warp:true,spawn:r.spawn})),
- {id:'dive-quarters',name:"Princess' Quarters",kind:'dive',warp:false},
- {id:'dive-desert',name:'Dustbreak Desert',kind:'dive',warp:false},
- {id:'dive-taiga',name:'Frostveil Taiga',kind:'dive',warp:false},
- {id:'dive-high-desert',name:'Dustbreak High Desert',kind:'dive',warp:false},
- {id:'dive-tundra',name:'Frostveil Tundra',kind:'dive',warp:false},
- ...campaignDives.map(({config})=>({id:config.zone_id,name:config.name,kind:'dive',warp:false})),
+ {id:'global:ooc',name:'Global chat (OOC)',kind:'chat',category:null,warp:false}, // Staff can review and remove global messages through the existing chat tools.
+ ...hubCatalog.map(h=>({id:h.id,name:h.name,kind:'lobby',category:ZONE_CATEGORY.SAFE,warp:true,spawn:HUB_SPAWN})),
+ ...hubRooms.map(r=>({id:r.id,name:r.name,kind:r.kind,category:ZONE_CATEGORY.SAFE,warp:true,spawn:r.spawn})),
+ {id:'dive-quarters',name:"Princess' Quarters",kind:'dive',category:ZONE_CATEGORY.DIVE,warp:false},
+ {id:'dive-desert',category:ZONE_CATEGORY.OVERWORLD,name:'Dustbreak Desert',kind:'dive',warp:false},
+ {id:'dive-taiga',category:ZONE_CATEGORY.OVERWORLD,name:'Frostveil Taiga',kind:'dive',warp:false},
+ {id:'dive-high-desert',category:ZONE_CATEGORY.OVERWORLD,name:'Dustbreak High Desert',kind:'dive',warp:false},
+ {id:'dive-tundra',category:ZONE_CATEGORY.OVERWORLD,name:'Frostveil Tundra',kind:'dive',warp:false},
+ ...campaignDives.map(({config})=>({id:config.zone_id,name:config.name,kind:'dive',category:routeCategory(config),warp:false})),
 ].map(Object.freeze)); // Dives are shared weekly floors whose visits the Dive engine owns, so the web panel's `warp` never targets them (in-game GM warps use gmPlace()).
 
 const zoneById=new Map(gmZones.map(z=>[z.id,z]));
