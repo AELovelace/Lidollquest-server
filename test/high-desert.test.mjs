@@ -51,7 +51,7 @@ test('north trail at (50,1) upgrades existing Desert editions without rerolling 
  }
  const f=fixture({upgrade:false});try{
   f.player('alice');f.act('alice','dive_enter',{zone:DESERT_ZONE});const chest=f.snap('alice').dive.chests[0];f.place('alice',chest);f.act('alice','dive_claim',{chest:chest.id});
-  assert.equal(f.floor('alice').exits.length,2);f.restart(true);const upgraded=f.floor('alice');assert.equal(upgraded.exits.length,3);assert.equal(upgraded.geometryVersion,1);assert.equal(f.snap('alice').dive.claimed,1);
+  assert.equal(f.floor('alice').exits.length,2);f.restart(true);const upgraded=f.floor('alice');assert.equal(upgraded.exits.length,3);assert.ok(upgraded.exits.every(e=>e.style==='gap'));assert.equal(upgraded.geometryVersion,2); // Trail, then wall gaps.assert.equal(f.snap('alice').dive.claimed,1);
   f.cross('alice');assert.equal(f.snap('alice').zone,HIGH_DESERT_ZONE);
  }finally{f.db.close();}
 });
@@ -62,12 +62,12 @@ test('High Desert requires the north Desert trail; loot stays route scoped and t
   assert.ok(f.snap('alice').zones.every(z=>!(z.portals??[]).some(p=>p.target===HIGH_DESERT_ZONE)));
   f.act('alice','dive_enter',{zone:DESERT_ZONE});assert.throws(()=>f.act('alice','dive_exit',{zone:HIGH_DESERT_ZONE}),/Stand beside/);
   const desertChest=f.snap('alice').dive.chests[0];f.place('alice',desertChest);f.act('alice','dive_claim',{chest:desertChest.id});
-  f.place('alice',{x:50,y:2});const first=f.act('alice','move',{direction:'north',world_step:true});
-  assert.equal(first.zone,HIGH_DESERT_ZONE);assert.deepEqual(first.position,{x:40,y:77});assert.equal(first.dive.claimed,0);
+  f.place('alice',{x:50,y:1});const first=f.act('alice','move',{direction:'north',world_step:true}); // Walk into the top-wall gap.
+  assert.equal(first.zone,HIGH_DESERT_ZONE);assert.deepEqual(first.position,{x:40,y:78});assert.equal(first.dive.claimed,0);
   const loot=first.dive.chests[0];f.place('alice',loot);f.act('alice','dive_claim',{chest:loot.id});
   f.restart();const resumed=f.act('alice','enter',{zone:HIGH_DESERT_ZONE,combat_version:3});assert.equal(resumed.dive.claimed,1);
   const exit=f.floor('alice').exits[0];f.place('alice',{x:exit.x,y:exit.y-1});const back=f.act('alice','move',{direction:'south'});
-  assert.equal(back.zone,DESERT_ZONE);assert.deepEqual(back.position,{x:50,y:2});assert.equal(back.dive.claimed,1);
+  assert.equal(back.zone,DESERT_ZONE);assert.deepEqual(back.position,{x:50,y:1});assert.equal(back.dive.claimed,1);
   f.cross('alice');assert.equal(f.act('alice','dive_exit').zone,DESERT_ZONE); // Escape retreats to the parent Desert first...
   assert.equal(f.act('alice','dive_exit').zone,'honeydew-lantern'); // ...then to the original hub.
   f.act('alice','dive_enter',{zone:DESERT_ZONE});assert.throws(()=>f.act('alice','dive_exit',{zone:TAIGA_ZONE}),/Stand beside|exit/); // No cross-link to the Tundra branch.

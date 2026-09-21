@@ -13,7 +13,7 @@ import {hubArrival,hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hu
 import {createDive,DIVE_ZONE} from './dive.mjs';
 import {createEnchantmentStore} from './enchantment-store.mjs';
 import {generateDesert} from './desert-generation.mjs';
-import {addNorthTrail} from './wilderness-links.mjs';
+import {addNorthTrail,openExitGaps} from './wilderness-links.mjs';
 import {createZoneCategories,ZONE_CATEGORY} from './zone-categories.mjs';
 export const DESERT_ZONE='dive-desert';
 export const desertData=JSON.parse(readFileSync(new URL('./desert-data.json',import.meta.url),'utf8'));
@@ -77,12 +77,12 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  const bank=createBank(db);
  const enchantments=createEnchantmentStore(db,{now}); // One live curse/blessing table behind every route and the /gm panel.
  const quarters=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,enchantments,...diveOptions});
- const highTrail=floor=>addNorthTrail(floor,(highDesertOptions.data??highDesertData).config); // Dustbreak's north-center gate leads up to the High Desert.
+ const highTrail=floor=>addNorthTrail(floor,(highDesertOptions.data??highDesertData).config)|openExitGaps(floor); // Dustbreak's north-center gate leads up to the High Desert.
  const desert=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:desertData,generate:generateDesert,upgradeFloor:highTrail,travel,enchantments,...desertOptions});
- const trail=floor=>addNorthTrail(floor,(taigaOptions.data??taigaData).config);
+ const trail=floor=>addNorthTrail(floor,(taigaOptions.data??taigaData).config)|openExitGaps(floor); // Non-short-circuit OR: add the trail, then open every exit as a wall gap.
  const tundra=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:tundraData,generate:generateDesert,upgradeFloor:trail,travel,enchantments,...tundraOptions});
- const taiga=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:taigaData,generate:generateDesert,travel,enchantments,...taigaOptions});
- const highDesert=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:highDesertData,generate:generateDesert,travel,enchantments,...highDesertOptions}); // Shares the wilderness generator; its only exit returns south into Dustbreak.
+ const taiga=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:taigaData,generate:generateDesert,upgradeFloor:openExitGaps,travel,enchantments,...taigaOptions});
+ const highDesert=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:highDesertData,generate:generateDesert,upgradeFloor:openExitGaps,travel,enchantments,...highDesertOptions}); // Shares the wilderness generator; its only exit returns south into Dustbreak.
  const engines=new Map([[DIVE_ZONE,quarters],[DESERT_ZONE,desert],[TUNDRA_ZONE,tundra],[TAIGA_ZONE,taiga],[HIGH_DESERT_ZONE,highDesert]]);
  function travel(c,state,source,destination){
   if(!WILDERNESS_LINKS.some(([parent,branch])=>(source===parent&&destination===branch)||(source===branch&&destination===parent)))return false;

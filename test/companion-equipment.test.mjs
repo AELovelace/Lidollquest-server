@@ -40,7 +40,7 @@ test('all lobby doors, annex exits and dungeon pads arrive on an adjacent interi
   const hall=hubRooms.find(r=>r.parent===root.id&&r.kind==='dives');
   for(const pad of hubDefinition(hall,0).portals){const arrival=hubArrival(hall,pad.target);assert.equal(Math.abs(arrival.x-pad.x)+Math.min(...Array.from({length:pad.h??1},(_,i)=>Math.abs(arrival.y-pad.y-i))),1);} // Two-tile wall openings arrive beside either tile.
   assert.deepEqual(lobby.exit,{x:1,y:10,style:'stairs'}); // Campaign stairs sit in the bottom-left corner.
-  assert.deepEqual(hubArrival(root,root.id+'-dives'),{x:10,y:3});
+  assert.deepEqual(hubArrival(root,root.id+'-dives'),{x:9,y:1});
   assert.deepEqual(hubArrival(root,root.id+'-shops'),{x:15,y:9});
  }
 });
@@ -84,7 +84,7 @@ test('every live hall route returns to its own pad, including crossing exits and
   act('create',{name:'Alice'});
   for(const root of hubCatalog){
    act('enter',{zone:root.id,loadout:{player_info:{str:10,stamina:100},inventory:[]}});
-   const hall=hubRooms.find(r=>r.parent===root.id&&r.kind==='dives');place(10,3);act('hub_visit',{zone:hall.id});
+   const hall=hubRooms.find(r=>r.parent===root.id&&r.kind==='dives');place(9,0);act('hub_visit',{zone:hall.id});
    for(const pad of hubDefinition(hall,0).portals){
     place(pad.x,pad.y+1);const entered=act('dive_enter',{zone:pad.target});
     const exits=entered.zones.find(z=>z.id===pad.target).exits??[];
@@ -95,10 +95,10 @@ test('every live hall route returns to its own pad, including crossing exits and
      place(pad.x,pad.y+1);act('dive_enter',{zone:pad.target});place(exit.x,exit.y);
      const crossed=act('dive_exit',{zone:exit.zone}),target=hubRooms.find(r=>r.id===exit.zone+'-dives');
      assert.equal(crossed.zone,target.id);assert.deepEqual(crossed.position,hubArrival(target,pad.target));
-     act('hub_visit',{zone:target.parent});act('leave');act('enter',{zone:root.id});place(10,3);act('hub_visit',{zone:hall.id});
+     act('hub_visit',{zone:target.parent});act('leave');act('enter',{zone:root.id});place(9,0);act('hub_visit',{zone:hall.id});
     }
    }
-   const returned=act('hub_visit',{zone:root.id});assert.deepEqual(returned.position,{x:10,y:3});
+   const returned=act('hub_visit',{zone:root.id});assert.deepEqual(returned.position,{x:9,y:1});
    assert.deepEqual(act('enter',{zone:root.id}).position,returned.position);act('leave');
   }
  }finally{db.close();}

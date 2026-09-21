@@ -14,6 +14,7 @@ import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
 import {manaCapacity} from './magic-balance.mjs';
 import {hubArrival,dungeonPortals,hubRooms,hubCatalog,inHubGap,DAILY_COIN_CAP} from './hubs.mjs';
 import {routeCategory} from './zone-categories.mjs';
+import {inExit,nearExit} from './wilderness-links.mjs';
 
 export const diveData=JSON.parse(readFileSync(new URL('./dive-data.json',import.meta.url),'utf8'));
 export const DIVE_ZONE='dive-quarters';
@@ -265,7 +266,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    return;
   }
   if(action==='dive_exit'||action==='leave'){if(state.run)fail('Finish or flee from the current fight first.');
-   if(input.zone){const exit=f.exits?.find(e=>e.zone===input.zone);if(!exit||Math.abs(exit.x-p.x)+Math.abs(exit.y-p.y)>1)fail('Stand beside that hub exit.');}
+   if(input.zone){const exit=f.exits?.find(e=>e.zone===input.zone);if(!exit||!nearExit(exit,p.x,p.y))fail('Stand beside that hub exit.');}
    back(c,state,input.zone??config.parent_zone);return;} // Branch regions retreat to their parent; crossings retain their original hub return.
   // Chat is handled by the zone gateway before dungeon dispatch, sharing mute, block and rate-limit rules with every other area.
   if(action==='appearance'){state.avatar=input.avatar;return;} // The zone adapter validates the cosmetic allowlist before dispatch.
@@ -282,7 +283,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    if(now()-p.moved<movementDelay(state.loadout))fail('Movement is too fast.');const d={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];if(!d)fail('Choose a direction.');
    const x=p.x+d[0],y=p.y+d[1];if(!walkable(f,x,y))fail('That tile is blocked.');const foe=f.enemies.find(e=>e.x===x&&e.y===y&&e.respawnAt<=now());
    if(foe){start(c,state,record,foe);return;}
-   const exit=f.exits?.find(e=>e.x===x&&e.y===y);
+   const exit=f.exits?.find(e=>inExit(e,x,y)); // Pads are one tile; overworld wall gaps span two.
    const entranceReturn=!(f.exits?.length)&&x===f.entrance.x&&y===f.entrance.y;
    if(exit||entranceReturn){back(c,state,exit?.zone);return;} // Stepping onto any return portal commits the transfer; spawning/reconnecting on it never triggers a bounce.
    db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(x,y,now(),c.id);reveal(c,state,f,x,y);

@@ -30,13 +30,13 @@ export const hubRooms=hubCatalog.flatMap(root=>['garden','beds','shops','dives']
  id:root.id+'-'+kind,parent:root.id,kind,hub:root.hub,theme:root.theme,
  name:kind==='garden'?districtData.districts.find(d=>d.hub===root.id).name:root.prefix+' '+({garden:'Garden',beds:'Resting Hall',shops:'Market Hall',dives:'Dive Hall'})[kind],
  width:kind==='garden'?gardenWidth:kind==='shops'?c.shop_width:20,height:kind==='garden'?gardenHeight:kind==='shops'?c.shop_height:12,
- spawn:kind==='garden'?{x:gardenWidth-2,y:Math.floor(gardenHeight/2)}:kind==='beds'?{x:1,y:6}:kind==='shops'?{x:20,y:21}:{x:10,y:9},
- exit:kind==='garden'?{x:gardenWidth-1,y:Math.floor(gardenHeight/2)-1,w:1,h:2,style:'gap',side:'right'}:kind==='beds'?{x:0,y:5,w:1,h:2,style:'gap',side:'left'}:kind==='shops'?{x:20,y:22,style:'stairs'}:{x:10,y:10,style:'door'},
+ spawn:kind==='garden'?{x:gardenWidth-2,y:Math.floor(gardenHeight/2)}:kind==='beds'?{x:1,y:6}:kind==='shops'?{x:20,y:21}:{x:9,y:10}, // Dive Hall arrivals stand just inside its bottom-wall opening.
+ exit:kind==='garden'?{x:gardenWidth-1,y:Math.floor(gardenHeight/2)-1,w:1,h:2,style:'gap',side:'right'}:kind==='beds'?{x:0,y:5,w:1,h:2,style:'gap',side:'left'}:kind==='shops'?{x:20,y:22,style:'stairs'}:{x:9,y:11,w:2,h:1,style:'gap',side:'bottom'}, // Market Halls keep their stairs; the Dive Hall returns through a bottom-wall opening.
  fixtures:kind==='beds'?hubData.beds.map((bed,i)=>({...bed,kind:'bed',x:3+(i%3)*6,y:3+Math.floor(i/3)*4})):
  kind==='shops'?[...hubData.shops.map((shop,i)=>({id:shop.id,name:shop.name,sprite:shop.sprite,kind:'shop',x:[6,14,25,33][i%4],y:6+Math.floor(i/4)*9})),{id:'bank',name:'Bank',kind:'bank',x:30,y:20},{id:'dumpster',name:'Dumpster',kind:'dumpster',sprite:'sprCityTrashCan',x:34,y:20},{id:'curse-remover',name:'Cursebreaker',kind:'npc',avatar:'objNPCMossWitch',service:'curse_remove',price:c.curse_removal_price,x:9,y:20,line:'I can release one piece of cursed gear for 20 LiDollCoins. Choose what you would like removed. Items returned to your bag remain cursed; used diapers are disposed of.'},...(hubData.market_halls.find(h=>h.hub===root.id)?.decorations??[])]:
  [], // Monthly districts supply their own persisted scenery and NPC fixtures.
 }))); // Each hub has its own presence/chat scope; fixtures are presentation data, never campaign NPCs.
-export const hubPortals=parent=>[{x:0,y:5,w:1,h:2,name:districtData.districts.find(d=>d.hub===parent)?.name??'District',target:parent+'-garden',style:'gap',side:'left'},{x:19,y:5,w:1,h:2,name:'Beds',target:parent+'-beds',style:'gap',side:'right'},{x:15,y:8,name:'Shops',target:parent+'-shops',style:'stairs'},{x:10,y:2,name:'Dungeon Dive',target:parent+'-dives',style:'door'}];
+export const hubPortals=parent=>[{x:0,y:5,w:1,h:2,name:districtData.districts.find(d=>d.hub===parent)?.name??'District',target:parent+'-garden',style:'gap',side:'left'},{x:19,y:5,w:1,h:2,name:'Beds',target:parent+'-beds',style:'gap',side:'right'},{x:15,y:8,name:'Shops',target:parent+'-shops',style:'stairs'},{x:9,y:0,w:2,h:1,name:'Dungeon Dive',target:parent+'-dives',style:'gap',side:'top'}];
 export const inHubGap=(gap,x,y)=>x>=gap.x&&x<gap.x+(gap.w??1)&&y>=gap.y&&y<gap.y+(gap.h??1);
 export const hubGaps=z=>z.parent?[...(z.exit?.style==='gap'?[{...z.exit,target:z.parent}]:[]),...(z.kind==='dives'?dungeonPortals(z.parent).filter(p=>p.style==='gap'):[])]:hubPortals(z.id).filter(p=>p.style==='gap'); // Dive Hall side walls open onto the wilderness routes.
 export const LOBBY_EXIT=Object.freeze({x:1,y:10,style:'stairs'}); // Bottom-left stairs back to the singleplayer campaign. // Only declared wall openings are traversable; all other perimeter cells remain walls.
@@ -100,7 +100,7 @@ export function hubArrival(destination, source) {
  const z=hubDefinition(destination,0),portal=z.portals.find(p=>p.target===source)??(z.parent===source?z.exit:null);
  if(!portal)return {...z.spawn}; // First entry has no prior doorway to match.
  const x=portal.x,y=portal.y+(portal.h??1)-1;
- const offsets=portal.side==='left'?[[1,0]]:portal.side==='right'?[[-1,0]]:portal===z.exit?[[0,-1],[1,0],[-1,0],[0,1]]:[[0,1],[1,0],[-1,0],[0,-1]];
+ const offsets=portal.side==='left'?[[1,0]]:portal.side==='right'?[[-1,0]]:portal.side==='top'?[[0,1]]:portal.side==='bottom'?[[0,-1]]:portal===z.exit?[[0,-1],[1,0],[-1,0],[0,1]]:[[0,1],[1,0],[-1,0],[0,-1]];
  for(const [dx,dy] of offsets){const px=x+dx,py=y+dy;
   if(px>0&&py>0&&px<z.width-1&&py<z.height-1&&!z.walls?.[py]?.[px]&&!hubBlocked(z,px,py)&&![...z.portals,z.exit].some(p=>inHubGap(p,px,py)))return {x:px,y:py};
  }

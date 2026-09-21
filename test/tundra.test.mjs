@@ -61,7 +61,7 @@ test('legacy and hall entry cannot use a route belonging to a different hub',()=
   assert.throws(()=>f.act(id,'dive_enter',{zone:'dive-desert'}),/glowing portal/);
   f.act(id,'enter',{zone:'littlebig-clockwork'});
   assert.throws(()=>f.act(id,'dive_enter',{zone:TUNDRA_ZONE}),/glowing portal/);
-  f.db.prepare('UPDATE quest_presence SET x=10,y=3 WHERE character_id=?').run(id);
+  f.db.prepare('UPDATE quest_presence SET x=9,y=0 WHERE character_id=?').run(id);
   f.act(id,'hub_visit',{zone:'littlebig-clockwork-dives'});
   f.db.prepare('UPDATE quest_presence SET x=14,y=4 WHERE character_id=?').run(id);
   assert.throws(()=>f.act(id,'dive_enter',{zone:TUNDRA_ZONE}),/glowing portal/);

@@ -49,7 +49,7 @@ test('north trail upgrades existing Tundra editions without rerolling content, l
  }
  const f=fixture({upgrade:false});try{
   f.player('alice');f.act('alice','dive_enter',{zone:TUNDRA_ZONE});const chest=f.snap('alice').dive.chests[0];f.place('alice',chest);f.act('alice','dive_claim',{chest:chest.id});
-  const old=f.floor('alice');assert.equal(old.exits.length,2);f.restart(true);const upgraded=f.floor('alice');assert.equal(upgraded.exits.length,3);assert.equal(upgraded.geometryVersion,1);assert.equal(f.snap('alice').dive.claimed,1);
+  const old=f.floor('alice');assert.equal(old.exits.length,2);f.restart(true);const upgraded=f.floor('alice');assert.equal(upgraded.exits.length,3);assert.ok(upgraded.exits.every(e=>e.style==='gap'));assert.equal(upgraded.geometryVersion,2); // Trail, then wall gaps.assert.equal(f.snap('alice').dive.claimed,1);
   f.cross('alice');assert.equal(f.snap('alice').zone,TAIGA_ZONE);
  }finally{f.db.close();}
 });
@@ -61,12 +61,12 @@ test('Taiga requires the north Tundra trail; transfers, replay, reconnect and lo
   f.act('alice','dive_enter',{zone:TUNDRA_ZONE});assert.throws(()=>f.act('alice','dive_exit',{zone:TAIGA_ZONE}),/Stand beside/);
   assert.throws(()=>f.act('alice','dive_enter',{zone:TAIGA_ZONE}),/Leave your current dungeon/);
   const tundraChest=f.snap('alice').dive.chests[0];f.place('alice',tundraChest);f.act('alice','dive_claim',{chest:tundraChest.id});
-  f.place('alice',{x:50,y:2});const command=f.command('alice','move',{direction:'north',world_step:true});const first=f.raw('alice',command);f.raw('alice',command);
-  assert.equal(first.zone,TAIGA_ZONE);assert.deepEqual(first.position,{x:40,y:77});assert.equal(first.character.worldTurnDue,undefined);assert.equal(first.character.dive.hubOrigin,'princess-rose');
+  f.place('alice',{x:50,y:1});const command=f.command('alice','move',{direction:'north',world_step:true}); /* Walk into the top-wall gap. */const first=f.raw('alice',command);f.raw('alice',command);
+  assert.equal(first.zone,TAIGA_ZONE);assert.deepEqual(first.position,{x:40,y:78});assert.equal(first.character.worldTurnDue,undefined);assert.equal(first.character.dive.hubOrigin,'princess-rose');
   assert.equal(first.dive.claimed,0);const loot=first.dive.chests[0];f.place('alice',loot);f.act('alice','dive_claim',{chest:loot.id});
   f.restart();const resumed=f.act('alice','enter',{zone:TAIGA_ZONE,combat_version:3});assert.equal(resumed.dive.claimed,1);assert.equal(resumed.character.loadout.inventory.length,2);
   const exit=f.floor('alice').exits[0];f.place('alice',{x:exit.x,y:exit.y-1});const back=f.act('alice','move',{direction:'south'});
-  assert.equal(back.zone,TUNDRA_ZONE);assert.deepEqual(back.position,{x:50,y:2});assert.equal(back.dive.claimed,1);
+  assert.equal(back.zone,TUNDRA_ZONE);assert.deepEqual(back.position,{x:50,y:1});assert.equal(back.dive.claimed,1);
   f.cross('alice');assert.equal(f.snap('alice').dive.claimed,1);assert.equal(f.act('alice','dive_exit').zone,TUNDRA_ZONE);assert.equal(f.act('alice','dive_exit').zone,'princess-rose');
  }finally{f.db.close();}
 });
@@ -89,7 +89,7 @@ test('disabled Taiga refuses entry; weekly rollover safely restores the originat
   disabled.player('alice');disabled.act('alice','dive_enter',{zone:TUNDRA_ZONE});assert.throws(()=>disabled.cross('alice'),/unavailable/);assert.equal(disabled.snap('alice').zone,TUNDRA_ZONE);
  }finally{disabled.db.close();}
  const f=fixture();try{
-  f.player('alice','honeydew-lantern');f.place('alice',{x:10,y:3});const hall=f.act('alice','hub_visit',{zone:'honeydew-lantern-dives'});
+  f.player('alice','honeydew-lantern');f.place('alice',{x:9,y:0});const hall=f.act('alice','hub_visit',{zone:'honeydew-lantern-dives'});
   const pad=hall.zones.find(z=>z.id===hall.zone).portals.find(p=>p.target===TUNDRA_ZONE);f.place('alice',pad);
   f.act('alice','dive_enter',{zone:TUNDRA_ZONE});f.cross('alice');const old=f.snap('alice').dive.edition;
   const chest=f.snap('alice').dive.chests[0];f.place('alice',chest);f.act('alice','dive_claim',{chest:chest.id});f.advance(7*86400000);
@@ -104,11 +104,11 @@ test('Taiga submission and reconnect preserve the scene before recovery at its s
   f.player('alice');f.act('alice','dive_enter',{zone:TUNDRA_ZONE});f.cross('alice');f.act('alice','enter',{zone:TAIGA_ZONE,combat_version:3,defeat_version:1});
   const foe=f.snap('alice').dive.enemies.find(e=>!tundraData.enemies[e.type]);f.place('alice',foe);const battle=f.act('alice','dive_engage',{encounter:foe.id});
   const lost=f.act('alice','submit',{battle:battle.encounter.id,cycle:battle.character.run.cycle}),pending=lost.character.pendingDefeat;
-  assert.ok(pending);assert.deepEqual(pending.position,{x:40,y:77});assert.deepEqual(lost.position,{x:foe.x,y:foe.y});
+  assert.ok(pending);assert.deepEqual(pending.position,{x:40,y:78});assert.deepEqual(lost.position,{x:foe.x,y:foe.y});
   f.restart();const resumed=f.act('alice','enter',{zone:TAIGA_ZONE,combat_version:3,defeat_version:1});assert.equal(resumed.character.pendingDefeat.id,pending.id);
   f.act('alice','defeat_complete',{scene:pending.id});assert.throws(()=>f.act('alice','dive_exit'),/defeat dialogue/);
   f.advance(61000);f.act('alice','enter',{zone:TAIGA_ZONE,combat_version:3,defeat_version:1});const recovered=f.snap('alice');
-  assert.equal(recovered.character.pendingDefeat,undefined);assert.equal(recovered.zone,TAIGA_ZONE);assert.deepEqual(recovered.position,{x:40,y:77});
+  assert.equal(recovered.character.pendingDefeat,undefined);assert.equal(recovered.zone,TAIGA_ZONE);assert.deepEqual(recovered.position,{x:40,y:78});
  }finally{f.db.close();}
 });
 

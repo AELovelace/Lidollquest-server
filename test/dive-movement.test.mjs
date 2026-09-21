@@ -34,7 +34,7 @@ test('server clock pursues and engages on every route, including existing editio
   for(const data of routes){
    const hub=data.config.hub??(data.config.zone_id==='dive-desert'?'honeydew-lantern':'princess-rose'),zone=data.config.zone_id??'dive-quarters';
    act('enter',{zone:hub,loadout:{player_info:{playerHealth:100,playerHealthMax:100,stat_points:0},inventory:[]}});
-   place(10,3);const hall=act('hub_visit',{zone:hub+'-dives'}),pad=hall.zones.find(z=>z.id===hall.zone).portals.find(p=>p.target===zone);
+   place(9,0);const hall=act('hub_visit',{zone:hub+'-dives'}),pad=hall.zones.find(z=>z.id===hall.zone).portals.find(p=>p.target===zone);
    assert.ok(pad);place(pad.x,pad.y);act('dive_enter',{zone});
    const visit=c.dive,record=()=>JSON.parse(db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=?').get(visit.route,visit.edition).content);
    const saveFloor=f=>db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=?').run(JSON.stringify(f),visit.route,visit.edition);
