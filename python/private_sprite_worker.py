@@ -54,7 +54,7 @@ def failure_diagnostic(error):
 def generate(prompt, client):
     character, _ = generation_stage("create", lambda: client.create_character_4dir(prompt, 64, "thin", "flat", "medium", "high top-down", None))
     idle = generation_stage("fetch", lambda: client.fetch_character_direction_images(character))
-    walk, _ = generation_stage("animate", lambda: client.animate_character_walk(character, "walking, smooth looping walk cycle, in place", 8))
+    walk, _ = generation_stage("animate", lambda: client.animate_character_walk(character, "walking, smooth looping walk cycle, in place", 8, idle))  # Idle poses let the client fall back to per-direction animation.
     return pack_frames(idle, walk)
 
 

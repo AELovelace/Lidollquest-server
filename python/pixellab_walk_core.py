@@ -372,6 +372,53 @@ class PixelLabClient:
         character_id: str,
         action_description: str,
         frame_count: int,
+        idle_images: dict[str, bytes] | None = None,
+    ) -> tuple[dict[str, list[bytes]], dict | None]:
+        try:
+            return self._animate_character_walk_managed(character_id, action_description, frame_count)
+        except RuntimeError as error:
+            # PixelLab (Sep 2026) routed /animate-character to a body-less handler that answers 422 before any work or charge.
+            has_idle = idle_images is not None and all(direction in idle_images for direction in DIRECTIONS)
+            if not has_idle or not str(error).startswith("PixelLab POST animate-character failed with HTTP 422."):
+                raise  # Other failures (credits, auth, rate limits) must still surface unchanged.
+            return self.animate_walk_from_frames(idle_images, action_description, frame_count), None  # Animate each idle direction directly instead.
+
+    def animate_walk_from_frames(
+        self,
+        idle_images: dict[str, bytes],
+        action_description: str,
+        frame_count: int,
+    ) -> dict[str, list[bytes]]:
+        """Animate each direction's idle image with animate-with-text-v3 (no stored character animation needed)."""
+        jobs: dict[str, str] = {}
+        for direction in DIRECTIONS:
+            payload = {
+                "first_frame": {"type": "base64", "base64": base64.b64encode(idle_images[direction]).decode("ascii"), "format": "png"},
+                "action": action_description,
+                "frame_count": frame_count,
+                "no_background": True,
+            }
+            data, _usage = self._post("animate-with-text-v3", payload)  # Submit all four first so PixelLab works on them in parallel.
+            job_id = data.get("background_job_id") if isinstance(data, dict) else None
+            if not isinstance(job_id, str) or not job_id:
+                raise RuntimeError("PixelLab did not return a background_job_id from animate-with-text-v3.")
+            jobs[direction] = job_id
+        frames: dict[str, list[bytes]] = {}
+        for direction, job_id in jobs.items():
+            job_result = self.poll_job(job_id)
+            output = job_result.get("last_response") or job_result.get("output") or {}
+            images = output.get("images", []) if isinstance(output, dict) else []
+            decoded = [image for image in (decode_image_candidate(node) for node in images) if image]  # Accept base64, data URL or hosted-URL frames.
+            if len(decoded) == frame_count + 1:
+                decoded = decoded[1:]  # Drop the echoed reference pose if PixelLab includes it, matching keep_first_frame=False.
+            frames[direction] = decoded
+        return frames  # Callers validate the per-direction frame counts themselves.
+
+    def _animate_character_walk_managed(
+        self,
+        character_id: str,
+        action_description: str,
+        frame_count: int,
     ) -> tuple[dict[str, list[bytes]], dict | None]:
         animation_name = "lidoll-walk-" + uuid.uuid4().hex
         first_animation = character_id in self._fresh_characters
