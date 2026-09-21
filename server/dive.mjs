@@ -32,7 +32,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  db.exec(`CREATE TABLE IF NOT EXISTS dive_editions(route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,starts INTEGER NOT NULL,ends INTEGER NOT NULL,content TEXT NOT NULL,updated INTEGER NOT NULL,PRIMARY KEY(route,edition,depth));
  CREATE TABLE IF NOT EXISTS dive_progress(character_id TEXT NOT NULL,route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,state TEXT NOT NULL,PRIMARY KEY(character_id,route,edition,depth));`);
  const encounters=createDiveEncounters(db,{live,now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate});
- let lastTick=-Infinity,retryAt=0,dressingRetryAt=0,generationPending=null,roamingPending=null,closed=false;
+ let lastTick=-Infinity,nextSweep=-Infinity,retryAt=0,dressingRetryAt=0,generationPending=null,roamingPending=null,closed=false;
  const floorQuery=db.prepare('SELECT * FROM dive_editions WHERE route=? AND edition=? AND depth=1');
  const existsQuery=db.prepare('SELECT 1 FROM dive_editions WHERE route=? AND edition=? AND depth=1');
  const enabledQuery=db.prepare('SELECT 1 FROM dive_editions WHERE route=? AND depth=1 LIMIT 1');
@@ -133,6 +133,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   beginRound(state,{theme,attack:0},roll,enemy); // Keep authored encounter stats rather than the arena's progressive template.
   saveFloor(record);
  }
+ function sweepDue(){return now()>=nextSweep;} // The sweep schedules itself from the soonest real deadline it saw, so recovery still lands on its exact second.
  function maintain(){
   if(live&&data.contentRevision!==live.published().revision){const fresh=live.resolve(baseline);Object.assign(config,fresh.config);data.enemies=fresh.enemies;data.enemy_types=fresh.enemy_types;data.contentRevision=fresh.contentRevision;}
   controls?.tick();
@@ -146,6 +147,9 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
     const upgraded=clone(active);dressFloor(data,upgraded.floor,visitors);addFood(data,upgraded.floor,visitors);saveFloor(upgraded);active=upgraded;log('dive_dressing_upgraded',active.edition);
    }catch(error){dressingRetryAt=now()+minutes;log('dive_dressing_failed',String(error));}
   } // Existing weekly chest claims and ongoing fights survive the additive scenery/pickup upgrade.
+  const occupied=roamingPlayers().length>0;
+  if(occupied||sweepDue()){
+  let soonest=Infinity;const due=at=>{if(Number.isFinite(at)&&at<soonest)soonest=at;};
   for(const c of db.prepare('SELECT * FROM quest_characters WHERE state LIKE ?').all('%"dive":{%')){
    const state=JSON.parse(c.state);if(!owns(state.dive))continue;
    const old=state.dive.edition!==active.edition,record=getFloor(state.dive.edition),run=state.run,p=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
@@ -154,13 +158,19 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
     finish(c,state,record,'abandoned');log('dive_encounter_abandoned',c.id,run.encounter);saveCharacter(c,state);
    }
    if(old&&!state.run&&!state.pendingDefeat){back(c,state);saveCharacter(c,state);}
+   if(state.pendingDefeat)due(state.pendingDefeat.readyAt); // Every branch above is driven by one of these wall clocks, so waking for the earliest cannot miss one.
+   if(state.run?.kind==='dive'&&!state.run.sharedEncounter){due(state.run.acted+5*minutes);due((p?.seen??now())+2*minutes);}
+   if(old&&record)due(record.ends+10*minutes);
   }
   encounters.tick(getFloor);
   // Expired editions are retained for audit and receipt replay, but cannot accept new exploration.
   active=current(); // Settlement above may have released locks; never overwrite it with the earlier floor copy.
+  nextSweep=Math.max(soonest===Infinity?now()+15*seconds:soonest,now()+seconds); // Idle routes back right off; a route holding a live deadline never sweeps faster than the old one-second cadence.
+  } // An empty route still sweeps to its own deadline, so a disconnected fight settles and a rolled-over edition returns its player without anybody present.
   if(controls?.draining())return;
   if(now()-active.updated<seconds)return;
   const players=roamingPlayers();
+  if(!players.length)return; // Nothing to pursue: skip the random walk and, more importantly, the unconditional whole-floor write below.
   if(compute&&players.length&&active.floor.enemies.some(e=>!e.engaged&&e.respawnAt<=now()&&enemyRoams(data,e))){scheduleRoaming(active,players);return;}
   roam(active,players);
  }
