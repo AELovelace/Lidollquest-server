@@ -320,5 +320,24 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(zoneId,position.x,position.y,now(),c.id);
   reveal(c,state,record.floor,position.x,position.y); // Revisit this route's own claims and fog; never re-import stale campaign equipment.
  }
- return {tick,snapshot,handles,act,chatArea,arrive,controls,prepare:ensure,close(){closed=true;controls?.close();},available:()=>Boolean(config.enabled&&enabledQuery.get(route)),encounterSnapshot:state=>encounters.snapshot(state)};
+ function gmPlace(c,state,visit){ // Gamemaster warp into this route's shared weekly floor, building the same visit record a portal or trail would.
+  if(controls?.draining())fail('This Dive is being regenerated.');
+  const record=(visit.edition&&getFloor(visit.edition))||current(); // Join a player still finishing last week's floor, otherwise the current week.
+  if(!config.enabled||!record)fail('This Dive has no floor ready this week.');
+  if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(zoneId,now()-30000,c.owner).n>=64)fail('The dive is full.');
+  const f=record.floor,goal=visit.near??entry(f,visit.origin); // Beside a player, or at the arrival point for where the visit came from.
+  const exits=[...(f.exits??[]),f.entrance]; // Standing still on these is harmless, but avoid them so the first step never bounces the GM out.
+  const open=(x,y)=>walkable(f,x,y)&&!f.enemies.some(e=>e.x===x&&e.y===y)&&!exits.some(e=>e.x===x&&e.y===y);
+  let position=null;
+  for(let r=visit.near?1:0;r<=8&&!position;r++)for(let dy=-r;dy<=r&&!position;dy++)for(let dx=-r;dx<=r;dx++){ // Nearest ring first; a player's own tile is skipped.
+   if(Math.abs(dx)+Math.abs(dy)!==r||!open(goal.x+dx,goal.y+dy))continue;
+   position={x:goal.x+dx,y:goal.y+dy};break;
+  }
+  position??={...entry(f,visit.origin)}; // A boxed-in target still lands the GM on the floor's own arrival tile.
+  state.dive={route,zone:zoneId,edition:record.edition,depth:1,origin:visit.origin,hubOrigin:visit.hubOrigin,...(visit.hubEntryZone?{hubEntryZone:visit.hubEntryZone}:{}),returnZone:visit.returnZone,position:{...position},safeUntil:now()+10*seconds};
+  state.diveReturned=null;delete state.diveReturnedPosition;delete state.hubVisit; // Same bookkeeping as dive_enter.
+  db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(zoneId,position.x,position.y,now(),c.id);
+  reveal(c,state,f,position.x,position.y); // Personal fog and claims for this edition are reused, never reset.
+ }
+ return {tick,snapshot,handles,act,chatArea,arrive,gmPlace,parentZone:config.parent_zone??null,controls,prepare:ensure,close(){closed=true;controls?.close();},available:()=>Boolean(config.enabled&&enabledQuery.get(route)),encounterSnapshot:state=>encounters.snapshot(state)};
 } // All mutations run inside the zone command transaction; scheduled simulation owns its own transaction.

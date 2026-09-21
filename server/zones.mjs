@@ -32,6 +32,7 @@ import {manaCapacity} from './magic-balance.mjs';
 import {companionEquipment} from './companion-equipment.mjs';
 import {companionSheet} from './companion.mjs';
 import {managementSchema,appearanceFields} from './character-management.mjs';
+import {createGmTools} from './gm-tools.mjs';
 
 export const questAvatars=Object.freeze(JSON.parse(readFileSync(new URL('./avatars.json',import.meta.url),'utf8')).map(Object.freeze)); // Generated from the game's NPC registry and authored object sprites.
 const avatarIds=new Set(questAvatars.map(a=>a.id));
@@ -52,7 +53,7 @@ function canonical(value,depth=0){ // Nested loadout property order may change w
  return value;
 }
 
-export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},highDesertOptions={},onPresence=()=>{},compute=null,live=null}={}) {
+export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},highDesertOptions={},onPresence=()=>{},compute=null,live=null,audit=()=>{}}={}) {
  let privateSprites=null;
  const chooseAvatar=(value,owner,cid='')=>typeof value==='string'&&value.startsWith('private-')?(privateSprites?.authorize(owner,cid,value)??fail(403,'Private sprites are unavailable.')):avatar(value);
  db.exec(`CREATE TABLE IF NOT EXISTS quest_characters(id TEXT PRIMARY KEY,owner TEXT NOT NULL,name TEXT NOT NULL,created INTEGER NOT NULL,revision INTEGER NOT NULL DEFAULT 0,state TEXT NOT NULL,creation_id TEXT NOT NULL,UNIQUE(owner,creation_id));
@@ -93,6 +94,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  const world=quests?{npcCatalog:()=>[...hubCatalog,...hubRooms].flatMap(base=>(hubDefinition(zone(base.id),now()).fixtures??[]).filter(f=>f.kind==='npc').map(f=>({id:base.id+':'+f.id,name:f.name,zone:base.id}))),catalog:baseWorld.catalog,map:quests.placements.view,act:quests.placements.act}:baseWorld;
  if(live){live.mapReady=(zone,edition,floor,options)=>quests.placements.realize(zone,edition,floor,options);live.questEvent=quests.event;live.placementPositions=quests.placements.positions;}
  const isDungeon=id=>engines.has(id);
+ const gmTools=createGmTools(db,{now,zone,blocked,isDungeon,dives:engines,quests,live,audit}); // In-game staff commands; the role check lives inside every entry point.
  const engine=id=>engines.get(id)??quarters; // No active visit still exposes the legacy Quarters summary.
  const dive={tick(){atomic(()=>parties.tick());for(const route of engines.values())route.tick();},
   snapshot(c,p){return engine(p?.zone??(c?JSON.parse(c.state).dive?.zone:null)).snapshot(c,p);},
@@ -136,7 +138,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   const questMap=p&&quests&&(Object.keys(live.published().npcs).length||Object.keys(live.published().quests).length)?quests.placements.view(p.zone):null;
   const edition=state?.dive?.edition;
   const visiblePeers=isDungeon(p?.zone)?peers.filter(peer=>peerStates.get(peer.id).dive?.edition===edition):peers;
-  return {questNpcLinks:live?Object.values(live.published().quests).flatMap(q=>[...q.givers,q.turn_in.npc]):[],onlineQuests:quests?quests.snapshot(c,state):null,questVersion:1,worldInstance:questMap?.edition,worldPlacements:questMap?questMap.placements.map(n=>({...n,instance:questMap.edition,...(n.kind==='npc'?{name:live.published().npcs[n.content]?.name??n.name,sprite:live.published().npcs[n.content]?.sprite??n.sprite}:{})})):[],rpp:c?rpp.snapshot(c,state):null,rp:{...rp.snapshot(c,chatArea?.id,restricted),candidates:c&&p?rpCandidates(i,c,p).map(({id,name})=>({id,name})):[]},dungeons:[...engines].map(([id,route])=>({id,enabled:route.available()})),serverTime:now(),loadoutSupport:true,combatVersion:2,diveCombatVersion:3,partySupport:true,globalChatSupport:true,...parties.snapshot(c,restricted),contentRevision:live?.published().revision??0,contentVersion:1,worldMonsters:p&&!isDungeon(p.zone)&&hubEvents?hubEvents.engine(p.zone).monsters():[],encounter:c?(state?.run?.kind==='hub_event'?hubEvents.engine(p.zone).snapshot(state):engine(p?.zone).encounterSnapshot(state)):null,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,tundra:tundra.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);if(summary.lastResult?.defeatScene){const {content,...scene}=summary.lastResult.defeatScene;summary.lastResult={...summary.lastResult,defeatScene:scene};}return summary;}),character:c?{avatar:'player',id:c.id,name:c.name,revision:c.revision,...publicCombatState(state)}:null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,globalChat,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null,view),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP};
+  return {gamemaster:i.gamemaster===true,questNpcLinks:live?Object.values(live.published().quests).flatMap(q=>[...q.givers,q.turn_in.npc]):[],onlineQuests:quests?quests.snapshot(c,state):null,questVersion:1,worldInstance:questMap?.edition,worldPlacements:questMap?questMap.placements.map(n=>({...n,instance:questMap.edition,...(n.kind==='npc'?{name:live.published().npcs[n.content]?.name??n.name,sprite:live.published().npcs[n.content]?.sprite??n.sprite}:{})})):[],rpp:c?rpp.snapshot(c,state):null,rp:{...rp.snapshot(c,chatArea?.id,restricted),candidates:c&&p?rpCandidates(i,c,p).map(({id,name})=>({id,name})):[]},dungeons:[...engines].map(([id,route])=>({id,enabled:route.available()})),serverTime:now(),loadoutSupport:true,combatVersion:2,diveCombatVersion:3,partySupport:true,globalChatSupport:true,...parties.snapshot(c,restricted),contentRevision:live?.published().revision??0,contentVersion:1,worldMonsters:p&&!isDungeon(p.zone)&&hubEvents?hubEvents.engine(p.zone).monsters():[],encounter:c?(state?.run?.kind==='hub_event'?hubEvents.engine(p.zone).snapshot(state):engine(p?.zone).encounterSnapshot(state)):null,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,tundra:tundra.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);if(summary.lastResult?.defeatScene){const {content,...scene}=summary.lastResult.defeatScene;summary.lastResult={...summary.lastResult,defeatScene:scene};}return summary;}),character:c?{avatar:'player',id:c.id,name:c.name,revision:c.revision,...publicCombatState(state)}:null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,globalChat,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null,view),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP};
  } // Snapshots expose only zone avatars and chat, never wallet credentials or account IDs.
  function read(secret,id,view={}){const i=identity(secret);limit(i.owner);districts.refresh();dive.tick();if(view.companion&&!id)id=db.prepare('SELECT character_id FROM quest_presence WHERE owner=? ORDER BY seen DESC LIMIT 1').get(i.owner)?.character_id??db.prepare('SELECT id FROM quest_characters WHERE owner=? ORDER BY created DESC,id LIMIT 1').get(i.owner)?.id;
   return snapshot(i,id?character(i.owner,id):null,view);} // Only this read honours the companion view; every in-play snapshot keeps the beside-a-bank rule.
@@ -191,6 +193,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    if(db.prepare("SELECT 1 FROM quest_management WHERE character_id=? AND status='pending'").get(c.id))fail(409,'Your character change is still settling.','character_change_pending');
    const old=db.prepare('SELECT * FROM quest_commands WHERE character_id=? AND request_id=?').get(c.id,input.request_id);
    if(input.action==='rp_read'){const p=presence(i,c,input.controller),rpPost=rp.read(c,input.rp_id,rpArea(c,p),i.blockedAccounts??[]);return {...response(i,c),receipt:{action:'rp_read',request_id:input.request_id,rpPost}};} // Include the persisted read cursor immediately; character revision, writing credit and the command journal stay unchanged.
+   if(input.action==='gm_catalog'){gmTools.requireGm(i);presence(i,c,input.controller);return {...response(i,c),receipt:{action:'gm_catalog',request_id:input.request_id,gm:gmTools.catalog(i,c)}};} // A read-only list: no revision bump or journal row, exactly like rp_read.
    if(old){if(old.fingerprint!==fingerprint)fail(409,'This request ID already describes another action.');return {...response(i,c),receipt:JSON.parse(old.result)};}
    if(input.action==='heartbeat'){
     presence(i,c,input.controller);db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);return response(i,c);
@@ -219,7 +222,8 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    if(state.worldTurnDue&&!['world_turn','enter','chat'].includes(input.action))fail(409,'Finish your pending exploration turn first.');
    const divePresence=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
    if(quests&&input.action==='move'&&divePresence){const step={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];if(step&&quests.placements.rows(divePresence.zone).length&&quests.placements.view(divePresence.zone).placements.some(p=>p.kind==='npc'&&p.x===divePresence.x+step[0]&&p.y===divePresence.y+step[1]))fail(409,'An NPC is standing there. Speak to them or walk around.');}
-   if(quests&&/^(npc_|quest_)/.test(input.action)){presence(i,c,input.controller);quests.act(c,state,input);}
+   if(input.action.startsWith('gm_')){p=presence(i,c,input.controller);gmTools.act(i,c,state,input,p);} // Staff tools refuse ordinary accounts before touching any state.
+   else if(quests&&/^(npc_|quest_)/.test(input.action)){presence(i,c,input.controller);quests.act(c,state,input);}
    else if(input.action.startsWith('party_')){presence(i,c,input.controller);parties.act(c,input,i.blockedAccounts??[]);}
    else if(['companion_equip','companion_unequip'].includes(input.action)){
     companionEquipment(db,c,state,divePresence?.seen>now()-30000?divePresence:null,input,hubData.equipment,hubData.config.inventory_capacity,now());
@@ -389,7 +393,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     if(input.action!=='leave')db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);
    }
    const afterPresence=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
-   if(input.action!=='defeat_complete')parties.transfer(c,state,divePresence,afterPresence); // Portal transfers remain grouped; defeat acknowledgement returns only its reader.
+   if(input.action!=='defeat_complete'&&!input.action.startsWith('gm_'))parties.transfer(c,state,divePresence,afterPresence); // Portal transfers remain grouped; defeat acknowledgement returns only its reader.
    if(input.action==='leave'&&!afterPresence)parties.remove(c.id); // Campaign return leaves only this member.
    if(quests)quests.after(c,state,input);
    if(state.run)syncRunHealth(state,state.run);

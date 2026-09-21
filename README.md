@@ -502,6 +502,35 @@ A gamemaster cannot mute or suspend their own account. Every action writes a
 The panel never reads wallet credentials, never writes character inventories and
 never mints coins.
 
+### In-game GM tools
+
+Gamemaster accounts also get a panel inside the game's multiplayer rooms. It uses no new
+route: each command is an ordinary `POST /zones/action` with a `gm_*` action, so it keeps
+the durable request ID, controller lease and revision checks of every other command, and
+needs no tracker or gateway change. `server/gm-tools.mjs` checks the same `gamemaster`
+flag on every command and writes a `gm_audit` row naming the actor. Snapshots include
+`gamemaster:true|false` so the client knows whether to show the panel.
+
+| Action | Input | Effect |
+| --- | --- | --- |
+| `gm_catalog` | none | Read-only. The receipt's `gm` holds online players (name, room, tile), warpable rooms and published quests with this character's status. No revision bump. |
+| `gm_warp_zone` | `zone` | Moves the GM to a hub lobby or annex (nearest open tile to its spawn that is not an exit, portal or wall gap), or into a Dive with a floor this week at its normal arrival point. |
+| `gm_warp_player` | `target` (character id) | Moves the GM beside an online player, including onto the same edition of a Dive they are in. |
+| `gm_summon` | `target` | Moves an online player beside the GM, sets their `hubNotice` and bumps their revision so their next command refreshes first. |
+| `gm_zone_reload` | none | Drops the cached published content; the client then rebuilds the room. |
+| `gm_quest_start` / `_advance` / `_complete` / `_reset` | `quest` | On the GM's own character: start without giver or prerequisites, finish the current stage, jump to ready-to-turn-in, or delete the instance, its counted events and its claim. None of them pays rewards. |
+
+Dives are shared weekly floors, so GM warps may enter them. `gmPlace()` in `server/dive.mjs`
+builds the same `state.dive` visit a portal would: edition, origin hub, return room, and
+for branch Dives (Taiga, High Desert) arrival on the trail from the parent Dive. It picks
+an open tile that is not an enemy or exit, and reveals fog. Warping out of a Dive clears
+the visit as walking out does; personal claims and fog stay saved. Summon only works
+between hub rooms. Warps refuse a mover who is mid-fight, in a defeat dialogue or settling
+a purchase, and they skip the party group transfer a portal would apply. Refusals are 400 or
+409 (`gm_not_gamemaster`, `gm_zone_not_warpable`, `gm_not_online`, ...), never 401/403,
+because the game treats those as a lost sign-in. Verify with
+`node --test test/gm-tools.test.mjs`.
+
 Account identifiers shown in the panel are the per-app pseudonyms LiDollQuest
 already uses (`sha256('lidollquest:' + participant)`). This service cannot resolve
 them to a Little Log participant, and the panel deliberately does not try.
