@@ -13,13 +13,16 @@ import {hubArrival,hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hu
 import {createDive,DIVE_ZONE} from './dive.mjs';
 import {createEnchantmentStore} from './enchantment-store.mjs';
 import {generateDesert} from './desert-generation.mjs';
-import {addTaigaTrail} from './wilderness-links.mjs';
+import {addNorthTrail} from './wilderness-links.mjs';
 export const DESERT_ZONE='dive-desert';
 export const desertData=JSON.parse(readFileSync(new URL('./desert-data.json',import.meta.url),'utf8'));
 export const TUNDRA_ZONE='dive-tundra';
 export const tundraData=JSON.parse(readFileSync(new URL('./tundra-data.json',import.meta.url),'utf8'));
 export const TAIGA_ZONE='dive-taiga';
 export const taigaData=JSON.parse(readFileSync(new URL('./taiga-data.json',import.meta.url),'utf8'));
+export const HIGH_DESERT_ZONE='dive-high-desert';
+export const highDesertData=JSON.parse(readFileSync(new URL('./high-desert-data.json',import.meta.url),'utf8')); // Juniper plateau branch north of Dustbreak Desert.
+export const WILDERNESS_LINKS=Object.freeze([[TUNDRA_ZONE,TAIGA_ZONE],[DESERT_ZONE,HIGH_DESERT_ZONE]]); // Each [parent,branch] pair is one reciprocal north trail.
 import {createBank} from './bank.mjs';
 import {createItemOrigins} from './item-origins.mjs';
 import {inspectionProjection} from './inspection.mjs';
@@ -49,7 +52,7 @@ function canonical(value,depth=0){ // Nested loadout property order may change w
  return value;
 }
 
-export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},onPresence=()=>{},compute=null,live=null}={}) {
+export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},highDesertOptions={},onPresence=()=>{},compute=null,live=null}={}) {
  let privateSprites=null;
  const chooseAvatar=(value,owner,cid='')=>typeof value==='string'&&value.startsWith('private-')?(privateSprites?.authorize(owner,cid,value)??fail(403,'Private sprites are unavailable.')):avatar(value);
  db.exec(`CREATE TABLE IF NOT EXISTS quest_characters(id TEXT PRIMARY KEY,owner TEXT NOT NULL,name TEXT NOT NULL,created INTEGER NOT NULL,revision INTEGER NOT NULL DEFAULT 0,state TEXT NOT NULL,creation_id TEXT NOT NULL,UNIQUE(owner,creation_id));
@@ -72,14 +75,16 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  const bank=createBank(db);
  const enchantments=createEnchantmentStore(db,{now}); // One live curse/blessing table behind every route and the /gm panel.
  const quarters=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,enchantments,...diveOptions});
- const desert=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:desertData,generate:generateDesert,enchantments,...desertOptions});
- const trail=floor=>addTaigaTrail(floor,(taigaOptions.data??taigaData).config);
+ const highTrail=floor=>addNorthTrail(floor,(highDesertOptions.data??highDesertData).config); // Dustbreak's north-center gate leads up to the High Desert.
+ const desert=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:desertData,generate:generateDesert,upgradeFloor:highTrail,travel,enchantments,...desertOptions});
+ const trail=floor=>addNorthTrail(floor,(taigaOptions.data??taigaData).config);
  const tundra=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:tundraData,generate:generateDesert,upgradeFloor:trail,travel,enchantments,...tundraOptions});
  const taiga=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:taigaData,generate:generateDesert,travel,enchantments,...taigaOptions});
- const engines=new Map([[DIVE_ZONE,quarters],[DESERT_ZONE,desert],[TUNDRA_ZONE,tundra],[TAIGA_ZONE,taiga]]);
+ const highDesert=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:highDesertData,generate:generateDesert,travel,enchantments,...highDesertOptions}); // Shares the wilderness generator; its only exit returns south into Dustbreak.
+ const engines=new Map([[DIVE_ZONE,quarters],[DESERT_ZONE,desert],[TUNDRA_ZONE,tundra],[TAIGA_ZONE,taiga],[HIGH_DESERT_ZONE,highDesert]]);
  function travel(c,state,source,destination){
-  if(!((source===TUNDRA_ZONE&&destination===TAIGA_ZONE)||(source===TAIGA_ZONE&&destination===TUNDRA_ZONE)))return false;
-  engines.get(destination).arrive(c,state,source);return true; // Only this authored reciprocal trail connects dungeons; hub portals cannot enter the branch.
+  if(!WILDERNESS_LINKS.some(([parent,branch])=>(source===parent&&destination===branch)||(source===branch&&destination===parent)))return false;
+  engines.get(destination).arrive(c,state,source);return true; // Only authored reciprocal trails connect dungeons; hub portals cannot enter a branch.
  }
  for(const data of campaignDives)engines.set(data.config.zone_id,createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data,enchantments})); // Each destination keeps its own editions, loot receipts and encounter locks.
  const hubEvents=live?createHubEncounters(db,{now,roll,parties,live,ids:[...hubCatalog,...hubRooms].map(z=>z.id),definition:id=>{const z=zone(id),d=hubDefinition(z,now());return {...d,width:z.width??20,height:z.height??12,walls:Array.from({length:z.height??12},(_,y)=>Array.from({length:z.width??20},(_,x)=>blocked(z,x,y)?1:0))};}}):null;

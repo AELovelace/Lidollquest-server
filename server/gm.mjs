@@ -18,6 +18,7 @@ export const gmZones=Object.freeze([
  {id:'dive-quarters',name:"Princess' Quarters",kind:'dive',warp:false},
  {id:'dive-desert',name:'Dustbreak Desert',kind:'dive',warp:false},
  {id:'dive-taiga',name:'Frostveil Taiga',kind:'dive',warp:false},
+ {id:'dive-high-desert',name:'Dustbreak High Desert',kind:'dive',warp:false},
  {id:'dive-tundra',name:'Frostveil Tundra',kind:'dive',warp:false},
  ...campaignDives.map(({config})=>({id:config.zone_id,name:config.name,kind:'dive',warp:false})),
 ].map(Object.freeze)); // Dives are edition-scoped instances, so they are listed for observation but never offered as warp destinations.

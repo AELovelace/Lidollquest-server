@@ -15,8 +15,8 @@ test('worker startup prepares every route and HTTP commands/reads each build one
  const count=()=>service.metrics.snapshot().current.timings.find(t=>t.name==='snapshot.build')?.calls??0;
  const act=async input=>{const before=count(),res=await fetch(url+'/zones/action',{method:'POST',headers,body:JSON.stringify(input)});const data=await res.json();assert.equal(res.status,200,JSON.stringify(data));assert.equal(count(),before+1);return data;};
  try{
-  assert.equal(service.db.prepare('SELECT COUNT(*) n FROM dive_editions').get().n,10);
-  assert.equal(service.metrics.snapshot().current.workers.workers.reduce((n,w)=>n+w.completed,0),10);
+  assert.equal(service.db.prepare('SELECT COUNT(*) n FROM dive_editions').get().n,11);
+  assert.equal(service.metrics.snapshot().current.workers.workers.reduce((n,w)=>n+w.completed,0),11);
   const created=await act({action:'create',request_id:randomUUID(),controller:'window',name:'Snapshot tester'});
   const command={action:'enter',character_id:created.character.id,revision:created.character.revision,request_id:randomUUID(),controller:'window',zone:'honeydew-lantern'};
   const entered=await act(command),replay=await act(command);assert.deepEqual(replay.receipt,entered.receipt);assert.equal(replay.character.revision,entered.character.revision);
