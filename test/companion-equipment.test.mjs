@@ -38,7 +38,8 @@ test('all lobby doors, annex exits and dungeon pads arrive on an adjacent interi
    assert.deepEqual(enter,child.spawn);
   }
   const hall=hubRooms.find(r=>r.parent===root.id&&r.kind==='dives');
-  for(const pad of hubDefinition(hall,0).portals){const arrival=hubArrival(hall,pad.target);assert.equal(Math.abs(arrival.x-pad.x)+Math.abs(arrival.y-pad.y),1);}
+  for(const pad of hubDefinition(hall,0).portals){const arrival=hubArrival(hall,pad.target);assert.equal(Math.abs(arrival.x-pad.x)+Math.min(...Array.from({length:pad.h??1},(_,i)=>Math.abs(arrival.y-pad.y-i))),1);} // Two-tile wall openings arrive beside either tile.
+  assert.deepEqual(lobby.exit,{x:1,y:10,style:'stairs'}); // Campaign stairs sit in the bottom-left corner.
   assert.deepEqual(hubArrival(root,root.id+'-dives'),{x:10,y:3});
   assert.deepEqual(hubArrival(root,root.id+'-shops'),{x:15,y:9});
  }

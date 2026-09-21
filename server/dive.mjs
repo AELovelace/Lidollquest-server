@@ -12,7 +12,7 @@ import {generateFloor,dressFloor,addFood,weeklyWindow,seeded,pathTo,walkable,ins
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation} from './combat.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
 import {manaCapacity} from './magic-balance.mjs';
-import {hubArrival,dungeonPortals,hubRooms,hubCatalog,DAILY_COIN_CAP} from './hubs.mjs';
+import {hubArrival,dungeonPortals,hubRooms,hubCatalog,inHubGap,DAILY_COIN_CAP} from './hubs.mjs';
 import {routeCategory} from './zone-categories.mjs';
 
 export const diveData=JSON.parse(readFileSync(new URL('./dive-data.json',import.meta.url),'utf8'));
@@ -243,7 +243,8 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    if(state.dive&&!owns(state.dive))fail('Leave your current dungeon before entering another route.');
    if(!state.dive){const hall=hubRooms.find(r=>r.id===p?.zone&&r.kind==='dives');if(!p||!hall&&!hubCatalog.some(h=>h.id===p.zone)||p.seen<=now()-30000||p.controller!==input.controller||p.grant_id!==i.id)fail('Enter from an online dive hall.');
     const portal=dungeonPortals(hall?.parent??p.zone).find(v=>v.target===zoneId);
-    if(!portal||hall&&Math.abs(p.x-portal.x)+Math.abs(p.y-portal.y)>1)fail('Stand on or beside that glowing portal.'); // Legacy lobby entry remains accepted only for routes connected to that hub.
+    const beside=portal?.style==='gap'?inHubGap({x:portal.x-1,y:portal.y-1,w:(portal.w??1)+2,h:(portal.h??1)+2},p.x,p.y):portal&&Math.abs(p.x-portal.x)+Math.abs(p.y-portal.y)<=1; // Wall openings span two tiles; pads are one.
+    if(!portal||hall&&!beside)fail(portal?.style==='gap'?'Walk through the wall opening.':'Stand on or beside that glowing portal.'); // Legacy lobby entry remains accepted only for routes connected to that hub.
     if(input.loadout)state.loadout=importLoadout(input.loadout);if(!state.loadout)fail('Import your character first.');
     const record=current(),origin=hall?.parent??p.zone;if(!record)fail('The weekly floor is not ready.');state.dive={route,zone:zoneId,edition:record.edition,depth:1,origin,returnZone:p.zone,position:{...entry(record.floor,origin)},safeUntil:now()+10*seconds};state.diveReturned=null;delete state.diveReturnedPosition;delete state.hubVisit;
    }

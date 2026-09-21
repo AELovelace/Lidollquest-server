@@ -42,7 +42,7 @@ test('both lobbies connect to four shared annexes with quadruple gardens, six be
      assert.equal(definition.fixtures.filter(f=>f.kind==='bank').length,1);
      for(const merchant of definition.fixtures.filter(f=>f.kind==='shop')){assert.ok(merchant.offers.length);assert.ok(merchant.offers.every(o=>Number.isSafeInteger(o.price)&&o.price>0));}
     }
-    if(definition.kind==='dives'){assert.equal(portal.style,'door');assert.equal(definition.portals.length,{'honeydew-lantern':5,'littlebig-clockwork':3,'princess-rose':3}[lobby.id]);assert.ok(definition.portals.every(p=>p.style==='warp'));}
+    if(definition.kind==='dives'){assert.equal(portal.style,'door');assert.equal(definition.portals.length,{'honeydew-lantern':5,'littlebig-clockwork':3,'princess-rose':3}[lobby.id]);assert.ok(definition.portals.every(p=>['warp','gap'].includes(p.style)));assert.deepEqual(definition.portals.filter(p=>p.style==='gap').map(p=>p.side+':'+p.target),{'honeydew-lantern':['left:dive-tundra','right:dive-desert'],'littlebig-clockwork':['left:dive-desert'],'princess-rose':['right:dive-tundra']}[lobby.id]);} // West-to-east: Rose | Tundra | Lantern | Desert | LittleBig.
     const committed=structuredClone(c.loadout);const reconnect=act('enter',{zone:lobby.id,loadout:{player_info:{},inventory:[]}});
     assert.equal(reconnect.zone,portal.target);assert.deepEqual(c.loadout,committed);
     if(definition.exit.style==='gap'){
