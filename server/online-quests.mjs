@@ -51,6 +51,9 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
  }
  function accept(c,s,key,source){const previous=instances(c).find(q=>q.quest===key&&q.state.status==='abandoned'),d=previous?.definition??live.published().quests[key];if(!d||d.retired)fail('This quest is not available.');if(instances(c).filter(q=>['active','choice','ready'].includes(q.state.status)).length>=16)fail('Finish or abandon a quest before accepting another (16 active quests).');if(!eligible(c,d))fail('This quest is already active or is not available again yet.');if(!conditions(s,d.conditions)||d.prerequisites.some(k=>!db.prepare('SELECT 1 FROM online_quest_claims WHERE character_id=? AND quest=?').get(c.id,k)))fail('Quest requirements are not met.');
   if(!offersFrom(d,source))fail('Accept this quest from its designated NPC.');
+  return instantiate(c,s,key,d,previous);
+ }
+ function instantiate(c,s,key,d,previous){ // Pin the definition and create (or resume) one instance; shared by NPC acceptance and the GM start tool.
   const definition=clone(d),equipment={...hubData.equipment,...combatData.defeat_items};
   definition.items??=Object.fromEntries([...new Set([...definition.rewards.items.map(i=>i.id),...definition.rewards.equipment])].map(id=>[id,clone(equipment[id])]));definition.npcs??={};
   for(const [id,npc] of Object.entries(live.published().npcs))if(!previous&&(references(definition,id)||definition.givers.includes(id)||npc.quests.includes(key)))definition.npcs[id]=clone(npc);
@@ -88,6 +91,47 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
   if(paid){adjust(c.owner,'coins',paid,'quest-'+q.id,'Quest: '+q.definition.name);db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=coins+excluded.coins').run(c.owner,day,paid);}
   const result={quest:key,name:q.definition.name,coins:paid,cappedCoins:r.coins-paid,xp:r.xp,rpp:r.rpp,items:r.items};db.prepare('INSERT INTO online_quest_claims VALUES (?,?,?,?,?)').run(q.id,c.id,key,now(),JSON.stringify(result));q.state.status='claimed';q.state.reward=result;save(q);Object.assign(s,next);s.questReward=result;
  } // The caller's transaction owns the claim, inventory, progression, currency outbox, and command receipt.
+ function gm(c,s,op,key){ // Gamemaster test shortcuts. They move quest state only; rewards still come from the normal turn-in.
+  const published=live.published().quests[key],current=active(c,key);
+  if(op==='quest_start'){
+   if(!published||published.retired)fail('That quest is not published.');
+   if(current)fail('That quest is already active; reset it first to start over.');
+   if(instances(c).filter(q=>['active','choice','ready'].includes(q.state.status)).length>=16)fail('Finish or abandon a quest before starting another (16 active quests).');
+   db.prepare("DELETE FROM online_quests WHERE character_id=? AND quest=? AND json_extract(state,'$.status')='abandoned'").run(c.id,key); // A forced start is always a clean attempt, never a resumed one.
+   instantiate(c,s,key,published,null); // Skips giver, eligibility, conditions and prerequisites on purpose.
+   return published.name;
+  }
+  if(op==='quest_reset'){
+   const rows=db.prepare('SELECT id FROM online_quests WHERE character_id=? AND quest=?').all(c.id,key);
+   if(!rows.length&&!db.prepare('SELECT 1 FROM online_quest_claims WHERE character_id=? AND quest=?').get(c.id,key))fail('This character has no history with that quest.');
+   for(const row of rows)db.prepare('DELETE FROM online_quest_events WHERE instance=?').run(row.id); // Forget which events were counted so a new attempt can earn them again.
+   db.prepare('DELETE FROM online_quest_claims WHERE character_id=? AND quest=?').run(c.id,key); // Clears once-only and cooldown eligibility for this character alone.
+   db.prepare('DELETE FROM online_quests WHERE character_id=? AND quest=?').run(c.id,key);
+   return published?.name??key;
+  }
+  if(!current)fail('That quest is not active on this character.');
+  if(op==='quest_complete'){
+   if(current.state.status==='ready')fail('That quest is already ready to turn in.');
+   current.state.status='ready';save(current); // Skip every remaining stage; the reward is still claimed at the usual NPC or journal.
+   return current.definition.name;
+  }
+  if(op==='quest_advance'){
+   if(current.state.status!=='active')fail(current.state.status==='choice'?'Pick a branch in the journal to continue.':'That quest is already ready to turn in.');
+   const stage=current.definition.stages.find(v=>v.id===current.state.stage);
+   for(const o of stage.objectives)current.state.progress[stage.id+':'+o.id]=o.count; // Mark every objective of this stage met.
+   if(stage.branches.length)current.state.status='choice';else transition(current,stage.next); // Same exit rule evaluate() applies to a naturally finished stage.
+   save(current);evaluate(current,c,s); // The next stage may already be satisfied by the character's current state.
+   return current.definition.name;
+  }
+  fail('Unknown quest tool.',400);
+ }
+ function gmCatalog(c){ // Every published quest plus this character's latest status, for the in-game GM list.
+  const all=instances(c);
+  return Object.values(live.published().quests).filter(d=>!d.retired).slice(0,200).map(d=>{
+   const mine=all.filter(q=>q.quest===d.id).at(-1),claimed=db.prepare('SELECT 1 FROM online_quest_claims WHERE character_id=? AND quest=?').get(c.id,d.id);
+   return {id:d.id,name:d.name,status:mine?.state.status??(claimed?'claimed':'')};
+  });
+ }
  function busy(s){if(s.run||s.pendingDefeat||s.worldTurnDue||s.pendingPurchase)fail('Finish the current action before continuing this quest.');}
  function conversation(c,s,input){const row=db.prepare('SELECT * FROM online_conversations WHERE character_id=?').get(c.id);if(!row||row.id!==input.conversation||row.expires<=now())fail('This conversation has ended. Speak to the NPC again.');nearby(c,s,row.placement,row.edition);return {...row,definition:JSON.parse(row.definition)};}
  function act(c,s,input){busy(s);if(input.action==='quest_accept')fail('Speak to the designated NPC and choose a quest in their conversation.');if(input.quest){const q=active(c,input.quest),definition=live.published().quests[input.quest],revision=q?.revision??(definition?digest(definition):null);if(typeof input.quest_revision!=='string'||input.quest_revision!==revision)fail('This quest changed. Refresh before choosing an action.');}if(input.action==='npc_talk'||input.action==='quest_interact'){
@@ -118,5 +162,5 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
  function after(c,s,input){if(!db.prepare("SELECT 1 FROM online_quests WHERE character_id=? AND json_extract(state,'$.status') IN ('active','choice') LIMIT 1").get(c.id))return;tickCharacter(c,s);const p=position(c,s);if(p){event(c,s,{id:'zone:'+input.request_id,type:'visit',target:p.zone,zone:p.zone});const map=placements.view(p.zone);for(const place of map.placements)if(place.kind==='location'&&p.x===place.x&&p.y===place.y)event(c,s,{id:'location:'+input.request_id,type:'visit',target:place.content,zone:p.zone});}}
  // Reset online clock checkpoints on boot: time while the service was stopped never counts as connected play.
  for(const row of db.prepare('SELECT * FROM online_quests').all()){const q=unpack(row);if(q.definition.timer.mode==='online'){q.state.last_tick=now();save(q);}}
- return {placements,act,after,event,snapshot,conditions,detail(c,s,id){const q=instances(c).find(q=>q.id===id||q.quest===id);if(!q)fail('Quest not found.',404);return publicQuest(q,s);},tick(){for(const c of db.prepare("SELECT DISTINCT c.* FROM quest_characters c JOIN online_quests q ON q.character_id=c.id WHERE json_extract(q.state,'$.status') IN ('active','choice')").all())tickCharacter(c,JSON.parse(c.state));placements.tick();}};
+ return {placements,act,after,event,snapshot,conditions,gm,gmCatalog,detail(c,s,id){const q=instances(c).find(q=>q.id===id||q.quest===id);if(!q)fail('Quest not found.',404);return publicQuest(q,s);},tick(){for(const c of db.prepare("SELECT DISTINCT c.* FROM quest_characters c JOIN online_quests q ON q.character_id=c.id WHERE json_extract(q.state,'$.status') IN ('active','choice')").all())tickCharacter(c,JSON.parse(c.state));placements.tick();}};
 }

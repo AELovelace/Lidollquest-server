@@ -21,7 +21,7 @@ export const gmZones=Object.freeze([
  {id:'dive-high-desert',name:'Dustbreak High Desert',kind:'dive',warp:false},
  {id:'dive-tundra',name:'Frostveil Tundra',kind:'dive',warp:false},
  ...campaignDives.map(({config})=>({id:config.zone_id,name:config.name,kind:'dive',warp:false})),
-].map(Object.freeze)); // Dives are edition-scoped instances, so they are listed for observation but never offered as warp destinations.
+].map(Object.freeze)); // Dives are shared weekly floors whose visits the Dive engine owns, so the web panel's `warp` never targets them (in-game GM warps use gmPlace()).
 
 const zoneById=new Map(gmZones.map(z=>[z.id,z]));
 const zoneName=id=>zoneById.get(id)?.name??id; // Unknown ids still read sensibly if a new route ships before this catalogue is updated.
@@ -341,6 +341,6 @@ export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,wo
   }
  }
 
- return {route,muted,suspended,sanction,overview,chat,player,
+ return {route,muted,suspended,sanction,overview,chat,player,record, // record: in-game GM tools write to the same audit log as the web panel.
   act:(action,payload={},who='')=>Object.hasOwn(actions,action)?actions[action](payload,who):fail(400,'Unknown action.','gm_unknown_action')};
 } // Gamemaster rights live in Little Log's participant_access table; this service only reads the decision and records who acted.
