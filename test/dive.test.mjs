@@ -167,6 +167,15 @@ test('weekly reset returns idle visitors, grants active fights grace and rejects
   f.setTime('2026-10-05T11:00:01Z');f.tick();assert.equal(f.snap(a).character.dive,null);assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM dive_editions WHERE route='quarters-pilot'").get().n,3,'downtime creates only the currently due edition');
  }finally{f.close();}
 });
+test('static routes keep their floor, visitors and claims across weekly resets',()=>{
+ const data={...structuredClone(diveData),config:{...structuredClone(diveData.config),static:true}}; // Same Quarters route, flagged persistent.
+ const f=fixture({data});try{const a=f.player(),first=f.snap(a).dive;assert.equal(first.static,true);assert.equal(first.resetsAt,0); // Clients get no countdown for a persistent map.
+  f.setTime('2026-09-21T10:59:50Z');f.act(a,'enter',{zone:DIVE_ZONE}); // Refresh presence just before the boundary, like the weekly-reset test.
+  f.setTime('2026-09-21T11:00:01Z');f.tick();let s=f.act(a,'heartbeat');assert.equal(s.zone,DIVE_ZONE);assert.equal(s.dive.edition,first.edition,'the visitor stays on the same floor after Monday'); // Weekly routes would return this visitor to the hub.
+  f.setTime('2026-10-05T11:00:01Z');f.tick();assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM dive_editions WHERE route='quarters-pilot'").get().n,1,'no new editions are generated'); // Weeks of downtime still leave only the original floor.
+  assert.equal(JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(a).state).dive?.edition,first.edition,'the idle visitor is never swept back to the hub'); // Read raw state: presence has gone stale over the downtime.
+ }finally{f.close();}
+});
 test('failed generation retains the last valid edition and claims',()=>{
  let broken=false;const f=fixture({generate:(...args)=>{if(broken)throw Error('fixture failure');return generateFloor(...args);}});try{const a=f.player(),old=f.snap(a).dive.edition;broken=true;f.setTime('2026-09-21T11:00:01Z');f.tick();f.act(a,'enter',{zone:DIVE_ZONE});assert.equal(f.snap(a).dive.edition,old);assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM dive_editions WHERE route='quarters-pilot'").get().n,1);}finally{f.close();}
 });

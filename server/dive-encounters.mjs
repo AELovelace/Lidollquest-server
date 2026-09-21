@@ -129,7 +129,7 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
    if(restarted){for(const [index,enemy] of e.enemies.entries()){
     enemy.duration=Math.max(enemy.readyAt-now(),enemyActionDelay(enemy.data.dex??0,roll)+index*encounterTuning.enemy_initial_stagger_ms);enemy.readyAt=now()+enemy.duration;
    }for(const {a} of rows)if(!a.prepared)a.readyAt=Math.max(a.readyAt,now()+a.duration*(1-encounterTuning.player_initial_fill));changed=true;} // Persist fresh staggered recovery timers once; polling never rerolls a running gauge.
-   const forced=now()>=record.ends+600000||rows.every(v=>(db.prepare('SELECT seen FROM quest_presence WHERE character_id=?').get(v.c.id)?.seen??0)<now()-150000);
+   const forced=!config.static&&now()>=record.ends+600000||rows.every(v=>(db.prepare('SELECT seen FROM quest_presence WHERE character_id=?').get(v.c.id)?.seen??0)<now()-150000);
    if(!forced){for(const enemy of e.enemies){if(enemy.data.hp<=0||enemy.readyAt>now())continue;
     const active=rows.filter(v=>v.a.status==='active');if(!active.length)break;const target=active[roll(active.length)];target.a.run.enemy=enemy.data;target.a.run.dots=enemy.dots;target.a.run.debuffs=enemy.debuffs;target.a.run.log=[];
     tickEnemyEffects(target.a.run);if(enemy.data.hp>0&&enemyAction(target.s,z,roll)==='defeat')out(e,target.a,enemy.data,'defeat');
