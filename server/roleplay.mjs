@@ -13,6 +13,7 @@ export function createRoleplay(db,{now=Date.now,roll=randomInt}={}){
  CREATE UNIQUE INDEX IF NOT EXISTS quest_rp_notice ON quest_rp_posts(chat_seq);
  CREATE TABLE IF NOT EXISTS quest_rp_partners(post_id INTEGER NOT NULL,character_id TEXT NOT NULL,name TEXT NOT NULL,PRIMARY KEY(post_id,character_id));
  CREATE INDEX IF NOT EXISTS quest_rp_partner ON quest_rp_partners(character_id,post_id);
+ CREATE TABLE IF NOT EXISTS quest_rp_reads(character_id TEXT PRIMARY KEY,last_read_id INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS quest_rp_progress(character_id TEXT PRIMARY KEY,total_words INTEGER NOT NULL DEFAULT 0,total_chars INTEGER NOT NULL DEFAULT 0,level_words INTEGER NOT NULL DEFAULT 0,level_chars INTEGER NOT NULL DEFAULT 0,last_level INTEGER NOT NULL,awards INTEGER NOT NULL DEFAULT 0);
  CREATE TABLE IF NOT EXISTS quest_rp_awards(id INTEGER PRIMARY KEY AUTOINCREMENT,character_id TEXT NOT NULL,actor TEXT NOT NULL,created INTEGER NOT NULL,from_level INTEGER NOT NULL,to_level INTEGER NOT NULL,words INTEGER NOT NULL,chars INTEGER NOT NULL,target INTEGER NOT NULL,reason TEXT NOT NULL);`);
  function progress(c){
@@ -27,12 +28,14 @@ export function createRoleplay(db,{now=Date.now,roll=randomInt}={}){
  function read(c,id,area,restricted=[]){
   const r=db.prepare('SELECT * FROM quest_rp_posts WHERE id=?').get(Number.isSafeInteger(id)?id:-1);
   if(!r||restricted.includes(r.owner)||(r.author!==c.id&&r.area!==area&&!partners(r.id).some(p=>p.id===c.id)))fail(404,'This RP post is not available here.');
+  db.prepare('INSERT INTO quest_rp_reads(character_id,last_read_id) VALUES (?,?) ON CONFLICT(character_id) DO UPDATE SET last_read_id=MAX(last_read_id,excluded.last_read_id)').run(c.id,r.id); // Persist the existing newest-seen cursor only after access checks; reopening older history never moves it backwards.
   return {...summary(r),text:r.text,appearance:JSON.parse(r.appearance)}; // Only the public paperdoll projection is retained, never inventory or account details.
  }
  function snapshot(c,area,restricted=[]){
-  if(!c)return {supported:true,maxCharacters:RP_MAX_CHARACTERS,posts:[]};
+  if(!c)return {supported:true,maxCharacters:RP_MAX_CHARACTERS,seen:0,posts:[]};
   const rows=db.prepare('SELECT id,author,owner,name,area,words,chars,created FROM quest_rp_posts WHERE author=? OR id IN (SELECT post_id FROM quest_rp_partners WHERE character_id=?) ORDER BY id DESC LIMIT 40').all(c.id,c.id);
-  return {supported:true,maxCharacters:RP_MAX_CHARACTERS,progress:progress(c),posts:rows.filter(r=>!restricted.includes(r.owner)).map(summary)};
+  const seen=db.prepare('SELECT last_read_id FROM quest_rp_reads WHERE character_id=?').get(c.id)?.last_read_id??0;
+  return {supported:true,maxCharacters:RP_MAX_CHARACTERS,seen,progress:progress(c),posts:rows.filter(r=>!restricted.includes(r.owner)).map(summary)};
  }
  function post(c,input,area,candidates){
   if(typeof input.text!=='string'||Array.from(input.text).length>RP_MAX_CHARACTERS)fail(400,'RP posts must be at most 12,000 characters.');

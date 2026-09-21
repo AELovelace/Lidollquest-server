@@ -313,7 +313,23 @@ tr.sel td{background:#2c1e3d}
 <script>
 (function(){
  "use strict";
- var token="",timer=null,state={zones:[],players:[]},selected=null; // The token lives only in this closure for the life of the tab.
+ var token="",timer=null,state={zones:[],players:[]},selected=null;
+ var GRANT="lidollquest.gm.grant"; // One key holds the device grant so a reload, a new tab or a restart does not repeat the LiDollID dance.
+ function rememberGrant(value,owner,seconds){
+  token=value;
+  try{localStorage.setItem(GRANT,JSON.stringify({token:value,owner:owner,expires:Date.now()+(seconds||0)*1000}));}
+  catch(error){} // Private windows and blocked site data simply fall back to this tab's closure.
+ }
+ function storedGrant(){
+  var raw=null;
+  try{raw=localStorage.getItem(GRANT);}catch(error){return null;}
+  if(!raw)return null;
+  var saved=null;
+  try{saved=JSON.parse(raw);}catch(error){forgetGrant();return null;}
+  if(!saved||typeof saved.token!=="string"||!saved.token||(saved.expires&&saved.expires<=Date.now())){forgetGrant();return null;} // An expired grant is discarded before it can produce a confusing 401.
+  return saved;
+ }
+ function forgetGrant(){try{localStorage.removeItem(GRANT);}catch(error){}}
  var $=function(id){return document.getElementById(id);};
  var tabs=Array.from(document.querySelectorAll('[role="tab"]'));
  function selectTab(id,focus){
@@ -385,7 +401,10 @@ tr.sel td{background:#2c1e3d}
   if(options.body){init.headers["Content-Type"]="application/json";init.body=JSON.stringify(options.body);}
   return fetch(path,init).then(function(response){
    return response.json().catch(function(){return {error:"gm_unreadable_response"};}).then(function(payload){
-    if(!response.ok){var err=new Error(payload.error_description||payload.error||"Request failed");err.code=payload.error;err.status=response.status;throw err;}
+    if(!response.ok){
+     if(response.status===401&&token){signOut();gateError("This sign-in has expired. Sign in again.");} // The role can be revoked in Little Log at any time, so a stale grant must not linger.
+     var err=new Error(payload.error_description||payload.error||"Request failed");err.code=payload.error;err.status=response.status;throw err;
+    }
     return payload;
    });
   }); // Every rejection below is shown to the operator rather than swallowed.
@@ -860,7 +879,7 @@ tr.sel td{background:#2c1e3d}
  function signOut(){
   perfEpoch++;perfBusy=false;perfData=null;clear($("perfChart"));clear($("perfTimings")); // Discard old readings when the authenticated session ends.
   ["perfCpu","perfLoop","perfDelay","perfMemory","perfRate","perfActive","perfStatus","perfHistory","perfRequests","perfTimingStatus"].forEach(function(id){$(id).textContent="—";});
-  token="";if(timer)clearInterval(timer);timer=null;selected=null;
+  token="";forgetGrant();if(timer)clearInterval(timer);timer=null;selected=null;
   ench=null;enchEditing=null;$("enchEditor").hidden=true;clear($("enchList"));clear($("enchTuning"));$("enchCurve").textContent="";
   if(poller){clearTimeout(poller);poller=null;}
   $("who").textContent="";$("pending").hidden=true;$("startRow").hidden=false;
@@ -883,7 +902,7 @@ tr.sel td{background:#2c1e3d}
    fetch("/gm/signin/poll",{method:"POST",headers:{"Content-Type":"application/json"},cache:"no-store",body:JSON.stringify({device_code:deviceCode})})
     .then(function(response){return response.json().then(function(payload){return {ok:response.ok,payload:payload};});})
     .then(function(result){
-     if(result.ok){token=result.payload.access_token;$("who").textContent="signed in as "+short(result.payload.owner);enter();return;}
+     if(result.ok){rememberGrant(result.payload.access_token,result.payload.owner,result.payload.expires_in);$("who").textContent="signed in as "+short(result.payload.owner);enter();return;}
      var code=result.payload.error;
      if(code==="authorization_pending"){poll(deviceCode,intervalMs,deadline);return;}          // Still waiting for the operator to approve in Little Log.
      if(code==="slow_down"){poll(deviceCode,intervalMs+5000,deadline);return;}                 // Honour the tracker's backoff rather than hammering it.
@@ -925,6 +944,19 @@ tr.sel td{background:#2c1e3d}
  $("castText").addEventListener("keydown",function(e){if(e.key==="Enter")$("cast").click();});
  /* WORLD_PANEL */
 /* GM_GUIDE_SCRIPT */
+
+ (function resume(){ // A grant kept from a previous visit is proven against the server before the panel is shown.
+  var saved=storedGrant();
+  if(!saved)return;
+  token=saved.token;
+  $("startRow").hidden=true;
+  api("/gm/whoami").then(function(identity){
+   $("who").textContent="signed in as "+short(identity.owner);enter();
+  }).catch(function(){
+   if(token)signOut(); // A 401 already signed out; anything else (offline, restarting service) also returns to the gate rather than a half-live panel.
+   $("startRow").hidden=false;
+  });
+ })();
  })();
 </script>
 </body>

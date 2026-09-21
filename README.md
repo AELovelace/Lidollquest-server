@@ -339,6 +339,19 @@ delegated without handing over the whole console. Changing or disabling the role
 takes effect on the operator's very next request, because identity is revalidated
 with LiDollID on every staff call rather than cached in a session.
 
+### Staying signed in
+
+A completed device authorisation is kept in the browser's `localStorage` for this
+origin, so a reload, a new tab and a browser restart all reopen the panel without
+repeating the LiDollID dance. The panel proves the stored grant against `/gm/whoami`
+before it appears, discards it once the grant expires, and any `401` - including the
+role being revoked in Little Log - returns to the sign-in gate immediately. **Sign out**
+clears the stored grant. Private windows and blocked site data fall back to the previous
+behaviour, where the grant lives only in the open tab.
+
+Because that grant also authorises content publishing and sanctions, use **Sign out**
+rather than just closing the tab on any machine you do not control.
+
 ### Signing in
 
 The panel runs a LiDollID device authorisation, the same flow the native game
