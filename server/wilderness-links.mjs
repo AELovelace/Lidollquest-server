@@ -1,6 +1,6 @@
 import {walkable} from './dive-generation.mjs';
 
-export function addTaigaTrail(f,{zone_id,name}){
+export function addNorthTrail(f,{zone_id,name}){ // Carve a 3-wide north-center trail from (width/2,1) to the nearest open floor below it.
  if(f.exits.some(exit=>exit.zone===zone_id))return false;
  const x=Math.floor(f.width/2),cells=new Set();let end=2;
  while(end<f.height-2&&!walkable(f,x,end))end++;
@@ -16,3 +16,4 @@ export function addTaigaTrail(f,{zone_id,name}){
  f.geometryVersion=(f.geometryVersion??0)+1;
  return true; // Open only new terrain, so active editions retain their existing rooms, loot and encounter locks.
 }
+export const addTaigaTrail=addNorthTrail; // Tundra's original name stays importable for existing tests and tools.

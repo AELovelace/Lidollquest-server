@@ -113,6 +113,19 @@ The new route otherwise uses the Monday 04:00 Pacific lifecycle. Run
 `node --test test/taiga.test.mjs test/tundra.test.mjs`; the game browser fixture
 `--taiga-only` exercises two real clients, mixed terrain and both return controls.
 
+## Dustbreak High Desert
+
+`dive-high-desert` / `dustbreak-high-desert` adds an 80×80 weekly juniper plateau
+with Desert and Forest enemies and both scenery pools. Its only entrance is the
+Desert's north-center trail (50,1); its southern exit (40,78) and manual retreat
+lead back to the Desert. Reciprocal branches are listed in `WILDERNESS_LINKS`
+(`zones.mjs`) and carved by `addNorthTrail` (`wilderness-links.mjs`;
+`addTaigaTrail` stays as an alias). Export with the game's
+`python/export_online_high_desert.py`, deploy `server/high-desert-data.json` and
+the updated modules before the rebuilt client. Existing Desert maps gain the trail
+additively (`geometryVersion`); no reset is needed. Run
+`node --test test/high-desert.test.mjs test/desert.test.mjs`.
+
 ## Enemy ATB variation
 
 Shared encounter player cards now receive `mp` and `maxMp` from each character's committed loadout. Reads never mutate or refill mana. Deploy the service before the rebuilt client for current/max MP on all party cards; newer clients can still display their own MP against older services using the local loadout.

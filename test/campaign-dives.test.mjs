@@ -30,7 +30,7 @@ test('new Dives enforce hub adjacency, isolate claims, retain fights/reconnects 
    place(10,3);act('hub_visit',{zone:hub+'-dives'});place(2,9);
    assert.throws(()=>act('dive_enter',{zone:zone_id}),/glowing portal/);
    place(data.config.pad.x,data.config.pad.y);const entered=act('dive_enter',{zone:zone_id});
-   assert.ok(Buffer.byteLength(JSON.stringify(entered))<262144);assert.equal(entered.dungeons.length,10);assert.equal(entered.dive.claimed,0);
+   assert.ok(Buffer.byteLength(JSON.stringify(entered))<262144);assert.equal(entered.dungeons.length,11);assert.equal(entered.dive.claimed,0);
    const floor=entered.zones.at(-1),chest=entered.dive.chests[0],near=pathTo(floor,floor.entrance,chest).at(-2)??floor.entrance;
    place(near.x,near.y);act('dive_claim',{chest:chest.id});setup();
    const resumed=act('enter',{zone:zone_id});assert.equal(resumed.dive.claimed,1);assert.equal(c.dive.returnZone,hub+'-dives');
