@@ -140,6 +140,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
    db.prepare('INSERT INTO online_conversations VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(character_id) DO UPDATE SET id=excluded.id,placement=excluded.placement,zone=excluded.zone,edition=excluded.edition,definition=excluded.definition,page=excluded.page,expires=excluded.expires').run(c.id,cid,n.id,p.zone,map.edition,JSON.stringify(definition),page,now()+300000);event(c,s,{id:'talk:'+cid,type:'talk',target:key,zone:p.zone});return;
   }
   let source='';if(input.conversation)source=conversation(c,s,input).definition.id;
+  else if(input.action==='quest_claim'&&typeof input.placement==='string')source=nearby(c,s,input.placement,typeof input.edition==='string'?input.edition:undefined).key; /* A "Turn in" choice inside the NPC's ordinary dialogue proves adjacency instead of an open conversation row. */
   if(input.action==='quest_claim')claim(c,s,input.quest,source);
   else if(input.action==='quest_branch')advance(c,s,input.quest,input.branch);
   else if(input.action==='quest_abandon'){const q=active(c,input.quest);if(!q)fail('Quest is not active.');q.state.abandoned_status=q.state.status;q.state.status='abandoned';save(q);}
