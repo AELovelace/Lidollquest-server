@@ -1,8 +1,7 @@
 import {createHash,timingSafeEqual} from 'node:crypto';
 import {inspectionProjection} from './inspection.mjs';
-import {createPaperdoll} from './paperdoll.mjs';
 
-export function createMommybotProfile(db,{token='',enabled=()=>true,now=Date.now,paperdoll=createPaperdoll()}={}){
+export function createMommybotProfile(db,{token='',enabled=()=>true,now=Date.now}={}){
  if(token&&!/^[A-Za-z0-9_-]{32,128}$/.test(token))throw Error('MOMMYBOT_ONLINE_TOKEN must be 32-128 URL-safe secret characters.');
  const hash=value=>createHash('sha256').update(value).digest();
  return {
@@ -24,18 +23,13 @@ export function createMommybotProfile(db,{token='',enabled=()=>true,now=Date.now
    const sheet=inspectionProjection(chosen);
    delete sheet.account_id; // MommyBot already knows which wallet it asked about; never echo the account back.
    const characters=db.prepare('SELECT id,name FROM quest_characters WHERE owner=? ORDER BY created DESC,id LIMIT 25').all(owner);
-   // The portrait composites the same authored layers the companion client draws.
-   // It is rendered from the projection above, so it can never show gear the sheet
-   // does not already disclose. A deployment without exported artwork simply omits
-   // it and the caller falls back to the appearance fields.
-   let portrait=null;
-   try{portrait=paperdoll.render({character_id:chosen.id,revision:chosen.revision,player_info:sheet.player_info});}
-   catch{portrait=null;} // A portrait is never worth failing the request over.
+   // No portrait: the paperdoll artwork was TQ/DQ material and has been purged. The
+   // fields stay (always null) so MommyBot keeps falling back to the appearance text.
    return send(200,{...sheet,
     online:Boolean(db.prepare('SELECT 1 FROM quest_presence WHERE character_id=? AND seen>?').get(chosen.id,now()-30000)),
     characters,
-    portrait_png:portrait?portrait.toString('base64'):null,
-    portrait_size:portrait?paperdoll.size:null});
+    portrait_png:null,
+    portrait_size:null});
   }, // The server-only credential reveals one owner's public inspection sheet: appearance, level, class and equipped items, never inventory, coins, saves or grants.
  };
 } // Serve the same projection an in-world player may already inspect, to an authenticated companion service instead of a peer.

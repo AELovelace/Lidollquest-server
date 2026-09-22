@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {createQuestService} from '../server/service.mjs';
-import {decode} from '../server/png.mjs';
 const token='a'.repeat(43),onlineToken='b'.repeat(43),owner='c'.repeat(64),stranger='d'.repeat(64);
 
 test('character endpoint is protected and serves one owner public inspection sheet',async()=>{
@@ -42,15 +41,9 @@ test('character endpoint is protected and serves one owner public inspection she
   const {portrait_png,...text}=body; // A base64 blob would make the substring check below flaky, and it carries no field names.
   assert.doesNotMatch(JSON.stringify(text),new RegExp(owner+'|grant|inventory|coins|secret'));
 
-  // The portrait composites the same authored artwork the companion client draws.
-  // It is optional: a deployment without exported assets serves the sheet without it.
-  if(portrait_png===null){assert.equal(body.portrait_size,null);}
-  else{
-   const image=decode(Buffer.from(portrait_png,'base64'));
-   assert.equal(image.width,body.portrait_size.width);
-   assert.equal(image.height,body.portrait_size.height);
-   assert.ok(image.data.some((v,i)=>i%4===3&&v>0),'the portrait must not be fully transparent');
-  }
+  // The TQ/DQ paperdoll artwork was purged, so the sheet never carries a portrait.
+  assert.equal(portrait_png,null);
+  assert.equal(body.portrait_size,null);
   await act('enter',{zone:'honeydew-lantern'});
   assert.equal((await(await sheet()).json()).online,true);
   assert.equal((await sheet('account_id='+owner+'&character_id=missing')).status,404);

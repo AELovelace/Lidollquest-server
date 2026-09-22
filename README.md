@@ -199,41 +199,10 @@ The read-only owner diagnostic expects the translated game ID, not the bot ID.
 
 ### Paperdoll portraits
 
-`/integrations/mommybot/character` returns `portrait_png` (base64) and
-`portrait_size` alongside the inspection sheet. The service composites the
-character itself, from the same authored sprite layers the companion client draws
-in `paperdoll.js`, so the Discord post and the in-browser preview show the same
-character.
-
-Two constraints shaped this. The service has no dependencies and no `node_modules`,
-so a native canvas was not an option: `server/png.mjs` is a stdlib decoder and
-encoder built on `node:zlib`, deliberately narrow to 8-bit RGBA non-interlaced PNG,
-which every exported layer is. Anything else is refused loudly rather than decoded
-approximately. `server/paperdoll.mjs` holds the layer order, ported line for line
-from the companion; **if one changes, change the other.**
-
-There is no item-to-sprite lookup table. An equipped item resolves to
-`sprTQ_<item_id>`, so artwork is discovered by name and new items need no mapping.
-Missing artwork is skipped rather than drawn wrong, and only names present in the
-exported manifest are ever opened, so an item id can never reach the filesystem.
-
-Artwork lives in `server/paperdoll-assets/` (1,540 layers, ~25 MB, committed) and is
-produced from the game checkout:
-
-```
-python python/export_paperdoll_assets.py --server-root <this repo>
-```
-
-It exports at half scale, giving a 194x438 portrait that Discord renders inline at
-full size while costing a quarter of the compositing work. A deployment without the
-assets serves every other field and omits the portrait rather than failing.
-
-Renders are cached per `character_id` + `revision`, and decoded layers in a bounded
-LRU, so a re-view is free and repeat characters are cheap. Measured: ~70 ms cold,
-~26 ms warm, 0.01 ms cached. That is synchronous work on the event loop, so it is
-visible in the `/gm` performance panel under sustained first-time views.
-
-Run `node --test test/paperdoll.test.mjs test/mommybot-profile.test.mjs`.
+Removed. The paperdoll layers were TQ/DQ artwork and were purged along with
+`server/paperdoll.mjs` and `server/png.mjs`. `/integrations/mommybot/character`
+still returns `portrait_png` and `portrait_size`, always `null`, so MommyBot keeps
+falling back to the appearance fields. A future portrait needs original artwork.
 
 ### Live curse and blessing tuning
 
