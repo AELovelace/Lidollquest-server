@@ -5,6 +5,7 @@ import {generateDesert} from './desert-generation.mjs';
 import {addPinkMist,mistAt} from './dive-mist.mjs';
 import {createDiveLootRoller} from './dive-loot.mjs';
 import {createEnchantmentStore} from './enchantment-store.mjs';
+import {createLootStore} from './loot-store.mjs';
 import {readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {applyDefeatEquipment} from './defeat-equipment.mjs';
@@ -22,13 +23,13 @@ const fail=(message,code='dive_conflict')=>{throw Object.assign(Error(message),{
 const clone=structuredClone;
 const seconds=1000,minutes=60000;
 
-export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,measure=(_name,work)=>work(),upgradeFloor=()=>false,travel=()=>false,enchantments=null,compute=null,live=null}){
+export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,measure=(_name,work)=>work(),upgradeFloor=()=>false,travel=()=>false,enchantments=null,loot=null,compute=null,live=null}){
  const baseline=structuredClone(data);if(live){live.register(baseline);data=live.resolve(baseline);} // Each engine keeps mutable configuration isolated from shipped exports.
  const config=data.config,route=config.route,zoneId=config.zone_id??DIVE_ZONE,theme=config.theme??'princess_quarters',name=config.name??"Princess' Quarters - Dungeon Dive",bossId=(config.boss_id??'iris')||'world_boss';
  const category=routeCategory(config); // 'dive' for instanced boss routes, 'overworld' for open wilderness; fails fast on bad authored data.
  // Only dive-data.json carries the curse/blessing table; Desert, Tundra, Taiga and
  // the campaign weeklies share that one table rather than each shipping a copy.
- const rollLoot=createDiveLootRoller(data,{table:data.enchantments??diveData.enchantments,enchantments:enchantments??createEnchantmentStore(db,{now})}); // One policy covers every online route and its personal floor progress; gamemaster retunes reach all of them.
+ const rollLoot=createDiveLootRoller(data,{table:data.enchantments??diveData.enchantments,enchantments:enchantments??createEnchantmentStore(db,{now}),lootTable:data.loot??diveData.loot??null,loot:loot??createLootStore(db,{now})}); // One policy covers every online route and its personal floor progress; gamemaster retunes reach all of them.
  const owns=visit=>visit?.route===route; // Each route maintains only its own visits and encounter locks.
  const safe=(floor,x,y)=>(floor.safeRooms??[floor.rooms[0]]).some(r=>inside(r,x,y));
  const entry=(floor,origin)=>floor.entries?.[origin]??floor.entrance;

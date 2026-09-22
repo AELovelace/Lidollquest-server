@@ -5,8 +5,9 @@
   "config": {
     "_comment": "Weekly server-owned pilot. Export with python/export_online_dive.py after editing; campaign generation is unchanged.",
     "enabled": true,
-    "route": "quarters-pilot",
+    "route": "quarters-pilot",
     "zone_category": "dive",
+    "static": false,
     "themes": [
       "princess_quarters"
     ],
@@ -84,7 +85,7 @@
         "cage_rattle"
       ],
       "sprite": "sprTeddyMimicNew",
-      "battle_sprite": "sprTQ_stuffie_2"
+      "battle_sprite": "sprTeddyMimicNew"
     },
     "dive_iris": {
       "enemy_id": "dive_iris",
@@ -19778,6 +19779,887 @@
           }
         }
       }
+    ]
+  },
+  "loot": {
+    "_comment": "Adjective + Item + Rarity loot table. Every wearable or weapon drop rolls a rarity tier, an item level and level-scaled affixes from this file. See LOOT_SYSTEM_DESIGN.md. The campaign reads it in scrLootRoll.gml; the online service runs the identical maths in server/loot.mjs. Change one, change both, then re-run python/export_online_dive.py.",
+    "tuning": {
+      "level_growth": 0.08,
+      "ilvl_jitter_min": -1,
+      "ilvl_jitter_max": 2,
+      "ilvl_cap": 100,
+      "level_cap": 100,
+      "stat_cap": 100,
+      "legendary_cha_gate": 10,
+      "value_level_growth": 0.05,
+      "enemy_drop_chance": 35,
+      "boss_drop_chance": 100,
+      "elite_chance": 8,
+      "elite_hp_mult": 1.5,
+      "elite_level_bonus": 2,
+      "boss_level_bonus": 2,
+      "rarity": {
+        "common": {
+          "weight": 60,
+          "affixes": 0,
+          "suffix": false,
+          "budget_mult": 1.0,
+          "value_mult": 1,
+          "colour": "#ffffff",
+          "bless_mult": 1,
+          "curse_mult": 1,
+          "force_blessing": false
+        },
+        "uncommon": {
+          "weight": 25,
+          "affixes": 1,
+          "suffix": false,
+          "budget_mult": 1.15,
+          "value_mult": 1.6,
+          "colour": "#4fd06b",
+          "bless_mult": 1,
+          "curse_mult": 1,
+          "force_blessing": false
+        },
+        "rare": {
+          "weight": 10,
+          "affixes": 2,
+          "suffix": true,
+          "budget_mult": 1.35,
+          "value_mult": 2.8,
+          "colour": "#4f9cff",
+          "bless_mult": 1,
+          "curse_mult": 1,
+          "force_blessing": false
+        },
+        "epic": {
+          "weight": 4,
+          "affixes": 3,
+          "suffix": true,
+          "budget_mult": 1.6,
+          "value_mult": 5,
+          "colour": "#b45fff",
+          "bless_mult": 2,
+          "curse_mult": 1,
+          "force_blessing": false
+        },
+        "legendary": {
+          "weight": 1,
+          "affixes": 4,
+          "suffix": true,
+          "budget_mult": 2.0,
+          "value_mult": 12,
+          "colour": "#ff9f1c",
+          "bless_mult": 1,
+          "curse_mult": 0,
+          "force_blessing": true
+        }
+      },
+      "rarity_order": [
+        "common",
+        "uncommon",
+        "rare",
+        "epic",
+        "legendary"
+      ],
+      "luck_profiles": {
+        "mob": {
+          "uncommon": 1,
+          "rare": 1,
+          "epic": 0.5,
+          "legendary": 0
+        },
+        "elite": {
+          "uncommon": 1.5,
+          "rare": 2,
+          "epic": 1.5,
+          "legendary": 0.5
+        },
+        "boss": {
+          "uncommon": 1,
+          "rare": 3,
+          "epic": 3,
+          "legendary": 2
+        },
+        "chest": {
+          "uncommon": 1.2,
+          "rare": 1.5,
+          "epic": 1,
+          "legendary": 0.25
+        },
+        "shop": {
+          "uncommon": 1,
+          "rare": 0.5,
+          "epic": 0,
+          "legendary": 0
+        },
+        "quest": {
+          "uncommon": 1,
+          "rare": 2,
+          "epic": 1,
+          "legendary": 0.5
+        }
+      },
+      "overcap": {
+        "str": {
+          "per_point": 1.0,
+          "ceiling": 50,
+          "effect": "crit_percent"
+        },
+        "def": {
+          "per_point": 0.5,
+          "ceiling": 50,
+          "effect": "damage_reduction_percent"
+        },
+        "dex": {
+          "per_point": 0.5,
+          "ceiling": 40,
+          "effect": "dodge_percent"
+        },
+        "int": {
+          "per_point": 1.0,
+          "ceiling": 100,
+          "effect": "spell_power_percent"
+        },
+        "cha": {
+          "per_point": 1.0,
+          "ceiling": 100,
+          "effect": "luck_percent"
+        }
+      },
+      "zone_levels": {
+        "safe_room": {
+          "min": 1,
+          "max": 3
+        },
+        "town": {
+          "min": 1,
+          "max": 5
+        },
+        "bsp": {
+          "min": 1,
+          "max": 8
+        },
+        "forest": {
+          "min": 5,
+          "max": 15
+        },
+        "nursery": {
+          "min": 10,
+          "max": 20
+        },
+        "mansion": {
+          "min": 15,
+          "max": 25
+        },
+        "desert": {
+          "min": 25,
+          "max": 40
+        },
+        "tundra": {
+          "min": 40,
+          "max": 55
+        },
+        "littlebig_city": {
+          "min": 55,
+          "max": 70
+        },
+        "school": {
+          "min": 70,
+          "max": 85
+        },
+        "hospital": {
+          "min": 85,
+          "max": 100
+        }
+      },
+      "route_levels": {
+        "quarters-pilot": {
+          "base": 3,
+          "per_floor": 2
+        },
+        "dive-dungeon": {
+          "base": 3,
+          "per_floor": 2
+        },
+        "dive-forest": {
+          "base": 8,
+          "per_floor": 2
+        },
+        "dive-nursery": {
+          "base": 12,
+          "per_floor": 2
+        },
+        "dive-mansion": {
+          "base": 18,
+          "per_floor": 2
+        },
+        "dustbreak-crossing": {
+          "base": 25,
+          "per_floor": 3
+        },
+        "dustbreak-high-desert": {
+          "base": 32,
+          "per_floor": 3
+        },
+        "frostveil-crossing": {
+          "base": 40,
+          "per_floor": 3
+        },
+        "frostveil-taiga": {
+          "base": 48,
+          "per_floor": 3
+        },
+        "dive-school": {
+          "base": 72,
+          "per_floor": 2
+        },
+        "dive-hospital": {
+          "base": 86,
+          "per_floor": 2
+        },
+        "default": {
+          "base": 5,
+          "per_floor": 2
+        }
+      }
+    },
+    "affixes": [
+      {
+        "id": "sturdy",
+        "adjective": "Sturdy",
+        "suffix_title": "of the Bulwark",
+        "slots": [
+          "*"
+        ],
+        "weight": 12,
+        "min_rarity": "uncommon",
+        "tags": [
+          "def"
+        ],
+        "stats": [
+          {
+            "key": "def",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0.05,
+            "per_level_max": 0.15
+          }
+        ],
+        "flavour": "The stitching is doubled and the seams refuse to give."
+      },
+      {
+        "id": "sharp",
+        "adjective": "Sharp",
+        "suffix_title": "of Biting",
+        "slots": [
+          "weapon"
+        ],
+        "weight": 12,
+        "min_rarity": "uncommon",
+        "tags": [
+          "atk"
+        ],
+        "stats": [
+          {
+            "key": "atk",
+            "min": 1,
+            "max": 2,
+            "per_level_min": 0.08,
+            "per_level_max": 0.2
+          }
+        ],
+        "flavour": "It leaves a sting that lingers."
+      },
+      {
+        "id": "heavy",
+        "adjective": "Heavy",
+        "suffix_title": "of the Ogre",
+        "slots": [
+          "weapon",
+          "torso"
+        ],
+        "weight": 8,
+        "min_rarity": "uncommon",
+        "tags": [
+          "atk",
+          "dex"
+        ],
+        "stats": [
+          {
+            "key": "atk_mod",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0.05,
+            "per_level_max": 0.12
+          },
+          {
+            "key": "dex_mod",
+            "min": -1,
+            "max": -1,
+            "per_level_min": 0,
+            "per_level_max": 0
+          }
+        ],
+        "flavour": "It takes real effort to lift, and lands like it."
+      },
+      {
+        "id": "nimble",
+        "adjective": "Nimble",
+        "suffix_title": "of the Fawn",
+        "slots": [
+          "socks",
+          "shoes",
+          "gloves"
+        ],
+        "weight": 10,
+        "min_rarity": "uncommon",
+        "tags": [
+          "dex"
+        ],
+        "stats": [
+          {
+            "key": "dex_mod",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0.05,
+            "per_level_max": 0.12
+          }
+        ],
+        "flavour": "Light enough to forget you are wearing it."
+      },
+      {
+        "id": "clever",
+        "adjective": "Clever",
+        "suffix_title": "of the Scholar",
+        "slots": [
+          "head",
+          "accessory"
+        ],
+        "weight": 10,
+        "min_rarity": "uncommon",
+        "tags": [
+          "int"
+        ],
+        "stats": [
+          {
+            "key": "int_mod",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0.05,
+            "per_level_max": 0.12
+          }
+        ],
+        "flavour": "Thoughts line up neatly while it is on."
+      },
+      {
+        "id": "charming",
+        "adjective": "Charming",
+        "suffix_title": "of Sweet Talk",
+        "slots": [
+          "head",
+          "torso",
+          "accessory"
+        ],
+        "weight": 10,
+        "min_rarity": "uncommon",
+        "tags": [
+          "cha"
+        ],
+        "stats": [
+          {
+            "key": "cha_mod",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0.05,
+            "per_level_max": 0.12
+          }
+        ],
+        "flavour": "People soften a little when they see it."
+      },
+      {
+        "id": "mending",
+        "adjective": "Mending",
+        "suffix_title": "of Slow Healing",
+        "slots": [
+          "mouth",
+          "accessory"
+        ],
+        "weight": 8,
+        "min_rarity": "rare",
+        "tags": [
+          "regen"
+        ],
+        "stats": [
+          {
+            "key": "hp_regen",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0.03,
+            "per_level_max": 0.08
+          }
+        ],
+        "flavour": "Scrapes close a little faster than they should."
+      },
+      {
+        "id": "vital",
+        "adjective": "Vital",
+        "suffix_title": "of the Oak",
+        "slots": [
+          "torso"
+        ],
+        "weight": 8,
+        "min_rarity": "rare",
+        "tags": [
+          "hp"
+        ],
+        "stats": [
+          {
+            "key": "hp_max_mod",
+            "min": 2,
+            "max": 4,
+            "per_level_min": 0.2,
+            "per_level_max": 0.5
+          }
+        ],
+        "flavour": "Wearing it feels like standing a little taller."
+      },
+      {
+        "id": "absorbent",
+        "adjective": "Absorbent",
+        "suffix_title": "of Dry Mornings",
+        "slots": [
+          "panties",
+          "diaper_cover"
+        ],
+        "weight": 12,
+        "min_rarity": "uncommon",
+        "tags": [
+          "wet"
+        ],
+        "stats": [
+          {
+            "key": "wet_resist",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0,
+            "per_level_max": 0.05
+          }
+        ],
+        "flavour": "It drinks up trouble before anyone notices."
+      },
+      {
+        "id": "crinkly",
+        "adjective": "Crinkly",
+        "suffix_title": "of the Nursery",
+        "slots": [
+          "panties"
+        ],
+        "weight": 10,
+        "min_rarity": "uncommon",
+        "tags": [
+          "wet",
+          "childish",
+          "bulk"
+        ],
+        "stats": [
+          {
+            "key": "wet_resist",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0,
+            "per_level_max": 0.03
+          },
+          {
+            "key": "childish",
+            "min": 1,
+            "max": 2,
+            "per_level_min": 0,
+            "per_level_max": 0
+          },
+          {
+            "key": "bulk",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0,
+            "per_level_max": 0
+          }
+        ],
+        "flavour": "Every step announces itself with a soft rustle."
+      },
+      {
+        "id": "sodden",
+        "adjective": "Sodden",
+        "suffix_title": "of Long Nights",
+        "slots": [
+          "panties"
+        ],
+        "weight": 6,
+        "min_rarity": "rare",
+        "tags": [
+          "wet",
+          "dex"
+        ],
+        "stats": [
+          {
+            "key": "wet_resist",
+            "min": 2,
+            "max": 3,
+            "per_level_min": 0,
+            "per_level_max": 0.05
+          },
+          {
+            "key": "dex_mod",
+            "min": -1,
+            "max": -1,
+            "per_level_min": 0,
+            "per_level_max": 0
+          }
+        ],
+        "flavour": "Thick enough to sleep through anything, and heavy enough to waddle."
+      },
+      {
+        "id": "leaky",
+        "adjective": "Leaky",
+        "suffix_title": "of Puddles",
+        "slots": [
+          "panties",
+          "pants"
+        ],
+        "weight": 8,
+        "min_rarity": "uncommon",
+        "tags": [
+          "wet",
+          "cha"
+        ],
+        "stats": [
+          {
+            "key": "wet_resist",
+            "min": -1,
+            "max": -1,
+            "per_level_min": 0,
+            "per_level_max": 0
+          },
+          {
+            "key": "cha_mod",
+            "min": 1,
+            "max": 2,
+            "per_level_min": 0.05,
+            "per_level_max": 0.12
+          }
+        ],
+        "flavour": "It hides nothing, and somehow that wins people over."
+      },
+      {
+        "id": "thirsty",
+        "adjective": "Thirsty",
+        "suffix_title": "of the Sippy Cup",
+        "slots": [
+          "mouth"
+        ],
+        "weight": 10,
+        "min_rarity": "uncommon",
+        "tags": [
+          "tum"
+        ],
+        "stats": [
+          {
+            "key": "tum_resist",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0,
+            "per_level_max": 0.05
+          }
+        ],
+        "flavour": "Something to suck on settles the tummy."
+      },
+      {
+        "id": "snug",
+        "adjective": "Snug",
+        "suffix_title": "of Secrets",
+        "slots": [
+          "pants"
+        ],
+        "weight": 10,
+        "min_rarity": "uncommon",
+        "tags": [
+          "conceal"
+        ],
+        "stats": [
+          {
+            "key": "bulk_threshold",
+            "min": 1,
+            "max": 2,
+            "per_level_min": 0,
+            "per_level_max": 0
+          },
+          {
+            "key": "conceals_panties",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0,
+            "per_level_max": 0
+          }
+        ],
+        "flavour": "Cut generously enough that nobody can tell what is underneath."
+      },
+      {
+        "id": "clingy",
+        "adjective": "Clingy",
+        "suffix_title": "of the Toddler",
+        "slots": [
+          "*"
+        ],
+        "weight": 8,
+        "min_rarity": "uncommon",
+        "tags": [
+          "childish",
+          "shame"
+        ],
+        "stats": [
+          {
+            "key": "childish",
+            "min": 1,
+            "max": 2,
+            "per_level_min": 0,
+            "per_level_max": 0
+          },
+          {
+            "key": "shame_delta",
+            "min": -2,
+            "max": -1,
+            "per_level_min": 0,
+            "per_level_max": 0
+          }
+        ],
+        "flavour": "It makes you want to hold someone's hand."
+      },
+      {
+        "id": "grown_up",
+        "adjective": "Grown-Up",
+        "suffix_title": "of Composure",
+        "slots": [
+          "head",
+          "torso"
+        ],
+        "weight": 8,
+        "min_rarity": "uncommon",
+        "tags": [
+          "childish",
+          "shame"
+        ],
+        "stats": [
+          {
+            "key": "childish",
+            "min": -2,
+            "max": -1,
+            "per_level_min": 0,
+            "per_level_max": 0
+          },
+          {
+            "key": "shame_delta",
+            "min": 1,
+            "max": 2,
+            "per_level_min": 0,
+            "per_level_max": 0
+          }
+        ],
+        "flavour": "Sensible. Almost stern. It helps you keep a straight face."
+      },
+      {
+        "id": "padded",
+        "adjective": "Padded",
+        "suffix_title": "of Soft Landings",
+        "slots": [
+          "panties",
+          "diaper_cover"
+        ],
+        "weight": 10,
+        "min_rarity": "uncommon",
+        "tags": [
+          "def",
+          "bulk"
+        ],
+        "stats": [
+          {
+            "key": "def",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0.04,
+            "per_level_max": 0.1
+          },
+          {
+            "key": "bulk",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0,
+            "per_level_max": 0
+          }
+        ],
+        "flavour": "Falls stop hurting. Sitting down gets louder."
+      },
+      {
+        "id": "discreet",
+        "adjective": "Discreet",
+        "suffix_title": "of Whispers",
+        "slots": [
+          "panties"
+        ],
+        "weight": 8,
+        "min_rarity": "rare",
+        "tags": [
+          "bulk",
+          "dex"
+        ],
+        "stats": [
+          {
+            "key": "bulk",
+            "min": -1,
+            "max": -1,
+            "per_level_min": 0,
+            "per_level_max": 0
+          },
+          {
+            "key": "dex_mod",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0.04,
+            "per_level_max": 0.1
+          }
+        ],
+        "flavour": "Thin, quiet, and easy to move in."
+      },
+      {
+        "id": "ironclad",
+        "adjective": "Ironclad",
+        "suffix_title": "of the Chaperone",
+        "slots": [
+          "pants",
+          "torso"
+        ],
+        "weight": 8,
+        "min_rarity": "rare",
+        "tags": [
+          "tum",
+          "def"
+        ],
+        "stats": [
+          {
+            "key": "tum_resist",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0,
+            "per_level_max": 0.04
+          },
+          {
+            "key": "def",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0.04,
+            "per_level_max": 0.1
+          }
+        ],
+        "flavour": "Stiff, strict and reassuring."
+      },
+      {
+        "id": "brave",
+        "adjective": "Brave",
+        "suffix_title": "of Big Girls",
+        "slots": [
+          "weapon",
+          "torso"
+        ],
+        "weight": 8,
+        "min_rarity": "uncommon",
+        "tags": [
+          "atk",
+          "wet"
+        ],
+        "stats": [
+          {
+            "key": "atk_mod",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0.05,
+            "per_level_max": 0.12
+          },
+          {
+            "key": "wet_resist",
+            "min": -1,
+            "max": -1,
+            "per_level_min": 0,
+            "per_level_max": 0
+          }
+        ],
+        "flavour": "Confidence first, consequences later."
+      },
+      {
+        "id": "fortified",
+        "adjective": null,
+        "suffix_title": null,
+        "bonus_only": true,
+        "slots": [
+          "*"
+        ],
+        "weight": 10,
+        "min_rarity": "rare",
+        "tags": [
+          "def_mod"
+        ],
+        "stats": [
+          {
+            "key": "def_mod",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0.04,
+            "per_level_max": 0.1
+          }
+        ],
+        "flavour": ""
+      },
+      {
+        "id": "keen",
+        "adjective": null,
+        "suffix_title": null,
+        "bonus_only": true,
+        "slots": [
+          "weapon",
+          "gloves"
+        ],
+        "weight": 10,
+        "min_rarity": "rare",
+        "tags": [
+          "atk"
+        ],
+        "stats": [
+          {
+            "key": "atk_mod",
+            "min": 1,
+            "max": 1,
+            "per_level_min": 0.04,
+            "per_level_max": 0.1
+          }
+        ],
+        "flavour": ""
+      }
+    ],
+    "legendary_titles": [
+      "Thistledown",
+      "Mummy's Favourite",
+      "Last Dry Day",
+      "Crib Rail",
+      "Bedtime Story",
+      "The Wobbler",
+      "Hush Little One",
+      "Rock-a-bye",
+      "Tantrum",
+      "Naptime",
+      "The Long Walk Home",
+      "Second Breakfast",
+      "Star Chart",
+      "Milk Tooth",
+      "Little Sparrow",
+      "The Good Girl"
     ]
   }
 }
