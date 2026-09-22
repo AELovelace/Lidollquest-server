@@ -45,8 +45,8 @@ test('generation debits once, survives lost responses, claims drafts once, and e
   await f.generate('','second');await until(()=>f.sprites.list('alice').sprites[0]?.status==='ready');f.create(id,'creation');assert.equal(f.sprites.list('alice').used,1,'Creation replay must not claim another draft');
   const other=f.create();assert.throws(()=>f.sprites.authorize('alice',other.id,id),e=>e.status===403);assert.throws(()=>f.sprites.authorize('bob',c.id,id),e=>e.status===403);
   assert.throws(()=>f.sprites.asset('bob',id),e=>e.status===404);assert.equal(f.sprites.asset('alice',id).frames,36);
-  f.db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,?,?,?,?)').run('alice',c.id,'honeydew-lantern','alice','window',2,2,Date.now(),0);
-  f.db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,?,?,?,?)').run('bob','bob-character','honeydew-lantern','bob','window',3,2,Date.now(),0);
+  f.db.prepare('INSERT INTO quest_presence(owner,character_id,zone,grant_id,controller,x,y,seen,moved) VALUES (?,?,?,?,?,?,?,?,?)').run('alice',c.id,'honeydew-lantern','alice','window',2,2,Date.now(),0);
+  f.db.prepare('INSERT INTO quest_presence(owner,character_id,zone,grant_id,controller,x,y,seen,moved) VALUES (?,?,?,?,?,?,?,?,?)').run('bob','bob-character','honeydew-lantern','bob','window',3,2,Date.now(),0);
   assert.equal(f.sprites.asset('bob',id).frames,36,'Nearby players can render equipped art');
   f.db.prepare("UPDATE quest_presence SET zone='princess-rose' WHERE owner='bob'").run();assert.throws(()=>f.sprites.asset('bob',id),e=>e.status===404);
   await f.sprites.act('alice','secret',{action:'delete',character_id:c.id,sprite_id:id,request_id:'delete'});

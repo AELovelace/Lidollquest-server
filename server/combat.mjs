@@ -154,13 +154,16 @@ export function combatAction(state,input,z,roll,supportTarget=state){
  return z.activeTime?(r.enemy.hp<=0?'win':'continue'):finishTurn(state,z,roll); // Live gauges schedule the enemy separately.
 }
 
+export const MAX_LEVEL=100,MAX_STAT=100; /* Online caps: no level past 100 and no allocatable stat past 100; XP at the cap is held just under the next threshold. */
 export function awardExperience(state,roll){ // Arena XP follows the campaign level curve; coins still come only from zone settlement.
  const r=state.run,l=state.loadout,p=l.player_info;p.xp+=r.enemy.exp;r.log.push('Gained '+r.enemy.exp+' XP.');
- while(p.xp>=50*p.level){
+ if(p.level>=MAX_LEVEL){p.level=MAX_LEVEL;p.xp=Math.min(p.xp,50*p.level-1);r.log.push('Level '+MAX_LEVEL+' is the maximum.');return;} /* Capped characters keep fighting for coins and loot but never level again. */
+ while(p.xp>=50*p.level&&p.level<MAX_LEVEL){
   p.xp-=50*p.level;p.level++;p.stat_points=num(p.stat_points)+3;p.playerHealthMax++;r.maxHp++;r.hp++;p.shame=clamp(num(p.shame,1024)+15,0,1024);r.log.push('Level '+p.level+'! +3 stat points, +1 maximum HP.');
   if(classId(l)==='mage'){
    state.mageSpellPicks=(state.mageSpellPicks??0)+1;r.log.push('Earned a free spell choice! Open Magic to choose now or save it for later.'); // Server state keeps unspent choices separate from imported campaign stats.
   }
  }
+ if(p.level>=MAX_LEVEL){p.level=MAX_LEVEL;p.xp=Math.min(p.xp,50*p.level-1);r.log.push('Level '+MAX_LEVEL+' is the maximum.');} /* Reaching the cap mid-fight also parks XP just under the next threshold. */
  syncRunHealth(state,r);
 }

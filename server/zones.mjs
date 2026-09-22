@@ -8,7 +8,8 @@ import {createHubDistricts} from './hub-districts.mjs';
 import {randomUUID,randomInt,createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
-import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation} from './combat.mjs';
+import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation,MAX_LEVEL,MAX_STAT} from './combat.mjs';
+const FACING={south:0,north:1,east:2,west:3}; /* Shared with the client's objPlayer.facing encoding (0 S, 1 N, 2 E, 3 W). */
 import {hubArrival,hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog,campaignDives,DAILY_COIN_CAP} from './hubs.mjs';
 import {createDive,DIVE_ZONE} from './dive.mjs';
 import {createEnchantmentStore} from './enchantment-store.mjs';
@@ -66,6 +67,8 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  CREATE INDEX IF NOT EXISTS quest_chat_zone ON quest_chat(zone,seq);
  CREATE TABLE IF NOT EXISTS quest_reward_days(owner TEXT NOT NULL,day INTEGER NOT NULL,coins INTEGER NOT NULL,PRIMARY KEY(owner,day));
  CREATE TABLE IF NOT EXISTS quest_request_limits(owner TEXT PRIMARY KEY,started INTEGER NOT NULL,count INTEGER NOT NULL);`);
+ if(!db.prepare('PRAGMA table_info(quest_presence)').all().some(c=>c.name==='facing'))db.exec('ALTER TABLE quest_presence ADD COLUMN facing INTEGER NOT NULL DEFAULT 0'); /* Sprite facing (0 south,1 north,2 east,3 west) so Ctrl+direction turns are visible to other players. */
+ if(!db.prepare('PRAGMA table_info(quest_chat)').all().some(c=>c.name==='emote'))db.exec('ALTER TABLE quest_chat ADD COLUMN emote INTEGER NOT NULL DEFAULT 0'); /* "/me" messages are flagged server-side so clients render "* Name does a thing" without trusting player text. */
  managementSchema(db);
  const rp=createRoleplay(db,{now,roll});
  const rpp=createRpp(db,{now});
@@ -121,10 +124,11 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   const state=c?JSON.parse(c.state):null,peerStates=new Map(); // Decode each character once for this response, with no mutable cache surviving a transaction.
   const restricted=i.blockedAccounts??[]; // Account restrictions apply across every character and room.
   const p=c?db.prepare('SELECT * FROM quest_presence WHERE owner=? AND character_id=? AND seen>?').get(i.owner,c.id,now()-30000):null;
-  const peers=p?db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT 64').all(p.zone,now()-30000).filter(r=>enabled(r.owner)).map(r=>{const peer=JSON.parse(r.state);peerStates.set(r.character_id,peer);return {id:r.character_id,name:r.name,restricted:restricted.includes(r.owner),avatar:peer.avatar??'player',x:r.x,y:r.y,stage:peer.run?.stage??0,fighting:peer.run?.phase==='fight'};}):[];
+  const peers=p?db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT 64').all(p.zone,now()-30000).filter(r=>enabled(r.owner)).map(r=>{const peer=JSON.parse(r.state);peerStates.set(r.character_id,peer);return {id:r.character_id,name:r.name,restricted:restricted.includes(r.owner),avatar:peer.avatar??'player',x:r.x,y:r.y,facing:r.facing??0,stage:peer.run?.stage??0,fighting:peer.run?.phase==='fight'};}):[]; /* facing lets idle avatars show the direction chosen with Ctrl+arrow. */
   const chatArea=isDungeon(p?.zone)?dive.chatArea(c,p):p?{id:p.zone,name:zone(p.zone).name}:null;
-  const chatRows=(area,channel)=>db.prepare('SELECT seq,name,text,character_id AS characterId,owner,owner LIKE \'activity:%\' AS activity,(SELECT id FROM quest_rp_posts WHERE chat_seq=seq) AS rpId FROM quest_chat WHERE zone=? AND created>? ORDER BY seq DESC LIMIT 100').all(area,now()-86400000).filter(row=>!restricted.includes(row.owner.replace(/^activity:/,''))).slice(0,40).reverse().map(({owner,...row})=>({...row,channel})); // RP links come from committed posts, never from player text.
+  const chatRows=(area,channel)=>db.prepare('SELECT seq,name,text,emote,character_id AS characterId,owner,owner LIKE \'activity:%\' AS activity,(SELECT id FROM quest_rp_posts WHERE chat_seq=seq) AS rpId FROM quest_chat WHERE zone=? AND created>? ORDER BY seq DESC LIMIT 100').all(area,now()-86400000).filter(row=>!restricted.includes(row.owner.replace(/^activity:/,''))).slice(0,40).reverse().map(({owner,emote,...row})=>({...row,emote:emote===1,channel})); // RP links come from committed posts, never from player text; emote is a server-set flag.
   const chat=chatArea?chatRows(chatArea.id,'area'):[],globalChat=p?chatRows('global:ooc','global'):[]; // The reserved global stream is independent of hub, dungeon room and weekly edition.
+  const partyView=parties.snapshot(c,restricted),partyChat=p&&partyView.party?chatRows('party:'+partyView.party.id,'party'):[]; /* Party chat exists only while the character is in a party; leaving it drops the stream from snapshots. */
   const spent=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,Math.floor(now()/86400000))?.coins??0;
   if(view.companion)return {serverTime:now(),characters:db.prepare('SELECT id,name,revision FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner),
    character:c?{id:c.id,name:c.name,revision:c.revision}:null,sheet:c?companionSheet(db,c,p):null,
@@ -140,7 +144,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   const questMap=p&&quests&&(Object.keys(live.published().npcs).length||Object.keys(live.published().quests).length)?quests.placements.view(p.zone):null;
   const edition=state?.dive?.edition;
   const visiblePeers=isDungeon(p?.zone)?peers.filter(peer=>peerStates.get(peer.id).dive?.edition===edition):peers;
-  return {zoneCategory:p?zoneCategory(p.zone):null,gamemaster:i.gamemaster===true,questNpcLinks:live?Object.values(live.published().quests).flatMap(q=>[...q.givers,q.turn_in.npc]):[],onlineQuests:quests?quests.snapshot(c,state):null,questVersion:1,worldInstance:questMap?.edition,worldPlacements:questMap?questMap.placements.map(n=>({...n,instance:questMap.edition,...(n.kind==='npc'?{name:live.published().npcs[n.content]?.name??n.name,sprite:live.published().npcs[n.content]?.sprite??n.sprite}:{})})):[],rpp:c?rpp.snapshot(c,state):null,rp:{...rp.snapshot(c,chatArea?.id,restricted),candidates:c&&p?rpCandidates(i,c,p).map(({id,name})=>({id,name})):[]},dungeons:[...engines].map(([id,route])=>({id,category:route.category,enabled:route.available()})),serverTime:now(),loadoutSupport:true,combatVersion:2,diveCombatVersion:3,partySupport:true,globalChatSupport:true,...parties.snapshot(c,restricted),contentRevision:live?.published().revision??0,contentVersion:1,worldMonsters:p&&!isDungeon(p.zone)&&hubEvents?hubEvents.engine(p.zone).monsters():[],encounter:c?(state?.run?.kind==='hub_event'?hubEvents.engine(p.zone).snapshot(state):engine(p?.zone).encounterSnapshot(state)):null,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,tundra:tundra.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);if(summary.lastResult?.defeatScene){const {content,...scene}=summary.lastResult.defeatScene;summary.lastResult={...summary.lastResult,defeatScene:scene};}return summary;}),character:c?{avatar:'player',id:c.id,name:c.name,revision:c.revision,...publicCombatState(state)}:null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,globalChat,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null,view),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP};
+  return {zoneCategory:p?zoneCategory(p.zone):null,gamemaster:i.gamemaster===true,questNpcLinks:live?Object.values(live.published().quests).flatMap(q=>[...q.givers,q.turn_in.npc]):[],onlineQuests:quests?quests.snapshot(c,state):null,questVersion:1,worldInstance:questMap?.edition,worldPlacements:questMap?questMap.placements.map(n=>({...n,instance:questMap.edition,...(n.kind==='npc'?{name:live.published().npcs[n.content]?.name??n.name,sprite:live.published().npcs[n.content]?.sprite??n.sprite}:{})})):[],rpp:c?rpp.snapshot(c,state):null,rp:{...rp.snapshot(c,chatArea?.id,restricted),candidates:c&&p?rpCandidates(i,c,p).map(({id,name})=>({id,name})):[]},dungeons:[...engines].map(([id,route])=>({id,category:route.category,enabled:route.available()})),serverTime:now(),loadoutSupport:true,combatVersion:2,diveCombatVersion:3,partySupport:true,globalChatSupport:true,partyChatSupport:true,emoteSupport:true,facingSupport:true,levelCap:MAX_LEVEL,statCap:MAX_STAT,partyChat,...partyView,contentRevision:live?.published().revision??0,contentVersion:1,worldMonsters:p&&!isDungeon(p.zone)&&hubEvents?hubEvents.engine(p.zone).monsters():[],encounter:c?(state?.run?.kind==='hub_event'?hubEvents.engine(p.zone).snapshot(state):engine(p?.zone).encounterSnapshot(state)):null,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,tundra:tundra.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);if(summary.lastResult?.defeatScene){const {content,...scene}=summary.lastResult.defeatScene;summary.lastResult={...summary.lastResult,defeatScene:scene};}return summary;}),character:c?{avatar:'player',id:c.id,name:c.name,revision:c.revision,...publicCombatState(state)}:null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,globalChat,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null,view),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP};
  } // Snapshots expose only zone avatars and chat, never wallet credentials or account IDs.
  function read(secret,id,view={}){const i=identity(secret);limit(i.owner);districts.refresh();dive.tick();if(view.companion&&!id)id=db.prepare('SELECT character_id FROM quest_presence WHERE owner=? ORDER BY seen DESC LIMIT 1').get(i.owner)?.character_id??db.prepare('SELECT id FROM quest_characters WHERE owner=? ORDER BY created DESC,id LIMIT 1').get(i.owner)?.id;
   return snapshot(i,id?character(i.owner,id):null,view);} // Only this read honours the companion view; every in-play snapshot keeps the beside-a-bank rule.
@@ -174,7 +178,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   dive.tick(); // Scheduled resets and enemy decisions precede command revision checks.
   if(!input||!identifier(input.request_id)||!identifier(input.controller))fail(400,'Supply a stable request ID and controller.');
    if(Object.keys(input).some(k=>!['quest_version','quest','quest_revision','conversation','placement','choice','branch','objective','content_version','rpp_cost','partners','rp_id','defeat_version','scene','equipment_version','action','request_id','controller','character_id','revision','name','zone','direction','text','channel','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance','item_id','creation','online_revision','member','invitation','battle','target','cycle','patch'].includes(k)))fail(400,'Unsupported zone input.');
-  if(input.channel!==undefined&&(input.action!=='chat'||!['area','global'].includes(input.channel)))fail(400,'Choose Area or OOC for this message.'); // A client cannot supply an arbitrary destination or broadcast to both channels.
+  if(input.channel!==undefined&&(input.action!=='chat'||!['area','global','party'].includes(input.channel)))fail(400,'Choose Area or OOC (or Party) for this message.'); // A client cannot supply an arbitrary destination or broadcast to several channels at once.
   if(input.takeover!==undefined&&(input.action!=='enter'||typeof input.takeover!=='boolean'))fail(400,'Control can only be transferred by an explicit entry request.'); // Never let movement or a background heartbeat steal control.
   return atomic(()=>{
    identity(secret);
@@ -259,13 +263,16 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);
    }else if(input.action==='chat'){
     p=presence(i,c,input.controller);
-    const text=clean(input.text,240);if(!text)fail(400,'Write a message first.');
+    let text=clean(input.text,240);if(!text)fail(400,'Write a message first.');
+    let emote=0;if(/^\/me(\s|$)/i.test(text)){text=text.replace(/^\/me\s*/i,'').trim();emote=1;if(!text)fail(400,'Describe the action after /me.');} /* "/me waves" is stored as an emote flag plus the action text; the prefix never reaches other clients as literal text. */
+    if(/^\/\w+/.test(text))fail(400,'Unknown chat command. Use /me for actions or the Party channel for party chat.'); /* Reserve the slash namespace so typos never leak as speech; the client expands /p into the party channel before sending. */
     if(muted(i.owner))fail(403,'A gamemaster has muted this account; you can still play normally.');
     if(db.prepare('SELECT COUNT(*) AS n FROM quest_chat WHERE owner=? AND created>?').get(i.owner,now()-10000).n>=5)fail(429,'Wait a moment before sending another message.'); // One account quota spans both channels and every zone.
     if(isDungeon(p.zone)&&input.edition!==state.dive?.edition)fail(409,'The dungeon edition changed. Refresh before acting.');
-    const area=input.channel==='global'?'global:ooc':isDungeon(p.zone)?dive.chatArea(c,p)?.id:p.zone;
+    const partyId=input.channel==='party'?parties.party(c.id)?.id:null;if(input.channel==='party'&&!partyId)fail(409,'Join a party to use party chat.'); /* Party speech is scoped by the party id, so it follows members across hubs, annexes and dungeon rooms. */
+    const area=input.channel==='global'?'global:ooc':input.channel==='party'?'party:'+partyId:isDungeon(p.zone)?dive.chatArea(c,p)?.id:p.zone;
     if(!area)fail(409,'Re-enter the area before chatting.');
-    db.prepare('INSERT INTO quest_chat(zone,owner,character_id,name,text,created) VALUES (?,?,?,?,?,?)').run(area,i.owner,c.id,c.name,text,now());
+    db.prepare('INSERT INTO quest_chat(zone,owner,character_id,name,text,created,emote) VALUES (?,?,?,?,?,?,?)').run(area,i.owner,c.id,c.name,text,now(),emote);
     db.prepare('DELETE FROM quest_chat WHERE zone=? AND seq NOT IN (SELECT seq FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 100)').run(area,area);
     db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);
    }else if(hubEvents&&divePresence&&!isDungeon(divePresence.zone)&&(state.run?.kind==='hub_event'&&!['enter','chat'].includes(input.action)||input.action==='hub_encounter'||input.action==='defeat_complete'&&state.pendingDefeat?.hub)){
@@ -287,7 +294,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     if(z.parent)state.hubVisit=z.id; // Explicit annex entry also resumes committed inventory after reconnect.
     if(input.combat_version>=2&&state.run&&state.run.combatVersion!==2&&!state.run.sharedEncounter&&state.loadout)beginRound(state,z,roll); // Preserve the old opponent, HP and pot while upgrading an unfinished run.
     if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(z.id,now()-30000,i.owner).n>=64)fail(429,'This zone is full. Try again shortly.');
-    const spawn=divePresence?.zone===z.id?{x:divePresence.x,y:divePresence.y}:(z.spawn??{x:10,y:9});db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,?,?,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=excluded.x,y=excluded.y,seen=excluded.seen,moved=0').run(i.owner,c.id,z.id,i.id,input.controller,spawn.x,spawn.y,now());
+    const spawn=divePresence?.zone===z.id?{x:divePresence.x,y:divePresence.y}:(z.spawn??{x:10,y:9});db.prepare('INSERT INTO quest_presence(owner,character_id,zone,grant_id,controller,x,y,seen,moved) VALUES (?,?,?,?,?,?,?,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=excluded.x,y=excluded.y,seen=excluded.seen,moved=0').run(i.owner,c.id,z.id,i.id,input.controller,spawn.x,spawn.y,now());
    }else{
     p=presence(i,c,input.controller);const z=zone(p.zone);
     if(input.action==='hub_visit'){
@@ -330,6 +337,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     }else if(input.action==='appearance'){state.avatar=chooseAvatar(input.avatar,i.owner,c.id);} // Private sprites require this character's ownership as well as ordinary replay/presence checks.
     else if(input.action==='allocate'){
      if(!state.loadout||state.run?.phase==='fight'||!['str','def','dex','int','cha'].includes(input.stat)||!(state.loadout.player_info.stat_points>0))fail(409,'Choose an available level-up stat point between rounds.');
+     if(state.loadout.player_info[input.stat]>=MAX_STAT)fail(409,'That stat is already at its maximum of '+MAX_STAT+'.'); /* Points stay banked for another stat. */
      state.loadout.player_info[input.stat]++;state.loadout.player_info.stat_points--;
      if(input.stat==='int'){state.loadout.player_mp_max=manaCapacity(state.loadout);state.loadout.player_mp=Math.min(state.loadout.player_mp,state.loadout.player_mp_max);}
      if(state.run){applyRunLoadout(state.run,state.loadout);state.run.log.push('+1 '+input.stat.toUpperCase()+'.');}
@@ -360,7 +368,10 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
      const x=p.x+d[0],y=p.y+d[1];if(blocked(z,x,y))fail(409,'That tile is blocked.');
      const gap=hubGaps(z).find(g=>inHubGap(g,x,y));
      if(gap)visitHub(i,state,z,zone(gap.target)); // The server commits wall contact and room transfer in one receipt, including click-path movement.
-     else {db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE owner=?').run(x,y,now(),i.owner);if(input.world_step===true&&state.loadout)state.worldTurnDue={id:randomUUID()};} // Ordinary walking still reserves one recoverable needs turn.
+     else {db.prepare('UPDATE quest_presence SET x=?,y=?,moved=?,facing=? WHERE owner=?').run(x,y,now(),FACING[input.direction],i.owner);if(input.world_step===true&&state.loadout)state.worldTurnDue={id:randomUUID()};} // Ordinary walking still reserves one recoverable needs turn and turns the avatar toward the step.
+    }else if(input.action==='face'){
+     if(!Object.hasOwn(FACING,input.direction))fail(400,'Choose a facing direction.'); /* Ctrl+direction: turn in place without spending a movement or needs turn. */
+     db.prepare('UPDATE quest_presence SET facing=? WHERE owner=?').run(FACING[input.direction],i.owner);
     }else if(input.action==='start'){
      if(z.parent)fail(409,'Return to the arena lobby to start a run.');if(state.run)fail(409,'An arena run is already in progress.');if(state.lastStart&&now()-state.lastStart<60000)fail(429,'Wait one minute between arena entries.');
      if(input.loadout!==undefined)state.loadout=importLoadout(input.loadout);
