@@ -13,6 +13,7 @@ const FACING={south:0,north:1,east:2,west:3}; /* Shared with the client's objPla
 import {hubArrival,hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog,campaignDives,DAILY_COIN_CAP} from './hubs.mjs';
 import {createDive,DIVE_ZONE} from './dive.mjs';
 import {createEnchantmentStore} from './enchantment-store.mjs';
+import {createLootStore} from './loot-store.mjs';
 import {generateDesert} from './desert-generation.mjs';
 import {addNorthTrail,openExitGaps} from './wilderness-links.mjs';
 import {createZoneCategories,ZONE_CATEGORY} from './zone-categories.mjs';
@@ -79,19 +80,20 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  const purchases=createHubPurchases(db,{now,origins});
  const bank=createBank(db);
  const enchantments=createEnchantmentStore(db,{now}); // One live curse/blessing table behind every route and the /gm panel.
- const quarters=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,enchantments,...diveOptions});
+ const loot=createLootStore(db,{now}); // One live Adjective + Item + Rarity table behind every route and the /gm panel.
+ const quarters=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,enchantments,loot,...diveOptions});
  const highTrail=floor=>addNorthTrail(floor,(highDesertOptions.data??highDesertData).config)|openExitGaps(floor); // Dustbreak's north-center gate leads up to the High Desert.
- const desert=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:desertData,generate:generateDesert,upgradeFloor:highTrail,travel,enchantments,...desertOptions});
+ const desert=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:desertData,generate:generateDesert,upgradeFloor:highTrail,travel,enchantments,loot,...desertOptions});
  const trail=floor=>addNorthTrail(floor,(taigaOptions.data??taigaData).config)|openExitGaps(floor); // Non-short-circuit OR: add the trail, then open every exit as a wall gap.
- const tundra=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:tundraData,generate:generateDesert,upgradeFloor:trail,travel,enchantments,...tundraOptions});
- const taiga=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:taigaData,generate:generateDesert,upgradeFloor:openExitGaps,travel,enchantments,...taigaOptions});
- const highDesert=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:highDesertData,generate:generateDesert,upgradeFloor:openExitGaps,travel,enchantments,...highDesertOptions}); // Shares the wilderness generator; its only exit returns south into Dustbreak.
+ const tundra=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:tundraData,generate:generateDesert,upgradeFloor:trail,travel,enchantments,loot,...tundraOptions});
+ const taiga=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:taigaData,generate:generateDesert,upgradeFloor:openExitGaps,travel,enchantments,loot,...taigaOptions});
+ const highDesert=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:highDesertData,generate:generateDesert,upgradeFloor:openExitGaps,travel,enchantments,loot,...highDesertOptions}); // Shares the wilderness generator; its only exit returns south into Dustbreak.
  const engines=new Map([[DIVE_ZONE,quarters],[DESERT_ZONE,desert],[TUNDRA_ZONE,tundra],[TAIGA_ZONE,taiga],[HIGH_DESERT_ZONE,highDesert]]);
  function travel(c,state,source,destination){
   if(!WILDERNESS_LINKS.some(([parent,branch])=>(source===parent&&destination===branch)||(source===branch&&destination===parent)))return false;
   engines.get(destination).arrive(c,state,source);return true; // Only authored reciprocal trails connect dungeons; hub portals cannot enter a branch.
  }
- for(const data of campaignDives)engines.set(data.config.zone_id,createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data,enchantments})); // Each destination keeps its own editions, loot receipts and encounter locks.
+ for(const data of campaignDives)engines.set(data.config.zone_id,createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data,enchantments,loot})); // Each destination keeps its own editions, loot receipts and encounter locks.
  const zoneCategory=createZoneCategories(engines); // zone id -> 'dive' | 'overworld' | 'safe'; built after every route is registered.
  const hubEvents=live?createHubEncounters(db,{now,roll,parties,live,ids:[...hubCatalog,...hubRooms].map(z=>z.id),definition:id=>{const z=zone(id),d=hubDefinition(z,now());return {...d,width:z.width??20,height:z.height??12,walls:Array.from({length:z.height??12},(_,y)=>Array.from({length:z.width??20},(_,x)=>blocked(z,x,y)?1:0))};}}):null;
  const baseWorld=live?{catalog:()=>[...[...engines].map(([id])=>({id,name:live.entry('zone',id).draft.id,kind:'dive',category:zoneCategory(id)})),...[...hubCatalog,...hubRooms].map(z=>({id:z.id,name:z.name,kind:'hub',category:ZONE_CATEGORY.SAFE}))],map:id=>engines.has(id)?engines.get(id).controls.view():hubEvents.engine(id).view(),act:input=>{const controls=engines.has(input.zone)?engines.get(input.zone).controls:hubEvents.engine(input.zone);if(input.action==='world_regenerate'){if(!controls.regenerate)fail(400,'Only whole Dives can be regenerated.');return controls.regenerate(input);}if(input.action==='world_cancel')return controls.cancel(input);return controls.place(input);}}:null;
@@ -437,5 +439,5 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   if(isDungeon(p.zone)){const a=JSON.parse(c.state).dive,b=JSON.parse(other.state).dive;if(!a||!b||a.route!==b.route||a.depth!==b.depth||a.edition!==b.edition)fail(404,'That player is no longer in this area.');} // Inspection follows displayed peers on the same weekly floor; chat room boundaries never make a visible player unclickable.
   return inspectionProjection(other);
  }
- return {read,act,inspect,enchantments,world,quests,questRead(secret,id,quest){const i=identity(secret),c=character(i.owner,id);return quests.detail(c,JSON.parse(c.state),quest);},setPrivateSprites(value){privateSprites=value;},tick(){districts.tick();dive.tick();if(hubEvents)atomic(()=>hubEvents.tick());if(quests)atomic(()=>quests.tick());},prepare:()=>Promise.all([...engines.values()].map(route=>route.prepare())),close(){for(const route of engines.values())route.close();},completePurchase:purchases.complete}; // One coordinator owns simulation and commits; workers only calculate candidate results.
+ return {read,act,inspect,enchantments,loot,world,quests,questRead(secret,id,quest){const i=identity(secret),c=character(i.owner,id);return quests.detail(c,JSON.parse(c.state),quest);},setPrivateSprites(value){privateSprites=value;},tick(){districts.tick();dive.tick();if(hubEvents)atomic(()=>hubEvents.tick());if(quests)atomic(()=>quests.tick());},prepare:()=>Promise.all([...engines.values()].map(route=>route.prepare())),close(){for(const route of engines.values())route.close();},completePurchase:purchases.complete}; // One coordinator owns simulation and commits; workers only calculate candidate results.
 } // Campaign stats and inventory are client-trusted; arena outcomes and shared-currency awards still belong to this simulation.

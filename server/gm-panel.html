@@ -120,6 +120,7 @@ tr.sel td{background:#2c1e3d}
   <button type="button" role="tab" id="tab-rp" aria-controls="panel-rp" aria-selected="false" tabindex="-1">RP Journal</button>
   <button type="button" role="tab" id="tab-rpp" aria-controls="panel-rpp" aria-selected="false" tabindex="-1">RPP</button>
   <button type="button" role="tab" id="tab-enchantments" aria-controls="panel-enchantments" aria-selected="false" tabindex="-1">Curses &amp; Blessings</button>
+  <button type="button" role="tab" id="tab-loot" aria-controls="panel-loot" aria-selected="false" tabindex="-1">Loot</button>
   <button type="button" role="tab" id="tab-moderation" aria-controls="panel-moderation" aria-selected="false" tabindex="-1">Moderation</button>
   <button type="button" role="tab" id="tab-performance" aria-controls="panel-performance" aria-selected="false" tabindex="-1">Performance</button>
 <button type="button" role="tab" id="tab-monsters" aria-controls="panel-monsters" aria-selected="false" tabindex="-1">Monsters</button>
@@ -267,6 +268,83 @@ tr.sel td{background:#2c1e3d}
       </div>
       <div class="row"><input id="eReason" class="grow" maxlength="240" placeholder="Why (recorded in the audit log)"><button class="go" id="eSave">Save enchantment</button><button id="eCancel">Cancel</button></div>
     </div>
+  </section>
+</div>
+<div class="tab-panel" id="panel-loot" role="tabpanel" aria-labelledby="tab-loot" tabindex="0" hidden>
+  <section class="wide" aria-labelledby="lootHeading">
+    <h2 id="lootHeading">Loot: adjective + item + rarity</h2>
+    <p class="note">Every wearable or weapon a chest hands out rolls a rarity tier, an item level and level-scaled affixes: an adjective in front, an "of the ..." title behind from Rare up, and bonus lines. A dress counts as two slots. Legendary copies get a quoted title and a guaranteed blessing. Edits here reach the next chest on every dive route without a restart. Loot a player already holds keeps the roll it was given.</p>
+    <div class="row"><b id="lootCounts" class="mono"></b><button id="lootReload">Reload</button><button id="lootResetTuning">Reset rates</button><button class="bad" id="lootResetAll">Reset everything</button></div>
+
+    <h2 style="margin-top:14px">Rarity tiers</h2>
+    <div class="scroll"><table><thead><tr><th>Tier</th><th>Weight</th><th>Affixes / slot</th><th>Suffix</th><th>Stat budget x</th><th>Value x</th><th>Bless x</th><th>Curse x</th><th>Force blessing</th><th>Colour</th></tr></thead><tbody id="lootRarity"></tbody></table></div>
+
+    <h2 style="margin-top:14px">Level curve and drops</h2>
+    <div class="ench" id="lootScalars"></div>
+    <p id="lootCurve" class="curve"></p>
+
+    <h2 style="margin-top:14px">Luck profiles</h2>
+    <p class="note">Multiplies each tier weight for a drop source. Bosses multiply the rare tiers; shops never hand out epics.</p>
+    <div class="scroll"><table><thead><tr><th>Profile</th><th>Uncommon</th><th>Rare</th><th>Epic</th><th>Legendary</th></tr></thead><tbody id="lootLuck"></tbody></table></div>
+
+    <h2 style="margin-top:14px">Over-cap bonuses</h2>
+    <p class="note">Base stats cap at 100 from level-ups; gear may push the total past it. Each point over the cap converts into a bonus percentage up to the ceiling.</p>
+    <div class="scroll"><table><thead><tr><th>Stat</th><th>Per point %</th><th>Ceiling %</th><th>Effect</th></tr></thead><tbody id="lootOvercap"></tbody></table></div>
+
+    <h2 style="margin-top:14px">Route levels</h2>
+    <p class="note">The item level a route hands out: base on floor one, plus per-floor growth.</p>
+    <div class="scroll"><table><thead><tr><th>Route</th><th>Base</th><th>Per floor</th></tr></thead><tbody id="lootRoutes"></tbody></table></div>
+
+    <h2 style="margin-top:14px">Legendary titles</h2>
+    <label class="src" for="lootTitles">One per line. A legendary copy takes one at random and wears it in quotes.</label>
+    <textarea id="lootTitles" rows="4"></textarea>
+
+    <div class="row"><input id="lootTuneReason" class="grow" maxlength="240" placeholder="Why this retune (recorded in the audit log)"><button class="go" id="lootTuneSave">Apply rates</button></div>
+
+    <h2 style="margin-top:14px">Affixes</h2>
+    <div class="row">
+      <select id="lootFilter"><option value="">Everything</option><option value="prefix">Adjectives</option><option value="suffix">Titles</option><option value="bonus">Bonus-only</option><option value="retired">Retired</option></select>
+      <input id="lootSearch" class="grow" placeholder="Search id, adjective, title, slot or stat" maxlength="60">
+      <button class="go" id="lootNew">Write a new one</button>
+    </div>
+    <div class="scroll"><table><thead><tr><th>Affix</th><th>Slots</th><th>Min tier</th><th>Stats</th><th>Weight</th><th>Source</th><th></th></tr></thead><tbody id="lootList"></tbody></table></div>
+    <p id="lootEmpty" class="empty" hidden>Nothing matches that filter.</p>
+
+    <div id="lootEditor" class="ench-form" hidden>
+      <h2 id="lootEditorTitle">Edit affix</h2>
+      <div class="ench">
+        <div><label for="aId">Id</label><input id="aId" maxlength="48" placeholder="lowercase_with_underscores"></div>
+        <div><label for="aAdjective">Adjective (prefix)</label><input id="aAdjective" maxlength="40" placeholder="Crinkly"></div>
+        <div><label for="aSuffix">Title (suffix)</label><input id="aSuffix" maxlength="48" placeholder="of the Nursery"></div>
+        <div><label for="aWeight">Pick weight</label><input id="aWeight" type="number" min="0.1" max="1000" step="0.1"></div>
+        <div><label for="aMinRarity">Lowest tier</label><select id="aMinRarity"></select></div>
+        <div><label for="aTags">Tags (comma separated)</label><input id="aTags" maxlength="120" placeholder="wet, bulk"></div>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" id="aBonusOnly"> Bonus-only (no name contribution)</label>
+        <label><input type="checkbox" id="aEnabled" checked> Enabled</label>
+      </div>
+      <label class="src">Slots it may roll onto (a dress asks torso and pants)</label>
+      <div class="slots" id="aSlots"></div>
+      <label class="src">Stat lines (one to four). Value = min..max, plus per-level growth x (item level - 1).</label>
+      <div id="aStats"></div>
+      <div class="row"><button id="aAddStat">Add stat line</button></div>
+      <div class="ench">
+        <div style="grid-column:1/-1"><label for="aFlavour">Flavour appended to the item description</label><input id="aFlavour" maxlength="240"></div>
+      </div>
+      <div class="row"><input id="aReason" class="grow" maxlength="240" placeholder="Why (recorded in the audit log)"><button class="go" id="aSave">Save affix</button><button id="aCancel">Cancel</button></div>
+    </div>
+
+    <h2 style="margin-top:14px">Preview a roll</h2>
+    <p class="note">Rolls one sample with the live table. It never touches chest receipts or the audit log.</p>
+    <div class="ench">
+      <div><label for="pItem">Base item</label><select id="pItem"></select></div>
+      <div><label for="pLevel">Source level</label><input id="pLevel" type="number" min="1" max="100" value="20"></div>
+      <div><label for="pLuck">Luck profile</label><select id="pLuck"></select></div>
+      <div><label for="pSeed">Seed</label><input id="pSeed" maxlength="64" value="demo"></div>
+    </div>
+    <div class="row"><button class="go" id="pRoll">Roll</button><button id="pAgain">Roll another</button></div>
+    <p id="pResult" class="curve"></p>
   </section>
 </div>
 <div class="tab-panel" id="panel-moderation" role="tabpanel" aria-labelledby="tab-moderation" tabindex="0" hidden>
@@ -852,6 +930,278 @@ tr.sel td{background:#2c1e3d}
   act("enchant_reset",{scope:"all"},"Enchantment table reset to the shipped content.").then(loadEnchantments);
  });
 
+
+ // ---- Loot: adjective + item + rarity --------------------------------------
+ var lootData=null,lootEditing=null,lootAffixSeq=0; // The live table as the panel last read it.
+
+ function lootNumber(id){var raw=$(id).value.trim();return raw===""?null:Number(raw);}
+
+ function lootRenderRarity(){
+  var body=$("lootRarity");clear(body);
+  lootData.rarityOrder.forEach(function(tier){
+   var row=lootData.tuning.rarity[tier]||{},tr=el("tr");
+   var name=el("td");name.appendChild(el("b",null,tier));name.style.color=row.colour||"";tr.appendChild(name);
+   ["weight","affixes","suffix","budget_mult","value_mult","bless_mult","curse_mult","force_blessing","colour"].forEach(function(key){
+    var td=el("td"),input=el("input");input.id="rar_"+tier+"_"+key;
+    if(key==="suffix"||key==="force_blessing"){input.type="checkbox";input.checked=row[key]===true;}
+    else if(key==="colour"){input.type="text";input.maxLength=7;input.value=row[key]||"#ffffff";input.style.width="90px";}
+    else{input.type="number";input.step="any";var b=lootData.rarityBounds[key]||[0,1000];input.min=String(b[0]);input.max=String(b[1]);input.value=row[key]!==undefined?String(row[key]):"";input.style.width="80px";}
+    td.appendChild(input);tr.appendChild(td);
+   });
+   body.appendChild(tr);
+  });
+ }
+
+ function lootRenderScalars(){
+  var host=$("lootScalars");clear(host);
+  Object.keys(lootData.scalarBounds).forEach(function(key){
+   var bounds=lootData.scalarBounds[key],wrap=el("div");
+   var label=el("label",null,key.replace(/_/g," "));label.setAttribute("for","lt_"+key);
+   var input=el("input");input.id="lt_"+key;input.type="number";input.step="any";input.min=String(bounds[0]);input.max=String(bounds[1]);
+   input.value=lootData.tuning[key]!==undefined?String(lootData.tuning[key]):"";
+   input.addEventListener("input",lootRenderCurve);
+   wrap.appendChild(label);wrap.appendChild(input);host.appendChild(wrap);
+  });
+  lootRenderCurve();
+ }
+
+ function lootRenderCurve(){ // A base DEF 2 item across the level bands, per tier: the shape of the change before applying it.
+  var growth=lootNumber("lt_level_growth");if(growth===null){$("lootCurve").textContent="";return;}
+  var levels=[1,10,25,50,75,100],lines=["base DEF 2   "+levels.map(function(l){return ("lv"+l+"    ").slice(0,6);}).join("")];
+  lootData.rarityOrder.forEach(function(tier){
+   var mult=Number($("rar_"+tier+"_budget_mult").value)||1;
+   lines.push((tier+"            ").slice(0,13)+levels.map(function(l){return (String(Math.round(2*(1+growth*(l-1))*mult))+"      ").slice(0,6);}).join(""));
+  });
+  $("lootCurve").textContent=lines.join("\n");
+ }
+
+ function lootRenderLuck(){
+  var body=$("lootLuck");clear(body);var tiers=lootData.rarityOrder.slice(1);
+  Object.keys(lootData.tuning.luck_profiles||{}).forEach(function(name){
+   var row=lootData.tuning.luck_profiles[name],tr=el("tr");tr.appendChild(el("td",null,name));
+   tiers.forEach(function(tier){var td=el("td"),input=el("input");input.id="luck_"+name+"_"+tier;input.type="number";input.step="any";input.min="0";input.max="20";input.value=row[tier]!==undefined?String(row[tier]):"1";input.style.width="70px";td.appendChild(input);tr.appendChild(td);});
+   body.appendChild(tr);
+  });
+ }
+
+ function lootRenderOvercap(){
+  var body=$("lootOvercap");clear(body);
+  lootData.overcapStats.forEach(function(stat){
+   var row=(lootData.tuning.overcap||{})[stat]||{},tr=el("tr");tr.appendChild(el("td",null,stat.toUpperCase()));
+   [["per_point",0,5],["ceiling",0,100]].forEach(function(spec){var td=el("td"),input=el("input");input.id="oc_"+stat+"_"+spec[0];input.type="number";input.step="any";input.min=String(spec[1]);input.max=String(spec[2]);input.value=row[spec[0]]!==undefined?String(row[spec[0]]):"0";input.style.width="80px";td.appendChild(input);tr.appendChild(td);});
+   var eff=el("td"),input=el("input");input.id="oc_"+stat+"_effect";input.type="text";input.maxLength=40;input.value=row.effect||"";eff.appendChild(input);tr.appendChild(eff);
+   body.appendChild(tr);
+  });
+ }
+
+ function lootRenderRoutes(){
+  var body=$("lootRoutes");clear(body);
+  Object.keys(lootData.tuning.route_levels||{}).forEach(function(route){
+   var row=lootData.tuning.route_levels[route],tr=el("tr");tr.appendChild(el("td",null,route));
+   [["base",1,100],["per_floor",0,10]].forEach(function(spec){var td=el("td"),input=el("input");input.id="rt_"+route+"_"+spec[0];input.type="number";input.step="1";input.min=String(spec[1]);input.max=String(spec[2]);input.value=String(row[spec[0]]);input.style.width="70px";td.appendChild(input);tr.appendChild(td);});
+   body.appendChild(tr);
+  });
+ }
+
+ function lootCollectTuning(){
+  var patch={},rarity={},luck={},overcap={},routes={},bad=null;
+  Object.keys(lootData.scalarBounds).forEach(function(key){var v=lootNumber("lt_"+key);if(v===null||!isFinite(v)){bad=bad||key;return;}patch[key]=v;});
+  lootData.rarityOrder.forEach(function(tier){
+   rarity[tier]={weight:Number($("rar_"+tier+"_weight").value),affixes:Number($("rar_"+tier+"_affixes").value),suffix:$("rar_"+tier+"_suffix").checked,
+    budget_mult:Number($("rar_"+tier+"_budget_mult").value),value_mult:Number($("rar_"+tier+"_value_mult").value),bless_mult:Number($("rar_"+tier+"_bless_mult").value),
+    curse_mult:Number($("rar_"+tier+"_curse_mult").value),force_blessing:$("rar_"+tier+"_force_blessing").checked,colour:$("rar_"+tier+"_colour").value.trim()};
+  });
+  Object.keys(lootData.tuning.luck_profiles||{}).forEach(function(name){luck[name]={};lootData.rarityOrder.slice(1).forEach(function(tier){luck[name][tier]=Number($("luck_"+name+"_"+tier).value);});});
+  lootData.overcapStats.forEach(function(stat){overcap[stat]={per_point:Number($("oc_"+stat+"_per_point").value),ceiling:Number($("oc_"+stat+"_ceiling").value),effect:$("oc_"+stat+"_effect").value.trim()};});
+  Object.keys(lootData.tuning.route_levels||{}).forEach(function(route){routes[route]={base:Number($("rt_"+route+"_base").value),per_floor:Number($("rt_"+route+"_per_floor").value)};});
+  patch.rarity=rarity;patch.luck_profiles=luck;patch.overcap=overcap;patch.route_levels=routes;
+  patch.legendary_titles=$("lootTitles").value.split("\n").map(function(t){return t.trim();}).filter(Boolean);
+  return {patch:patch,bad:bad};
+ }
+
+ function lootStatSummary(affix){
+  return (affix.stats||[]).map(function(line){
+   var grow=line.per_level_max?(" +"+line.per_level_max+"/lv"):"";
+   return line.key+" "+(line.min===line.max?String(line.min):line.min+".."+line.max)+grow;
+  }).join(", ");
+ }
+
+ function lootRenderList(){
+  var filter=$("lootFilter").value,query=$("lootSearch").value.toLowerCase().trim();
+  var body=$("lootList");clear(body);var shown=0;
+  lootData.affixes.forEach(function(affix){
+   if(filter==="retired"&&!affix.retired)return;
+   if(filter!=="retired"&&affix.retired)return;
+   if(filter==="prefix"&&!affix.adjective)return;
+   if(filter==="suffix"&&!affix.suffix_title)return;
+   if(filter==="bonus"&&!affix.bonus_only)return;
+   var hay=(affix.id+" "+(affix.adjective||"")+" "+(affix.suffix_title||"")+" "+affix.slots.join(" ")+" "+lootStatSummary(affix)).toLowerCase();
+   if(query&&hay.indexOf(query)<0)return;
+   shown++;
+   var tr=el("tr");
+   var name=el("td");name.appendChild(el("span",null,(affix.adjective||"")+(affix.adjective&&affix.suffix_title?" / ":"")+(affix.suffix_title||"")||affix.id));
+   if(affix.bonus_only)name.appendChild(el("span","tag dive","bonus"));
+   if(affix.enabled===false&&!affix.retired)name.appendChild(el("span","tag mute","off"));
+   name.appendChild(el("div","mono",affix.id));
+   tr.appendChild(name);
+   tr.appendChild(el("td",null,affix.slots.join(", ")));
+   tr.appendChild(el("td",null,affix.min_rarity));
+   tr.appendChild(el("td","mono",lootStatSummary(affix)));
+   tr.appendChild(el("td",null,String(affix.weight)));
+   tr.appendChild(el("td","src "+(affix.retired?"retired":affix.source),affix.retired?"retired":affix.source));
+   var actions=el("td");
+   var edit=el("button","sm","Edit");edit.addEventListener("click",function(){lootOpenEditor(affix);});
+   actions.appendChild(edit);
+   if(affix.retired){
+    var back=el("button","sm","Restore");back.addEventListener("click",function(){act("loot_restore",{id:affix.id},"Restored "+affix.id+".").then(loadLoot);});
+    actions.appendChild(back);
+   }else{
+    var drop=el("button","sm bad",affix.source==="custom"?"Delete":"Retire");
+    drop.addEventListener("click",function(){
+     if(!window.confirm((affix.source==="custom"?"Delete ":"Retire ")+affix.id+"? Loot already rolled keeps it."))return;
+     act("loot_delete",{id:affix.id},affix.id+" removed from the table.").then(loadLoot);
+    });
+    actions.appendChild(drop);
+   }
+   tr.appendChild(actions);
+   body.appendChild(tr);
+  });
+  $("lootEmpty").hidden=shown>0;
+  $("lootCounts").textContent=lootData.counts.affixes+" affixes / "+lootData.counts.titles+" legendary titles live";
+ }
+
+ function lootRenderSlotBoxes(selected){
+  var host=$("aSlots");clear(host);
+  ["*"].concat(lootData.slots).forEach(function(slot){
+   var label=el("label"),box=el("input");
+   box.type="checkbox";box.value=slot;box.checked=selected.indexOf(slot)>=0;
+   label.appendChild(box);label.appendChild(document.createTextNode(" "+(slot==="*"?"any wearable":slot)));
+   host.appendChild(label);
+  });
+ }
+
+ function lootAddStatRow(line){
+  var host=$("aStats"),row=el("div","ench"),seq=++lootAffixSeq;row.dataset.stat="1";
+  var keyWrap=el("div"),keyLabel=el("label",null,"stat"),select=el("select");select.className="stat-key";
+  lootData.statKeys.forEach(function(key){var opt=el("option",null,key);opt.value=key;if(line&&line.key===key)opt.selected=true;select.appendChild(opt);});
+  keyWrap.appendChild(keyLabel);keyWrap.appendChild(select);row.appendChild(keyWrap);
+  [["min",-20,20,1,0],["max",-20,20,1,0],["per_level_min",0,1,"any",0],["per_level_max",0,1,"any",0]].forEach(function(spec){
+   var wrap=el("div"),label=el("label",null,spec[0].replace(/_/g," ")),input=el("input");
+   input.className="stat-"+spec[0];input.type="number";input.min=String(spec[1]);input.max=String(spec[2]);input.step=String(spec[3]);
+   input.value=line&&line[spec[0]]!==undefined?String(line[spec[0]]):String(spec[4]);
+   wrap.appendChild(label);wrap.appendChild(input);row.appendChild(wrap);
+  });
+  var removeWrap=el("div"),remove=el("button","sm bad","Remove");remove.type="button";remove.addEventListener("click",function(){host.removeChild(row);});
+  removeWrap.appendChild(el("label",null,"\u00a0"));removeWrap.appendChild(remove);row.appendChild(removeWrap);
+  host.appendChild(row);
+ }
+
+ function lootOpenEditor(affix){
+  lootEditing=affix?affix.id:null;
+  $("lootEditorTitle").textContent=affix?("Edit "+affix.id):"Write a new affix";
+  $("aId").value=affix?affix.id:"";
+  $("aId").disabled=Boolean(affix); // Changing an id would orphan it in save data, so edit keeps it fixed.
+  $("aAdjective").value=affix?(affix.adjective||""):"";
+  $("aSuffix").value=affix?(affix.suffix_title||""):"";
+  $("aWeight").value=affix?affix.weight:10;
+  var tiers=$("aMinRarity");clear(tiers);
+  lootData.rarityOrder.forEach(function(tier){var opt=el("option",null,tier);opt.value=tier;if((affix?affix.min_rarity:"uncommon")===tier)opt.selected=true;tiers.appendChild(opt);});
+  $("aTags").value=affix?(affix.tags||[]).join(", "):"";
+  $("aBonusOnly").checked=Boolean(affix&&affix.bonus_only);
+  $("aEnabled").checked=!affix||affix.enabled!==false;
+  $("aFlavour").value=affix?(affix.flavour||""):"";
+  lootRenderSlotBoxes(affix?affix.slots:[]);
+  clear($("aStats"));
+  (affix?affix.stats:[{key:"def",min:1,max:1,per_level_min:0.05,per_level_max:0.15}]).forEach(lootAddStatRow);
+  $("lootEditor").hidden=false;
+  $("aId").focus();
+ }
+
+ function lootCollectAffix(){
+  var slots=[],boxes=$("aSlots").querySelectorAll("input");
+  for(var i=0;i<boxes.length;i++)if(boxes[i].checked)slots.push(boxes[i].value);
+  var stats=[],rows=$("aStats").querySelectorAll("[data-stat]");
+  for(var r=0;r<rows.length;r++){
+   var row=rows[r];
+   stats.push({key:row.querySelector(".stat-key").value,min:Number(row.querySelector(".stat-min").value),max:Number(row.querySelector(".stat-max").value),
+    per_level_min:Number(row.querySelector(".stat-per_level_min").value),per_level_max:Number(row.querySelector(".stat-per_level_max").value)});
+  }
+  return {
+   id:$("aId").value.trim().toLowerCase(),adjective:$("aAdjective").value.trim(),suffix_title:$("aSuffix").value.trim(),
+   weight:Number($("aWeight").value),min_rarity:$("aMinRarity").value,
+   tags:$("aTags").value.split(",").map(function(t){return t.trim();}).filter(Boolean),
+   bonus_only:$("aBonusOnly").checked,enabled:$("aEnabled").checked,slots:slots,stats:stats,flavour:$("aFlavour").value.trim()
+  };
+ }
+
+ function lootRenderPreviewPickers(){
+  var items=$("pItem"),luck=$("pLuck");
+  if(!items.options.length){lootData.items.forEach(function(id){var opt=el("option",null,id);opt.value=id;if(id.indexOf("diaper")>=0&&!items.value)opt.selected=true;items.appendChild(opt);});}
+  if(!luck.options.length){Object.keys(lootData.tuning.luck_profiles||{}).forEach(function(name){var opt=el("option",null,name);opt.value=name;if(name==="chest")opt.selected=true;luck.appendChild(opt);});}
+ }
+
+ function lootPreview(){
+  if(!lootData)return;
+  act("loot_preview",{item_id:$("pItem").value,level:Number($("pLevel").value),luck:$("pLuck").value,seed:$("pSeed").value},"Rolled a sample.").then(function(result){
+   if(!result)return;
+   var item=result.item,lines=[item.name,"  "+(result.summary||"common - plain"),"  value "+item.value+"g"];
+   if(item.loot){
+    [item.loot.prefix,item.loot.suffix].concat(item.loot.bonus||[]).filter(Boolean).forEach(function(record){
+     lines.push("  "+(record.adjective||record.title||record.id)+": "+Object.keys(record.stats).map(function(k){return k+" "+(record.stats[k]>0?"+":"")+record.stats[k];}).join(", "));
+    });
+   }
+   if(result.enchantment&&item.enchantment)lines.push("  "+result.enchantment);
+   lines.push("  "+item.desc);
+   $("pResult").textContent=lines.join("\n");
+  });
+ }
+
+ function loadLoot(){
+  if(!token)return;
+  var epoch=perfEpoch;
+  return api("/gm/loot").then(function(payload){
+   if(epoch!==perfEpoch||!token)return;
+   lootData=payload;
+   lootRenderRarity();lootRenderScalars();lootRenderLuck();lootRenderOvercap();lootRenderRoutes();
+   $("lootTitles").value=(payload.legendary_titles||[]).join("\n");
+   lootRenderList();lootRenderPreviewPickers();
+  }).catch(function(error){say("err",error.message);});
+ }
+
+ $("lootReload").addEventListener("click",function(){loadLoot();});
+ $("lootFilter").addEventListener("change",function(){if(lootData)lootRenderList();});
+ $("lootSearch").addEventListener("input",function(){if(lootData)lootRenderList();});
+ $("lootNew").addEventListener("click",function(){if(lootData)lootOpenEditor(null);});
+ $("aCancel").addEventListener("click",function(){$("lootEditor").hidden=true;lootEditing=null;});
+ $("aAddStat").addEventListener("click",function(){if(lootData)lootAddStatRow(null);});
+ $("aSave").addEventListener("click",function(){
+  if(!lootData)return;
+  act("loot_save",{affix:lootCollectAffix(),reason:$("aReason").value},"Affix saved.").then(function(result){
+   if(!result)return; // A rejection already showed its reason; keep the form so it can be corrected.
+   $("lootEditor").hidden=true;lootEditing=null;$("aReason").value="";
+   loadLoot();
+  });
+ });
+ $("lootTuneSave").addEventListener("click",function(){
+  if(!lootData)return;
+  var collected=lootCollectTuning();
+  if(collected.bad){say("err","Fill in "+collected.bad.replace(/_/g," ")+" before applying.");return;}
+  act("loot_tune",{tuning:collected.patch,reason:$("lootTuneReason").value},"Loot rates applied to every dive route.").then(function(result){
+   if(result)$("lootTuneReason").value="";
+   loadLoot();
+  });
+ });
+ $("lootResetTuning").addEventListener("click",function(){
+  if(!window.confirm("Put every loot rate, luck profile and title back to what the last content export shipped?"))return;
+  act("loot_reset",{scope:"tuning"},"Loot rates reset to the shipped values.").then(loadLoot);
+ });
+ $("lootResetAll").addEventListener("click",function(){
+  if(!window.confirm("Discard every loot rate change, affix edit and custom affix? Loot already rolled keeps what it was given."))return;
+  act("loot_reset",{scope:"all"},"Loot table reset to the shipped content.").then(loadLoot);
+ });
+ $("pRoll").addEventListener("click",lootPreview);
+ $("pAgain").addEventListener("click",function(){$("pSeed").value=String(Math.floor(Math.random()*1e9));lootPreview();});
+
  function refresh(){
   var epoch=perfEpoch;
   return api("/gm/overview").then(function(payload){
@@ -864,6 +1214,7 @@ tr.sel td{background:#2c1e3d}
    renderZones();renderPlayers();renderSanctions(payload.sanctions);renderAudit(payload.audit);
    loadPerformance();
    if(!ench)loadEnchantments(); // Read the table once per session; edits refresh it themselves.
+   if(!lootData)loadLoot(); // Same for the loot table.
    if(selected)loadPlayer(selected);
   }).catch(function(error){
    if(epoch!==perfEpoch)return;

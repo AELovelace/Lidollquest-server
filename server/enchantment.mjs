@@ -120,16 +120,17 @@ export function createEnchanter(table){ // Built once at boot from the exported 
   return true;
  }
 
- return function enchant(item,key){ // `key` is the chest's own seed key, so the roll is stable across regeneration.
+ return function enchant(item,key,{curseMult=1,blessMult=1,force=''}={}){ // `key` is the chest's own seed key, so the roll is stable across regeneration. The loot tier may scale or force the outcome (loot.mjs).
   if(!ids.size||!eligible(item))return item;
   const score=itemScore(item,tuning),rnd=seeded(key+':enchant');
-  const curseOdds=curseChancePercent(item,score,tuning)*100,blessOdds=blessChancePercent(item,score,tuning)*100;
+  const curseOdds=curseChancePercent(item,score,tuning)*100*Math.max(0,curseMult),blessOdds=blessChancePercent(item,score,tuning)*100*Math.max(0,blessMult);
   // ONE roll across both bands in basis points, so a copy is never cursed AND
   // blessed, and the two chances add up to exactly the odds of being enchanted.
-  const roll=rnd(10000),wantCurse=roll<curseOdds;
-  if(!wantCurse&&roll>=curseOdds+blessOdds)return item; // The usual outcome: plain gear.
+  const roll=rnd(10000);let wantCurse=roll<curseOdds;
+  if(force==='curse')wantCurse=true;else if(force==='blessing')wantCurse=false; // A legendary is blessed or plain, never cursed.
+  else if(!wantCurse&&roll>=curseOdds+blessOdds)return item; // The usual outcome: plain gear.
   let entries=legal(wantCurse?curses:blessings,item.category,score);
-  if(!entries.length)entries=legal(wantCurse?blessings:curses,item.category,score); // That family has none for this slot; try the other alignment.
+  if(!entries.length&&!force)entries=legal(wantCurse?blessings:curses,item.category,score); // That family has none for this slot; try the other alignment (never when forced).
   const entry=pick(entries,rnd);
   if(entry)apply(item,entry,rnd);
   return item;

@@ -1,3 +1,5 @@
+import {createEnchanter,describeItem} from './enchantment.mjs';
+import {createLootRoller,describeLoot} from './loot.mjs';
 import {BlockList,isIPv4,isIPv6} from 'node:net';
 import {readFileSync} from 'node:fs';
 import {hubCatalog,hubRooms,campaignDives} from './hubs.mjs';
@@ -53,7 +55,7 @@ export function buildAllowList(text){ // Comma-separated addresses and CIDR bloc
  return list;
 } // Rejected loudly at construction so a typo cannot silently admit the whole network.
 
-export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn}={}){
+export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,lootItems=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn}={}){
  const rp=createRoleplay(db,{now}); // RP journals use the same live staff authorization as every moderation tool.
  const rpp=createRpp(db,{now}); // Staff-only RPP gifts and purchase history never touch premium currencies.
  db.exec(`CREATE TABLE IF NOT EXISTS gm_sanctions(owner TEXT NOT NULL,kind TEXT NOT NULL,until INTEGER NOT NULL,reason TEXT NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(owner,kind));
@@ -74,6 +76,18 @@ export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,wo
   return {tuning:live.tuning,entries:store.list(baseTable()),revision:store.revision(),
    slots:store.slots,statKeys:store.statKeys,tuningKeys:store.tuningKeys,bounds:store.bounds,
    counts:{curses:live.curses.length,blessings:live.blessings.length}};
+ };
+
+ // The Adjective + Item + Rarity table a gamemaster edits: the same store every dive
+ // route rolls through, layered over the shipped baseline exported into dive-data.json.
+ const lootStore=()=>loot??fail(503,'Loot tuning is not available on this deployment.','gm_loot_unavailable');
+ const lootBase=()=>(typeof lootTable==='function'?lootTable():lootTable)??{tuning:{},affixes:[],legendary_titles:[]};
+ const lootCatalog=()=>(typeof lootItems==='function'?lootItems():lootItems)??{};
+ const lootView=()=>{
+  const store=lootStore(),liveTable=store.apply(lootBase());
+  return {tuning:liveTable.tuning,legendary_titles:liveTable.legendary_titles,affixes:store.list(lootBase()),revision:store.revision(),
+   slots:store.slots,statKeys:store.statKeys,rarityOrder:store.rarityOrder,tuningKeys:store.tuningKeys,scalarBounds:store.scalarBounds,rarityBounds:store.rarityBounds,overcapStats:store.overcapStats,
+   items:Object.keys(lootCatalog()).sort(),counts:{affixes:liveTable.affixes.length,titles:liveTable.legendary_titles.length}};
  };
 
  function client(req){ // The address moderation decisions are made about.
@@ -241,6 +255,46 @@ export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,wo
    record(actor,'enchant_reset','enchantments',{...result,reason:clean(input.reason,240)});
    return {...result,revision:enchantStore().revision()};
   },
+  loot_tune(input,actor){
+   const values=lootStore().tune(input.tuning,actor);
+   record(actor,'loot_tune','loot',{keys:Object.keys(values),reason:clean(input.reason,240)});
+   return {tuning:lootView().tuning,changed:Object.keys(values)};
+  },
+  loot_save(input,actor){
+   const affix=lootStore().save(input.affix,actor); // Rejects a malformed affix before it can reach the roller.
+   record(actor,'loot_save',affix.id,{slots:affix.slots,adjective:affix.adjective,suffix_title:affix.suffix_title,reason:clean(input.reason,240)});
+   return {affix,revision:lootStore().revision()};
+  },
+  loot_delete(input,actor){
+   const result=lootStore().remove(input.id,lootBase(),actor); // Shipped affixes are retired, not deleted.
+   record(actor,'loot_delete',result.id,{...result,reason:clean(input.reason,240)});
+   return {...result,revision:lootStore().revision()};
+  },
+  loot_restore(input,actor){
+   const result=lootStore().restore(input.id,actor);
+   record(actor,'loot_restore',result.id,{reason:clean(input.reason,240)});
+   return {...result,revision:lootStore().revision()};
+  },
+  loot_reset(input,actor){
+   const scope=String(input.scope??'all');
+   if(!['all','tuning','affixes'].includes(scope))fail(400,'Reset tuning, affixes or all.','gm_invalid_loot');
+   const result=lootStore().reset(scope);
+   record(actor,'loot_reset','loot',{...result,reason:clean(input.reason,240)});
+   return {...result,revision:lootStore().revision()};
+  },
+  loot_preview(input){ // Rolls one sample item with the live table; never touches chest receipts or the audit log.
+   const catalog=lootCatalog(),id=clean(input.item_id,64);
+   const base=catalog[id]??fail(400,'Pick an item from the dive catalog.','gm_unknown_item');
+   const roller=createLootRoller(lootStore().apply(lootBase()));
+   const enchant=createEnchanter(enchantStore().apply(baseTable()));
+   const item=structuredClone(base);
+   if(item.atk_min!==undefined){item.atk=item.atk_min;if(typeof item.desc==='string')item.desc=item.desc.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}
+   const level=Number(input.level);
+   const key='preview:'+clean(input.seed,64)||'preview:0';
+   roller.roll(item,key,{level:Number.isFinite(level)?level:1,luck:clean(input.luck,24)||'chest'});
+   enchant(item,key,roller.enchantMods(item));
+   return {item,summary:describeLoot(item),enchantment:describeItem(item,enchantStore().apply(baseTable()))};
+  },
   delete_chat(input,actor){
    const seq=Number(input.seq);
    if(!Number.isSafeInteger(seq)||seq<1)fail(400,'Choose a message to remove.','gm_unknown_message');
@@ -316,6 +370,7 @@ export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,wo
    if(url.pathname==='/gm/jobs'&&req.method==='GET')return send(200,{jobs:artJobs.list()});
    if(url.pathname==='/gm/asset'&&req.method==='GET')return send(200,live.asset(url.searchParams.get('id')));
    if(url.pathname==='/gm/enchantments'&&req.method==='GET')return send(200,enchantView()); // Content tuning, behind the same staff identity as every moderation tool.
+   if(url.pathname==='/gm/loot'&&req.method==='GET')return send(200,lootView()); // Adjective + Item + Rarity tuning and affix authoring.
    if(url.pathname==='/gm/rp'&&req.method==='GET')return send(200,rp.journal(Object.fromEntries(url.searchParams)));
    if(url.pathname==='/gm/rpp'&&req.method==='GET')return send(200,rpp.journal(url.searchParams.get('character')??''));
    if(url.pathname==='/gm/chat'&&req.method==='GET'){

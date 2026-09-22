@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {createDiveLootRoller} from '../server/dive-loot.mjs';
 import {seeded} from '../server/dive-generation.mjs';
 import {createEnchanter} from '../server/enchantment.mjs';
+import {createLootRoller} from '../server/loot.mjs';
 const catalog=name=>JSON.parse(readFileSync(new URL('../server/'+name,import.meta.url),'utf8'));
 const routes=[catalog('dive-data.json'),catalog('desert-data.json'),catalog('tundra-data.json'),...catalog('campaign-dives-data.json').routes];
 const plain=item=>item.category==='panties'&&!item.is_diaper;
@@ -11,13 +12,15 @@ function original(data,edition,character,chest){
  const rnd=seeded(`${data.config.route}:${edition}:1:${character}:${chest.id}`),pool=chest.kind==='food'?data.food_pool:chest.kind==='potion'?data.potion_pool:(data.item_pool??Object.keys(data.items).sort());
  const item=structuredClone(data.items[pool[rnd(pool.length)]]);
  if(item.atk_min!==undefined){item.atk=item.atk_min+rnd(item.atk_max-item.atk_min+1);if(typeof item.desc==='string')item.desc=item.desc.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}
- createEnchanter(data.enchantments)(item,`${data.config.route}:${edition}:1:${character}:${chest.id}`); // The curse/blessing roll is part of the loot contract, not a mutation of it.
+ const key=`${data.config.route}:${edition}:1:${character}:${chest.id}`,loot=createLootRoller(data.loot??routes[0].loot);
+ loot.roll(item,key,{level:loot.routeLevel(data.config.zone_id??data.config.route??'default',1)}); // Rarity, level and affixes are part of the loot contract too (loot.mjs).
+ createEnchanter(data.enchantments)(item,key,loot.enchantMods(item)); // The curse/blessing roll is part of the loot contract, not a mutation of it.
  return item;
 }
 test('nine online routes cap panties across chests and pickups, replacing only extra panty rolls',()=>{
  let replacements=0;
  for(const data of routes)for(let seed=0;seed<100;seed++){
-  const roll=createDiveLootRoller(data),rolls={},edition='seed-'+seed;
+  const roll=createDiveLootRoller(data,{lootTable:data.loot??routes[0].loot}),rolls={},edition='seed-'+seed;
   for(let n=0;n<80;n++){
    const chest={id:(n%2?'treasure-':'chest-')+n},before=original(data,edition,'alice',chest),used=Object.values(rolls).filter(plain).length;
    const item=roll(edition,'alice',chest,rolls);
@@ -31,7 +34,7 @@ test('nine online routes cap panties across chests and pickups, replacing only e
  assert.ok(replacements>1000);
 });
 test('older rolls survive and fresh progress records get their own allowance',()=>{
- const data=routes[0],roll=createDiveLootRoller(data),panties=Object.values(data.items).find(plain),old={old1:structuredClone(panties),old2:structuredClone(panties)};
+ const data=routes[0],roll=createDiveLootRoller(data,{lootTable:data.loot??routes[0].loot}),panties=Object.values(data.items).find(plain),old={old1:structuredClone(panties),old2:structuredClone(panties)};
  assert.deepEqual(roll('new','alice',{id:'old2'},old),panties);
  for(let n=0;n<2000;n++){
   const chest={id:'chest-'+n},before=original(data,'new','alice',chest);if(!plain(before))continue;
@@ -44,9 +47,9 @@ test('older rolls survive and fresh progress records get their own allowance',()
 test('editable limits support zero or two; invalid limits and missing diapers fail clearly',()=>{
  const base=routes[0],panties=Object.values(base.items).find(plain),diaper=Object.values(base.items).find(i=>i.is_diaper);
  const data={config:{route:'test',non_diaper_panties_per_floor:0},items:{p:panties,d:diaper},item_pool:['p','d']};
- const zero=createDiveLootRoller(data);for(let n=0;n<50;n++)assert.equal(zero('week','alice',{id:String(n)},{}).is_diaper,true);
- data.config.non_diaper_panties_per_floor=2;const two=createDiveLootRoller(data),rolls={};
+ const zero=createDiveLootRoller(data,{lootTable:data.loot??routes[0].loot});for(let n=0;n<50;n++)assert.equal(zero('week','alice',{id:String(n)},{}).is_diaper,true);
+ data.config.non_diaper_panties_per_floor=2;const two=createDiveLootRoller(data,{lootTable:data.loot??routes[0].loot}),rolls={};
  for(let n=0;n<50;n++)rolls[n]=two('week','alice',{id:String(n)},rolls);assert.equal(Object.values(rolls).filter(plain).length,2);
- data.item_pool=['p'];assert.throws(()=>createDiveLootRoller(data),/at least one diaper/);
- data.config.non_diaper_panties_per_floor=-1;assert.throws(()=>createDiveLootRoller(data),/integer/);
+ data.item_pool=['p'];assert.throws(()=>createDiveLootRoller(data,{lootTable:data.loot??routes[0].loot}),/at least one diaper/);
+ data.config.non_diaper_panties_per_floor=-1;assert.throws(()=>createDiveLootRoller(data,{lootTable:data.loot??routes[0].loot}),/integer/);
 });

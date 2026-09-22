@@ -174,6 +174,13 @@
         <p>Tokens and interaction objects have their own sprite selector and single-image PNG upload in Zones. They do not need a generated enemy or NPC to supply an icon.</p>
         <button type="button" data-gm-tool="jobs">Open Generation Jobs</button>
       </article>
+      <article data-guide-id="loot" tabindex="-1" hidden>
+        <h3>Loot: adjective + item + rarity</h3>
+        <p>Every wearable or weapon a chest hands out is a unique copy. It rolls a <b>rarity tier</b> (common, uncommon, rare, epic, legendary), an <b>item level</b> from the route and floor, level-scaled base stats, and <b>affixes</b>: an adjective in front, an "of the ..." title behind from rare up, and bonus lines. A dress fills torso and pants, so it rolls two passes. Legendary copies also get a quoted title and a guaranteed blessing from the curses and blessings table.</p>
+        <p>The <b>Loot</b> tab edits the live table. <b>Rarity tiers</b> set each tier's weight, affix count, stat budget and colour. <b>Luck profiles</b> multiply the tier weights for a drop source. <b>Route levels</b> set the item level each route hands out on floor one and how fast it climbs. <b>Over-cap bonuses</b> decide what a stat pushed past 100 by gear is worth. <b>Affixes</b> can be edited, retired, restored or written new; each one names its slots, its lowest tier, its tags (no two affixes on one item share a tag) and one to four stat lines with per-level growth.</p>
+        <p>Use <b>Preview a roll</b> to see the exact item a seed produces before you apply a change. Edits reach the next chest without a restart. Loot a player already holds keeps the roll it was given, and <b>Reset</b> puts everything back to the last content export. Never author <code>is_diaper</code> as an affix: the panel refuses it, because a diaper is identity, not a stat.</p>
+        <p><button type="button" data-gm-tool="loot">Open the Loot tab</button></p>
+      </article>
       <article data-guide-id="monsters" tabindex="-1" hidden>
         <h3>Monsters and live encounters</h3>
         <p>Use Monsters to create or duplicate a definition, edit combat stats and existing spells, select artwork, and author defeat scenes. Review then publish. Shipped defeat content is labelled Game default; editing combat stats does not require replacing its dialogue. Restore default removes a scene override.</p>
