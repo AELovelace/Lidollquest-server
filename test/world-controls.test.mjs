@@ -70,8 +70,8 @@ test('regeneration cancellation preserves the active map, including a late worke
 });
 
 test('hub encounters use shared combat and pinned scenes; one-off monsters cannot respawn or award boss coins',()=>{
- const f=fixture();try{const id=f.player('alice',false);f.publish('monster',{...monster,defeat:{first:{dialogue:[{id:'a',text:'Original scene',next:'close'}],aftermath:[]}}});const zone='princess-rose',m=f.map(zone),point=f.free(m);f.world('world_place',zone,{monster:monster.id,...point});const foe=f.map(zone).floor.enemies[0];f.position(id,point.x,point.y);let s=f.act(id,'hub_encounter',{encounter:foe.id});assert.equal(s.character.run.kind,'hub_event');assert.equal(s.encounter.enemies[0].hp,20);
-  f.publish('monster',{...monster,hp:80});s=f.read(id);assert.equal(s.encounter.enemies[0].hp,20);assert.throws(()=>f.world('world_remove',zone,{monster:foe.id}),/outside combat/);
+ const f=fixture();try{const id=f.player('alice',false);f.publish('monster',{...monster,defeat:{first:{dialogue:[{id:'a',text:'Original scene',next:'close'}],aftermath:[]}}});const zone='princess-rose',m=f.map(zone),point=f.free(m);f.world('world_place',zone,{monster:monster.id,...point});const foe=f.map(zone).floor.enemies[0];f.position(id,point.x,point.y);let s=f.act(id,'hub_encounter',{encounter:foe.id});assert.equal(s.character.run.kind,'hub_event');assert.equal(s.encounter.enemies[0].authored.hp,20);
+  f.publish('monster',{...monster,hp:80});s=f.read(id);assert.equal(s.encounter.enemies[0].authored.hp,20);assert.throws(()=>f.world('world_remove',zone,{monster:foe.id}),/outside combat/);
   s=f.act(id,'submit',{battle:s.encounter.id,cycle:s.encounter.players[0].cycle});assert.equal(s.character.lastResult.defeatScene.content.first.dialogue[0].text,'Original scene');assert.equal(s.character.lastResult.coins,0);assert.ok(s.character.pendingDefeat);
   const scene=s.character.pendingDefeat.id;f.advance(61000);f.position(id,point.x,point.y);s=f.act(id,'defeat_complete',{scene});assert.equal(s.character.pendingDefeat,undefined);
  }finally{f.close();}

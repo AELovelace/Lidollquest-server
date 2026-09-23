@@ -76,7 +76,8 @@ test('campaign loadouts drive arena combat, persist items and never import curre
   assert.equal(c.loadout.player_mp,17);assert.equal(c.loadout.player_info.companions.friend.hp,12);
   f.advance(31000);c=f.act('enter',c,{zone:questZones[0].id,loadout}).character;
   assert.equal(c.run.hp,109);assert.equal(c.loadout.inventory.length,0,'reconnect must resume the saved run instead of reimporting consumed items');
-  c=f.act('attack',c).character;assert.equal(c.run.phase,'interval');a=f.act('cashout',c);assert.equal(a.coins,5);assert.equal(a.character.loadout.inventory.length,0);
+  while(c.run.phase==='fight')c=f.act('attack',c).character;assert.equal(c.run.phase,'interval'); // Round-one HP now follows turns-to-kill at the entrant's level, so swing until it drops.
+  a=f.act('cashout',c);assert.equal(a.coins,5);assert.equal(a.character.loadout.inventory.length,0);
   assert.equal(a.character.loadout.player_info.equipped_weapon,'iron_dagger');
   f.as('bob');assert.throws(()=>f.act('loadout',a.character,{loadout}),e=>e.status===404);
  }finally{f.db.close();}
@@ -123,7 +124,7 @@ test('exactly one distinct zone per hub; character ownership, input and single-w
   assert.throws(()=>f.act('enter',c,{zone:'honeydew-bramble'}),e=>e.status===400);
   let a=f.act('enter',c,{zone:questZones[0].id});assert.equal(a.position.x,10);
   assert.throws(()=>f.act('enter',a.character,{zone:questZones[0].id,controller:'other-window'}),e=>e.status===409);
-  assert.throws(()=>f.act('move',a.character,{direction:'east',amount:999}),e=>e.status===400);
+  assert.throws(()=>f.act('move',a.character,{direction:'east',bogus:999}),e=>e.status===400); /* amount is now a duel stake field; any key outside the allowlist is still refused. */
   assert.throws(()=>f.act('move',a.character,{direction:'__proto__'}),e=>e.status===400);
   a=f.act('move',a.character,{direction:'east'});assert.equal(a.position.x,11);
   f.as('bob');assert.throws(()=>f.zones.read('bob',c.id),e=>e.status===404);

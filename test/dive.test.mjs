@@ -149,7 +149,7 @@ test('both lobbies share a floor; personal chest claims survive replay, inventor
  }finally{f.close();}
 });
 test('shared encounter locks, authored stats, class combat, respawns and weekly reward cap',()=>{
- const f=fixture();try{const a=f.player(),b=f.player('bob');f.as('alice');let s=f.engage(a);assert.equal(s.character.run.enemy.hp,100);assert.equal(s.character.run.enemy.str,8);
+ const f=fixture();try{const a=f.player(),b=f.player('bob');f.as('alice');let s=f.engage(a);assert.deepEqual(s.character.run.enemy.authored,{hp:100,str:8,def:s.character.run.enemy.authored.def});assert.ok(s.character.run.enemy.hp>100,'boss HP follows turns-to-kill at the encounter level');
   f.as('bob');f.near(b,f.snap(b).dive.enemies.find(e=>e.id==='iris'));assert.throws(()=>f.act(b,'dive_engage',{encounter:'iris'}),/not available/);
   f.as('alice');const day=Math.floor(Date.parse('2026-09-16T12:00:00Z')/86400000);f.db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?)').run('alice',day,DAILY_COIN_CAP-10); // Ten coins left, so the 50-coin boss payout is partially capped.
   s=f.win(a);assert.equal(s.character.run,null);assert.equal(s.dive.completed,true);assert.equal(s.dive.claimableCoins,40);assert.equal(f.awards.reduce((n,a)=>n+a.n,0),10);assert.equal(f.act(a,'dive_claim_reward').dive.claimableCoins,40);

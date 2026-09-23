@@ -10,7 +10,9 @@ import {readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {applyDefeatEquipment} from './defeat-equipment.mjs';
 import {generateFloor,dressFloor,addFood,weeklyWindow,seeded,pathTo,walkable,inside,enemyRoams} from './dive-generation.mjs';
-import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation,MAX_STAT} from './combat.mjs';
+import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation,MAX_STAT,currentTuning} from './combat.mjs';
+import {levelEnemy,encounterLevel,routeLevelFor,defHpDelta} from './scaling.mjs';
+import {stackable,slotsUsed,addToInventory} from './loadout.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
 import {manaCapacity} from './magic-balance.mjs';
 import {hubArrival,dungeonPortals,hubRooms,hubCatalog,inHubGap,DAILY_COIN_CAP} from './hubs.mjs';
@@ -137,6 +139,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(!state.loadout)fail('Import your character before entering.');
   if(state.diveCombatVersion===3){encounters.start(c,state,record,foe);return;} // New clients share an encounter; unfinished legacy fights keep their original path.
   foe.engaged=c.id;const enemy=clone(foe.definition??data.enemies[foe.type]);enemy.maxHp=enemy.hp;enemy.turn=0;
+  {const t=currentTuning();levelEnemy(t,enemy,encounterLevel(t,routeLevelFor(t,route,record.depth),[state.loadout.player_info.level]),{boss:foe.type===config.boss_id||enemy.tier==='boss'||enemy.boss===true});} // Route band by floor, raised toward this player's level; HP by turns-to-kill.
   state.lastResult=null;state.run={kind:'dive',id:randomUUID(),zone:zoneId,edition:record.edition,encounter:foe.id,stage:1,phase:'fight',hp:state.loadout.player_info.playerHealth,maxHp:state.loadout.player_info.playerHealthMax,heals:0,pot:0,handicaps:[],enemy,acted:now(),log:[enemy.name+' approaches.']};
   beginRound(state,{theme,attack:0},roll,enemy); // Keep authored encounter stats rather than the arena's progressive template.
   saveFloor(record);
@@ -227,9 +230,9 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  } // Snapshots expose claim status but never another character's inventory or chest rolls.
  function claim(c,state,record,chest,automatic=false){
   const personal=progress(c,record.edition);if(personal.claimed.includes(chest.id)){if(automatic)return;fail('You already claimed this treasure this week.');}
-  if(state.loadout.inventory.length>=config.inventory_capacity){if(automatic){state.dive.lootNotice='Inventory full. Treasure remains here.';state.dive.lootNoticeAt=now();return;}fail('Inventory full. This treasure remains unclaimed.');}
+  if(!stackable(personal.rolls[chest.id])&&slotsUsed(state.loadout.inventory)>=config.inventory_capacity){if(automatic){state.dive.lootNotice='Inventory full. Treasure remains here.';state.dive.lootNoticeAt=now();return;}fail('Inventory full. This treasure remains unclaimed.');}
   if(!personal.rolls[chest.id])personal.rolls[chest.id]=rollLoot(record.edition,c.id,chest,personal.rolls); // Capacity was checked first; only successful claims consume the allowance.
-  const item=clone(personal.rolls[chest.id]);if(origins)origins.mint(c.id,item);state.loadout.inventory.push(item);personal.claimed.push(chest.id);saveProgress(c,record.edition,personal);
+  const item=clone(personal.rolls[chest.id]);if(origins)origins.mint(c.id,item);addToInventory(state.loadout.inventory,item);personal.claimed.push(chest.id);saveProgress(c,record.edition,personal);
   state.dive.lootNotice='Found '+(item.name??item.item_id)+'.';state.dive.lootNoticeAt=now();
  } // Inventory, deterministic item roll and personal claim commit together inside the zone transaction.
  function handles(input,p){return input.action==='dive_enter'&&(input.zone??DIVE_ZONE)===zoneId||input.action==='enter'&&input.zone===zoneId||p?.zone===zoneId;}
@@ -275,7 +278,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    back(c,state,input.zone??config.parent_zone);return;} // Branch regions retreat to their parent; crossings retain their original hub return.
   // Chat is handled by the zone gateway before dungeon dispatch, sharing mute, block and rate-limit rules with every other area.
   if(action==='appearance'){state.avatar=input.avatar;return;} // The zone adapter validates the cosmetic allowlist before dispatch.
-  if(action==='allocate'){if(state.run||!['str','def','dex','int','cha'].includes(input.stat)||!(state.loadout.player_info.stat_points>0))fail('Choose an available stat point outside combat.');if(state.loadout.player_info[input.stat]>=MAX_STAT)fail('That stat is already at its maximum of '+MAX_STAT+'.');state.loadout.player_info[input.stat]++;state.loadout.player_info.stat_points--;if(input.stat==='int')state.loadout.player_mp_max=manaCapacity(state.loadout);return;}
+  if(action==='allocate'){if(state.run||!['str','def','dex','int','cha'].includes(input.stat)||!(state.loadout.player_info.stat_points>0))fail('Choose an available stat point outside combat.');if(state.loadout.player_info[input.stat]>=MAX_STAT)fail('That stat is already at its maximum of '+MAX_STAT+'.');state.loadout.player_info[input.stat]++;state.loadout.player_info.stat_points--;if(input.stat==='int')state.loadout.player_mp_max=manaCapacity(state.loadout);if(input.stat==='def'){const p=state.loadout.player_info,gain=defHpDelta(currentTuning(),p.level,p.def-1,p.def);p.playerHealthMax+=gain;p.playerHealth=Math.min(p.playerHealthMax,p.playerHealth+gain);}return;} // DEF carries a share of max HP (hp_def_share).
   if(record.edition!==latest()&&!state.run)fail('This weekly dungeon has ended.');
   if(action==='dive_claim_reward'){if(state.run)fail('Finish the current fight first.');const amount=pay(c,state,record);state.lastResult={outcome:'reward_claimed',coins:amount,zone:zoneId,log:[]};return;}
   if(action==='dive_claim'){

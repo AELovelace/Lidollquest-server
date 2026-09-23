@@ -41,3 +41,21 @@ export function applyRunLoadout(run,loadout) { // Handicaps remain attached to t
 export function syncRunHealth(state,run) { // Save current HP without permanently applying temporary arena maximum-HP penalties.
  if(state.loadout)state.loadout.player_info.playerHealth=run.hp;
 }
+
+// ── Stacks: consumables and ammo share one bag entry with a quantity; only unstackable entries count toward the slot cap ──
+export const stackable=item=>!!item&&typeof item==='object'&&(item.stackable===true||['food','drink','ammo'].includes(item.category)); // Same rule as inv_item_stackable() in scrInventory.gml.
+export const slotsUsed=inventory=>(inventory??[]).filter(item=>!stackable(item)).length; // What "N / 99" counts: gear, quest items and other singles.
+export function addToInventory(inventory,item,stackMax=512){ // Merge into an existing stack when the item stacks; otherwise append. Returns the entry that grew.
+ if(stackable(item)){
+  const max=Math.max(1,Math.floor(Number(item.stack_max)||stackMax)),add=Math.max(1,Math.floor(Number(item.quantity)||1));
+  const stack=inventory.find(other=>stackable(other)&&other.item_id===item.item_id&&(other.online_item??null)===(item.online_item??null)&&(Number(other.quantity)||1)+add<=max); // Server-minted resale rights are per purchase, so a tracked unit only joins a stack with the same rights; campaign pickups merge freely.
+  if(stack){stack.quantity=(Number(stack.quantity)||1)+add;return stack;}
+  item.quantity=add;
+ }
+ inventory.push(item);return item;
+}
+export function takeFromStack(inventory,match,count=1){ // Consume `count` units from the first matching stack; the entry disappears at zero. Returns true when enough was there.
+ const index=inventory.findIndex(item=>stackable(item)&&match(item));if(index<0)return false;
+ const item=inventory[index],have=Math.max(1,Math.floor(Number(item.quantity)||1));if(have<count)return false;
+ if(have===count)inventory.splice(index,1);else item.quantity=have-count;return true;
+}

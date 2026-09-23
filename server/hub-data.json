@@ -120,7 +120,9 @@
         "short_sword",
         "rolling_pin",
         "toy_wand",
-        "plush_hammer"
+        "plush_hammer",
+        "short_bow",
+        "long_bow"
       ]
     },
     {
@@ -189,7 +191,8 @@
         "mystery_potion_13",
         "mystery_potion_14",
         "pacifier",
-        "bottle"
+        "bottle",
+        "arrows"
       ]
     },
     {
@@ -467,6 +470,7 @@
     "toy_wand": {
       "item_id": "toy_wand",
       "category": "weapon",
+      "weapon_class": "wand",
       "name": "Toy Magic Wand",
       "desc": "A glittery plastic wand with a star on top. Surprisingly effective. Deals 5 damage.",
       "atk": 5,
@@ -1177,6 +1181,34 @@
       "wet_target_gain": 12,
       "rarity": "common"
     },
+    "short_bow": {
+      "item_id": "short_bow",
+      "category": "weapon",
+      "name": "Short Bow",
+      "desc": "A light bow anyone can draw. Shoots from the back row for {atk} bonus damage at three quarters power, one arrow per shot. Swung as a club when the quiver is empty.",
+      "weapon_class": "bow",
+      "atk_min": 3,
+      "atk_max": 6,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 30,
+      "childish": 2,
+      "rarity": "common"
+    },
+    "long_bow": {
+      "item_id": "long_bow",
+      "category": "weapon",
+      "name": "Long Bow",
+      "desc": "A tall yew bow with real pull. Shoots from the back row, one arrow per shot, at three quarters power.",
+      "weapon_class": "bow",
+      "atk_min": 7,
+      "atk_max": 12,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 70,
+      "childish": 1,
+      "rarity": "uncommon"
+    },
     "trail_rations": {
       "item_id": "trail_rations",
       "category": "food",
@@ -1643,6 +1675,21 @@
         "grossout_reset": true,
         "started": false
       },
+      "rarity": "common"
+    },
+    "arrows": {
+      "item_id": "arrows",
+      "category": "ammo",
+      "name": "Arrows",
+      "desc": "A bundle of twenty fletched arrows. Bows spend one per shot. Arrows stack up to 512 in a single bag slot and never count toward the slot cap.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 8,
+      "childish": 0,
+      "stackable": true,
+      "stack_max": 512,
+      "quantity": 20,
       "rarity": "common"
     },
     "diaper": {
@@ -4691,6 +4738,7 @@
     "toy_wand": {
       "item_id": "toy_wand",
       "category": "weapon",
+      "weapon_class": "wand",
       "name": "Toy Magic Wand",
       "desc": "A glittery plastic wand with a star on top. Surprisingly effective. Deals 5 damage.",
       "atk": 5,
@@ -5743,6 +5791,7 @@
     "thorned_wand": {
       "item_id": "thorned_wand",
       "category": "weapon",
+      "weapon_class": "wand",
       "name": "Thorned Wand",
       "desc": "A gnarled wand wrapped in thorny vines. Blooms with tiny flowers when it strikes. Deals 12 damage.",
       "atk": 12,
@@ -5995,6 +6044,7 @@
     "formula_wand": {
       "item_id": "formula_wand",
       "category": "weapon",
+      "weapon_class": "wand",
       "name": "Formula Dispenser Wand",
       "desc": "A stolen wand attachment from a Formula Feeder Bot. Fires warming formula at enemies, confusing them. ATK 4. Hits in both DEF and WET categories.",
       "atk": 4,
@@ -15911,6 +15961,9 @@
     "pistol_1": {
       "item_id": "pistol_1",
       "category": "weapon",
+      "weapon_class": "gun",
+      "mp_cost": 3,
+      "power": 12,
       "name": "Pistol",
       "desc": "A stylish pistol. Deals damage in combat.",
       "atk": 5,
@@ -16055,6 +16108,7 @@
     "wand_1": {
       "item_id": "wand_1",
       "category": "weapon",
+      "weapon_class": "wand",
       "name": "Wand",
       "desc": "A stylish wand. Deals damage in combat.",
       "atk": 5,
@@ -16067,6 +16121,7 @@
     "wand_2": {
       "item_id": "wand_2",
       "category": "weapon",
+      "weapon_class": "wand",
       "name": "Wand",
       "desc": "A stylish wand. Deals damage in combat.",
       "atk": 5,
@@ -16079,6 +16134,7 @@
     "wand_3": {
       "item_id": "wand_3",
       "category": "weapon",
+      "weapon_class": "wand",
       "name": "Wand",
       "desc": "A stylish wand. Deals damage in combat.",
       "atk": 5,
@@ -16091,6 +16147,7 @@
     "wand_4": {
       "item_id": "wand_4",
       "category": "weapon",
+      "weapon_class": "wand",
       "name": "Wand",
       "desc": "A stylish wand. Deals damage in combat.",
       "atk": 5,
@@ -25450,6 +25507,79 @@
       "atk": 0,
       "def": 0,
       "rarity": "common"
+    },
+    "arrows": {
+      "item_id": "arrows",
+      "category": "ammo",
+      "name": "Arrows",
+      "desc": "A bundle of twenty fletched arrows. Bows spend one per shot. Arrows stack up to 512 in a single bag slot and never count toward the slot cap.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 8,
+      "childish": 0,
+      "stackable": true,
+      "stack_max": 512,
+      "quantity": 20,
+      "rarity": "common"
+    },
+    "short_bow": {
+      "item_id": "short_bow",
+      "category": "weapon",
+      "name": "Short Bow",
+      "desc": "A light bow anyone can draw. Shoots from the back row for {atk} bonus damage at three quarters power, one arrow per shot. Swung as a club when the quiver is empty.",
+      "weapon_class": "bow",
+      "atk_min": 3,
+      "atk_max": 6,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 30,
+      "childish": 2,
+      "rarity": "common"
+    },
+    "long_bow": {
+      "item_id": "long_bow",
+      "category": "weapon",
+      "name": "Long Bow",
+      "desc": "A tall yew bow with real pull. Shoots from the back row, one arrow per shot, at three quarters power.",
+      "weapon_class": "bow",
+      "atk_min": 7,
+      "atk_max": 12,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 70,
+      "childish": 1,
+      "rarity": "uncommon"
+    },
+    "arcane_pistol": {
+      "item_id": "arcane_pistol",
+      "category": "weapon",
+      "name": "Arcane Pistol",
+      "desc": "A brass pistol with a crystal chamber that channels a mage's own magic into a shot. Fires from either row at full spell-level power for 4 MP a shot. Only a mage can use it.",
+      "weapon_class": "gun",
+      "mp_cost": 4,
+      "power": 20,
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 120,
+      "childish": 2,
+      "rarity": "rare"
+    },
+    "star_rifle": {
+      "item_id": "star_rifle",
+      "category": "weapon",
+      "name": "Star Rifle",
+      "desc": "A long silver rifle etched with constellations. Each shot pulls 7 MP straight from the mage and lands like a heavy spell, from any row. Only a mage can use it.",
+      "weapon_class": "gun",
+      "mp_cost": 7,
+      "power": 40,
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 300,
+      "childish": 4,
+      "rarity": "epic"
     }
   },
   "market_halls": [

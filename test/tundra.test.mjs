@@ -128,7 +128,7 @@ test('all classes fight authored Tundra enemies; engagement locks and committed 
  for(const cls of ['fighter','mage','diplomat']){
   const f=fixture();try{
    f.loadout.player_info.class_id=cls;
-   const a=f.player('alice','princess-rose'),enemy=f.snap(a).dive.enemies[0];f.near(a,enemy);const fighting=f.act(a,'dive_engage',{encounter:enemy.id});assert.equal(fighting.character.run.enemy.hp,tundraData.enemies[enemy.type].hp);
+   const a=f.player('alice','princess-rose'),enemy=f.snap(a).dive.enemies[0];f.near(a,enemy);const fighting=f.act(a,'dive_engage',{encounter:enemy.id});assert.equal(fighting.character.run.enemy.authored.hp,tundraData.enemies[enemy.type].hp);assert.ok(fighting.character.run.enemy.level>=1,'enemies fight at the encounter level');
    const b=f.player('bob','honeydew-lantern');f.near(b,enemy);assert.throws(()=>f.act(b,'dive_engage',{encounter:enemy.id}),/not available/);
    f.as('alice');f.restart();assert.equal(f.snap(a).character.run.encounter,enemy.id);
    for(let n=0;n<12&&f.snap(a).character.run;n++){let s=f.snap(a);if(!s.character.run.turnReady)f.act(a,'turn_ready',{loadout:s.character.loadout,forfeit:false});f.act(a,cls==='mage'?'cast':cls==='diplomat'?'allure':'attack',{spell:'fireball'});}

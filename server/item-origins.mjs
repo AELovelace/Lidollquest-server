@@ -49,5 +49,8 @@ export function createItemOrigins(db){
   for(const r of rows)if(!seen.has(r.id))db.prepare("UPDATE quest_item_origins SET status='spent' WHERE id=?").run(r.id); // Consumed/disposed/lost rights cannot be resurrected by replaying an old inventory.
  }
  function sale(c,item){const row=db.prepare("SELECT * FROM quest_item_origins WHERE id=? AND character_id=? AND status='held'").get(item?.online_item??'',c.id);return row&&JSON.parse(row.item).item_id===item.item_id?row:null;}
- return {mint,reconcile,sale};
+ function park(id,character){return db.prepare("UPDATE quest_item_origins SET status='escrow' WHERE id=? AND character_id=? AND status='held'").run(id??'',character).changes>0;} // An item on a trade table or in a duel pot keeps its right in escrow: reconcile() only judges held rows, so it is not marked spent while out of the bag.
+ function release(id,character){return db.prepare("UPDATE quest_item_origins SET status='held',character_id=? WHERE id=? AND status='escrow'").run(character,id??'').changes>0;} // Back to a bag: the original owner on a refund, the new owner on a completed swap or a won pot.
+ function transfer(id,from,to){return db.prepare("UPDATE quest_item_origins SET character_id=? WHERE id=? AND character_id=? AND status='held'").run(to,id,from).changes>0;} // A trade moves the resale right to the new owner; nothing else can re-home a right.
+ return {mint,reconcile,sale,transfer,park,release};
 }

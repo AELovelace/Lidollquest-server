@@ -1183,3 +1183,64 @@ longer written, and a restart opens a fresh minute), and a heartbeat rewrites
 (`HEARTBEAT_WRITE_INTERVAL`; the freshness window is still 30 s). An idle client's
 heartbeat is therefore a read-only transaction. Chat stays in quest.sqlite: a
 separate file would add a second commit per send, not remove one.
+
+### Level scaling (2026-09-23)
+
+`server/scaling.mjs` holds the player HP curve, percentage DEF mitigation, turns-to-kill
+enemy HP, heal scaling and the encounter level rule. Every number is a loot tuning key
+(`hp_base`, `hp_per_level`, `hp_per_level_late`, `hp_late_from`, `hp_def_share`,
+`def_mitigation_k`, `enemy_hp_reference`, `enemy_ttk_mob/elite/boss`, `avg_str_base`,
+`avg_str_per_level`, `heal_reference_hp`, `party_level_slack`), editable live in the /gm
+Loot tab and shipped in `dive-data.json` -> `loot`. combat.mjs reads them through
+`currentTuning()`; zones.mjs binds that to the loot store. Enemies gain `level` and
+`authored` (the designer's hp/str/def, used for charm difficulty). Shared fights and hub
+events level enemies to the route band clamped within `party_level_slack` of the strongest
+member; the arena fights at the entrant's level plus the round. The service never rewrites
+an imported `playerHealthMax`; the client migrates once and stamps `hp_curve_version`.
+
+Run `node --test test/scaling.test.mjs test/combat.test.mjs test/zones.test.mjs test/dive.test.mjs`.
+
+### Battle rows, reach weapons and stacks (2026-09-23)
+
+Party-only rows: shared encounter members carry `row` (`front`/`back`); the `row` command is a
+free change once per cycle, or spends a full gauge when `row_swap_costs_turn` is 1; `pickTarget`
+weights enemy targets `row_front_target_weight` to 1 and treats an all-back party as front;
+back-row physical hits are multiplied by `row_back_damage_taken`, back-row melee by
+`row_back_melee_dealt`. Solo runs refuse `row`. Snapshots carry `combatRules` and each
+encounter player's `row`. In-game `gm_combat_tune {key,value}` (GM Combat page) writes one of
+`COMBAT_KEYS` through the loot store and audits `loot_tune`; `gm_catalog` returns `combat`.
+Reach weapons read `player_info.equipped_item_data.weapon.weapon_class`: bows spend one `arrows`
+unit (`takeFromStack`) for `reach_damage_mult` power, wands take the same reduction, guns are
+mage-only, cost `mp_cost` MP and deal `(power + INT x 3) x magic`. Stacks: `stackable`,
+`slotsUsed`, `addToInventory`, `takeFromStack` in loadout.mjs; capacity checks count slots.
+
+Run `node --test test/rows.test.mjs test/hubs.test.mjs test/item-sales.test.mjs test/gm-tools.test.mjs`.
+
+### Duels (2026-09-23)
+
+`server/duels.mjs`: consent-based player-versus-player and party-versus-party fights in hub
+rooms and the story overworlds (zone category `overworld`), never inside dungeon Dives
+(`pvpAllowed`, snapshot `duelAllowed`). Commands: `duel_challenge {target, mode}`, `duel_accept`, `duel_decline`, `duel_cancel`,
+`duel_stake {kind: coins|item|drink, amount|index}`, `duel_unstake`, `duel_ready`, then the
+shared-encounter fight set (`turn_ready`, `attack`, `cast`, `use_item`, `flee`, `submit`, `stand`,
+`row`; charms are refused, diplomats attack), and for rp mode `duel_pick {loser}`,
+`duel_dress {source, index}`, `duel_feed {source, index}`, `duel_finish`. Coin stakes are
+escrowed through `hub_purchases` (`duel_wager`) and reported back by `purchaseHooks.duelWager`;
+items and drinks leave the bag into the pool; cancel, decline and the 10 minute expiry refund
+everything. Snapshots carry `duel`, `duelSupport` and, during the fight, an `encounter` whose
+`enemies` are the other side. Winners split coins, the top damage dealer takes items, losers get
+pooled drinks as `forced_drink`; rp winners dress and feed victims (`forced_wear`,
+`forced_drink`) within 15 minutes. State lives in `quest_duels`.
+
+Run `node --test test/duels.test.mjs`.
+
+### Player trading (2026-09-23)
+
+`server/trades.mjs`: `trade_offer {target}`, `trade_accept`, `trade_decline`, `trade_cancel`,
+`trade_add {kind: item|coins, index|amount}`, `trade_remove`, `trade_confirm`. Coins are
+escrowed through `hub_purchases` (`trade_escrow`, `purchaseHooks.tradeEscrow`); items leave
+the bag onto the table with their resale right parked in `quest_item_origins.status='escrow'`
+(`origins.park`) and released to the receiver (`origins.release`) when both confirm. Refused
+swaps (different rooms, full bag) are recorded rather than thrown so both confirmations reset.
+Snapshots carry `trade` and `tradeSupport`. State lives in `quest_trades`; stale tables refund
+after 10 minutes or when a trader leaves. Run `node --test test/trades.test.mjs`.
