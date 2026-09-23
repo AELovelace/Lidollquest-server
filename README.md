@@ -1190,7 +1190,8 @@ separate file would add a second commit per send, not remove one.
 enemy HP, heal scaling and the encounter level rule. Every number is a loot tuning key
 (`hp_base`, `hp_per_level`, `hp_per_level_late`, `hp_late_from`, `hp_def_share`,
 `def_mitigation_k`, `enemy_hp_reference`, `enemy_ttk_mob/elite/boss`, `avg_str_base`,
-`avg_str_per_level`, `heal_reference_hp`, `party_level_slack`), editable live in the /gm
+`avg_str_per_level`, `heal_reference_hp`, `party_level_slack`, `stamina_base`,
+`stamina_per_level`, `stamina_dex_share`), editable live in the /gm
 Loot tab and shipped in `dive-data.json` -> `loot`. combat.mjs reads them through
 `currentTuning()`; zones.mjs binds that to the loot store. Enemies gain `level` and
 `authored` (the designer's hp/str/def, used for charm difficulty). Shared fights and hub
@@ -1244,3 +1245,9 @@ the bag onto the table with their resale right parked in `quest_item_origins.sta
 swaps (different rooms, full bag) are recorded rather than thrown so both confirmations reset.
 Snapshots carry `trade` and `tradeSupport`. State lives in `quest_trades`; stale tables refund
 after 10 minutes or when a trader leaves. Run `node --test test/trades.test.mjs`.
+
+### RPP per level, mage picks every third level (2026-09-23)
+
+Every level gained online owes one RPP (`state.rppOwed`); `rpp.settleLevels` mints it on the next
+committed command with a `level` ledger row per level number, replay-safe. Mage free spell
+choices arrive at levels divisible by three. Run `node --test test/rpp.test.mjs test/combat.test.mjs`.

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DEFAULT_TUNING} from '../server/loot.mjs';
 import {validateTuning} from '../server/loot-store.mjs';
-import {playerBaseHp,playerHpDelta,defHpDelta,legacyBaseHp,mitigate,expectedPlayerDamage,enemyHpFor,levelEnemy,healScale,routeLevelFor,encounterLevel} from '../server/scaling.mjs';
+import {playerBaseHp,playerHpDelta,defHpDelta,legacyBaseHp,mitigate,expectedPlayerDamage,enemyHpFor,levelEnemy,healScale,routeLevelFor,encounterLevel,staminaBase,staminaDelta,dexStaminaDelta} from '../server/scaling.mjs';
 
 const t=DEFAULT_TUNING;
 
@@ -49,4 +49,12 @@ test('the /gm Loot tab can edit every scaling key inside its bounds',()=>{
  assert.throws(()=>validateTuning({def_mitigation_k:5}),/between 10 and 1000/);
  assert.throws(()=>validateTuning({enemy_ttk_mob:0}),/between 0.5 and 20/);
  for(const key of ['hp_base','hp_per_level','hp_per_level_late','hp_late_from','hp_def_share','def_mitigation_k','enemy_hp_reference','enemy_ttk_mob','enemy_ttk_elite','enemy_ttk_boss','avg_str_base','avg_str_per_level','heal_reference_hp','party_level_slack'])assert.ok(key in DEFAULT_TUNING,key+' has a shipped default');
+});
+
+test('stamina curve: 100 base, +2 per level, half a point per DEX; level-ups and DEX points add the difference',()=>{
+ assert.equal(staminaBase(t,1,0),100);assert.equal(staminaBase(t,1,4),102);assert.equal(staminaBase(t,41,0),180);assert.equal(staminaBase(t,100,100),348);
+ assert.equal(staminaDelta(t,7,8,4),2);assert.equal(staminaDelta(t,1,11,0),20);
+ assert.equal(dexStaminaDelta(t,5,4,5)+dexStaminaDelta(t,5,5,6),1,'two DEX points add one stamina with a 0.5 share');
+ assert.deepEqual(validateTuning({stamina_base:120,stamina_per_level:3,stamina_dex_share:1}),{stamina_base:120,stamina_per_level:3,stamina_dex_share:1});
+ assert.throws(()=>validateTuning({stamina_dex_share:9}),/between 0 and 5/);
 });

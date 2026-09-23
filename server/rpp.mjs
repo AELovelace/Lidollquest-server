@@ -19,7 +19,7 @@ export function createRpp(db,{now=Date.now}={}){
  } // A stale campaign import cannot erase purchases or forge server-side passive abilities.
  function snapshot(c,state){
   const l=state?.loadout,cls=l?.player_info?.class_id??'fighter',owned=unlocks(c.id).map(r=>r.unlock_id),level=l?.player_info?.level??1;
-  return {balance:balance(c.id),freePicks:state?.mageSpellPicks??0,scope:'character',catalogue:catalogue.map(o=>({...o,name:o.kind==='spell'?data.spells[o.id].name:o.name,description:o.kind==='spell'?data.spells[o.id].description:o.description,mpCost:o.kind==='spell'?data.spells[o.id].mp_cost:0,known:Boolean(owned.includes(o.id)||(o.kind==='spell'&&l?.player_spells?.includes(o.id))),available:o.classes.includes(cls)&&level>=o.level}))};
+  return {balance:balance(c.id),freePicks:state?.mageSpellPicks??0,owed:state?.rppOwed??0,scope:'character',catalogue:catalogue.map(o=>({...o,name:o.kind==='spell'?data.spells[o.id].name:o.name,description:o.kind==='spell'?data.spells[o.id].description:o.description,mpCost:o.kind==='spell'?data.spells[o.id].mp_cost:0,known:Boolean(owned.includes(o.id)||(o.kind==='spell'&&l?.player_spells?.includes(o.id))),available:o.classes.includes(cls)&&level>=o.level}))};
  }
  function buy(c,state,input){
   const offer=catalogue.find(o=>o.id===input.offer),l=state.loadout,free=input.action==='mage_pick';
@@ -57,5 +57,12 @@ export function createRpp(db,{now=Date.now}={}){
  function journal(character=''){
   return {characters:db.prepare('SELECT c.id,c.name,c.owner,COALESCE(w.balance,0) AS balance FROM quest_characters c LEFT JOIN quest_rpp_wallets w ON w.character_id=c.id ORDER BY c.name,c.id').all(),ledger:db.prepare('SELECT l.*,c.name FROM quest_rpp_ledger l LEFT JOIN quest_characters c ON c.id=l.character_id WHERE ?=\'\' OR l.character_id=? ORDER BY l.id DESC LIMIT 100').all(character,character)};
  }
- return {attach,snapshot,buy,gift,journal,balance};
+ function settleLevels(c,state){ // One RPP per level gained, minted once per level number so a replayed command can never pay twice.
+  const owed=Number(state?.rppOwed)||0;if(!owed)return 0;const level=Number(state.loadout?.player_info?.level)||1;let paid=0;
+  for(let n=0;n<owed;n++){const at=level-n,id='level:'+c.id+':'+at;if(at<2||db.prepare('SELECT 1 FROM quest_rpp_ledger WHERE request_id=?').get(id))continue;
+   db.prepare('INSERT INTO quest_rpp_wallets(character_id,balance) VALUES (?,1) ON CONFLICT(character_id) DO UPDATE SET balance=balance+1').run(c.id);
+   db.prepare('INSERT INTO quest_rpp_ledger(request_id,fingerprint,owner,character_id,kind,amount,balance,actor,reason,created) VALUES (?,?,?,?,?,?,?,?,?,?)').run(id,'',c.owner,c.id,'level',1,balance(c.id),'system','Reached level '+at,now());paid++;}
+  delete state.rppOwed;return paid;
+ }
+ return {attach,snapshot,buy,gift,journal,balance,settleLevels};
 }

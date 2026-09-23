@@ -40,6 +40,7 @@ const SCALAR_BOUNDS={
  hp_base:[1,1000],hp_per_level:[0,50],hp_per_level_late:[0,50],hp_late_from:[1,100],hp_def_share:[0,5], // Player HP curve (scaling.mjs).
  def_mitigation_k:[10,1000],enemy_hp_reference:[1,1000],enemy_ttk_mob:[0.5,20],enemy_ttk_elite:[0.5,20],enemy_ttk_boss:[0.5,20], // Mitigation and enemy turns-to-kill.
  avg_str_base:[0,100],avg_str_per_level:[0,5],heal_reference_hp:[1,1000],party_level_slack:[0,50],
+ stamina_base:[1,1000],stamina_per_level:[0,50],stamina_dex_share:[0,5], // Stamina curve.
  row_swap_costs_turn:[0,1],row_back_damage_taken:[0.1,1],row_back_melee_dealt:[0.1,1],row_front_target_weight:[1,10],reach_damage_mult:[0.1,2],stack_max:[1,9999], // Rows, reach weapons, stacking.
 };
 const RARITY_BOUNDS={weight:[0,1000],affixes:[0,6],budget_mult:[0.5,5],value_mult:[0,50],bless_mult:[0,10],curse_mult:[0,10]};

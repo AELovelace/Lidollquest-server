@@ -11,7 +11,7 @@ import {randomUUID,randomInt,createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation,MAX_LEVEL,MAX_STAT,useTuning,currentTuning} from './combat.mjs';
-import {enemyHpFor,defHpDelta} from './scaling.mjs';
+import {enemyHpFor,defHpDelta,dexStaminaDelta} from './scaling.mjs';
 import {DEFAULT_TUNING} from './loot.mjs';
 const CHAT_RADIUS_DEFAULT=Math.max(1,Number(process.env.CHAT_RADIUS)||8); // Tiles an area message travels from where it was spoken; env CHAT_RADIUS overrides it without a code change.
 const HEARTBEAT_WRITE_INTERVAL=5000; // A heartbeat rewrites quest_presence.seen only when the stored value is at least this old (freshness window is 30 s).
@@ -371,6 +371,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
      if(state.loadout.player_info[input.stat]>=MAX_STAT)fail(409,'That stat is already at its maximum of '+MAX_STAT+'.'); /* Points stay banked for another stat. */
      state.loadout.player_info[input.stat]++;state.loadout.player_info.stat_points--;
      if(input.stat==='def'){const p=state.loadout.player_info,gain=defHpDelta(currentTuning(),p.level,p.def-1,p.def);p.playerHealthMax+=gain;p.playerHealth=Math.min(p.playerHealthMax,p.playerHealth+gain);} // DEF carries a share of max HP (hp_def_share).
+     if(input.stat==='dex'){const p=state.loadout.player_info,gain=dexStaminaDelta(currentTuning(),p.level,p.dex-1,p.dex);p.stamina_max=(Number(p.stamina_max)||100)+gain;p.stamina=Math.min(p.stamina_max,(Number(p.stamina)||0)+gain);} // DEX carries a share of max stamina (stamina_dex_share).
      if(input.stat==='int'){state.loadout.player_mp_max=manaCapacity(state.loadout);state.loadout.player_mp=Math.min(state.loadout.player_mp,state.loadout.player_mp_max);}
      if(state.run){applyRunLoadout(state.run,state.loadout);state.run.log.push('+1 '+input.stat.toUpperCase()+'.');}
     }
@@ -443,6 +444,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    if(input.action==='leave'&&!afterPresence)parties.remove(c.id); // Campaign return leaves only this member.
    if(quests)quests.after(c,state,input);
    if(state.run)syncRunHealth(state,state.run);
+   rpp.settleLevels(c,state); // Level-ups earned by this command (or by a shared fight since the last one) mint their RPP now.
    origins.reconcile(c,state,JSON.parse(c.state)); // Strip forged/duplicate item markers on every imported loadout and persist equipment/bank transitions.
    if(input.loadout&&state.loadout?.player_info?.name&&!state.nameLocked){const name=clean(state.loadout.player_info.name,24);if(name){c.name=name;state.nameLocked=true;db.prepare('UPDATE quest_characters SET name=? WHERE id=?').run(name,c.id);}} // Reconcile legacy campaign names once; subsequent renames use the paid management action.
    if(state.loadout?.player_info){

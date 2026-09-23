@@ -11,7 +11,7 @@ import {randomUUID} from 'node:crypto';
 import {applyDefeatEquipment} from './defeat-equipment.mjs';
 import {generateFloor,dressFloor,addFood,weeklyWindow,seeded,pathTo,walkable,inside,enemyRoams} from './dive-generation.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation,MAX_STAT,currentTuning} from './combat.mjs';
-import {levelEnemy,encounterLevel,routeLevelFor,defHpDelta} from './scaling.mjs';
+import {levelEnemy,encounterLevel,routeLevelFor,defHpDelta,dexStaminaDelta} from './scaling.mjs';
 import {stackable,slotsUsed,addToInventory} from './loadout.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
 import {manaCapacity} from './magic-balance.mjs';
@@ -278,7 +278,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    back(c,state,input.zone??config.parent_zone);return;} // Branch regions retreat to their parent; crossings retain their original hub return.
   // Chat is handled by the zone gateway before dungeon dispatch, sharing mute, block and rate-limit rules with every other area.
   if(action==='appearance'){state.avatar=input.avatar;return;} // The zone adapter validates the cosmetic allowlist before dispatch.
-  if(action==='allocate'){if(state.run||!['str','def','dex','int','cha'].includes(input.stat)||!(state.loadout.player_info.stat_points>0))fail('Choose an available stat point outside combat.');if(state.loadout.player_info[input.stat]>=MAX_STAT)fail('That stat is already at its maximum of '+MAX_STAT+'.');state.loadout.player_info[input.stat]++;state.loadout.player_info.stat_points--;if(input.stat==='int')state.loadout.player_mp_max=manaCapacity(state.loadout);if(input.stat==='def'){const p=state.loadout.player_info,gain=defHpDelta(currentTuning(),p.level,p.def-1,p.def);p.playerHealthMax+=gain;p.playerHealth=Math.min(p.playerHealthMax,p.playerHealth+gain);}return;} // DEF carries a share of max HP (hp_def_share).
+  if(action==='allocate'){if(state.run||!['str','def','dex','int','cha'].includes(input.stat)||!(state.loadout.player_info.stat_points>0))fail('Choose an available stat point outside combat.');if(state.loadout.player_info[input.stat]>=MAX_STAT)fail('That stat is already at its maximum of '+MAX_STAT+'.');state.loadout.player_info[input.stat]++;state.loadout.player_info.stat_points--;if(input.stat==='int')state.loadout.player_mp_max=manaCapacity(state.loadout);if(input.stat==='def'){const p=state.loadout.player_info,gain=defHpDelta(currentTuning(),p.level,p.def-1,p.def);p.playerHealthMax+=gain;p.playerHealth=Math.min(p.playerHealthMax,p.playerHealth+gain);}if(input.stat==='dex'){const p=state.loadout.player_info,gain=dexStaminaDelta(currentTuning(),p.level,p.dex-1,p.dex);p.stamina_max=(Number(p.stamina_max)||100)+gain;p.stamina=Math.min(p.stamina_max,(Number(p.stamina)||0)+gain);}return;} // DEF carries a share of max HP (hp_def_share); DEX a share of max stamina.
   if(record.edition!==latest()&&!state.run)fail('This weekly dungeon has ended.');
   if(action==='dive_claim_reward'){if(state.run)fail('Finish the current fight first.');const amount=pay(c,state,record);state.lastResult={outcome:'reward_claimed',coins:amount,zone:zoneId,log:[]};return;}
   if(action==='dive_claim'){

@@ -4,7 +4,7 @@ import {applyRunLoadout,syncRunHealth} from './loadout.mjs';
 import {mageBalance,hasAbility,manaCapacity,refreshMana} from './magic-balance.mjs';
 import {resolvedDefeat,pinDefeat} from './defeat-scenes.mjs';
 import {DEFAULT_TUNING} from './loot.mjs';
-import {mitigate,healScale,playerHpDelta,rowSwapCostsTurn,rowDamageTaken,rowMeleeDealt,weaponProfile,isArrow} from './scaling.mjs';
+import {mitigate,healScale,playerHpDelta,staminaDelta,rowSwapCostsTurn,rowDamageTaken,rowMeleeDealt,weaponProfile,isArrow} from './scaling.mjs';
 import {takeFromStack} from './loadout.mjs';
 
 let tuningSource=()=>DEFAULT_TUNING; // zones.mjs points this at the live loot store; tests and standalone callers get the shipped defaults.
@@ -186,8 +186,10 @@ export function awardExperience(state,roll){ // Arena XP follows the campaign le
  while(p.xp>=50*p.level&&p.level<MAX_LEVEL){
   p.xp-=50*p.level;p.level++;p.stat_points=num(p.stat_points)+3;
   const gain=playerHpDelta(currentTuning(),p.level-1,p.level,p.def);p.playerHealthMax+=gain;r.maxHp+=gain;r.hp+=gain; // The HP curve (hp_per_level / hp_per_level_late) decides the gain; gear bonuses on the cap ride along.
+  const sta=staminaDelta(currentTuning(),p.level-1,p.level,p.dex);p.stamina_max=num(p.stamina_max,100)+sta;p.stamina=Math.min(p.stamina_max,num(p.stamina,p.stamina_max)+sta); // Stamina grows on its own curve (stamina_per_level).
   p.shame=clamp(num(p.shame,1024)+15,0,1024);r.log.push('Level '+p.level+'! +3 stat points, +'+gain+' maximum HP.');
-  if(classId(l)==='mage'){
+  state.rppOwed=(state.rppOwed??0)+1;r.log.push('Earned 1 RPP.'); // Every level gifts one RPP; rpp.settleLevels() mints it when the command commits.
+  if(classId(l)==='mage'&&p.level%3===0){ // Mages earn a free spell choice every third level (3, 6, 9...).
    state.mageSpellPicks=(state.mageSpellPicks??0)+1;r.log.push('Earned a free spell choice! Open Magic to choose now or save it for later.'); // Server state keeps unspent choices separate from imported campaign stats.
   }
  }

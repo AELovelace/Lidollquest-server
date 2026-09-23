@@ -40,6 +40,7 @@ export const DEFAULT_TUNING=Object.freeze({
  enemy_hp_reference:30,enemy_ttk_mob:2,enemy_ttk_elite:4,enemy_ttk_boss:8, // Enemy HP = turns-to-kill x an average build's hit, weighted by authored HP / reference.
  avg_str_base:10,avg_str_per_level:1.2, // The average build the turns-to-kill maths assumes.
  heal_reference_hp:100, // Flat heals were written for a 100 HP bar and scale up with it.
+ stamina_base:100,stamina_per_level:2,stamina_dex_share:0.5, // Max stamina = base + per_level x (L-1) + DEX x share (scaling.mjs staminaBase).
  party_level_slack:3, // Shared fights are levelled to the strongest member minus this.
  // Battle rows and reach weapons (scaling.mjs rows section, scrBattleInit/scrLootRoll on the client).
  row_swap_costs_turn:0,row_back_damage_taken:0.5,row_back_melee_dealt:0.5,row_front_target_weight:3,reach_damage_mult:0.75,
