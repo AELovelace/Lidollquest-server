@@ -92,6 +92,26 @@ test('overrides layer over the shipped table and retire rather than delete shipp
  assert.deepEqual(s.apply(base).legendary_titles,base.legendary_titles);
 });
 
+test('garments and styles layer over the shipped tables and a retune reaches the generator',()=>{
+ const s=store(),bases=data.bases;
+ assert.equal(s.applyBases(bases).garments.length,bases.garments.length);
+ const before=s.revision();
+ s.saveBase('style',{id:'test_style',name:'Test',weight:2,desc:'A test.',garments:['*']},bases,'gm');
+ assert.notEqual(s.revision(),before,'the roller cache rebuilds on a base edit');
+ assert.equal(s.listBases(bases,'style').find(x=>x.id==='test_style').source,'custom');
+ const roll=createDiveLootRoller(data,{loot:s,lootTable:data.loot,lootBases:bases});
+ const rarity=structuredClone(data.loot.tuning.rarity);
+ for(const tier of ['uncommon','rare','epic','legendary'])rarity[tier].weight=0;
+ s.tune({rarity},'gm'); // common only, so the name is exactly "<Style> <Garment>"
+ for(const other of bases.styles)s.removeBase('style',other.id,bases,'gm'); // only the custom style remains
+ let seen=0;
+ for(let n=0;n<40;n++){const item=roll('ed','alice',{id:'c'+n},{});if(item.generated){seen++;assert.equal(item.generated.style,'test_style',item.name);assert.ok(item.name.startsWith('Test '),item.name);}}
+ assert.ok(seen>0,'generated drops appear');
+ assert.throws(()=>s.removeBase('garment',bases.garments.find(g=>g.category==='corset').id,bases),/Styles still dress that garment|at least one garment/);
+ s.resetBases();
+ assert.equal(s.applyBases(bases).styles.length,bases.styles.length);
+});
+
 test('a retune reaches the next chest without a restart, and claimed loot keeps its roll',()=>{
  const s=store();
  const roll=createDiveLootRoller(data,{loot:s,lootTable:base});

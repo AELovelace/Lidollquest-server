@@ -55,7 +55,7 @@ export function buildAllowList(text){ // Comma-separated addresses and CIDR bloc
  return list;
 } // Rejected loudly at construction so a typo cannot silently admit the whole network.
 
-export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,lootItems=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn}={}){
+export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn}={}){
  const rp=createRoleplay(db,{now}); // RP journals use the same live staff authorization as every moderation tool.
  const rpp=createRpp(db,{now}); // Staff-only RPP gifts and purchase history never touch premium currencies.
  db.exec(`CREATE TABLE IF NOT EXISTS gm_sanctions(owner TEXT NOT NULL,kind TEXT NOT NULL,until INTEGER NOT NULL,reason TEXT NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(owner,kind));
@@ -83,11 +83,14 @@ export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,wo
  const lootStore=()=>loot??fail(503,'Loot tuning is not available on this deployment.','gm_loot_unavailable');
  const lootBase=()=>(typeof lootTable==='function'?lootTable():lootTable)??{tuning:{},affixes:[],legendary_titles:[]};
  const lootCatalog=()=>(typeof lootItems==='function'?lootItems():lootItems)??{};
+ const lootBaseTable=()=>(typeof lootBases==='function'?lootBases():lootBases)??null;
  const lootView=()=>{
   const store=lootStore(),liveTable=store.apply(lootBase());
   return {tuning:liveTable.tuning,legendary_titles:liveTable.legendary_titles,affixes:store.list(lootBase()),revision:store.revision(),
    slots:store.slots,statKeys:store.statKeys,rarityOrder:store.rarityOrder,tuningKeys:store.tuningKeys,scalarBounds:store.scalarBounds,rarityBounds:store.rarityBounds,overcapStats:store.overcapStats,
-   items:Object.keys(lootCatalog()).sort(),counts:{affixes:liveTable.affixes.length,titles:liveTable.legendary_titles.length}};
+   items:Object.keys(lootCatalog()).sort(),
+   garments:store.listBases(lootBaseTable(),'garment'),styles:store.listBases(lootBaseTable(),'style'),generatedCategories:store.generatedCategories,garmentStatKeys:store.garmentStatKeys,garmentBounds:store.garmentBounds,
+   counts:{affixes:liveTable.affixes.length,titles:liveTable.legendary_titles.length,garments:store.applyBases(lootBaseTable()).garments.length,styles:store.applyBases(lootBaseTable()).styles.length}};
  };
 
  function client(req){ // The address moderation decisions are made about.
@@ -277,21 +280,51 @@ export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,wo
   },
   loot_reset(input,actor){
    const scope=String(input.scope??'all');
-   if(!['all','tuning','affixes'].includes(scope))fail(400,'Reset tuning, affixes or all.','gm_invalid_loot');
+   if(!['all','tuning','affixes','bases'].includes(scope))fail(400,'Reset tuning, affixes, bases or all.','gm_invalid_loot');
    const result=lootStore().reset(scope);
    record(actor,'loot_reset','loot',{...result,reason:clean(input.reason,240)});
+   return {...result,revision:lootStore().revision()};
+  },
+  loot_garment_save(input,actor){
+   const garment=lootStore().saveBase('garment',input.garment,lootBaseTable(),actor); // Refused before it can reach the generator.
+   record(actor,'loot_garment_save',garment.id,{category:garment.category,name:garment.name,reason:clean(input.reason,240)});
+   return {garment,revision:lootStore().revision()};
+  },
+  loot_garment_delete(input,actor){
+   const result=lootStore().removeBase('garment',input.id,lootBaseTable(),actor);
+   record(actor,'loot_garment_delete',result.id,{...result,reason:clean(input.reason,240)});
+   return {...result,revision:lootStore().revision()};
+  },
+  loot_garment_restore(input,actor){
+   const result=lootStore().restoreBase('garment',input.id,actor);
+   record(actor,'loot_garment_restore',result.id,{reason:clean(input.reason,240)});
+   return {...result,revision:lootStore().revision()};
+  },
+  loot_style_save(input,actor){
+   const style=lootStore().saveBase('style',input.style,lootBaseTable(),actor); // Styles are words only; a stat is refused.
+   record(actor,'loot_style_save',style.id,{name:style.name,garments:style.garments,reason:clean(input.reason,240)});
+   return {style,revision:lootStore().revision()};
+  },
+  loot_style_delete(input,actor){
+   const result=lootStore().removeBase('style',input.id,lootBaseTable(),actor);
+   record(actor,'loot_style_delete',result.id,{...result,reason:clean(input.reason,240)});
+   return {...result,revision:lootStore().revision()};
+  },
+  loot_style_restore(input,actor){
+   const result=lootStore().restoreBase('style',input.id,actor);
+   record(actor,'loot_style_restore',result.id,{reason:clean(input.reason,240)});
    return {...result,revision:lootStore().revision()};
   },
   loot_preview(input){ // Rolls one sample item with the live table; never touches chest receipts or the audit log.
    const catalog=lootCatalog(),id=clean(input.item_id,64);
    const base=catalog[id]??fail(400,'Pick an item from the dive catalog.','gm_unknown_item');
-   const roller=createLootRoller(lootStore().apply(lootBase()));
+   const roller=createLootRoller(lootStore().apply(lootBase()),lootStore().applyBases(lootBaseTable()));
    const enchant=createEnchanter(enchantStore().apply(baseTable()));
-   const item=structuredClone(base);
+   let item=structuredClone(base);
    if(item.atk_min!==undefined){item.atk=item.atk_min;if(typeof item.desc==='string')item.desc=item.desc.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}
    const level=Number(input.level);
    const key='preview:'+clean(input.seed,64)||'preview:0';
-   roller.roll(item,key,{level:Number.isFinite(level)?level:1,luck:clean(input.luck,24)||'chest'});
+   item=roller.roll(item,key,{level:Number.isFinite(level)?level:1,luck:clean(input.luck,24)||'chest'});
    enchant(item,key,roller.enchantMods(item));
    return {item,summary:describeLoot(item),enchantment:describeItem(item,enchantStore().apply(baseTable()))};
   },

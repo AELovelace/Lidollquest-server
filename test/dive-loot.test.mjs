@@ -10,10 +10,10 @@ const routes=[catalog('dive-data.json'),catalog('desert-data.json'),catalog('tun
 const plain=item=>item.category==='panties'&&!item.is_diaper;
 function original(data,edition,character,chest){
  const rnd=seeded(`${data.config.route}:${edition}:1:${character}:${chest.id}`),pool=chest.kind==='food'?data.food_pool:chest.kind==='potion'?data.potion_pool:(data.item_pool??Object.keys(data.items).sort());
- const item=structuredClone(data.items[pool[rnd(pool.length)]]);
+ let item=structuredClone(data.items[pool[rnd(pool.length)]]);
  if(item.atk_min!==undefined){item.atk=item.atk_min+rnd(item.atk_max-item.atk_min+1);if(typeof item.desc==='string')item.desc=item.desc.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}
- const key=`${data.config.route}:${edition}:1:${character}:${chest.id}`,loot=createLootRoller(data.loot??routes[0].loot);
- loot.roll(item,key,{level:loot.routeLevel(data.config.zone_id??data.config.route??'default',1)}); // Rarity, level and affixes are part of the loot contract too (loot.mjs).
+ const key=`${data.config.route}:${edition}:1:${character}:${chest.id}`,loot=createLootRoller(data.loot??routes[0].loot,data.bases??routes[0].bases);
+ item=loot.roll(item,key,{level:loot.routeLevel(data.config.zone_id??data.config.route??'default',1)}); // Rarity, level and affixes are part of the loot contract too (loot.mjs).
  createEnchanter(data.enchantments)(item,key,loot.enchantMods(item)); // The curse/blessing roll is part of the loot contract, not a mutation of it.
  return item;
 }

@@ -29,7 +29,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  const category=routeCategory(config); // 'dive' for instanced boss routes, 'overworld' for open wilderness; fails fast on bad authored data.
  // Only dive-data.json carries the curse/blessing table; Desert, Tundra, Taiga and
  // the campaign weeklies share that one table rather than each shipping a copy.
- const rollLoot=createDiveLootRoller(data,{table:data.enchantments??diveData.enchantments,enchantments:enchantments??createEnchantmentStore(db,{now}),lootTable:data.loot??diveData.loot??null,loot:loot??createLootStore(db,{now})}); // One policy covers every online route and its personal floor progress; gamemaster retunes reach all of them.
+ const rollLoot=createDiveLootRoller(data,{table:data.enchantments??diveData.enchantments,enchantments:enchantments??createEnchantmentStore(db,{now}),lootTable:data.loot??diveData.loot??null,lootBases:data.bases??diveData.bases??null,loot:loot??createLootStore(db,{now})}); // One policy covers every online route and its personal floor progress; gamemaster retunes reach all of them.
  const owns=visit=>visit?.route===route; // Each route maintains only its own visits and encounter locks.
  const safe=(floor,x,y)=>(floor.safeRooms??[floor.rooms[0]]).some(r=>inside(r,x,y));
  const entry=(floor,origin)=>floor.entries?.[origin]??floor.entrance;
