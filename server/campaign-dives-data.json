@@ -22478,8 +22478,8 @@
         "source": "auto_nursery.json",
         "hub": "honeydew-lantern",
         "pad": {
-          "x": 4,
-          "y": 8
+          "x": 2,
+          "y": 4
         },
         "boss_enemy_id": "matron_rosalind_boss",
         "scenery": [
@@ -44871,7 +44871,7 @@
         "source": "auto_school.json",
         "hub": "honeydew-lantern",
         "pad": {
-          "x": 10,
+          "x": 5,
           "y": 4
         },
         "boss_enemy_id": "school_principal",
@@ -67219,8 +67219,8 @@
         "source": "forest_dungeon.json",
         "hub": "honeydew-lantern",
         "pad": {
-          "x": 16,
-          "y": 8
+          "x": 8,
+          "y": 4
         },
         "boss_enemy_id": "elder_witch",
         "scenery": [

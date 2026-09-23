@@ -27,8 +27,8 @@ const MAP=[ // 20 columns x 20 rows. Openings are plain floor cells in the bound
  '#*.....------.....*#', // y9  Fountain occupies x=9-10, y=9-10.
  '#......------......#', // y10
  '#.,....------....,.#', // y11
- '#.=====------=======', // y12 West path to the campaign stairs; east path to The Castle gate (x=19, y=12-13).
- '#.=====------=======', // y13
+ '=======------====..#', // y12 The Castle gate is in the left wall (x=0, y=12-13); the path runs east across the plaza to the Shops.
+ '=======------====..#', // y13
  '#.==.......*...==..#', // y14 Shops path turns south at x=15-16.
  '#.==.T.....,...==T.#', // y15
  '#.==.TT....*...=...#', // y16 Shops stairs at (15,16).
@@ -43,7 +43,7 @@ export const DEFAULT_DECORATIONS=[ // Princess' Quarters props and Honeydew prop
  {id:'lamp-n1',sprite:'sprTownEnvLampPost',x:8,y:2,span_w:1,span_h:1},{id:'lamp-n2',sprite:'sprTownEnvLampPost',x:11,y:2,span_w:1,span_h:1},
  {id:'lamp-e1',sprite:'sprTownEnvLampPost',x:14,y:11,span_w:1,span_h:1},{id:'lamp-e2',sprite:'sprTownEnvLampPost',x:14,y:14,span_w:1,span_h:1},
  {id:'oil-lamp-1',sprite:'sprPQDetailOilLamp',x:13,y:4,span_w:1,span_h:1},{id:'oil-lamp-2',sprite:'sprPQDetailOilLamp',x:13,y:7,span_w:1,span_h:1},
- {id:'banner-gate-n',sprite:'sprPQDetailRoyalBanner',x:18,y:9,span_w:1,span_h:3},{id:'banner-gate-s',sprite:'sprPQDetailRoyalBanner',x:18,y:15,span_w:1,span_h:3},
+ {id:'banner-gate-n',sprite:'sprPQDetailRoyalBanner',x:1,y:9,span_w:1,span_h:3},{id:'banner-gate-s',sprite:'sprPQDetailRoyalBanner',x:1,y:15,span_w:1,span_h:3},
  {id:'banner-dive-w',sprite:'sprPQDetailRoyalBanner',x:7,y:1,span_w:1,span_h:3},{id:'banner-dive-e',sprite:'sprPQDetailRoyalBanner',x:12,y:1,span_w:1,span_h:3},
  {id:'rose-1',sprite:'sprPQDetailPottedRose',x:6,y:8,span_w:1,span_h:2},{id:'rose-2',sprite:'sprPQDetailPottedRose',x:13,y:8,span_w:1,span_h:2},
  {id:'rose-3',sprite:'sprPQDetailPottedRose',x:4,y:6,span_w:1,span_h:2},{id:'rose-4',sprite:'sprPQDetailPottedRose',x:15,y:9,span_w:1,span_h:2},
@@ -58,7 +58,7 @@ export const DEFAULT_DECORATIONS=[ // Princess' Quarters props and Honeydew prop
  {id:'signpost',sprite:'sprTownEnvSignpost',x:11,y:4,span_w:1,span_h:1},
 ];
 export const GARDEN_PORTALS=Object.freeze([ // Lobby openings; hubs.mjs fills in the district's display name.
- {x:19,y:12,w:1,h:2,name:'The Castle',target:'princess-rose-garden',style:'gap',side:'right'},   // The castle keep stays on the right: its gate leads into The Castle district.
+ {x:0,y:12,w:1,h:2,name:'The Castle',target:'princess-rose-garden',style:'gap',side:'left'},     // The castle keep is on the left: its gate leads into The Castle district.
  {x:19,y:5,w:1,h:2,name:'Frostveil Tundra',target:'dive-tundra',style:'gap',side:'right'},       // The Tundra road leaves where the old Beds door used to be.
  {x:15,y:16,name:'Shops',target:'princess-rose-shops',style:'stairs'},
  {x:9,y:0,w:2,h:1,name:'Dungeon Dive',target:'princess-rose-dives',style:'gap',side:'top'},

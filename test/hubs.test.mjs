@@ -10,7 +10,7 @@ import {diveData} from '../server/dive.mjs';
 import {generateFloor,addFood,validateFloor} from '../server/dive-generation.mjs';
 import {createQuestService} from '../server/service.mjs';
 
-test('every lobby connects to its shared annexes with 50x50 districts, six beds and eight shops; travel retains inventory',()=>{
+test('every lobby connects to its shared annexes with 50x50 districts, six beds and eight shops; travel retains inventory',()=>{ // Honeydew Village IS its 50x50 district: its merchants stand in the town and its doorsteps lead into the Inn and the Community Hall. // Honeydew Village IS its 50x50 district: its merchants stand in the town and its doorsteps lead into the Inn and the Community Hall.
  const db=new DatabaseSync(':memory:');let time=1000000;
  const zones=createQuestZones(db,{now:()=>time,grant:()=>({owner:'alice',id:'a',client:'lidollquest'}),wallet:()=>({coins:1000}),adjust:()=>{}});
  let c;const act=(action,extra={})=>{time+=1500;const result=zones.act('token',{action,controller:'a',request_id:randomUUID(),character_id:c?.id,revision:c?.revision,...(c?.dive?{edition:c.dive.edition}:{}),...extra});c=result.character;return result;};
@@ -25,7 +25,7 @@ test('every lobby connects to its shared annexes with 50x50 districts, six beds 
     if(portal.target.startsWith('dive-')){ // Rose Court's garden wall opens straight onto the Tundra where its Beds door used to be.
      const step=beside(portal,...size);place(step.x,step.y);const crossed=act('move',{direction:step.direction,world_step:true});
      assert.equal(crossed.zone,portal.target);assert.equal(c.loadout.inventory.length,1);assert.equal(c.dive.returnZone,lobby.id);
-     const home=act('dive_exit');assert.equal(home.zone,lobby.id);assert.deepEqual(home.position,{x:portal.x-1,y:portal.y+1}); // Back one tile inside the same garden gap.
+     const home=act('dive_exit');assert.equal(home.zone,lobby.id);assert.deepEqual(home.position,{x:portal.side==='left'?portal.x+1:portal.x-1,y:portal.y+1}); // Back one tile inside the same lobby-wall gate (Rose: right wall; Honeydew: both walls).
      continue;
     }
     assert.throws(()=>act('hub_visit',{zone:portal.target}),/Stand next/);
@@ -46,8 +46,9 @@ test('every lobby connects to its shared annexes with 50x50 districts, six beds 
      }
     }
     if(definition.kind==='beds'){
-     assert.equal(definition.fixtures.length,6);
-     for(const bed of definition.fixtures){place(bed.x,bed.y+1);const next=structuredClone(c.loadout);next.player_info.playerHealth=30;act('hub_rest',{fixture:bed.id,loadout:next});assert.equal(c.loadout.player_info.playerHealth,30);}
+     const beds=definition.fixtures.filter(f=>f.kind==='bed');assert.equal(beds.length,6); // The Honeydew Inn also has an innkeeper.
+     if(lobby.id==='honeydew-lantern'){assert.equal(portal.style,'door');assert.deepEqual(definition.exit,{x:10,y:18,style:'door'});assert.equal(definition.width*definition.height,400);assert.ok(definition.fixtures.some(f=>f.id==='innkeeper'));} // The Inn is the campaign Room5_Inn, entered from its doorstep on the village square.
+     for(const bed of beds){place(bed.x,bed.y+1);const next=structuredClone(c.loadout);next.player_info.playerHealth=30;act('hub_rest',{fixture:bed.id,loadout:next});assert.equal(c.loadout.player_info.playerHealth,30);}
     }
     if(definition.kind==='shops'){
      assert.equal(definition.exit.style,'stairs');
@@ -55,17 +56,19 @@ test('every lobby connects to its shared annexes with 50x50 districts, six beds 
      assert.equal(definition.fixtures.filter(f=>f.kind==='bank').length,1);
      for(const merchant of definition.fixtures.filter(f=>f.kind==='shop')){assert.ok(merchant.offers.length);assert.ok(merchant.offers.every(o=>Number.isSafeInteger(o.price)&&o.price>0));}
     }
-    if(definition.kind==='dives'){assert.equal(portal.style,'gap');assert.equal(portal.side,'top');assert.deepEqual(definition.exit,{x:9,y:11,w:2,h:1,style:'gap',side:'bottom'});assert.equal(definition.portals.length,{'honeydew-lantern':5,'littlebig-clockwork':3,'princess-rose':2}[lobby.id]);assert.ok(definition.portals.every(p=>['warp','gap'].includes(p.style)));assert.deepEqual(definition.portals.filter(p=>p.style==='gap').map(p=>p.side+':'+p.target),{'honeydew-lantern':['left:dive-tundra','right:dive-desert'],'littlebig-clockwork':['left:dive-desert'],'princess-rose':[]}[lobby.id]);} // West-to-east: Rose | Tundra | Lantern | Desert | LittleBig; Rose's Tundra gap is in its garden wall, not its hall.
+    if(definition.kind==='dives'&&lobby.id==='honeydew-lantern'){assert.equal(portal.style,'door');assert.deepEqual(definition.exit,{x:10,y:18,style:'door'});assert.deepEqual(definition.portals.map(p=>[p.target,p.style,p.x,p.y]),[['dive-nursery','warp',2,4],['dive-school','warp',5,4],['dive-forest','warp',8,4]]);} // The Community Hall: three pads in the old companion room (top-left), no side gaps.
+    else if(definition.kind==='dives'){assert.equal(portal.style,'gap');assert.equal(portal.side,'top');assert.deepEqual(definition.exit,{x:9,y:11,w:2,h:1,style:'gap',side:'bottom'});assert.equal(definition.portals.length,{'littlebig-clockwork':3,'princess-rose':2}[lobby.id]);assert.ok(definition.portals.every(p=>['warp','gap'].includes(p.style)));assert.deepEqual(definition.portals.filter(p=>p.style==='gap').map(p=>p.side+':'+p.target),{'littlebig-clockwork':['left:dive-desert'],'princess-rose':[]}[lobby.id]);} // West-to-east: Rose | Tundra | Lantern | Desert | LittleBig; Rose's Tundra gap is in its garden wall, not its hall.
     const committed=structuredClone(c.loadout);const reconnect=act('enter',{zone:lobby.id,loadout:{player_info:{},inventory:[]}});
     assert.equal(reconnect.zone,portal.target);assert.deepEqual(c.loadout,committed);
     if(definition.exit.style==='gap'){
      const e=beside(definition.exit,definition.width,definition.height);place(e.x,e.y);
      const returned=act('move',{direction:e.direction,world_step:true});
-     assert.equal(returned.zone,lobby.id);assert.deepEqual(returned.position,(lobby.id==='princess-rose'?{garden:{x:18,y:13},dives:{x:9,y:1}}:{garden:{x:1,y:6},beds:{x:18,y:6},dives:{x:9,y:1}})[definition.kind]); /* Arrive one tile inside the matching lobby opening; Rose's castle gate is on its right wall. */assert.equal(returned.character.worldTurnDue,undefined);
-    }else {place(10,9);assert.equal(act('hub_visit',{zone:lobby.id}).zone,lobby.id);}
+     assert.equal(returned.zone,lobby.id);assert.deepEqual(returned.position,(lobby.id==='princess-rose'?{garden:{x:1,y:13},dives:{x:9,y:1}}:{garden:{x:1,y:6},beds:{x:18,y:6},dives:{x:9,y:1}})[definition.kind]); /* Arrive one tile inside the matching lobby opening; Rose's castle gate is on its left wall. */assert.equal(returned.character.worldTurnDue,undefined);
+    }else if(definition.exit.style==='door'){place(10,17);const returned=act('move',{direction:'south',world_step:true});assert.equal(returned.zone,lobby.id);assert.deepEqual(returned.position,{x:portal.x,y:portal.y+1});assert.equal(returned.character.worldTurnDue,undefined);} /* Walking onto the village room's door tile steps back outside, one tile below the doorstep. */
+    else {place(10,9);assert.equal(act('hub_visit',{zone:lobby.id}).zone,lobby.id);}
    }
   }
-  assert.equal(hubRooms.length,11); // Three gardens, three markets, three halls and two Resting Halls: Rose Court's beds moved into The Castle.
+  assert.equal(hubRooms.length,9); // Rose: Castle, market, hall. Honeydew: Inn and Community Hall (the town is its own garden and market). Clockwork: garden, beds, market, hall.
  }finally{db.close();}
 });
 
@@ -86,11 +89,11 @@ test('annex presence and chat are shared within a room and isolated across rooms
  const chars={};const act=(owner,action,extra={})=>{time+=100;const c=chars[owner],result=zones.act(owner,{action,controller:owner,request_id:randomUUID(),character_id:c?.id,revision:c?.revision,...extra});chars[owner]=result.character;return result;};
  try{
   for(const owner of ['alice','bob','carol'])act(owner,'create',{name:owner});
-  act('alice','enter',{zone:'honeydew-lantern-garden'});act('bob','enter',{zone:'honeydew-lantern-garden'});act('carol','enter',{zone:'littlebig-clockwork-garden'});
+  act('alice','enter',{zone:'littlebig-clockwork-garden'});act('bob','enter',{zone:'littlebig-clockwork-garden'});act('carol','enter',{zone:'princess-rose-garden'});
   act('alice','chat',{text:'Hello garden'});
   const bob=zones.read('bob',chars.bob.id),carol=zones.read('carol',chars.carol.id);
   assert.equal(bob.peers.length,2);assert.equal(bob.chat.at(-1).text,'Hello garden');assert.equal(carol.peers.length,1);assert.equal(carol.chat.length,0);
-  act('bob','hub_visit',{zone:'honeydew-lantern'});assert.equal(zones.read('bob',chars.bob.id).chat.length,0);
+  act('bob','hub_visit',{zone:'littlebig-clockwork'});assert.equal(zones.read('bob',chars.bob.id).chat.length,0);
   assert.throws(()=>zones.read('carol',chars.alice.id),e=>e.status===404);
  }finally{db.close();}
 });
@@ -109,7 +112,7 @@ test('shop debit survives lost response and restart; retries grant once, pending
  const command=(action,extra={})=>({action,controller:'a',request_id:randomUUID(),character_id:c?.id,revision:c?.revision,...extra});
  const act=async(action,extra={})=>{const r=await send(command(action,extra));assert.equal(r.status,200,JSON.stringify(r.data));c=r.data.character;return r.data;};
  await start();try{
-  await act('create',{name:'Shopper'});let snapshot=await act('enter',{zone:'honeydew-lantern-shops',loadout:{player_info:{},inventory:[]}});
+  await act('create',{name:'Shopper'});let snapshot=await act('enter',{zone:'littlebig-clockwork-shops',loadout:{player_info:{},inventory:[]}});
   const merchant=snapshot.zones.find(z=>z.id===snapshot.zone).fixtures[0],offer=merchant.offers[0];
   service.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(merchant.x,merchant.y+1,c.id);
   const buy=command('shop_buy',{fixture:merchant.id,offer:offer.id});let result=await send(buy);assert.equal(result.status,200);c=result.data.character;

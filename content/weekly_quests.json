@@ -223,8 +223,8 @@
       "name": "A Second Opinion on Bread",
       "description": "Bram is comparing the smells from every bread stall in the square. It is, he says, serious work. He needs a second nose, a second opinion, and eventually a second lunch, in that order.",
       "repeat": "weekly",
-      "givers": ["honeydew-lantern-garden:market-taster"],
-      "turn_in": {"mode": "npc", "npc": "honeydew-lantern-garden:market-taster"},
+      "givers": ["honeydew-lantern:market-taster"],
+      "turn_in": {"mode": "npc", "npc": "honeydew-lantern:market-taster"},
       "failure_text": "Bram finishes the survey alone. He is not sure the results are reliable.",
       "stages": [
         {
@@ -257,8 +257,8 @@
       "name": "A Very Firm Instruction",
       "description": "A letter for the ribbon seller, a parcel for the tea stall, and a very firm instruction not to dawdle. Tansy would like to hand the whole round to someone else this week. She does not say why, and her walk is a little stiff.",
       "repeat": "weekly",
-      "givers": ["honeydew-lantern-garden:market-courier"],
-      "turn_in": {"mode": "npc", "npc": "honeydew-lantern-garden:market-courier"},
+      "givers": ["honeydew-lantern:market-courier"],
+      "turn_in": {"mode": "npc", "npc": "honeydew-lantern:market-courier"},
       "failure_text": "Tansy walks the round herself. She makes it. Mostly.",
       "stages": [
         {
@@ -268,8 +268,8 @@
           "mode": "all",
           "next": "complete",
           "objectives": [
-            {"id": "market_hall", "type": "visit", "target": "honeydew-lantern-shops", "text": "Deliver to the Lantern Market Hall", "count": 1},
-            {"id": "the_square", "type": "visit", "target": "honeydew-lantern-garden", "text": "Cut back through Market Square", "count": 1},
+            {"id": "market_hall", "type": "visit", "target": "honeydew-lantern", "text": "Deliver to the Lantern Market Hall", "count": 1},
+            {"id": "the_square", "type": "visit", "target": "honeydew-lantern", "text": "Cut back through Market Square", "count": 1},
             {"id": "resting_hall", "type": "visit", "target": "honeydew-lantern-beds", "text": "Finish at the Lantern Resting Hall", "count": 1}
           ],
           "branches": []
@@ -282,8 +282,8 @@
       "name": "No Sad Verses",
       "description": "Merri is trying out a tune with no sad verses in it and has not decided how it ends. She would like an audience who will stay for the whole thing, and one more pair of ears than she currently has.",
       "repeat": "weekly",
-      "givers": ["honeydew-lantern-garden:market-busker"],
-      "turn_in": {"mode": "npc", "npc": "honeydew-lantern-garden:market-busker"},
+      "givers": ["honeydew-lantern:market-busker"],
+      "turn_in": {"mode": "npc", "npc": "honeydew-lantern:market-busker"},
       "failure_text": "The tune ends the way it always does. Merri hums something else.",
       "stages": [
         {
@@ -294,7 +294,7 @@
           "next": "complete",
           "objectives": [
             {"id": "five_minutes", "type": "timer", "text": "Listen for five minutes without walking off", "count": 300},
-            {"id": "fetch_wren", "type": "talk", "target": "honeydew-lantern-garden:market-browser", "text": "Talk Wren into coming to listen", "count": 1}
+            {"id": "fetch_wren", "type": "talk", "target": "honeydew-lantern:market-browser", "text": "Talk Wren into coming to listen", "count": 1}
           ],
           "branches": []
         }
@@ -306,8 +306,8 @@
       "name": "One Spool of Thread",
       "description": "Wren came to the square for one spool of thread. So far she has found a lovely cup, three ribbons and absolutely no thread. She would like help finishing the list before she talks herself into a fourth ribbon.",
       "repeat": "weekly",
-      "givers": ["honeydew-lantern-garden:market-browser"],
-      "turn_in": {"mode": "npc", "npc": "honeydew-lantern-garden:market-browser"},
+      "givers": ["honeydew-lantern:market-browser"],
+      "turn_in": {"mode": "npc", "npc": "honeydew-lantern:market-browser"},
       "failure_text": "Wren goes home with four ribbons and no thread. She is not sorry.",
       "stages": [
         {
@@ -330,8 +330,8 @@
       "name": "The Dry Run",
       "description": "Tansy wants to know whether her round can be walked end to end without stopping. She has her own reasons for asking. She would rather you found out than her, and she will not be offended by whatever happens at the end of it.",
       "repeat": "weekly",
-      "givers": ["honeydew-lantern-garden:market-courier"],
-      "turn_in": {"mode": "npc", "npc": "honeydew-lantern-garden:market-courier"},
+      "givers": ["honeydew-lantern:market-courier"],
+      "turn_in": {"mode": "npc", "npc": "honeydew-lantern:market-courier"},
       "failure_text": "The question goes unanswered for another week. Tansy keeps taking the short way.",
       "stages": [
         {
@@ -342,7 +342,7 @@
           "next": "one_way_or_another",
           "objectives": [
             {"id": "desperate", "type": "state", "field": "wet", "op": "gte", "value": 85, "text": "Carry a bladder of 85 or more", "count": 1},
-            {"id": "reach_the_hall", "type": "visit", "target": "honeydew-lantern-shops", "text": "Reach the Market Hall without excusing yourself", "count": 1}
+            {"id": "reach_the_hall", "type": "visit", "target": "honeydew-lantern", "text": "Reach the Market Hall without excusing yourself", "count": 1}
           ],
           "branches": []
         },
@@ -365,8 +365,8 @@
       "name": "Padding for the Road",
       "description": "Bram has opinions about walking the square on a full stomach, and one strong opinion about what to wear while doing it. He delivers it cheerfully, at volume, in the middle of a crowded market.",
       "repeat": "weekly",
-      "givers": ["honeydew-lantern-garden:market-taster"],
-      "turn_in": {"mode": "npc", "npc": "honeydew-lantern-garden:market-taster"},
+      "givers": ["honeydew-lantern:market-taster"],
+      "turn_in": {"mode": "npc", "npc": "honeydew-lantern:market-taster"},
       "failure_text": "Bram's advice goes untaken. He will offer it again, louder.",
       "stages": [
         {
@@ -388,7 +388,7 @@
           "mode": "all",
           "next": "complete",
           "objectives": [
-            {"id": "cross_the_square", "type": "visit", "target": "honeydew-lantern-garden", "text": "Walk the length of Market Square", "count": 1},
+            {"id": "cross_the_square", "type": "visit", "target": "honeydew-lantern", "text": "Walk the length of Market Square", "count": 1},
             {"id": "three_minutes", "type": "timer", "text": "Stay out among the stalls for three minutes", "count": 180}
           ],
           "branches": []
@@ -401,8 +401,8 @@
       "name": "The Long Crossing",
       "description": "Wren has heard the Dustbreak crossing comes out somewhere with better ribbons. She will not walk it herself. She would, however, very much like a report, and she is prepared to pay for one.",
       "repeat": "weekly",
-      "givers": ["honeydew-lantern-garden:market-browser"],
-      "turn_in": {"mode": "npc", "npc": "honeydew-lantern-garden:market-browser"},
+      "givers": ["honeydew-lantern:market-browser"],
+      "turn_in": {"mode": "npc", "npc": "honeydew-lantern:market-browser"},
       "failure_text": "The crossing goes unreported. Wren decides the ribbons here are fine.",
       "stages": [
         {
@@ -540,7 +540,7 @@
           "mode": "all",
           "next": "bring_it_back",
           "objectives": [
-            {"id": "the_square", "type": "visit", "target": "honeydew-lantern-garden", "text": "Walk Market Square in Lantern Court", "count": 1}
+            {"id": "the_square", "type": "visit", "target": "honeydew-lantern", "text": "Walk Market Square in Lantern Court", "count": 1}
           ],
           "branches": []
         },

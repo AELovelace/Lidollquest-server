@@ -34,8 +34,10 @@ test('server clock pursues and engages on every route, including existing editio
   for(const data of routes){
    const hub=data.config.hub??(['dive-desert','dive-tundra'].includes(data.config.zone_id)?'honeydew-lantern':'princess-rose'),zone=data.config.zone_id??'dive-quarters'; // Lantern's hall still has a Tundra pad; Rose reaches it from its garden wall instead.
    act('enter',{zone:hub,loadout:{player_info:{playerHealth:100,playerHealthMax:100,stat_points:0},inventory:[]}});
-   place(9,0);const hall=act('hub_visit',{zone:hub+'-dives'}),pad=hall.zones.find(z=>z.id===hall.zone).portals.find(p=>p.target===zone);
-   assert.ok(pad);place(pad.x,pad.y);act('dive_enter',{zone});
+   const gate=['dive-desert','dive-tundra'].includes(zone)&&hub==='honeydew-lantern'; // Honeydew reaches both wilderness routes from its village walls, not a hall pad.
+   if(gate){place(zone==='dive-tundra'?1:48,25);act('move',{direction:zone==='dive-tundra'?'west':'east',world_step:true});}
+   else{place(...(hub==='honeydew-lantern'?[25,25]:[9,0]));const hall=act('hub_visit',{zone:hub+'-dives'}),pad=hall.zones.find(z=>z.id===hall.zone).portals.find(p=>p.target===zone);
+   assert.ok(pad);place(pad.x,pad.y);act('dive_enter',{zone});}
    const visit=c.dive,record=()=>JSON.parse(db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=?').get(visit.route,visit.edition).content);
    const saveFloor=f=>db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=?').run(JSON.stringify(f),visit.route,visit.edition);
    for(const legacy of [false,true]){
@@ -67,7 +69,7 @@ test('server clock pursues and engages on every route, including existing editio
     api=setup();read();assert.deepEqual(record().mist,mist);assert.equal(db.prepare('SELECT state FROM dive_progress WHERE character_id=? AND route=? AND edition=?').get(c.id,visit.route,visit.edition)?.state,claims);
     assert.equal(c.run,null,'safe entrance prevents a reconnect ambush');
    }
-   act('dive_exit');place(10,9);act('hub_visit',{zone:hub});act('leave');
+   act('dive_exit');if(!gate){place(10,9);act('hub_visit',{zone:hub});}act('leave'); // A gate walker is already back in the village.
   }
  }finally{db.close();}
 });

@@ -27,7 +27,7 @@ test('new Dives enforce hub adjacency, isolate claims, retain fights/reconnects 
   for(const data of campaignDives){
    const {hub,zone_id}=data.config;
    act('enter',{zone:hub,loadout:{player_info:{playerHealth:100,playerHealthMax:100,str:1000,def:100},inventory:c?.loadout?.inventory??[]}});
-   place(9,0);act('hub_visit',{zone:hub+'-dives'});place(2,9);
+   place(...(hub==='honeydew-lantern'?[25,25]:[9,0]));act('hub_visit',{zone:hub+'-dives'});place(2,9); // Honeydew: the Community Hall doorstep; others: the lobby's top-wall gap.
    assert.throws(()=>act('dive_enter',{zone:zone_id}),/glowing portal/);
    place(data.config.pad.x,data.config.pad.y);const entered=act('dive_enter',{zone:zone_id});
    assert.ok(Buffer.byteLength(JSON.stringify(entered))<262144);assert.equal(entered.dungeons.length,11);assert.equal(entered.dive.claimed,0);

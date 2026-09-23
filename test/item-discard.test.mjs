@@ -13,7 +13,7 @@ function fixture(hub){
  const send=input=>{time+=1000;const result=zones.act('token',input);c=result.character;return result;};
  const act=(action,extra)=>send(body(action,extra));
  act('create',{name:'Disposer'});
- act('enter',{zone:hub+'-shops',loadout:{player_info:{equipped_head:'cursed_crown'},inventory:[{item_id:'offline',name:'Old shirt',category:'torso'},{item_id:'quest_key',category:'quest_item'}]}});
+ act('enter',{zone:hub==='honeydew-lantern'?hub:hub+'-shops',loadout:{player_info:{equipped_head:'cursed_crown'},inventory:[{item_id:'offline',name:'Old shirt',category:'torso'},{item_id:'quest_key',category:'quest_item'}]}}); // Honeydew's dumpster stands in the village itself; the other hubs keep theirs in the Market Hall.
  const place=(x,y)=>db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(x,y,c.id);
  const mutate=fn=>{const state=JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(c.id).state);fn(state);db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),c.id);c=zones.read('token',c.id).character;};
  const discard=(slot=0,extra={})=>act('item_discard',{fixture:'dumpster',slot,item_id:c.loadout.inventory[slot]?.item_id,item_instance:c.loadout.inventory[slot]?.online_item??'',...extra});
@@ -21,8 +21,8 @@ function fixture(hub){
 }
 for(const hub of ['princess-rose','honeydew-lantern','littlebig-clockwork'])test(hub+' dumpster is reachable; exact carried item removal is durable and free',()=>{
  const f=fixture(hub);try{
-  const room=hubRooms.find(r=>r.id===hub+'-shops'),bin=room.fixtures.find(f=>f.kind==='dumpster');
-  const seen=new Set(),queue=[room.spawn];while(queue.length){const p=queue.shift(),key=p.x+','+p.y;if(seen.has(key)||p.x<1||p.y<1||p.x>=room.width-1||p.y>=room.height-1||hubBlocked(room,p.x,p.y))continue;seen.add(key);for(const [x,y] of [[1,0],[-1,0],[0,1],[0,-1]])queue.push({x:p.x+x,y:p.y+y});}
+  const snapshot=f.zones.read('token',f.c.id),room=snapshot.zones.find(z=>z.id===snapshot.zone),bin=room.fixtures.find(f=>f.kind==='dumpster');
+  const seen=new Set(),queue=[room.spawn];while(queue.length){const p=queue.shift(),key=p.x+','+p.y;if(seen.has(key)||p.x<1||p.y<1||p.x>=room.width-1||p.y>=room.height-1||room.walls?.[p.y]?.[p.x]||hubBlocked(room,p.x,p.y))continue;seen.add(key);for(const [x,y] of [[1,0],[-1,0],[0,1],[0,-1]])queue.push({x:p.x+x,y:p.y+y});}
   assert.ok(seen.has(bin.x+','+(bin.y+1)),'entrance reaches the dumpster approach');
   assert.throws(()=>f.discard(),/Stand next/);f.place(bin.x,bin.y+1);
   assert.throws(()=>f.discard(1),/Quest items/);

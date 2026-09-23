@@ -15,7 +15,7 @@ function fixture(){
  const body=(action,extra={})=>({action,character_id:c?.id,revision:c?.revision,request_id:randomUUID(),controller:owner,...extra});
  const send=input=>{time+=1500;const result=zones.act('token',input);c=result.character;return result;};
  const act=(action,extra)=>send(body(action,extra));
- act('create',{name:'Seller'});const snapshot=act('enter',{zone:'honeydew-lantern-shops',loadout:{player_info:{},inventory:[{item_id:'offline',value:999999}]}});
+ act('create',{name:'Seller'});const snapshot=act('enter',{zone:'littlebig-clockwork-shops',loadout:{player_info:{},inventory:[{item_id:'offline',value:999999}]}});
  const merchant=snapshot.zones.find(z=>z.id===snapshot.zone).fixtures[0];
  const place=(x,y)=>db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(x,y,c.id);
  place(merchant.x,merchant.y+1);
@@ -38,7 +38,7 @@ test('sales require server-issued rights, ignore forged prices, replay once and 
   const second=f.buy();f.db.prepare('UPDATE quest_reward_days SET coins=? WHERE owner=?').run(DAILY_COIN_CAP,'alice');
   assert.throws(()=>f.act('shop_sell',{fixture:f.merchant.id,slot:f.c.loadout.inventory.length-1,item_instance:second.online_item}),/Daily coin limit/);
   assert.equal(f.refresh().loadout.inventory.at(-1).online_item,second.online_item);assert.equal(f.paid.length,1);
-  f.nextDay();f.act('enter',{zone:'honeydew-lantern-shops'});f.place(f.merchant.x,f.merchant.y+1);
+  f.nextDay();f.act('enter',{zone:'littlebig-clockwork-shops'});f.place(f.merchant.x,f.merchant.y+1);
   f.act('shop_sell',{fixture:f.merchant.id,slot:f.c.loadout.inventory.length-1,item_instance:second.online_item});assert.equal(f.paid.length,2);
  }finally{f.db.close();}
 });
@@ -52,7 +52,7 @@ test('bank rights survive transfers; imported bank copies and consumed/cross-cha
   const consumed=structuredClone(f.c.loadout);consumed.inventory.pop();f.act('loadout',{loadout:consumed});
   f.act('loadout',{loadout:copy});assert.equal(f.c.loadout.inventory[1].online_item,undefined);
   f.place(f.merchant.x,f.merchant.y+1);const another=f.buy();
-  f.owner('bob');f.act('create',{name:'Other owner'});f.act('enter',{zone:'honeydew-lantern-shops',loadout:{player_info:{},inventory:[another]}});
+  f.owner('bob');f.act('create',{name:'Other owner'});f.act('enter',{zone:'littlebig-clockwork-shops',loadout:{player_info:{},inventory:[another]}});
   assert.equal(f.c.loadout.inventory[0].online_item,undefined);
  }finally{f.db.close();}
 });
@@ -140,7 +140,7 @@ test('sale payout retries after a lost wallet response and service restart witho
  const command=(action,extra={})=>({action,controller:'owner',request_id:randomUUID(),character_id:c?.id,revision:c?.revision,...extra});
  const send=async body=>{time+=1500;const response=await fetch(url+'/zones/action',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)}),data=await response.json();assert.equal(response.status,200,JSON.stringify(data));c=data.character;return data;};
  await start();try{
-  await send(command('create',{name:'Seller'}));let snapshot=await send(command('enter',{zone:'honeydew-lantern-shops',loadout:{player_info:{},inventory:[]}}));
+  await send(command('create',{name:'Seller'}));let snapshot=await send(command('enter',{zone:'littlebig-clockwork-shops',loadout:{player_info:{},inventory:[]}}));
   const merchant=snapshot.zones.find(z=>z.id===snapshot.zone).fixtures[0];service.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(merchant.x,merchant.y+1,c.id);
   await send(command('shop_buy',{fixture:merchant.id,offer:merchant.offers[0].id}));const item=c.loadout.inventory[0];
   const sale=command('shop_sell',{fixture:merchant.id,slot:0,item_instance:item.online_item});snapshot=await send(sale);

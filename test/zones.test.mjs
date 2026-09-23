@@ -122,11 +122,11 @@ test('exactly one distinct zone per hub; character ownership, input and single-w
   assert.equal(questZones.length,3);assert.equal(new Set(questZones.map(z=>z.hub)).size,3);
   const c=f.act('create',null,{name:'Alice'}).character;
   assert.throws(()=>f.act('enter',c,{zone:'honeydew-bramble'}),e=>e.status===400);
-  let a=f.act('enter',c,{zone:questZones[0].id});assert.equal(a.position.x,10);
+  let a=f.act('enter',c,{zone:questZones[0].id});assert.equal(a.position.x,questZones[0].spawn?.x??10); // Honeydew Village spawns on its square (25,26); the 20x12 courts at x=10.
   assert.throws(()=>f.act('enter',a.character,{zone:questZones[0].id,controller:'other-window'}),e=>e.status===409);
   assert.throws(()=>f.act('move',a.character,{direction:'east',bogus:999}),e=>e.status===400); /* amount is now a duel stake field; any key outside the allowlist is still refused. */
   assert.throws(()=>f.act('move',a.character,{direction:'__proto__'}),e=>e.status===400);
-  a=f.act('move',a.character,{direction:'east'});assert.equal(a.position.x,11);
+  a=f.act('move',a.character,{direction:'east'});assert.equal(a.position.x,(questZones[0].spawn?.x??10)+1);
   f.as('bob');assert.throws(()=>f.zones.read('bob',c.id),e=>e.status===404);
  }finally{f.db.close();}
 });

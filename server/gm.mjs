@@ -55,7 +55,8 @@ export function buildAllowList(text){ // Comma-separated addresses and CIDR bloc
  return list;
 } // Rejected loudly at construction so a typo cannot silently admit the whole network.
 
-export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn}={}){
+export function createGameMasterPanel(db,{walletClient,announcements=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn}={}){
+ const announcementStore=()=>typeof announcements==='function'?announcements():announcements; // Passed lazily by service.mjs because the zones module is created after the panel.
  const rp=createRoleplay(db,{now}); // RP journals use the same live staff authorization as every moderation tool.
  const rpp=createRpp(db,{now}); // Staff-only RPP gifts and purchase history never touch premium currencies.
  db.exec(`CREATE TABLE IF NOT EXISTS gm_sanctions(owner TEXT NOT NULL,kind TEXT NOT NULL,until INTEGER NOT NULL,reason TEXT NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(owner,kind));
@@ -230,6 +231,18 @@ export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,wo
    db.prepare('DELETE FROM quest_chat WHERE zone=? AND seq NOT IN (SELECT seq FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 100)').run(zone.id,zone.id); // Keep the hundred-message ceiling every other writer respects.
    record(actor,'broadcast',zone.id,{text:message});
    return {zone:zone.id,zoneName:zone.name,text:message};
+  },
+  announce(input,actor){ // Server-wide banner: every online player sees it until it expires or a gamemaster ends it.
+   if(!announcementStore())fail(409,'Announcements are not available on this server.','gm_unknown_action');
+   const posted=announcementStore().post({text:input.text,speaker:input.speaker,minutes:input.minutes},actor);
+   record(actor,'announce','everyone',{text:posted.text,speaker:posted.speaker,minutes:posted.minutes});
+   return posted;
+  },
+  announce_end(input,actor){
+   if(!announcementStore())fail(409,'Announcements are not available on this server.','gm_unknown_action');
+   const ended=announcementStore().end();
+   if(ended)record(actor,'announce_end','everyone',{text:ended.text,reason:clean(input.reason,240)});
+   return {ended};
   },
   enchant_tune(input,actor){
    const values=enchantStore().tune(input.tuning,actor);
@@ -419,7 +432,7 @@ export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,wo
     if(!Number.isSafeInteger(limit)||limit<1||limit>200)return send(400,{error:'gm_invalid_page'});
     const zone=url.searchParams.get('zone');
     if(zone&&!zoneById.has(zone))return send(400,{error:'gm_unknown_zone'});
-    return send(200,chat(zone||null,limit));
+    return send(200,{...chat(zone||null,limit),announcement:announcementStore()?.active()??null}); // The chat tab also shows whichever server-wide banner is up.
    }
    if(url.pathname==='/gm/player'&&req.method==='GET')return send(200,player(url.searchParams.get('owner')||null,url.searchParams.get('character_id')||null));
    if(url.pathname==='/gm/action'&&req.method==='POST'){

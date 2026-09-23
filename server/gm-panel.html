@@ -184,6 +184,16 @@ tr.sel td{background:#2c1e3d}
       <button class="go" id="cast">Announce</button>
     </div>
     <p class="note">Announcements post as an activity line, which clients already render apart from player speech.</p>
+    <h2 style="margin-top:18px">Announce to everyone</h2>
+    <div class="row">
+      <input id="announceName" placeholder="Gamemaster" style="width:130px" maxlength="24">
+      <input id="announceText" class="grow" placeholder="Banner every online player sees, in any room or Dive" maxlength="240">
+      <label for="announceMinutes">Minutes</label><input id="announceMinutes" type="number" min="1" max="1440" value="10" style="width:80px">
+      <button class="go" id="announce">Announce to everyone</button>
+      <button class="bad" id="announceEnd">End announcement</button>
+    </div>
+    <p class="note" id="announceNow">No server-wide announcement is up.</p>
+    <p class="note">Server-wide announcements show as a banner over the map and are logged once per player; they expire after the minutes given. In game, gamemasters can type <code>/announce message</code> or <code>/announce end</code> in chat, or use GM tools.</p>
   </section>
 </div>
 <div class="tab-panel" id="panel-rp" role="tabpanel" aria-labelledby="tab-rp" tabindex="0" hidden>
@@ -654,6 +664,7 @@ tr.sel td{background:#2c1e3d}
  }
 
  function renderChat(payload){
+  showAnnouncement(payload.announcement||null); // The chat feed carries whichever server-wide banner is up.
   var log=$("chat");clear(log);
   if(!payload.messages.length){log.appendChild(el("p","empty","No messages in that window."));return;}
   payload.messages.forEach(function(m){
@@ -1437,6 +1448,18 @@ tr.sel td{background:#2c1e3d}
   act("broadcast",{zone:zone,text:text,speaker:$("castName").value.trim()},"Announced to that room.").then(function(){$("castText").value="";loadChat();});
  });
  $("castText").addEventListener("keydown",function(e){if(e.key==="Enter")$("cast").click();});
+ function showAnnouncement(a){ // Current server-wide banner, or the resting message when none is up.
+  $("announceNow").textContent=a?"Up now until "+new Date(a.expires).toLocaleTimeString()+": "+a.speaker+": "+a.text:"No server-wide announcement is up.";
+ }
+ $("announce").addEventListener("click",function(){
+  var text=$("announceText").value.trim(),minutes=$("announceMinutes").value;
+  if(!text){say("err","Write the announcement first.");return;}
+  act("announce",{text:text,speaker:$("announceName").value.trim(),minutes:minutes?Number(minutes):undefined},"Announced to everyone.").then(function(result){if(result){$("announceText").value="";showAnnouncement(result.result||null);}}); // act() resolves with the gateway envelope; the banner rides in result.
+ });
+ $("announceEnd").addEventListener("click",function(){
+  act("announce_end",{},"Announcement ended.").then(function(result){if(result)showAnnouncement(null);});
+ });
+ $("announceText").addEventListener("keydown",function(e){if(e.key==="Enter")$("announce").click();});
  /* WORLD_PANEL */
 /* GM_GUIDE_SCRIPT */
 

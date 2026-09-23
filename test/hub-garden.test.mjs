@@ -7,25 +7,25 @@ import {hubCatalog,hubRooms,hubPortals,dungeonPortals,wildernessGates,routeHome,
 import {roseCourtyard,validateCourtyard,GARDEN_PORTALS,DEFAULT_DECORATIONS} from '../server/hub-garden.mjs';
 import {generateDistrict,districtData} from '../server/hub-districts.mjs';
 
-test('Rose Court is a walled 20x20 garden with the castle gate and Tundra gap on its right wall',()=>{
+test('Rose Court is a walled 20x20 garden with the castle gate on its left wall and the Tundra gap on its right wall',()=>{
  const rose=hubCatalog.find(h=>h.id==='princess-rose');
  assert.equal(rose.width,20);assert.equal(rose.height,20);assert.equal(rose.walls.length,20);assert.ok(rose.walls.every(row=>row.length===20));
  assert.deepEqual(rose.tilesets,{wall:'tilePrincessQuarters',floor:'tileTown',trees:'tileTown'});
  for(let i=0;i<20;i++){assert.equal(rose.walls[0][i]+rose.walls[19][i]+rose.walls[i][0]+rose.walls[i][19]>0,true,'boundary cells are walls or openings');}
  const portals=hubPortals('princess-rose');
- assert.deepEqual(portals.map(p=>[p.target,p.style,p.side??'']),[['princess-rose-garden','gap','right'],['dive-tundra','gap','right'],['princess-rose-shops','stairs',''],['princess-rose-dives','gap','top']]);
+ assert.deepEqual(portals.map(p=>[p.target,p.style,p.side??'']),[['princess-rose-garden','gap','left'],['dive-tundra','gap','right'],['princess-rose-shops','stairs',''],['princess-rose-dives','gap','top']]);
  assert.equal(portals[0].name,'The Castle');assert.deepEqual([portals[1].x,portals[1].y,portals[1].h],[19,5,2]); // The Tundra took the old Beds door position.
  for(const p of portals.filter(p=>p.style==='gap'))for(let dy=0;dy<(p.h??1);dy++)for(let dx=0;dx<(p.w??1);dx++)assert.equal(rose.walls[p.y+dy][p.x+dx],0);
- assert.equal(rose.walls[4][19],1);assert.equal(rose.walls[7][19],1);assert.equal(rose.walls[11][19],1);assert.equal(rose.walls[14][19],1); // Solid wall between and around the two right-wall openings.
+ assert.equal(rose.walls[4][19],1);assert.equal(rose.walls[7][19],1);assert.equal(rose.walls[12][19],1);assert.equal(rose.walls[11][0],1);assert.equal(rose.walls[14][0],1); // Solid wall around the Tundra gap (right) and the castle gate (left).
  assert.ok(rose.treeTiles.flat().some(t=>t>=34&&t<=37),'tree clumps use the Honeydew woodland tiles');
  assert.ok(rose.floors.flat().includes(9)&&rose.floors.flat().includes(3)&&rose.floors.flat().includes(1),'grass, flowers and cobbles are all present');
  assert.ok(rose.fixtures.some(f=>f.sprite.startsWith('sprPQ'))&&rose.fixtures.some(f=>f.sprite.startsWith('sprTownEnv')),'props mix the Princess Quarters and Honeydew palettes');
  assert.ok(!hubRooms.some(r=>r.id==='princess-rose-beds'));assert.ok(hubRooms.some(r=>r.id==='honeydew-lantern-beds'));
  assert.deepEqual(dungeonPortals('princess-rose').map(p=>p.target),['dive-quarters','dive-dungeon']); // The hall's east wall is closed.
- assert.deepEqual(wildernessGates('princess-rose').map(g=>g.target),['dive-tundra']);assert.deepEqual(wildernessGates('honeydew-lantern'),[]);
- assert.equal(routeHome('princess-rose','dive-tundra'),'princess-rose');assert.equal(routeHome('honeydew-lantern','dive-tundra'),'honeydew-lantern-dives');
- assert.equal(returnSource('princess-rose','dive-tundra'),'dive-tundra');assert.equal(returnSource('honeydew-lantern','dive-tundra'),'honeydew-lantern-dives');assert.equal(returnSource('honeydew-lantern-dives','dive-taiga'),'dive-taiga');
- assert.deepEqual(hubArrival(rose,'dive-tundra'),{x:18,y:6});assert.deepEqual(hubArrival(rose,'princess-rose-garden'),{x:18,y:13});assert.deepEqual(hubArrival(rose,'princess-rose-dives'),{x:9,y:1});
+ assert.deepEqual(wildernessGates('princess-rose').map(g=>g.target),['dive-tundra']);assert.deepEqual(wildernessGates('honeydew-lantern').map(g=>g.target),['dive-tundra','dive-desert']); // Honeydew Village's own walls open west onto the Tundra and east onto the Desert.
+ assert.equal(routeHome('princess-rose','dive-tundra'),'princess-rose');assert.equal(routeHome('honeydew-lantern','dive-tundra'),'honeydew-lantern');assert.equal(routeHome('littlebig-clockwork','dive-desert'),'littlebig-clockwork-dives');
+ assert.equal(returnSource('princess-rose','dive-tundra'),'dive-tundra');assert.equal(returnSource('honeydew-lantern','dive-tundra'),'dive-tundra');assert.equal(returnSource('littlebig-clockwork','dive-desert'),'littlebig-clockwork-dives');assert.equal(returnSource('honeydew-lantern-dives','dive-taiga'),'dive-taiga');
+ assert.deepEqual(hubArrival(rose,'dive-tundra'),{x:18,y:6});assert.deepEqual(hubArrival(rose,'princess-rose-garden'),{x:1,y:13});assert.deepEqual(hubArrival(rose,'princess-rose-dives'),{x:9,y:1});
  assert.deepEqual(hubDefinition(rose,0).spawn,{x:10,y:12});
 });
 
@@ -57,14 +57,14 @@ test('walking into the garden Tundra gap enters Frostveil, crossings land in the
   const home=act('dive_exit');assert.equal(home.zone,'princess-rose');assert.deepEqual(home.position,{x:18,y:6});assert.equal(c.hubVisit,undefined);
   place(18,6);const again=act('move',{direction:'east',world_step:true});assert.equal(c.dive.zone,'dive-tundra');assert.equal(c.dive.gate,true);
   const eastExit=exitOf(again,'honeydew-lantern');divePlace(eastExit.x-1,eastExit.y);
-  const east=act('dive_exit',{zone:'honeydew-lantern'});assert.equal(east.zone,'honeydew-lantern-dives'); // A gate walker who crosses east arrives in Lantern's Dive Hall, which hosts that side's opening.
-  place(1,6);const back=act('move',{direction:'west',world_step:true});assert.equal(back.zone,'dive-tundra');assert.equal(c.dive.gate,false);
+  const east=act('dive_exit',{zone:'honeydew-lantern'});assert.equal(east.zone,'honeydew-lantern');assert.deepEqual(east.position,{x:1,y:25}); // A gate walker who crosses east arrives in Honeydew Village beside its west gate.
+  place(1,25);const back=act('move',{direction:'west',world_step:true});assert.equal(back.zone,'dive-tundra');assert.equal(c.dive.gate,true); // The village wall is a gate too.
   const westExit=exitOf(back,'princess-rose');divePlace(westExit.x+1,westExit.y);
   const west=act('dive_exit',{zone:'princess-rose'});assert.equal(west.zone,'princess-rose');assert.deepEqual(west.position,{x:18,y:6}); // Crossing west lands in the garden beside its gate.
   place(9,0);const hall=act('hub_visit',{zone:'princess-rose-dives'});assert.ok(!hall.zones.find(z=>z.id==='princess-rose-dives').portals.some(p=>p.target==='dive-tundra'));
   place(18,6);assert.throws(()=>act('move',{direction:'east'}),/blocked/); // The hall's old east gap is sealed.
   place(9,10);act('move',{direction:'south',world_step:true});assert.equal(c.hubVisit,undefined);
-  place(18,13);const castle=act('move',{direction:'east',world_step:true});assert.equal(castle.zone,'princess-rose-garden');
+  place(1,13);const castle=act('move',{direction:'west',world_step:true});assert.equal(castle.zone,'princess-rose-garden');
   const beds=castle.zones.find(z=>z.id==='princess-rose-garden').fixtures.filter(f=>f.kind==='bed');assert.equal(beds.length,6);
   place(beds[0].x,beds[0].y+1);const next=structuredClone(c.loadout);next.player_info.playerHealth=40;act('hub_rest',{fixture:beds[0].id,loadout:next});assert.equal(c.loadout.player_info.playerHealth,40);
   place(1,1);assert.throws(()=>act('hub_rest',{fixture:beds[0].id,loadout:next}),/Stand next/);
