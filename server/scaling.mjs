@@ -16,6 +16,9 @@ export function playerBaseHp(tuning,lv,def){ // hp_base + hp_per_level up to hp_
 }
 export function playerHpDelta(tuning,fromLevel,toLevel,def){return playerBaseHp(tuning,toLevel,def)-playerBaseHp(tuning,fromLevel,def);} // What one or more level-ups add to the cap; gear and curse bonuses ride along untouched.
 export function defHpDelta(tuning,lv,fromDef,toDef){return playerBaseHp(tuning,lv,toDef)-playerBaseHp(tuning,lv,fromDef);} // What allocating DEF adds to the cap (0 or 1 with the default 0.6 share).
+export function staminaBase(tuning,lv,dex){return Math.max(1,Math.floor(get(tuning,'stamina_base')+get(tuning,'stamina_per_level')*(level(lv)-1)+Math.max(0,num(dex,0))*get(tuning,'stamina_dex_share')));} // Max stamina: base + per level + a share of DEX.
+export function staminaDelta(tuning,fromLevel,toLevel,dex){return staminaBase(tuning,toLevel,dex)-staminaBase(tuning,fromLevel,dex);}
+export function dexStaminaDelta(tuning,lv,fromDex,toDex){return staminaBase(tuning,lv,toDex)-staminaBase(tuning,lv,fromDex);}
 export function legacyBaseHp(lv){return 100+(level(lv)-1);} // What the old "+1 per level from 100" rule handed out; a migration subtracts this to find gear/curse bonuses.
 
 export function mitigate(tuning,raw,def){ // damage * k / (k + DEF): DEF never zeroes a hit and never stops mattering at the stat cap.

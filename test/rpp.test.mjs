@@ -72,11 +72,11 @@ test('mage balance stacks with affinity and fullness, doubles only mage mana, an
 test('free mage choices accumulate, debit once, preserve RPP and survive stale imports',()=>{
  const f=fixture();try{
   const id=f.player('Scholar'),row=f.db.prepare('SELECT * FROM quest_characters WHERE id=?').get(id),state=JSON.parse(row.state);
-  state.run={enemy:{exp:850},hp:90,maxHp:100,log:[]};awardExperience(state,()=>0);state.run=null;
+  state.run={enemy:{exp:1900},hp:90,maxHp:100,log:[]};awardExperience(state,()=>0);state.run=null; // Levels 9, 10, 11 and 12: free picks at 9 and 12 (every third level), one RPP per level owed.
   f.db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),id);
   assert.equal(f.read().rpp.freePicks,2);assert.equal(f.read().rpp.balance,0);
   assert.throws(()=>f.act('mage_pick',{offer:'sure_strike'}),/available mage spell choice/);
-  const cmd=f.command('mage_pick',{offer:'frostbite'});let s=f.raw(cmd);assert.equal(s.rpp.freePicks,1);assert.equal(s.rpp.balance,0);
+  const cmd=f.command('mage_pick',{offer:'frostbite'});let s=f.raw(cmd);assert.equal(s.rpp.freePicks,1);assert.equal(s.rpp.balance,4);assert.equal(f.rpp.journal(id).ledger.filter(r=>r.kind==='level').length,4);/* The four levels gained pay one RPP each on the next committed command. */
   f.raw(cmd);assert.equal(f.read().rpp.freePicks,1);assert.throws(()=>f.act('mage_pick',{offer:'frostbite'}),/already know/);
   const stale=loadout();stale.mageSpellPicks=999;stale.player_info.mageSpellPicks=999;f.act('enter',{zone:'princess-rose',loadout:stale,combat_version:3});
   assert.equal(f.read().rpp.freePicks,1);assert.ok(f.read().character.loadout.player_spells.includes('frostbite'));

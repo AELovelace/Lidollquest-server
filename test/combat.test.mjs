@@ -111,8 +111,8 @@ test('enemy magic supports status, stat debuffs and compound effects with persis
 });
 test('multiplayer levels bank stat points and one mage choice per level without learning or spending currency',()=>{
  const s=battle();s.loadout.player_info.level=2;s.loadout.player_info.xp=99;s.loadout.player_spells=['heal_light'];s.run.enemy.exp=5;
- awardExperience(s,zero);assert.equal(s.loadout.player_info.level,3);assert.equal(s.loadout.player_info.xp,4);assert.equal(s.loadout.player_info.stat_points,3);assert.equal(s.loadout.playerInfo,undefined);assert.equal(s.loadout.player_info.playerHealthMax,145);/* +5 from the HP curve, not +1. */assert.deepEqual(s.loadout.player_spells,['heal_light']);assert.equal(s.mageSpellPicks,1);assert.equal(s.loadout.gold,undefined);
- s.run.enemy.exp=350;awardExperience(s,zero);assert.equal(s.loadout.player_info.level,5);assert.equal(s.mageSpellPicks,3);assert.equal(s.loadout.player_info.stat_points,9);
+ awardExperience(s,zero);assert.equal(s.loadout.player_info.level,3);assert.equal(s.loadout.player_info.xp,4);assert.equal(s.loadout.player_info.stat_points,3);assert.equal(s.loadout.playerInfo,undefined);assert.equal(s.loadout.player_info.playerHealthMax,145);assert.equal(s.loadout.player_info.stamina_max,102);/* +5 HP and +2 stamina from the curves, not +1. */assert.deepEqual(s.loadout.player_spells,['heal_light']);assert.equal(s.mageSpellPicks,1);assert.equal(s.loadout.gold,undefined);
+ s.run.enemy.exp=350;awardExperience(s,zero);assert.equal(s.loadout.player_info.level,5);assert.equal(s.mageSpellPicks,1);assert.equal(s.rppOwed,3);/* Free picks come every third level (only 3 so far); one RPP is owed per level gained. */assert.equal(s.loadout.player_info.stat_points,9);
  const fighter=battle('fighter');fighter.run.enemy.exp=350;awardExperience(fighter,zero);assert.equal(fighter.mageSpellPicks,undefined);
 });
 
