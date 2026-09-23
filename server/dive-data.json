@@ -8644,7 +8644,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_bitch_bottoms": {
       "item_id": "trousers_bitch_bottoms",
@@ -8658,7 +8659,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_bloomers_1": {
       "item_id": "trousers_bloomers_1",
@@ -8688,7 +8690,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_exercise_shorts_black": {
       "item_id": "trousers_exercise_shorts_black",
@@ -8702,7 +8705,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_exercise_shorts_blue": {
       "item_id": "trousers_exercise_shorts_blue",
@@ -8716,7 +8720,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_exercise_shorts_grey": {
       "item_id": "trousers_exercise_shorts_grey",
@@ -8730,7 +8735,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_exercise_shorts_sheer": {
       "item_id": "trousers_exercise_shorts_sheer",
@@ -8744,7 +8750,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_exercise_shorts_tight_blue": {
       "item_id": "trousers_exercise_shorts_tight_blue",
@@ -8758,7 +8765,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_jeans_1": {
       "item_id": "trousers_jeans_1",
@@ -8817,7 +8825,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_latex": {
       "item_id": "trousers_latex",
@@ -8831,7 +8840,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_leggings_1": {
       "item_id": "trousers_leggings_1",
@@ -8875,7 +8885,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_yoga": {
       "item_id": "trousers_yoga",
@@ -8889,7 +8900,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_bunny_1": {
       "item_id": "shoes_bunny_1",
@@ -8927,7 +8939,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_net_body": {
       "item_id": "shoes_heels_net_body",
@@ -8939,7 +8952,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_tartan_bra": {
       "item_id": "shoes_heels_tartan_bra",
@@ -8951,7 +8965,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_pompom": {
       "item_id": "shoes_pompom",
@@ -8963,7 +8978,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_ballet": {
       "item_id": "shoes_ballet",
@@ -8975,7 +8991,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_ballet_boots_1": {
       "item_id": "shoes_ballet_boots_1",
@@ -9013,7 +9030,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_booties_1": {
       "item_id": "shoes_booties_1",
@@ -9064,7 +9082,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_boots_candy_cane": {
       "item_id": "shoes_boots_candy_cane",
@@ -9076,7 +9095,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_boots_combat": {
       "item_id": "shoes_boots_combat",
@@ -9088,7 +9108,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_boots_cow": {
       "item_id": "shoes_boots_cow",
@@ -9100,7 +9121,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_boots_nun_1": {
       "item_id": "shoes_boots_nun_1",
@@ -9138,7 +9160,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_business_1": {
       "item_id": "shoes_business_1",
@@ -9293,7 +9316,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_lipstick": {
       "item_id": "shoes_heels_lipstick",
@@ -9305,7 +9329,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_queen_1": {
       "item_id": "shoes_heels_queen_1",
@@ -9343,7 +9368,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_wedge_1": {
       "item_id": "shoes_heels_wedge_1",
@@ -9394,7 +9420,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_peep_toe_heels_1": {
       "item_id": "shoes_peep_toe_heels_1",
@@ -9718,7 +9745,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_tongue_1a": {
       "item_id": "shoes_tongue_1a",
@@ -9836,7 +9864,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_schoolgirl": {
       "item_id": "skirts_schoolgirl",
@@ -9850,7 +9879,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "pink_rubber_skirt_1": {
       "item_id": "pink_rubber_skirt_1",
@@ -9894,7 +9924,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_cheerleader": {
       "item_id": "skirts_cheerleader",
@@ -9908,7 +9939,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_chequered": {
       "item_id": "skirts_chequered",
@@ -9922,7 +9954,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_cupcake_tray_1": {
       "item_id": "skirts_cupcake_tray_1",
@@ -10026,7 +10059,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_flowing": {
       "item_id": "skirts_flowing",
@@ -10040,7 +10074,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_gown_1a": {
       "item_id": "skirts_gown_1a",
@@ -10099,7 +10134,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_latex_1": {
       "item_id": "skirts_latex_1",
@@ -10248,7 +10284,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_nun": {
       "item_id": "skirts_nun",
@@ -10262,7 +10299,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_office": {
       "item_id": "skirts_office",
@@ -10276,7 +10314,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_open_front_1": {
       "item_id": "skirts_open_front_1",
@@ -10335,7 +10374,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_queen_of_spades_1": {
       "item_id": "skirts_queen_of_spades_1",
@@ -10454,7 +10494,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_bunny": {
       "item_id": "stockings_bunny",
@@ -10466,7 +10507,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_cat": {
       "item_id": "stockings_cat",
@@ -10478,7 +10520,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_latex_fetish": {
       "item_id": "stockings_latex_fetish",
@@ -10490,7 +10533,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_priestess": {
       "item_id": "stockings_priestess",
@@ -10502,7 +10546,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_tartan_fishnets": {
       "item_id": "stockings_tartan_fishnets",
@@ -10514,7 +10559,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "socks_4": {
       "item_id": "socks_4",
@@ -10747,7 +10793,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_queen_of_spades": {
       "item_id": "stockings_queen_of_spades",
@@ -10759,7 +10806,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_rubber_black": {
       "item_id": "stockings_rubber_black",
@@ -10771,7 +10819,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_rubber_red": {
       "item_id": "stockings_rubber_red",
@@ -10783,7 +10832,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_skeleton": {
       "item_id": "stockings_skeleton",
@@ -10795,7 +10845,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_striped_black_orange": {
       "item_id": "stockings_striped_black_orange",
@@ -10807,7 +10858,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_striped_black_yellow": {
       "item_id": "stockings_striped_black_yellow",
@@ -10819,7 +10871,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_stripper_1": {
       "item_id": "stockings_stripper_1",
@@ -10902,8 +10955,8 @@
     "beads_1": {
       "item_id": "beads_1",
       "category": "weapon",
-      "name": "Beads #1",
-      "desc": "A stylish beads #1. Deals damage in combat.",
+      "name": "Beads",
+      "desc": "A stylish beads. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -10914,8 +10967,8 @@
     "beads_2": {
       "item_id": "beads_2",
       "category": "weapon",
-      "name": "Beads #2",
-      "desc": "A stylish beads #2. Deals damage in combat.",
+      "name": "Beads",
+      "desc": "A stylish beads. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -10926,8 +10979,8 @@
     "beads_3": {
       "item_id": "beads_3",
       "category": "weapon",
-      "name": "Beads #3",
-      "desc": "A stylish beads #3. Deals damage in combat.",
+      "name": "Beads",
+      "desc": "A stylish beads. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -10938,8 +10991,8 @@
     "bell_1": {
       "item_id": "bell_1",
       "category": "weapon",
-      "name": "Bell #1",
-      "desc": "A stylish bell #1. Deals damage in combat.",
+      "name": "Bell",
+      "desc": "A stylish bell. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -10950,8 +11003,8 @@
     "book_1": {
       "item_id": "book_1",
       "category": "weapon",
-      "name": "Book #1",
-      "desc": "A stylish book #1. Deals damage in combat.",
+      "name": "Book",
+      "desc": "A stylish book. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -10962,8 +11015,8 @@
     "book_2": {
       "item_id": "book_2",
       "category": "weapon",
-      "name": "Book #2",
-      "desc": "A stylish book #2. Deals damage in combat.",
+      "name": "Book",
+      "desc": "A stylish book. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11010,8 +11063,8 @@
     "book_4": {
       "item_id": "book_4",
       "category": "weapon",
-      "name": "Book #4",
-      "desc": "A stylish book #4. Deals damage in combat.",
+      "name": "Book",
+      "desc": "A stylish book. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11022,8 +11075,8 @@
     "book_5": {
       "item_id": "book_5",
       "category": "weapon",
-      "name": "Book #5",
-      "desc": "A stylish book #5. Deals damage in combat.",
+      "name": "Book",
+      "desc": "A stylish book. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11034,8 +11087,8 @@
     "bouquet_1": {
       "item_id": "bouquet_1",
       "category": "weapon",
-      "name": "Bouquet #1",
-      "desc": "A stylish bouquet #1. Deals damage in combat.",
+      "name": "Bouquet",
+      "desc": "A stylish bouquet. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11046,8 +11099,8 @@
     "bouquet_2": {
       "item_id": "bouquet_2",
       "category": "weapon",
-      "name": "Bouquet #2",
-      "desc": "A stylish bouquet #2. Deals damage in combat.",
+      "name": "Bouquet",
+      "desc": "A stylish bouquet. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11058,8 +11111,8 @@
     "goblet_1": {
       "item_id": "goblet_1",
       "category": "weapon",
-      "name": "Goblet #1",
-      "desc": "A stylish goblet #1. Deals damage in combat.",
+      "name": "Goblet",
+      "desc": "A stylish goblet. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11070,8 +11123,8 @@
     "golden_chalice_1": {
       "item_id": "golden_chalice_1",
       "category": "weapon",
-      "name": "Golden Chalice #1",
-      "desc": "A stylish golden chalice #1. Deals damage in combat.",
+      "name": "Golden Chalice",
+      "desc": "A stylish golden chalice. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11082,8 +11135,8 @@
     "heavy_club_1": {
       "item_id": "heavy_club_1",
       "category": "weapon",
-      "name": "Heavy Club #1",
-      "desc": "A stylish heavy club #1. Deals damage in combat.",
+      "name": "Heavy Club",
+      "desc": "A stylish heavy club. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11094,8 +11147,8 @@
     "pink_spraybottle_1": {
       "item_id": "pink_spraybottle_1",
       "category": "weapon",
-      "name": "Pink Spraybottle #1",
-      "desc": "A stylish pink spraybottle #1. Deals damage in combat.",
+      "name": "Pink Spraybottle",
+      "desc": "A stylish pink spraybottle. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11106,8 +11159,8 @@
     "pink_spraybottle_2": {
       "item_id": "pink_spraybottle_2",
       "category": "weapon",
-      "name": "Pink Spraybottle #2",
-      "desc": "A stylish pink spraybottle #2. Deals damage in combat.",
+      "name": "Pink Spraybottle",
+      "desc": "A stylish pink spraybottle. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11118,8 +11171,8 @@
     "pistol_1": {
       "item_id": "pistol_1",
       "category": "weapon",
-      "name": "Pistol #1",
-      "desc": "A stylish pistol #1. Deals damage in combat.",
+      "name": "Pistol",
+      "desc": "A stylish pistol. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11130,8 +11183,8 @@
     "royal_sceptre_1": {
       "item_id": "royal_sceptre_1",
       "category": "weapon",
-      "name": "Royal Sceptre #1",
-      "desc": "A stylish royal sceptre #1. Deals damage in combat.",
+      "name": "Royal Sceptre",
+      "desc": "A stylish royal sceptre. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11142,8 +11195,8 @@
     "royal_sceptre_2": {
       "item_id": "royal_sceptre_2",
       "category": "weapon",
-      "name": "Royal Sceptre #2",
-      "desc": "A stylish royal sceptre #2. Deals damage in combat.",
+      "name": "Royal Sceptre",
+      "desc": "A stylish royal sceptre. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11154,8 +11207,8 @@
     "stuffie_1": {
       "item_id": "stuffie_1",
       "category": "weapon",
-      "name": "Stuffie #1",
-      "desc": "A stylish stuffie #1. Deals damage in combat.",
+      "name": "Stuffie",
+      "desc": "A stylish stuffie. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11166,8 +11219,8 @@
     "sword_1": {
       "item_id": "sword_1",
       "category": "weapon",
-      "name": "Sword #1",
-      "desc": "A stylish sword #1. Deals damage in combat.",
+      "name": "Sword",
+      "desc": "A stylish sword. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11178,8 +11231,8 @@
     "sword_2": {
       "item_id": "sword_2",
       "category": "weapon",
-      "name": "Sword #2",
-      "desc": "A stylish sword #2. Deals damage in combat.",
+      "name": "Sword",
+      "desc": "A stylish sword. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11190,8 +11243,8 @@
     "sword_3": {
       "item_id": "sword_3",
       "category": "weapon",
-      "name": "Sword #3",
-      "desc": "A stylish sword #3. Deals damage in combat.",
+      "name": "Sword",
+      "desc": "A stylish sword. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11202,8 +11255,8 @@
     "sword_4": {
       "item_id": "sword_4",
       "category": "weapon",
-      "name": "Sword #4",
-      "desc": "A stylish sword #4. Deals damage in combat.",
+      "name": "Sword",
+      "desc": "A stylish sword. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11214,8 +11267,8 @@
     "sword_5": {
       "item_id": "sword_5",
       "category": "weapon",
-      "name": "Sword #5",
-      "desc": "A stylish sword #5. Deals damage in combat.",
+      "name": "Sword",
+      "desc": "A stylish sword. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11226,8 +11279,8 @@
     "tanto_1": {
       "item_id": "tanto_1",
       "category": "weapon",
-      "name": "Tanto #1",
-      "desc": "A stylish tanto #1. Deals damage in combat.",
+      "name": "Tanto",
+      "desc": "A stylish tanto. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11238,8 +11291,8 @@
     "tanto_2": {
       "item_id": "tanto_2",
       "category": "weapon",
-      "name": "Tanto #2",
-      "desc": "A stylish tanto #2. Deals damage in combat.",
+      "name": "Tanto",
+      "desc": "A stylish tanto. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11250,8 +11303,8 @@
     "totem_1": {
       "item_id": "totem_1",
       "category": "weapon",
-      "name": "Totem #1",
-      "desc": "A stylish totem #1. Deals damage in combat.",
+      "name": "Totem",
+      "desc": "A stylish totem. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11262,8 +11315,8 @@
     "wand_1": {
       "item_id": "wand_1",
       "category": "weapon",
-      "name": "Wand #1",
-      "desc": "A stylish wand #1. Deals damage in combat.",
+      "name": "Wand",
+      "desc": "A stylish wand. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11274,8 +11327,8 @@
     "wand_2": {
       "item_id": "wand_2",
       "category": "weapon",
-      "name": "Wand #2",
-      "desc": "A stylish wand #2. Deals damage in combat.",
+      "name": "Wand",
+      "desc": "A stylish wand. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11286,8 +11339,8 @@
     "wand_3": {
       "item_id": "wand_3",
       "category": "weapon",
-      "name": "Wand #3",
-      "desc": "A stylish wand #3. Deals damage in combat.",
+      "name": "Wand",
+      "desc": "A stylish wand. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11298,8 +11351,8 @@
     "wand_4": {
       "item_id": "wand_4",
       "category": "weapon",
-      "name": "Wand #4",
-      "desc": "A stylish wand #4. Deals damage in combat.",
+      "name": "Wand",
+      "desc": "A stylish wand. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11310,8 +11363,8 @@
     "whip_1": {
       "item_id": "whip_1",
       "category": "weapon",
-      "name": "Whip #1",
-      "desc": "A stylish whip #1. Deals damage in combat.",
+      "name": "Whip",
+      "desc": "A stylish whip. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11322,8 +11375,8 @@
     "wrench_1": {
       "item_id": "wrench_1",
       "category": "weapon",
-      "name": "Wrench #1",
-      "desc": "A stylish wrench #1. Deals damage in combat.",
+      "name": "Wrench",
+      "desc": "A stylish wrench. Deals damage in combat.",
       "atk": 5,
       "def": 0,
       "hp_restore": 0,
@@ -11808,7 +11861,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_blowjob_queen": {
       "item_id": "knickers_briefs_blowjob_queen",
@@ -11823,7 +11877,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_breed_me": {
       "item_id": "knickers_briefs_breed_me",
@@ -11838,7 +11893,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_daddy_anal_whore": {
       "item_id": "knickers_briefs_daddy_anal_whore",
@@ -11853,7 +11909,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_daddy_girl": {
       "item_id": "knickers_briefs_daddy_girl",
@@ -11868,7 +11925,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_get_a_room": {
       "item_id": "knickers_briefs_get_a_room",
@@ -11883,7 +11941,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_hello_kitty": {
       "item_id": "knickers_briefs_hello_kitty",
@@ -11898,7 +11957,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_hole": {
       "item_id": "knickers_briefs_hole",
@@ -11913,7 +11973,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_love_boys": {
       "item_id": "knickers_briefs_love_boys",
@@ -11928,7 +11989,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_lucky": {
       "item_id": "knickers_briefs_lucky",
@@ -11943,7 +12005,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_ovaries_black": {
       "item_id": "knickers_briefs_ovaries_black",
@@ -11958,7 +12021,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_ovaries_white": {
       "item_id": "knickers_briefs_ovaries_white",
@@ -11973,7 +12037,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_pink_kitty": {
       "item_id": "knickers_briefs_pink_kitty",
@@ -11988,7 +12053,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_sucking_cock": {
       "item_id": "knickers_briefs_sucking_cock",
@@ -12003,7 +12069,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_sure_thing": {
       "item_id": "knickers_briefs_sure_thing",
@@ -12018,7 +12085,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_thirsty": {
       "item_id": "knickers_briefs_thirsty",
@@ -12033,7 +12101,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_tongue_1": {
       "item_id": "knickers_briefs_tongue_1",
@@ -12080,7 +12149,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_trick_me": {
       "item_id": "knickers_briefs_trick_me",
@@ -12095,7 +12165,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_up_all_night": {
       "item_id": "knickers_briefs_up_all_night",
@@ -12110,7 +12181,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_want_it_all": {
       "item_id": "knickers_briefs_want_it_all",
@@ -12125,7 +12197,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_woke_up": {
       "item_id": "knickers_briefs_woke_up",
@@ -12140,7 +12213,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_codpiece_1": {
       "item_id": "knickers_codpiece_1",
@@ -12990,7 +13064,8 @@
         }
       ],
       "cursed": true,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_velcro_1": {
       "item_id": "knickers_diaper_velcro_1",
@@ -13199,7 +13274,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_g_string_too_much_fun": {
       "item_id": "knickers_g_string_too_much_fun",
@@ -13214,7 +13290,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_hotpants_1": {
       "item_id": "knickers_hotpants_1",
@@ -13341,7 +13418,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_missing": {
       "item_id": "knickers_missing",
@@ -13356,7 +13434,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_plastic_pants_1": {
       "item_id": "knickers_plastic_pants_1",
@@ -13516,7 +13595,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_portal_pants": {
       "item_id": "knickers_portal_pants",
@@ -13531,7 +13611,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_pouch_panties": {
       "item_id": "knickers_pouch_panties",
@@ -13546,7 +13627,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_strapon_1": {
       "item_id": "knickers_strapon_1",
@@ -13833,7 +13915,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_heart": {
       "item_id": "knickers_thong_heart",
@@ -13848,7 +13931,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_oops": {
       "item_id": "knickers_thong_oops",
@@ -13863,7 +13947,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_pretty": {
       "item_id": "knickers_thong_pretty",
@@ -13878,7 +13963,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_spade": {
       "item_id": "knickers_thong_spade",
@@ -13893,7 +13979,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_stripper_1": {
       "item_id": "knickers_thong_stripper_1",
@@ -13940,7 +14027,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_training_pants_1": {
       "item_id": "knickers_training_pants_1",
@@ -14019,7 +14107,8 @@
       "childish": 3,
       "bulk": 1,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_pants_white_1": {
       "item_id": "knickers_pants_white_1",
@@ -14104,8 +14193,8 @@
     "bondage_chastity_cage_1": {
       "item_id": "bondage_chastity_cage_1",
       "category": "special",
-      "name": "Bondage Chastity Cage #1",
-      "desc": "A piece of bondage gear: bondage chastity cage #1.",
+      "name": "Bondage Chastity Cage",
+      "desc": "A piece of bondage gear: bondage chastity cage.",
       "atk": 0,
       "def": 2,
       "hp_restore": 0,
@@ -14116,8 +14205,8 @@
     "bondage_chastity_cage_5": {
       "item_id": "bondage_chastity_cage_5",
       "category": "special",
-      "name": "Bondage Chastity Cage #5",
-      "desc": "A piece of bondage gear: bondage chastity cage #5.",
+      "name": "Bondage Chastity Cage",
+      "desc": "A piece of bondage gear: bondage chastity cage.",
       "atk": 0,
       "def": 2,
       "hp_restore": 0,
@@ -14140,8 +14229,8 @@
     "bondage_chest_harness_1": {
       "item_id": "bondage_chest_harness_1",
       "category": "special",
-      "name": "Bondage Chest Harness #1",
-      "desc": "A piece of bondage gear: bondage chest harness #1.",
+      "name": "Bondage Chest Harness",
+      "desc": "A piece of bondage gear: bondage chest harness.",
       "atk": 0,
       "def": 2,
       "hp_restore": 0,
@@ -14152,8 +14241,8 @@
     "bondage_chest_harness_2": {
       "item_id": "bondage_chest_harness_2",
       "category": "special",
-      "name": "Bondage Chest Harness #2",
-      "desc": "A piece of bondage gear: bondage chest harness #2.",
+      "name": "Bondage Chest Harness",
+      "desc": "A piece of bondage gear: bondage chest harness.",
       "atk": 0,
       "def": 2,
       "hp_restore": 0,
@@ -14176,8 +14265,8 @@
     "bondage_serving_tray_1": {
       "item_id": "bondage_serving_tray_1",
       "category": "special",
-      "name": "Bondage Serving Tray #1",
-      "desc": "A piece of bondage gear: bondage serving tray #1.",
+      "name": "Bondage Serving Tray",
+      "desc": "A piece of bondage gear: bondage serving tray.",
       "atk": 0,
       "def": 2,
       "hp_restore": 0,
@@ -14188,7 +14277,7 @@
     "egg_vibe_1": {
       "item_id": "egg_vibe_1",
       "category": "accessory",
-      "name": "Egg Vibe #1",
+      "name": "Egg Vibe",
       "desc": "A small, buzzing egg vibe tucked away intimately. Its subtle vibrations are distracting and deeply embarrassing. Shame -32. Occasionally buzzes with fluttering magic.",
       "atk": 0,
       "def": 0,
@@ -14231,7 +14320,7 @@
     "egg_vibe_2": {
       "item_id": "egg_vibe_2",
       "category": "accessory",
-      "name": "Egg Vibe #2",
+      "name": "Egg Vibe",
       "desc": "A stronger egg vibe with variable speeds. The constant stimulation makes it hard to concentrate — and harder to maintain dignity. Shame -40. Its enchantment hums in slow, teasing pulses.",
       "atk": 0,
       "def": 0,
@@ -14274,7 +14363,7 @@
     "egg_vibe_3": {
       "item_id": "egg_vibe_3",
       "category": "accessory",
-      "name": "Egg Vibe #3",
+      "name": "Egg Vibe",
       "desc": "The most powerful egg vibe. Its relentless buzzing leaves you flushed and squirming, unable to pretend everything is normal. Shame -48. Its unstable rhythm can flare without warning.",
       "atk": 0,
       "def": 0,
@@ -14359,7 +14448,7 @@
     "earrings_1": {
       "item_id": "earrings_1",
       "category": "accessory",
-      "name": "Earrings #1",
+      "name": "Earrings",
       "desc": "Dangling earrings that jingle faintly when you move. Every little sound draws eyes your way. Shame -12. Their silver tone can steady your breathing.",
       "atk": 0,
       "def": 0,
@@ -14401,7 +14490,7 @@
     "earrings_2": {
       "item_id": "earrings_2",
       "category": "accessory",
-      "name": "Earrings #2",
+      "name": "Earrings",
       "desc": "Ornate earrings with small charms. They catch the light and make you feel conspicuous. Shame -12. Their pearly shimmer loves making you blush.",
       "atk": 0,
       "def": 0,
@@ -14444,7 +14533,7 @@
     "earrings_3": {
       "item_id": "earrings_3",
       "category": "accessory",
-      "name": "Earrings #3",
+      "name": "Earrings",
       "desc": "Simple stud earrings. Understated but still a reminder of who put them there. Shame -8. Their bright tone can sharpen your focus.",
       "atk": 0,
       "def": 0,
@@ -14486,7 +14575,7 @@
     "earrings_4": {
       "item_id": "earrings_4",
       "category": "accessory",
-      "name": "Earrings #4",
+      "name": "Earrings",
       "desc": "Heavy, elaborate earrings that weigh down your earlobes. Impossible to ignore or hide. Shame -16. Glittery static sometimes jumps between them.",
       "atk": 0,
       "def": 0,
@@ -14528,7 +14617,7 @@
     "module_1": {
       "item_id": "module_1",
       "category": "accessory",
-      "name": "Module #1",
+      "name": "Module",
       "desc": "A blinking sensor module grafted to your skin. It monitors your... status... and broadcasts readings to nearby nursery systems. Shame -20. DEF +1.",
       "atk": 0,
       "def": 1,
@@ -14541,7 +14630,7 @@
     "module_2": {
       "item_id": "module_2",
       "category": "accessory",
-      "name": "Module #2",
+      "name": "Module",
       "desc": "An advanced monitoring module with a tiny display. Anyone nearby can read your current wetness level. Shame -24. DEF +1.",
       "atk": 0,
       "def": 1,
@@ -14554,7 +14643,7 @@
     "module_3": {
       "item_id": "module_3",
       "category": "accessory",
-      "name": "Module #3",
+      "name": "Module",
       "desc": "A compact control module that occasionally beeps. You're never sure what it's tracking, but everyone else seems to know. Shame -20. DEF +1.",
       "atk": 0,
       "def": 1,
@@ -14567,7 +14656,7 @@
     "module_4": {
       "item_id": "module_4",
       "category": "accessory",
-      "name": "Module #4",
+      "name": "Module",
       "desc": "A small module with indicator lights — green, yellow, red. It changes colour based on how full your padding is. Shame -16. DEF +1.",
       "atk": 0,
       "def": 1,
@@ -14580,7 +14669,7 @@
     "module_5": {
       "item_id": "module_5",
       "category": "accessory",
-      "name": "Module #5",
+      "name": "Module",
       "desc": "The most advanced module. It can trigger automatic diaper checks by nearby nursery bots. Your privacy is a distant memory. Shame -28. DEF +1.",
       "atk": 0,
       "def": 1,
@@ -14593,7 +14682,7 @@
     "nipple_piercings_1": {
       "item_id": "nipple_piercings_1",
       "category": "accessory",
-      "name": "Nipple Piercings #1",
+      "name": "Nipple Piercings",
       "desc": "Small nipple rings that press against the inside of your outfit. Every movement is a reminder they're there. Shame -24.",
       "atk": 0,
       "def": 0,
@@ -14606,7 +14695,7 @@
     "nipple_piercings_2": {
       "item_id": "nipple_piercings_2",
       "category": "accessory",
-      "name": "Nipple Piercings #2",
+      "name": "Nipple Piercings",
       "desc": "Ornate nipple piercings with dangling charms. They tug gently with every step, making you hyper-aware of your chest. Shame -32.",
       "atk": 0,
       "def": 0,
@@ -14619,7 +14708,7 @@
     "nipple_piercings_3": {
       "item_id": "nipple_piercings_3",
       "category": "accessory",
-      "name": "Nipple Piercings #3",
+      "name": "Nipple Piercings",
       "desc": "Heavy nipple piercings connected by a fine chain. Walking makes them sway and clink — audible to anyone nearby. Shame -36.",
       "atk": 0,
       "def": 0,

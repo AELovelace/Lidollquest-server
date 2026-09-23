@@ -66,9 +66,10 @@ test('curse removal validates proximity, slot, funds outcome and bag space, reta
 });
 
 test('dress removal releases both occupied slots once, and used cursed diaper removal follows disposal rules',()=>{
- const dress=Object.values(hubData.equipment).find(i=>i.cursed&&i.category==='dress');assert.ok(dress);
+ const dress={...Object.values(hubData.equipment).find(i=>i.category==='dress'),cursed:true};assert.ok(dress.item_id); // No dress ships cursed since the rolled-curse migration (2026-09-19); curse the catalog copy for this check.
+ const catalog={...hubData.equipment,[dress.item_id]:dress};
  const l=loadout();l.player_info.equipped_torso=dress.item_id;l.player_info.equipped_pants=dress.item_id;
- const r=removeCursedGear(l,'pants',dress.item_id,hubData.equipment,99);
+ const r=removeCursedGear(l,'pants',dress.item_id,catalog,99);
  assert.equal(r.loadout.player_info.equipped_torso,'');assert.equal(r.loadout.player_info.equipped_pants,'');assert.equal(r.loadout.inventory.length,1);
  l.player_info.diaper_wet_absorbed=1;l.inventory=Array.from({length:99},()=>({item_id:'adult_food'}));
  const diaper=removeCursedGear(l,'panties',other.item_id,hubData.equipment,99);
