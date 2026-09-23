@@ -50,5 +50,5 @@ export function createHubEncounters(db,{now,roll,parties,live,definition,ids}){
   }
   const api={view,place,act,tick,snapshot:s=>encounters.snapshot(s),monsters:()=>record().floor.enemies.filter(e=>!e.dead).map(e=>({...e,definition:undefined,name:e.definition.name,sprite:e.definition.sprite}))};engines.set(zone,api);return api;
  }
- return {engine,tick(){for(const row of db.prepare('SELECT zone FROM world_hub_maps').all())engine(row.zone).tick();}};
+ return {engine,tick(){for(const row of db.prepare('SELECT zone FROM world_hub_maps').all())if(ids.includes(row.zone))engine(row.zone).tick();}}; // Skip maps saved for rooms a later deployment retired, so boot never crash-loops on old DM monsters.
 }
