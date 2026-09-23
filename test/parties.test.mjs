@@ -19,7 +19,7 @@ function fixture(roll=()=>0){
  function place(name,x,y){const id=ids[name],s=snap(name).character;delete s.id;delete s.name;delete s.revision;if(s.dive){s.dive.position={x,y};s.dive.safeUntil=time+600000;}db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(s),id);db.prepare('UPDATE quest_presence SET x=?,y=?,seen=?,moved=0 WHERE character_id=?').run(x,y,time,id);}
  function engage(name='alice',encounter='iris'){const s=snap(name),foe=s.dive.enemies.find(e=>e.id===encounter),f=s.zones.find(z=>z.id===s.zone),path=pathTo(f,f.entrance,foe),p=path.at(-2);place(name,p.x,p.y);return act(name,'dive_engage',{encounter:foe.id});}
  function advance(ms){time+=ms;zones.tick();}
- function win(name='alice'){for(let n=0;n<12;n++){let s=snap(name);if(!s.encounter)return s;advance(Math.max(0,s.character.run.readyAt-time));s=act(name,'turn_ready',{patch:[],forfeit:false});if(!s.encounter)return s;s=act(name,s.character.loadout.player_info.class_id==='diplomat'?'allure':'attack',{target:s.encounter.enemies.find(e=>e.hp>0).id});if(!s.encounter)return s;}throw Error('Fight did not finish');}
+ function win(name='alice'){for(let n=0;n<40;n++){/* Levelled packs take more swings than the old flat rosters. */let s=snap(name);if(!s.encounter)return s;advance(Math.max(0,s.character.run.readyAt-time));s=act(name,'turn_ready',{patch:[],forfeit:false});if(!s.encounter)return s;s=act(name,s.character.loadout.player_info.class_id==='diplomat'?'allure':'attack',{target:s.encounter.enemies.find(e=>e.hp>0).id});if(!s.encounter)return s;}throw Error('Fight did not finish');}
  return {db,ids,awards,loadout,player,join,snap,act,command,place,engage,advance,win,raw:(name,input)=>zones.act(name,input),restart:setup,close:()=>db.close()};
 }
 

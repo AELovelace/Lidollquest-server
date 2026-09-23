@@ -5,14 +5,16 @@
 // decided by the tracker on every request and never by anything the client sends.
 import {gmZones} from './gm.mjs';
 import {hubDefinition,hubGaps,inHubGap,hubCatalog,hubRooms,dungeonPortals} from './hubs.mjs';
+import {currentTuning} from './combat.mjs';
 
 const ONLINE_WINDOW=30000; // Matches the presence freshness window every other module uses.
 const HUB_SPAWN={x:10,y:9}; // hubDefinition() falls back to this tile when a room declares no spawn.
 const zoneInfo=new Map(gmZones.map(z=>[z.id,z])); // One shared catalogue with the web panel: names, kinds and which rooms may be warped into.
 const fail=(status,message,code='gm_tool_rejected')=>{throw Object.assign(Error(message),{status,code});}; // Never 401/403: the client treats those as a lost sign-in.
-export const GM_ACTIONS=Object.freeze(['gm_catalog','gm_warp_zone','gm_warp_player','gm_summon','gm_zone_reload','gm_quest_start','gm_quest_advance','gm_quest_complete','gm_quest_reset','gm_chat_delete','gm_chat_clear']); // Every command the in-game panel can send.
+export const GM_ACTIONS=Object.freeze(['gm_catalog','gm_warp_zone','gm_warp_player','gm_summon','gm_zone_reload','gm_quest_start','gm_quest_advance','gm_quest_complete','gm_quest_reset','gm_chat_delete','gm_chat_clear','gm_combat_tune']);
+export const COMBAT_KEYS=Object.freeze(['row_swap_costs_turn','row_back_damage_taken','row_back_melee_dealt','row_front_target_weight','reach_damage_mult']); // What the in-game Combat page may retune; bounds come from loot-store.mjs. // Every command the in-game panel can send.
 
-export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new Map(),quests=null,live=null,audit=()=>{}}={}){
+export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new Map(),quests=null,live=null,audit=()=>{},loot=null}={}){
  const requireGm=i=>{if(i?.gamemaster!==true)fail(409,'GM tools need the gamemaster role on your LiDollID account.','gm_not_gamemaster');}; // 409 keeps an ordinary player's session alive if a stale client ever shows the panel.
  const zoneName=id=>zoneInfo.get(id)?.name??id; // Unknown ids still read sensibly if a new room ships before the catalogue is updated.
  const fresh=characterId=>db.prepare('SELECT p.*,c.name,c.owner AS char_owner,c.state,c.revision FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.character_id=? AND p.seen>?').get(characterId,now()-ONLINE_WINDOW); // A live presence row plus its character.
@@ -72,7 +74,8 @@ export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new 
   const zones=gmZones.filter(z=>z.warp||diveOpen(z.id)).map(z=>({id:z.id,name:z.name,kind:z.kind})); // Warpable rooms and live Dives, in the web panel's order.
   const here=fresh(c.id),area=here?chatAreaOf(c,here):null; // The GM's own area, resolved from their committed presence rather than anything the client sent.
   const chat=area?db.prepare("SELECT seq,name,text,owner LIKE 'activity:%' AS activity FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 24").all(area).reverse().map(r=>({seq:r.seq,name:r.name,text:r.text,activity:r.activity===1})):[]; // Every recent line in the area, ignoring the radius, so moderation sees what any player here could have seen.
-  return {serverTime:now(),players,zones,quests:quests?quests.gmCatalog(c):[],chat,chatArea:area};
+  const tuning=currentTuning(),combat=Object.fromEntries(COMBAT_KEYS.map(key=>[key,tuning[key]])); // Current live values for the Combat page.
+  return {serverTime:now(),players,zones,quests:quests?quests.gmCatalog(c):[],chat,chatArea:area,combat};
  }
 
  function chatAreaOf(c,p){return isDungeon(p.zone)&&dives.has(p.zone)?dives.get(p.zone).chatArea(c,p)?.id??null:p.zone;} // Same stream id the snapshot builder uses: hub room, or route+edition+floor inside a Dive.
@@ -86,6 +89,14 @@ export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new 
    db.prepare('DELETE FROM quest_chat WHERE seq=?').run(seq);
    audit(i.owner,'delete_chat',row.owner.replace(/^activity:/,''),{zone:row.zone,name:row.name,text:row.text,reason:'in-game'}); // Same audit action as the web panel, so one report covers both.
    state.hubNotice='[GM] Removed a line by '+row.name+'.';state.hubNoticeAt=now();
+   return;
+  }
+  if(action==='gm_combat_tune'){ // One live combat value from the in-game Combat page; the same store the /gm Loot tab writes, so both agree.
+   const key=String(input.key??'');if(!COMBAT_KEYS.includes(key))fail(400,'Choose a combat setting.','gm_unknown_setting');
+   if(!loot)fail(409,'Live tuning is not available on this server.','gm_unknown_setting');
+   let values;try{values=loot.tune({[key]:input.value},i.owner);}catch(e){fail(400,e.message,'gm_unknown_setting');}
+   audit(i.owner,'loot_tune','combat',{keys:[key],value:values[key],reason:'in-game'});
+   state.hubNotice='[GM] '+key.replace(/_/g,' ')+' is now '+values[key]+'.';state.hubNoticeAt=now();
    return;
   }
   if(action==='gm_chat_clear'){ // Every line in the GM's current area.

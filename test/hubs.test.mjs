@@ -107,7 +107,9 @@ test('shop debit survives lost response and restart; retries grant once, pending
   assert.equal(c.pendingPurchase,undefined);assert.equal(c.loadout.inventory.length,1);assert.equal(receipts.size,1);assert.equal(balance,1000-offer.price);
   result=await send(buy);assert.equal(result.data.character.loadout.inventory.length,1);assert.equal(receipts.size,1);
   deny=true;await act('shop_buy',{fixture:merchant.id,offer:offer.id});assert.equal(c.loadout.inventory.length,1);assert.match(c.hubNotice,/Not enough/);
-  const full={...c.loadout,inventory:Array.from({length:99},()=>({item_id:'adult_food'}))};await act('loadout',{loadout:full});
-  result=await send(command('shop_buy',{fixture:merchant.id,offer:offer.id}));assert.equal(result.status,409);assert.match(result.data.error_description,/Inventory full/);assert.equal(receipts.size,1);
+  const full={...c.loadout,inventory:Array.from({length:99},()=>({item_id:'iron_dagger',category:'weapon'}))};await act('loadout',{loadout:full});
+  const stacks=['food','drink','ammo'],snack=merchant.offers.find(o=>stacks.includes(o.item.category)),gear=merchant.offers.find(o=>!stacks.includes(o.item.category));
+  if(snack){result=await send(command('shop_buy',{fixture:merchant.id,offer:snack.id}));assert.equal(result.status,200,'a stackable snack never needs a free slot');c=result.data.character;} // The unit lands once the wallet debit settles, as every purchase does.
+  result=await send(command('shop_buy',{fixture:merchant.id,offer:gear.id}));assert.equal(result.status,409);assert.match(result.data.error_description,/Inventory full/);assert.equal(receipts.size,1); /* deny is still set above, so the snack purchase settled as Not enough coins: no new receipt. */
  }finally{await stop();}
 });

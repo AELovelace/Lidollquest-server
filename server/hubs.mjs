@@ -55,6 +55,7 @@ export const inHubGap=(gap,x,y)=>x>=gap.x&&x<gap.x+(gap.w??1)&&y>=gap.y&&y<gap.y
 export const hubGaps=z=>z.parent?[...(z.exit?.style==='gap'?[{...z.exit,target:z.parent}]:[]),...(z.kind==='dives'?dungeonPortals(z.parent).filter(p=>p.style==='gap'):[])]:hubPortals(z.id).filter(p=>p.style==='gap'); // Dive Hall side walls open onto the wilderness routes.
 export const LOBBY_EXIT=Object.freeze({x:1,y:10,style:'stairs'}); // Bottom-left stairs back to the singleplayer campaign. // Only declared wall openings are traversable; all other perimeter cells remain walls.
 export const hubBlocked=(z,x,y)=>z.fixtures?.some(f=>f.solid!==false&&x>=f.x&&y>=f.y&&x<f.x+(f.span_w??1)&&y<f.y+(f.span_h??1))??false;
+import {stackable,slotsUsed,addToInventory} from './loadout.mjs'; // Stack-aware capacity and purchases.
 export function shopOffers(zone,shop,time){
  const day=Math.floor(time/86400000),rnd=seeded(`${zone}:${shop.id}:${day}`),pool=[...shop.pool],offers=[];
  // Keep a meal available at the general merchant and apothecary every day.
@@ -71,7 +72,7 @@ export function shopOffers(zone,shop,time){
 export function hubDefinition(z,time){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??LOBBY_EXIT,restTickMs:c.rest_tick_ms,portals:z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z.id),fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:shopOffers(z.id,hubData.shops.find(s=>s.id===f.id),time)}:f)};}
 export function nearbyFixture(z,p,id,kind){const f=z.fixtures?.find(f=>f.id===id&&f.kind===kind);if(!f||Math.abs(f.x-p.x)+Math.abs(f.y-p.y)>1)fail('Stand next to that '+kind+'.');return f;}
 
-export function createHubPurchases(db,{now,origins}){
+export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWager(id,char,state,paid,amount): a duel stake settled through the same durable debit path.
  db.exec(`CREATE TABLE IF NOT EXISTS hub_purchases(id TEXT PRIMARY KEY,owner TEXT NOT NULL,character_id TEXT NOT NULL,item TEXT NOT NULL,price INTEGER NOT NULL,status TEXT NOT NULL DEFAULT 'pending');
  CREATE INDEX IF NOT EXISTS hub_pending_purchases ON hub_purchases(owner,status);`);
  function prepare(i,char,state,z,p,input){
@@ -79,7 +80,7 @@ export function createHubPurchases(db,{now,origins}){
   nearbyFixture(z,p,input.fixture,'shop');
   const shop=hubData.shops.find(s=>s.id===input.fixture),offer=shopOffers(z.id,shop,now()).find(o=>o.id===input.offer);
   if(!offer)fail('The stock changed. Reopen the shop.');
-  if(state.loadout.inventory.length>=c.inventory_capacity)fail('Inventory full. No coins were charged.');
+  if(!stackable(offer.item)&&slotsUsed(state.loadout.inventory)>=c.inventory_capacity)fail('Inventory full. No coins were charged.'); // Stacks (arrows, snacks) never need a free slot.
   const id=createHash('sha256').update(char.id+':'+input.request_id).digest('hex');
   db.prepare('INSERT INTO hub_purchases(id,owner,character_id,item,price) VALUES (?,?,?,?,?)').run(id,i.owner,char.id,JSON.stringify(offer.item),offer.price);
   state.pendingPurchase=id;state.hubNotice='Completing purchase…';state.hubNoticeAt=now();
@@ -90,12 +91,14 @@ export function createHubPurchases(db,{now,origins}){
    const char=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(row.character_id),state=JSON.parse(char.state);
    if(state.pendingPurchase!==id)throw Error('Purchase reservation missing');
    const item=JSON.parse(row.item);
-   if(item.hub_service==='curse_remove'){
+   if(item.duel_wager){hooks.duelWager?.(id,char,state,paid,row.price);} // Escrow for a duel: the duel module records the outcome; nothing lands in the bag.
+   else if(item.trade_escrow){hooks.tradeEscrow?.(id,char,state,paid,row.price);} // Escrow for a trade, likewise.
+   else if(item.hub_service==='curse_remove'){
     const previous=structuredClone(state);
     if(paid){state.loadout=item.loadout;origins.reconcile(char,state,previous);state.loadoutRevision=char.revision+1;}
     state.hubNotice=paid?`Removed ${item.name} for ${row.price} LiDollCoins.${item.disposed?' The used diaper was disposed of.':' The item is in your bag and remains cursed.'}`:'Not enough LiDollCoins. Your equipment was not changed.';
-   }else if(paid)state.loadout.inventory.push(origins.mint(char.id,item,row.price)); // Resale never exceeds the actual paid price, even with discounted stock tuning.
-   delete state.pendingPurchase;if(item.hub_service!=='curse_remove')state.hubNotice=paid?`Bought ${item.name??item.item_id} for ${row.price} LiDollCoins.`:'Not enough LiDollCoins. Nothing was purchased.';state.hubNoticeAt=now();
+   }else if(paid)addToInventory(state.loadout.inventory,origins.mint(char.id,item,row.price)); // Resale never exceeds the actual paid price, even with discounted stock tuning; stackables merge into an existing stack.
+   delete state.pendingPurchase;if(item.hub_service!=='curse_remove'&&!item.duel_wager&&!item.trade_escrow)state.hubNotice=paid?`Bought ${item.name??item.item_id} for ${row.price} LiDollCoins.`:'Not enough LiDollCoins. Nothing was purchased.';state.hubNoticeAt=now();
    db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),char.id);
    db.prepare('UPDATE hub_purchases SET status=? WHERE id=?').run(paid?'delivered':'declined',id);db.exec('COMMIT');
   }catch(error){db.exec('ROLLBACK');throw error;}

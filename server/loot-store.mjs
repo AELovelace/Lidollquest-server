@@ -37,6 +37,10 @@ const SCALAR_BOUNDS={
  level_growth:[0,0.25],ilvl_jitter_min:[-5,0],ilvl_jitter_max:[0,5],ilvl_cap:[1,100],level_cap:[1,100],stat_cap:[1,100],
  legendary_cha_gate:[0,100],value_level_growth:[0,0.5],enemy_drop_chance:[0,100],boss_drop_chance:[0,100],
  elite_chance:[0,100],elite_hp_mult:[1,5],elite_level_bonus:[0,10],boss_level_bonus:[0,10],
+ hp_base:[1,1000],hp_per_level:[0,50],hp_per_level_late:[0,50],hp_late_from:[1,100],hp_def_share:[0,5], // Player HP curve (scaling.mjs).
+ def_mitigation_k:[10,1000],enemy_hp_reference:[1,1000],enemy_ttk_mob:[0.5,20],enemy_ttk_elite:[0.5,20],enemy_ttk_boss:[0.5,20], // Mitigation and enemy turns-to-kill.
+ avg_str_base:[0,100],avg_str_per_level:[0,5],heal_reference_hp:[1,1000],party_level_slack:[0,50],
+ row_swap_costs_turn:[0,1],row_back_damage_taken:[0.1,1],row_back_melee_dealt:[0.1,1],row_front_target_weight:[1,10],reach_damage_mult:[0.1,2],stack_max:[1,9999], // Rows, reach weapons, stacking.
 };
 const RARITY_BOUNDS={weight:[0,1000],affixes:[0,6],budget_mult:[0.5,5],value_mult:[0,50],bless_mult:[0,10],curse_mult:[0,10]};
 const OVERCAP_STATS=['str','def','dex','int','cha'];
@@ -105,7 +109,7 @@ export function validateTuning(patch){
  if(!patch||typeof patch!=='object'||Array.isArray(patch))fail('Send the tuning values to change.');
  const out={};
  for(const [key,value] of Object.entries(patch)){
-  if(Object.hasOwn(SCALAR_BOUNDS,key)){const [min,max]=SCALAR_BOUNDS[key];out[key]=number(value,{min,max,label:key,integer:['ilvl_jitter_min','ilvl_jitter_max','ilvl_cap','level_cap','stat_cap','elite_level_bonus','boss_level_bonus'].includes(key)});continue;}
+  if(Object.hasOwn(SCALAR_BOUNDS,key)){const [min,max]=SCALAR_BOUNDS[key];out[key]=number(value,{min,max,label:key,integer:['ilvl_jitter_min','ilvl_jitter_max','ilvl_cap','level_cap','stat_cap','elite_level_bonus','boss_level_bonus','hp_late_from','party_level_slack','row_swap_costs_turn','row_front_target_weight','stack_max'].includes(key)});continue;}
   if(key==='rarity'){out.rarity=validateRarityRows(value);continue;}
   if(key==='luck_profiles'){out.luck_profiles=validateLuck(value);continue;}
   if(key==='overcap'){out.overcap=validateOvercap(value);continue;}

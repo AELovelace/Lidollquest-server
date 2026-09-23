@@ -34,6 +34,16 @@ export const DEFAULT_TUNING=Object.freeze({
  rarity_order:RARITY_ORDER,
  luck_profiles:{chest:{uncommon:1.2,rare:1.5,epic:1,legendary:0.25}},
  route_levels:{default:{base:5,per_floor:2}},
+ // Level scaling (scaling.mjs). hp_base + hp_per_level per level below hp_late_from, hp_per_level_late after, plus DEF x hp_def_share.
+ hp_base:100,hp_per_level:5,hp_per_level_late:3,hp_late_from:41,hp_def_share:0.6,
+ def_mitigation_k:100, // damage x k/(k+DEF): DEF 100 halves a hit instead of zeroing it.
+ enemy_hp_reference:30,enemy_ttk_mob:2,enemy_ttk_elite:4,enemy_ttk_boss:8, // Enemy HP = turns-to-kill x an average build's hit, weighted by authored HP / reference.
+ avg_str_base:10,avg_str_per_level:1.2, // The average build the turns-to-kill maths assumes.
+ heal_reference_hp:100, // Flat heals were written for a 100 HP bar and scale up with it.
+ party_level_slack:3, // Shared fights are levelled to the strongest member minus this.
+ // Battle rows and reach weapons (scaling.mjs rows section, scrBattleInit/scrLootRoll on the client).
+ row_swap_costs_turn:0,row_back_damage_taken:0.5,row_back_melee_dealt:0.5,row_front_target_weight:3,reach_damage_mult:0.75,
+ stack_max:512, // Consumables and ammo stack this high in one bag entry; stacks never count toward the slot cap.
 });
 
 const num=(value,fallback=0)=>Number.isFinite(Number(value))&&value!==null&&value!==''&&typeof value!=='boolean'?Number(value):fallback;

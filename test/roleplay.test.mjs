@@ -93,7 +93,7 @@ test('admin RP awards grant exactly one normal level, grow the target, and rejec
   f.act('Alice','rp_post',{text,partners:[f.ids.Bob]});const before=f.read('Alice'),p=before.character.loadout.player_info;
   const input={character_id:f.ids.Alice,expected_awards:0,expected_level:p.level,reason:'Reviewed the shared scene.'};
   const result=f.rp.award(input,'Admin');assert.equal(result.level,p.level+1);
-  const after=f.read('Alice');assert.equal(after.character.loadout.player_info.xp,p.xp);assert.equal(after.character.loadout.player_info.stat_points,p.stat_points+3);assert.equal(after.character.loadout.player_info.playerHealthMax,p.playerHealthMax+1);
+  const after=f.read('Alice');assert.equal(after.character.loadout.player_info.xp,p.xp);assert.equal(after.character.loadout.player_info.stat_points,p.stat_points+3);assert.equal(after.character.loadout.player_info.playerHealthMax,p.playerHealthMax+5); // One level on the HP curve.
   assert.equal(after.rpp.freePicks,1,'An admin-awarded mage level grants one stored choice');assert.deepEqual(after.character.loadout.player_spells,before.character.loadout.player_spells);
   assert.equal(after.rp.progress.target,1500);assert.equal(after.rp.progress.total_words,1000);assert.equal(after.rp.progress.level_words,0);assert.equal(after.rp.progress.level_chars,0);
   assert.throws(()=>f.rp.award(input,'Admin'),/Progress changed/);assert.throws(()=>f.rp.award({...input,expected_awards:1,expected_level:3},'Admin'),/not reached/);

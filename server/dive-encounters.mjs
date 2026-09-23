@@ -1,7 +1,9 @@
 import {randomUUID} from 'node:crypto';
 import {pinDefeat,publicEnemy} from './defeat-scenes.mjs';
 import {applyDefeatEquipment} from './defeat-equipment.mjs';
-import {beginRound,clearEffects,readyTurn,combatAction,enemyAction,tickEnemyEffects,awardExperience,defeatPresentation,combatData} from './combat.mjs';
+import {beginRound,clearEffects,readyTurn,combatAction,enemyAction,tickEnemyEffects,awardExperience,defeatPresentation,combatData,currentTuning} from './combat.mjs';
+import {levelEnemy,encounterLevel,routeLevelFor,pickTarget,rowSwapCostsTurn} from './scaling.mjs';
+import {isCrawling} from './crawl.mjs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
 
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'encounter_conflict'});};
@@ -56,9 +58,9 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
  const write=e=>db.prepare('INSERT INTO quest_dive_encounters VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state,updated=excluded.updated').run(e.id,route,e.edition,JSON.stringify(e),now());
  function message(e,text){e.sequence++;e.events.push({seq:e.sequence,text});e.events=e.events.slice(-40);} // Bounded event history keeps snapshots within the gateway budget.
  function roster(e,caller=null,state=null){return e.players.map(a=>{const c=caller?.id===a.id?caller:db.prepare('SELECT * FROM quest_characters WHERE id=?').get(a.id);return {a,c,s:caller?.id===a.id?state:JSON.parse(c.state)};});}
- function projection(e,a){const enemy=e.enemies.find(v=>v.data.hp>0)??e.enemies[0];return {...a.run,enemy:clone(enemy.data),sharedEncounter:e.id,combatVersion:3,cycle:a.cycle,readyAt:a.readyAt,duration:a.duration,turnReady:a.prepared,phase:'fight',status:a.status,turn:a.cycle,log:e.events.map(v=>v.text)};}
+ function projection(e,a){const enemy=e.enemies.find(v=>v.data.hp>0)??e.enemies[0];const active=e.players.filter(v=>v.status==='active');return {...a.run,row:a.row??'front',rowSwapped:a.rowSwapped===true,rowPartner:active.length>1,rowAlone:!active.some(v=>(v.row??'front')!=='back'),enemy:clone(enemy.data),sharedEncounter:e.id,combatVersion:3,cycle:a.cycle,readyAt:a.readyAt,duration:a.duration,turnReady:a.prepared,phase:'fight',status:a.status,turn:a.cycle,log:e.events.map(v=>v.text)};}
  function persist(e,rows,caller=null){for(const {a,c,s} of rows){if(!e.finished){s.run=projection(e,a);syncRunHealth(s,a.run);}if(c.id!==caller?.id)saveCharacter(c,s);}write(e);}
- function reset(a,s){a.cycle++;a.prepared=false;a.duration=actionDelay(s.loadout.player_info.dex);a.readyAt=now()+a.duration;a.run.turn=a.cycle;a.run.turnReady=false;}
+ function reset(a,s){a.cycle++;a.prepared=false;a.rowSwapped=false;a.duration=actionDelay(s.loadout.player_info.dex);a.readyAt=now()+a.duration;a.run.turn=a.cycle;a.run.turnReady=false;}
  function out(e,a,enemy,outcome){a.status=outcome;a.defeatEnemy=clone(enemy);a.prepared=false;a.downedAt=now();message(e,a.name+' '+(outcome==='defeat'?'is down.':outcome==='flee'?'retreats from the fight.':'is out of the fight.'));} // Recovery time starts when this member goes down, not when the survivors finish fighting.
  function start(c,state,record,foe){
   const members=parties?.members(c.id)??[],people=members.length?members:[c];
@@ -69,7 +71,9 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
    if(s.run||s.worldTurnDue||s.pendingPurchase||!s.loadout||s.loadout.player_info.playerHealth<=0||!eligible(s,other))fail(other.name+' must finish preparing before the party can fight.'); // Banked stat points do not block this player or their party.
   }
   const e={id:randomUUID(),edition:record.edition,zone,route,origin:{x:foe.x,y:foe.y},created:now(),sequence:0,events:[],players:[],enemies:[]};
+  const tuning=currentTuning(),fightLevel=encounterLevel(tuning,routeLevelFor(tuning,route,record.depth),rows.map(row=>row.s.loadout.player_info.level)); // Floor band, raised toward the strongest party member (party_level_slack); hub events use the default band.
   for(const selected of (context?[foe]:selectEncounterEnemies(record.floor,foe,data,roll,now()))){selected.engaged=e.id;const enemy=pinDefeat(clone(selected.definition??data.enemies[selected.type]));enemy.maxHp=enemy.hp;enemy.turn=0;
+   levelEnemy(tuning,enemy,fightLevel,{boss:selected.type===data.config.boss_id||enemy.tier==='boss'||enemy.boss===true}); // str/def/exp by the loot level curve, HP by turns-to-kill for the tier.
    const duration=enemyActionDelay(enemy.dex??0,roll)+e.enemies.length*encounterTuning.enemy_initial_stagger_ms;
    e.enemies.push({id:selected.id,data:enemy,duration,readyAt:now()+duration,dots:[],debuffs:[]});
   } // Opening stagger separates identical enemies; later cycles reroll their own bounded delay.
@@ -100,7 +104,15 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
   for(const v of rows)v.s.run=v.a.run;
   if(a.status!=='active')fail('Wait for the rest of your party to finish.');
   if(input.cycle!==a.cycle)fail('That action cycle has already ended.');
-  if(['flee','submit'].includes(input.action)){out(e,a,e.enemies.find(v=>v.data.hp>0)?.data??e.enemies[0].data,input.action);}
+  if(input.action==='row'){ // Rows: a free change once per cycle by default; with row_swap_costs_turn it spends a full gauge instead.
+   if(rows.filter(v=>v.a.status==='active').length<2)fail('No one is here to hold the line; alone you always fight in front.');
+   if(isCrawling(state.loadout))fail('Stand up before changing rows.');
+   const costs=rowSwapCostsTurn(currentTuning());if(a.rowSwapped&&!costs)fail('You already changed rows this cycle.');
+   if(costs&&now()<a.readyAt)fail('Your action gauge is still filling.');
+   a.row=(a.row??'front')==='back'?'front':'back';a.rowSwapped=true;message(e,a.name+' moves to the '+a.row+' row.');
+   if(costs)reset(a,state);
+  }
+  else if(['flee','submit'].includes(input.action)){out(e,a,e.enemies.find(v=>v.data.hp>0)?.data??e.enemies[0].data,input.action);}
   else {
    if(now()<a.readyAt)fail('Your action gauge is still filling.');
    if(input.action==='turn_ready'){
@@ -131,13 +143,13 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
    }for(const {a} of rows)if(!a.prepared)a.readyAt=Math.max(a.readyAt,now()+a.duration*(1-encounterTuning.player_initial_fill));changed=true;} // Persist fresh staggered recovery timers once; polling never rerolls a running gauge.
    const forced=!config.static&&now()>=record.ends+600000||rows.every(v=>(db.prepare('SELECT seen FROM quest_presence WHERE character_id=?').get(v.c.id)?.seen??0)<now()-150000);
    if(!forced){for(const enemy of e.enemies){if(enemy.data.hp<=0||enemy.readyAt>now())continue;
-    const active=rows.filter(v=>v.a.status==='active');if(!active.length)break;const target=active[roll(active.length)];target.a.run.enemy=enemy.data;target.a.run.dots=enemy.dots;target.a.run.debuffs=enemy.debuffs;target.a.run.log=[];
+    const active=rows.filter(v=>v.a.status==='active');if(!active.length)break;const target=pickTarget(currentTuning(),active,roll,v=>v.a.row??'front');target.a.run.row=target.a.row??'front';target.a.run.rowAlone=!active.some(v=>(v.a.row??'front')!=='back');target.a.run.enemy=enemy.data;/* Front row draws fire (row_front_target_weight); an all-back party is treated as front. */target.a.run.dots=enemy.dots;target.a.run.debuffs=enemy.debuffs;target.a.run.log=[];
     tickEnemyEffects(target.a.run);if(enemy.data.hp>0&&enemyAction(target.s,z,roll)==='defeat')out(e,target.a,enemy.data,'defeat');
     for(const line of target.a.run.log)message(e,line+' ('+target.a.name+')');enemy.duration=enemyActionDelay(enemy.data.dex??0,roll);enemy.readyAt=now()+enemy.duration;changed=true;
    }}
    if(forced||changed){settle(e,rows,record,forced);persist(e,rows);}
   }restarted=false;
  } // Process at most one action per enemy per tick; restart never replays a backlog of missed attacks.
- function snapshot(state){const e=fetch(state?.run?.sharedEncounter);if(!e||e.finished)return null;return {id:e.id,sequence:e.sequence,events:e.events,players:roster(e).map(({a,s})=>({id:a.id,name:a.name,hp:a.run.hp,maxHp:a.run.maxHp,mp:s.loadout?.player_mp??0,maxMp:s.loadout?.player_mp_max??0,status:a.status,readyAt:a.readyAt,duration:a.duration,cycle:a.cycle,prepared:a.prepared,connected:(db.prepare('SELECT seen FROM quest_presence WHERE character_id=?').get(a.id)?.seen??0)>now()-30000})),enemies:e.enemies.map(v=>({id:v.id,...publicEnemy(v.data),readyAt:v.readyAt,duration:v.duration}))};} // Publish current committed mana, including ally casting, without duplicating it in encounter state.
+ function snapshot(state){const e=fetch(state?.run?.sharedEncounter);if(!e||e.finished)return null;return {id:e.id,sequence:e.sequence,events:e.events,players:roster(e).map(({a,s})=>({id:a.id,name:a.name,row:a.row??'front',hp:a.run.hp,maxHp:a.run.maxHp,mp:s.loadout?.player_mp??0,maxMp:s.loadout?.player_mp_max??0,status:a.status,readyAt:a.readyAt,duration:a.duration,cycle:a.cycle,prepared:a.prepared,connected:(db.prepare('SELECT seen FROM quest_presence WHERE character_id=?').get(a.id)?.seen??0)>now()-30000})),enemies:e.enemies.map(v=>({id:v.id,...publicEnemy(v.data),readyAt:v.readyAt,duration:v.duration}))};} // players carry row for the party cards. // Publish current committed mana, including ally casting, without duplicating it in encounter state.
  return {start,act,tick,snapshot};
 }

@@ -50,13 +50,13 @@ test('every player spell resolves with its campaign MP cost and one enemy turn',
 });
 test('mage affinity, physical weakness and absorbed-protection bonus match the base formulas',()=>{
  const s=battle();assert.deepEqual(mageScaling(s.loadout),{magic:1.3*1.5,physical:0.35,flat:0});
- combatAction(s,{action:'attack'},z,zero);assert.equal(s.run.enemy.hp,994);assert.equal(s.run.hp,74,'normal attacks use enemy STR-1, not player DEF');
+ combatAction(s,{action:'attack'},z,zero);assert.equal(s.run.enemy.hp,994);assert.equal(s.run.hp,75,'normal attacks use enemy STR-1, shaved by player DEF as a percentage (6 x 100/104)');
  next(s);s.loadout.player_info.diaper_wet_absorbed=3;s.loadout.player_info.diaper_tum_absorbed=2;
  combatAction(s,{action:'cast',spell:'fireball'},z,zero);assert.equal(s.run.enemy.hp,994-(Math.floor((combatData.spells.fireball.power+24)*1.3*1.5)+7));
 });
 test('healing and cure scaling restore the intended stat and still cost a turn',()=>{
  const s=battle();s.run.hp=10;s.loadout.player_info.playerHealth=10;
- combatAction(s,{action:'cast',spell:'heal_light'},z,zero);assert.equal(s.run.hp,10+Math.floor(41*1.3*1.5)-6);
+ combatAction(s,{action:'cast',spell:'heal_light'},z,zero);assert.equal(s.run.hp,10+Math.floor(Math.floor(41*1.3*1.5)*1.4)-5); // Heal x1.4 for a 140 HP bar (heal_reference_hp 100), then the enemy's mitigated 5.
  next(s);combatAction(s,{action:'cast',spell:'calm_bladder'},z,zero);assert.equal(s.loadout.player_info.wet,28);
  next(s);combatAction(s,{action:'cast',spell:'refresh'},z,zero);assert.equal(s.loadout.player_info.stamina,62);
 });
@@ -111,7 +111,7 @@ test('enemy magic supports status, stat debuffs and compound effects with persis
 });
 test('multiplayer levels bank stat points and one mage choice per level without learning or spending currency',()=>{
  const s=battle();s.loadout.player_info.level=2;s.loadout.player_info.xp=99;s.loadout.player_spells=['heal_light'];s.run.enemy.exp=5;
- awardExperience(s,zero);assert.equal(s.loadout.player_info.level,3);assert.equal(s.loadout.player_info.xp,4);assert.equal(s.loadout.player_info.stat_points,3);assert.equal(s.loadout.playerInfo,undefined);assert.equal(s.loadout.player_info.playerHealthMax,141);assert.deepEqual(s.loadout.player_spells,['heal_light']);assert.equal(s.mageSpellPicks,1);assert.equal(s.loadout.gold,undefined);
+ awardExperience(s,zero);assert.equal(s.loadout.player_info.level,3);assert.equal(s.loadout.player_info.xp,4);assert.equal(s.loadout.player_info.stat_points,3);assert.equal(s.loadout.playerInfo,undefined);assert.equal(s.loadout.player_info.playerHealthMax,145);/* +5 from the HP curve, not +1. */assert.deepEqual(s.loadout.player_spells,['heal_light']);assert.equal(s.mageSpellPicks,1);assert.equal(s.loadout.gold,undefined);
  s.run.enemy.exp=350;awardExperience(s,zero);assert.equal(s.loadout.player_info.level,5);assert.equal(s.mageSpellPicks,3);assert.equal(s.loadout.player_info.stat_points,9);
  const fighter=battle('fighter');fighter.run.enemy.exp=350;awardExperience(fighter,zero);assert.equal(fighter.mageSpellPicks,undefined);
 });
@@ -144,7 +144,7 @@ test('failed casts roll back; snapshots and reconnect preserve active spells and
 });
 test('accident forfeits resolve a single enemy turn, and submission clears buffs without payment',()=>{
  const f=service();try{
-  const prep=f.input('turn_ready',{loadout:f.character().loadout,forfeit:true});f.send(prep);assert.equal(f.character().run.hp,74);assert.equal(f.character().run.turn,2);f.send(prep);assert.equal(f.character().run.hp,74);
+  const prep=f.input('turn_ready',{loadout:f.character().loadout,forfeit:true});f.send(prep);assert.equal(f.character().run.hp,75);assert.equal(f.character().run.turn,2);f.send(prep);assert.equal(f.character().run.hp,75);
   f.ready();f.act('cast',{spell:'fortify'});f.act('submit');assert.equal(f.character().loadout.player_info.def,4);assert.equal(f.character().lastResult.outcome,'submitted');assert.equal(f.character().lastResult.defeatScene.enemy_id,'');assert.equal(f.character().lastResult.defeatScene.name,'Moss Sprite');assert.equal(f.character().lastResult.coins,0);
  }finally{f.db.close();}
 });

@@ -23,7 +23,7 @@ test('successful claims alone use the floor allowance; full bags, duplicate comm
   const candidates=[...entered.dive.chests,...entered.dive.pickups.filter(p=>p.kind==='treasure')].filter(ch=>diveData.item_pool[seeded(`quarters-pilot:${c.dive.edition}:1:${c.id}:${ch.id}`)(31)]==='cotton_panties');
   assert.ok(candidates.length>=3);
   place(candidates[0]);act('dive_claim',{chest:candidates[0].id});assert.equal(c.loadout.inventory.at(-1).item_id,'cotton_panties');
-  place(candidates[1]);edit(state=>state.loadout.inventory=Array.from({length:99},()=>structuredClone(diveData.items.adult_food)));
+  place(candidates[1]);edit(state=>state.loadout.inventory=Array.from({length:99},()=>structuredClone(diveData.items.cotton_panties))); // Snacks stack and never fill a bag; wearables do.
   const before=progress();assert.throws(()=>act('dive_claim',{chest:candidates[1].id}),/Inventory full/);assert.deepEqual(progress(),before);
   edit(state=>state.loadout.inventory=[]);const claim=command('dive_claim',{chest:candidates[1].id});send(claim);assert.equal(c.loadout.inventory.at(-1).item_id,'diaper');
   const committed=progress();send(claim);assert.deepEqual(progress(),committed);assert.equal(c.loadout.inventory.length,1,'duplicate commands cannot duplicate the replacement');
