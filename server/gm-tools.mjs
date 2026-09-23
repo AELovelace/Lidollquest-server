@@ -4,7 +4,7 @@
 // Access is the same LiDollID `gamemaster` role the /gm web panel reads; it is
 // decided by the tracker on every request and never by anything the client sends.
 import {gmZones} from './gm.mjs';
-import {hubDefinition,hubGaps,inHubGap,hubCatalog,hubRooms,dungeonPortals} from './hubs.mjs';
+import {hubDefinition,hubGaps,inHubGap,hubCatalog,hubRooms,routePortals,routeHome,wildernessGates} from './hubs.mjs';
 import {currentTuning} from './combat.mjs';
 
 const ONLINE_WINDOW=30000; // Matches the presence freshness window every other module uses.
@@ -55,9 +55,9 @@ export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new 
   return hubRooms.find(r=>r.id===p.zone)?.parent??null;
  }
  function diveVisit(id,prefer){ // Build the origin/return fields a portal entry would have produced for this Dive.
-  const hubs=hubCatalog.filter(h=>dungeonPortals(h.id).some(v=>v.target===id)).map(h=>h.id); // Every hub with a portal to this route.
+  const hubs=hubCatalog.filter(h=>routePortals(h).some(v=>v.target===id)).map(h=>h.id); // Every hub with a portal or garden gate to this route.
   const hub=hubs.includes(prefer)?prefer:hubs[0];
-  if(hub){const hall=hub+'-dives';return {origin:hub,hubOrigin:hub,returnZone:hubRooms.some(r=>r.id===hall)?hall:hub};} // Leaving returns beside the portal in that hub's dive hall.
+  if(hub)return {origin:hub,hubOrigin:hub,returnZone:routeHome(hub,id),gate:wildernessGates(hub).some(g=>g.target===id)}; // Leaving returns beside the opening in that hub's dive hall, or in Rose Court's garden for the Tundra.
   const parent=dives.get(id)?.parentZone; // Branch regions (Taiga, High Desert) are reached by trail from another Dive.
   if(!parent)fail(409,'No hub leads to that Dive.','gm_zone_not_warpable');
   const above=diveVisit(parent,prefer);

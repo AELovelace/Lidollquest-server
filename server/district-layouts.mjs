@@ -78,6 +78,12 @@ export function districtLayout(def,rnd){
  elbow(entry,nearest,3,def.style==='castle'?2:def.style==='market'?5:1);
  rect(42,22,7,6,def.style==='castle'?2:def.style==='market'?8:4);
  for(let y=22;y<=27;y++)for(let x=42;x<49;x++)protectedCells.add(key(x,y));
+ const d=def.dormitory; // Optional fixed resting room beside the entrance (Rose Court's beds live here): carved after the host layout so it always exists in the same place.
+ if(d){const tile=def.style==='castle'?1:def.style==='market'?6:6;rect(d.x,d.y,d.w,d.h,tile);
+  for(let y=d.y;y<d.y+d.h;y++)for(let x=d.x;x<d.x+d.w;x++)protectedCells.add(key(x,y)); // Scenery never lands on the beds' floor.
+  for(let y=d.y+d.h;y<=21;y++)open(d.door.x,y,tile,true); // A one-tile doorway runs south from the room to the protected entry area.
+  f.rooms.push({x:d.x,y:d.y,w:d.w,h:d.h,cx:d.x+Math.floor(d.w/2),cy:d.y+Math.floor(d.h/2),kind:'dormitory'});
+ }
  f.walls[24][49]=0;f.walls[25][49]=0;f.floors[24][49]=f.floors[25][49]=f.floors[25][48];
  // Seal isolated CA pockets instead of exposing unreachable decorative floor.
  const seen=new Set(),queue=[{x:48,y:25}];

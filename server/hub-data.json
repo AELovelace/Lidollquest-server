@@ -1,7 +1,7 @@
 {
   "version": 2,
   "config": {
-    "_comment": "Shared online annexes only. Export using python/export_online_hubs.py; prices use LiDollCoins.",
+    "_comment": "Shared online annexes and Rose Court's 20x20 courtyard garden. Export using python/export_online_hubs.py; prices use LiDollCoins. courtyards[].decorations props must sit on garden floor (never on the walls, tree clumps, paths into openings, or the plaza spawn at 10,12); the service refuses to boot if a prop seals off any tile.",
     "stock_size": 8,
     "coin_price_multiplier": 1,
     "inventory_capacity": 99,
@@ -26794,6 +26794,354 @@
           "y": 17,
           "span_w": 1,
           "span_h": 2,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        }
+      ]
+    }
+  ],
+  "courtyards": [
+    {
+      "hub": "princess-rose",
+      "decorations": [
+        {
+          "id": "fountain",
+          "sprite": "sprCityParkFountain",
+          "x": 9,
+          "y": 9,
+          "span_w": 2,
+          "span_h": 2,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "bench-nw",
+          "sprite": "sprTownEnvBench",
+          "x": 7,
+          "y": 7,
+          "span_w": 1,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "bench-ne",
+          "sprite": "sprTownEnvBench",
+          "x": 12,
+          "y": 7,
+          "span_w": 1,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "bench-sw",
+          "sprite": "sprTownEnvBench",
+          "x": 7,
+          "y": 11,
+          "span_w": 1,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "bench-se",
+          "sprite": "sprTownEnvBench",
+          "x": 12,
+          "y": 11,
+          "span_w": 1,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "lamp-n1",
+          "sprite": "sprTownEnvLampPost",
+          "x": 8,
+          "y": 2,
+          "span_w": 1,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "lamp-n2",
+          "sprite": "sprTownEnvLampPost",
+          "x": 11,
+          "y": 2,
+          "span_w": 1,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "lamp-e1",
+          "sprite": "sprTownEnvLampPost",
+          "x": 14,
+          "y": 11,
+          "span_w": 1,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "lamp-e2",
+          "sprite": "sprTownEnvLampPost",
+          "x": 14,
+          "y": 14,
+          "span_w": 1,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "oil-lamp-1",
+          "sprite": "sprPQDetailOilLamp",
+          "x": 13,
+          "y": 4,
+          "span_w": 1,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "oil-lamp-2",
+          "sprite": "sprPQDetailOilLamp",
+          "x": 13,
+          "y": 7,
+          "span_w": 1,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "banner-gate-n",
+          "sprite": "sprPQDetailRoyalBanner",
+          "x": 18,
+          "y": 9,
+          "span_w": 1,
+          "span_h": 3,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "banner-gate-s",
+          "sprite": "sprPQDetailRoyalBanner",
+          "x": 18,
+          "y": 15,
+          "span_w": 1,
+          "span_h": 3,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "banner-dive-w",
+          "sprite": "sprPQDetailRoyalBanner",
+          "x": 7,
+          "y": 1,
+          "span_w": 1,
+          "span_h": 3,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "banner-dive-e",
+          "sprite": "sprPQDetailRoyalBanner",
+          "x": 12,
+          "y": 1,
+          "span_w": 1,
+          "span_h": 3,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "rose-1",
+          "sprite": "sprPQDetailPottedRose",
+          "x": 6,
+          "y": 8,
+          "span_w": 1,
+          "span_h": 2,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "rose-2",
+          "sprite": "sprPQDetailPottedRose",
+          "x": 13,
+          "y": 8,
+          "span_w": 1,
+          "span_h": 2,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "rose-3",
+          "sprite": "sprPQDetailPottedRose",
+          "x": 4,
+          "y": 6,
+          "span_w": 1,
+          "span_h": 2,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "rose-4",
+          "sprite": "sprPQDetailPottedRose",
+          "x": 15,
+          "y": 9,
+          "span_w": 1,
+          "span_h": 2,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "planter-n1",
+          "sprite": "sprTownEnvTestPlanterRow",
+          "x": 4,
+          "y": 1,
+          "span_w": 3,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "planter-n2",
+          "sprite": "sprTownEnvTestPlanterRow",
+          "x": 13,
+          "y": 1,
+          "span_w": 3,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "planter-s1",
+          "sprite": "sprTownEnvTestPlanterRow",
+          "x": 7,
+          "y": 18,
+          "span_w": 3,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "planter-s2",
+          "sprite": "sprTownEnvTestPlanterRow",
+          "x": 11,
+          "y": 18,
+          "span_w": 3,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "picnic-rug",
+          "sprite": "sprPQDetailLaceRug",
+          "x": 10,
+          "y": 15,
+          "solid": false,
+          "span_w": 3,
+          "span_h": 2,
+          "kind": "scenery",
+          "name": ""
+        },
+        {
+          "id": "picnic-teddy",
+          "sprite": "sprPQDetailPlushTeddy",
+          "x": 11,
+          "y": 15,
+          "span_w": 1,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "picnic-music-box",
+          "sprite": "sprPQDetailMusicBox",
+          "x": 10,
+          "y": 16,
+          "span_w": 1,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "dollhouse",
+          "sprite": "sprPQDetailDollhouse",
+          "x": 7,
+          "y": 15,
+          "span_w": 2,
+          "span_h": 2,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "notice-board",
+          "sprite": "sprTownEnvNoticeBoard",
+          "x": 4,
+          "y": 11,
+          "span_w": 1,
+          "span_h": 1,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "well",
+          "sprite": "sprTownEnvTestTownWell",
+          "x": 2,
+          "y": 10,
+          "span_w": 2,
+          "span_h": 2,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "statue",
+          "sprite": "sprTownEnvTestStatue",
+          "x": 16,
+          "y": 9,
+          "span_w": 1,
+          "span_h": 2,
+          "kind": "scenery",
+          "name": "",
+          "solid": true
+        },
+        {
+          "id": "signpost",
+          "sprite": "sprTownEnvSignpost",
+          "x": 11,
+          "y": 4,
+          "span_w": 1,
+          "span_h": 1,
           "kind": "scenery",
           "name": "",
           "solid": true
