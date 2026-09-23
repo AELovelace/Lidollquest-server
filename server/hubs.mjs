@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {seeded} from './dive-generation.mjs';
 import {createLootRoller} from './loot.mjs';
+import {roseCourtyard,GARDEN_PORTALS} from './hub-garden.mjs';
 
 export const hubData=JSON.parse(readFileSync(new URL('./hub-data.json',import.meta.url),'utf8'));
 export const campaignDives=JSON.parse(readFileSync(new URL('./campaign-dives-data.json',import.meta.url),'utf8')).routes;
@@ -28,19 +29,24 @@ const fail=message=>{throw Object.assign(Error(message),{status:409,code:'hub_co
 if(c.shop_width!==40||c.shop_height!==24||c.curse_removal_price!==20)throw Error('Invalid market dimensions or curse service price');
 const gardenWidth=districtData.width,gardenHeight=districtData.height;
 if(![gardenWidth,gardenHeight].every(n=>Number.isInteger(n)&&n>=20&&n<=80))throw Error('Invalid garden dimensions');
+const roseGarden=roseCourtyard(hubData.courtyards?.find(h=>h.hub==='princess-rose')?.decorations); // Rose Court's lobby is a walled 20x20 garden; the other courts keep their 20x12 halls. Boot fails if the authored props trap anyone.
 export const hubCatalog=Object.freeze([
  {id:'honeydew-lantern',hub:'town',theme:'lantern',prefix:'Lantern',name:'Lantern Court'},
  {id:'littlebig-clockwork',hub:'littlebig_city',theme:'clockwork',prefix:'Clockwork',name:'Clockwork Coliseum'},
- {id:'princess-rose',hub:'princess_quarters',theme:'rose',prefix:'Rose',name:'Rose Court'},
+ {id:'princess-rose',hub:'princess_quarters',theme:'rose',prefix:'Rose',name:'Rose Court',...roseGarden}, // width/height/spawn/exit/walls/floors/wallTiles/treeTiles/tilesets/fixtures come from the courtyard map.
 ]); // A single catalog supplies lobby identity, annexes and legacy entry validation.
 export function dungeonPortals(parent){
  const quarters={x:6,y:4,name:"Princess' Quarters",target:'dive-quarters',style:'warp'};
  const west={x:0,y:5,w:1,h:2,style:'gap',side:'left'},east={x:19,y:5,w:1,h:2,style:'gap',side:'right'}; // Wall openings matching the lobby's Beds/District gaps.
  const desert={name:'Dustbreak Desert',target:'dive-desert'},tundra={name:'Frostveil Tundra',target:'dive-tundra'};
- const existing=parent==='princess-rose'?[quarters,{...tundra,...east}]:parent==='honeydew-lantern'?[{...tundra,...west},{...desert,...east}]:parent==='littlebig-clockwork'?[{...desert,...west}]:[]; // West-to-east: Rose | Tundra | Lantern | Desert | LittleBig.
+ const existing=parent==='princess-rose'?[quarters]:parent==='honeydew-lantern'?[{...tundra,...west},{...desert,...east}]:parent==='littlebig-clockwork'?[{...desert,...west}]:[]; // West-to-east: Rose | Tundra | Lantern | Desert | LittleBig. Rose reaches the Tundra from its garden wall (wildernessGates), so its hall has no side gap.
  return [...existing,...campaignDives.filter(d=>d.config.hub===parent).map(({config:c})=>({...c.pad,name:c.name,target:c.zone_id,style:'warp'}))];
 } // Princess' Quarters belongs only to Rose Court; these coordinates also drive client labels and return arrivals.
-export const hubRooms=hubCatalog.flatMap(root=>['garden','beds','shops','dives'].map(kind=>({
+export const wildernessGates=parent=>parent==='princess-rose'?GARDEN_PORTALS.filter(p=>p.target.startsWith('dive-')):[]; // Overworld routes that open straight from a lobby's own wall instead of its Dive Hall.
+export const routePortals=room=>room.parent?dungeonPortals(room.parent):[...dungeonPortals(room.id),...wildernessGates(room.id)]; // Every route a Dive Hall or lobby can enter directly; lobbies keep accepting legacy pad entries for their hall's routes.
+export const routeHome=(hub,route,{returnZone='',gate=false}={})=>wildernessGates(hub).some(g=>g.target===route)?hub:(returnZone===''||returnZone.endsWith('-dives')||gate?hub+'-dives':hub); // The room a traveller lands in when a route delivers them to this hub: its garden gate if it has one, its Dive Hall for hall and gate entries, or its lobby for legacy pad entries made from a lobby.
+export const returnSource=(origin,route)=>origin.endsWith('-dives')||wildernessGates(origin).some(g=>g.target===route)?route:origin+'-dives'; // Which doorway hubArrival should stand beside when leaving a route into `origin`.
+export const hubRooms=hubCatalog.flatMap(root=>['garden','beds','shops','dives'].filter(kind=>kind!=='beds'||root.id!=='princess-rose').map(kind=>({
  id:root.id+'-'+kind,parent:root.id,kind,hub:root.hub,theme:root.theme,
  name:kind==='garden'?districtData.districts.find(d=>d.hub===root.id).name:root.prefix+' '+({garden:'Garden',beds:'Resting Hall',shops:'Market Hall',dives:'Dive Hall'})[kind],
  width:kind==='garden'?gardenWidth:kind==='shops'?c.shop_width:20,height:kind==='garden'?gardenHeight:kind==='shops'?c.shop_height:12,
@@ -48,9 +54,9 @@ export const hubRooms=hubCatalog.flatMap(root=>['garden','beds','shops','dives']
  exit:kind==='garden'?{x:gardenWidth-1,y:Math.floor(gardenHeight/2)-1,w:1,h:2,style:'gap',side:'right'}:kind==='beds'?{x:0,y:5,w:1,h:2,style:'gap',side:'left'}:kind==='shops'?{x:20,y:22,style:'stairs'}:{x:9,y:11,w:2,h:1,style:'gap',side:'bottom'}, // Market Halls keep their stairs; the Dive Hall returns through a bottom-wall opening.
  fixtures:kind==='beds'?hubData.beds.map((bed,i)=>({...bed,kind:'bed',x:3+(i%3)*6,y:3+Math.floor(i/3)*4})):
  kind==='shops'?[...hubData.shops.map((shop,i)=>({id:shop.id,name:shop.name,sprite:shop.sprite,kind:'shop',x:[6,14,25,33][i%4],y:6+Math.floor(i/4)*9})),{id:'bank',name:'Bank',kind:'bank',x:30,y:20},{id:'dumpster',name:'Dumpster',kind:'dumpster',sprite:'sprCityTrashCan',x:34,y:20},{id:'curse-remover',name:'Cursebreaker',kind:'npc',avatar:'objNPCMossWitch',service:'curse_remove',price:c.curse_removal_price,x:9,y:20,line:'I can release one piece of cursed gear for 20 LiDollCoins. Choose what you would like removed. Items returned to your bag remain cursed; used diapers are disposed of.'},...(hubData.market_halls.find(h=>h.hub===root.id)?.decorations??[])]:
- [], // Monthly districts supply their own persisted scenery and NPC fixtures.
+ [], // Monthly districts supply their own persisted scenery and NPC fixtures; Rose Court's beds live inside The Castle district's dormitory instead of a Resting Hall.
 }))); // Each hub has its own presence/chat scope; fixtures are presentation data, never campaign NPCs.
-export const hubPortals=parent=>[{x:0,y:5,w:1,h:2,name:districtData.districts.find(d=>d.hub===parent)?.name??'District',target:parent+'-garden',style:'gap',side:'left'},{x:19,y:5,w:1,h:2,name:'Beds',target:parent+'-beds',style:'gap',side:'right'},{x:15,y:8,name:'Shops',target:parent+'-shops',style:'stairs'},{x:9,y:0,w:2,h:1,name:'Dungeon Dive',target:parent+'-dives',style:'gap',side:'top'}];
+export const hubPortals=parent=>parent==='princess-rose'?GARDEN_PORTALS.map(p=>p.target===parent+'-garden'?{...p,name:districtData.districts.find(d=>d.hub===parent)?.name??p.name}:{...p}):[{x:0,y:5,w:1,h:2,name:districtData.districts.find(d=>d.hub===parent)?.name??'District',target:parent+'-garden',style:'gap',side:'left'},{x:19,y:5,w:1,h:2,name:'Beds',target:parent+'-beds',style:'gap',side:'right'},{x:15,y:8,name:'Shops',target:parent+'-shops',style:'stairs'},{x:9,y:0,w:2,h:1,name:'Dungeon Dive',target:parent+'-dives',style:'gap',side:'top'}]; // Rose's garden gate (right wall) and Tundra gap replace the old left District / right Beds openings.
 export const inHubGap=(gap,x,y)=>x>=gap.x&&x<gap.x+(gap.w??1)&&y>=gap.y&&y<gap.y+(gap.h??1);
 export const hubGaps=z=>z.parent?[...(z.exit?.style==='gap'?[{...z.exit,target:z.parent}]:[]),...(z.kind==='dives'?dungeonPortals(z.parent).filter(p=>p.style==='gap'):[])]:hubPortals(z.id).filter(p=>p.style==='gap'); // Dive Hall side walls open onto the wilderness routes.
 export const LOBBY_EXIT=Object.freeze({x:1,y:10,style:'stairs'}); // Bottom-left stairs back to the singleplayer campaign. // Only declared wall openings are traversable; all other perimeter cells remain walls.

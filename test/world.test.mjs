@@ -16,7 +16,7 @@ test('hub and Dive movement enforce a doubled crawl cooldown, including forced e
    if(dive){time+=1000;const s=act('dive_enter',{zone:'dive-quarters'}),floor=s.zones.find(z=>z.id===s.zone);
     let pair;for(let y=1;y<floor.height-1&&!pair;y++)for(let x=1;x<floor.width-2&&!pair;x++)if(walkable(floor,x,y)&&walkable(floor,x+1,y)&&![...s.dive.enemies,...(floor.exits??[]),floor.entrance].some(e=>e.y===y&&(e.x===x||e.x===x+1)))pair={x,y};
     assert.ok(pair);place(pair.x,pair.y);
-   }else place(10,9);
+   }else place(10,12); // Rose Court's plaza spawn; (10,9) is now the garden fountain.
    time+=399;assert.throws(()=>act('move',{direction:'east'}),/too fast/);time++;act('move',{direction:'east'});
    const loadout=structuredClone(c.loadout);loadout.world.crawling=false;loadout.player_info.equipped_accessory_1='';act('loadout',{loadout});
    time+=199;assert.throws(()=>act('move',{direction:'west'}),/too fast/);time++;act('move',{direction:'west'});

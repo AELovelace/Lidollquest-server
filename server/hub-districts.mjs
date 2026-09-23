@@ -4,6 +4,8 @@ import {readFileSync} from 'node:fs';
 import {seeded} from './dive-generation.mjs';
 
 export const districtData=JSON.parse(readFileSync(new URL('./hub-district-data.json',import.meta.url),'utf8'));
+const hubBeds=JSON.parse(readFileSync(new URL('./hub-data.json',import.meta.url),'utf8')).beds; // The same six bed profiles the Resting Halls use; read directly to avoid a circular import with hubs.mjs.
+export const dormitoryBeds=(d,beds=hubBeds)=>beds.map((bed,i)=>({...bed,kind:'bed',x:d.x+1+(i%3)*3,y:d.y+1+Math.floor(i/3)*3,span_w:1,span_h:1,solid:true})); // Two rows of three beds, three tiles apart so their name labels never overlap, with a free aisle between and around them.
 const clock=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'});
 const parts=time=>Object.fromEntries(clock.formatToParts(time).map(p=>[p.type,p.value]));
 export function monthlyWindow(time,hour=4){
@@ -26,6 +28,10 @@ export function generateDistrict(definition,window,data=districtData){
  const {protectedCells,paths,...geometry}=layout;
  const f={...geometry,width,height,name:definition.name,spawn:{x:48,y:25},exit:{x:49,y:24,w:1,h:2,style:'gap',side:'right'},district:{edition:window.edition,layoutVersion:data.version,layoutKey:`${window.edition}:v${data.version}`,resetsAt:window.ends,style:definition.style,tileset:definition.tileset,source:definition.source_zone,model:{castle:'bsp-rooms',market:'woodland-clearings',nightlife:'city-blocks'}[definition.style],routeCount:paths.length},fixtures:[]};
  const occupied=new Set(),safe=p=>p.x>=42&&p.y>=22&&p.y<=27;
+ if(definition.dormitory){ // Beds are fixed fixtures: the same tiles every month, reachable from the entrance in a few steps.
+  const d=definition.dormitory;if(!(d.w>=9&&d.h>=6&&d.x>=1&&d.y>=1&&d.x+d.w<=48&&d.y+d.h<=21&&d.door.x>=d.x&&d.door.x<d.x+d.w))throw Error('District dormitory must be at least 9x6, sit above the entry area and own its doorway');
+  for(const bed of dormitoryBeds(d)){f.fixtures.push(bed);for(const c of footprint(bed))occupied.add(c.x+','+c.y);}
+ }
  function place(profile,index,npc=false){
   for(let tries=0;tries<500;tries++){
    const region=f.rooms[(index+Math.floor(tries/20))%f.rooms.length];

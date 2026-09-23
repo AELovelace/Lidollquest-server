@@ -16,7 +16,7 @@ const panelPage=readFileSync(new URL('./gm-panel.html',import.meta.url),'utf8').
 
 export const gmZones=Object.freeze([
  {id:'global:ooc',name:'Global chat (OOC)',kind:'chat',category:null,warp:false}, // Staff can review and remove global messages through the existing chat tools.
- ...hubCatalog.map(h=>({id:h.id,name:h.name,kind:'lobby',category:ZONE_CATEGORY.SAFE,warp:true,spawn:HUB_SPAWN})),
+ ...hubCatalog.map(h=>({id:h.id,name:h.name,kind:'lobby',category:ZONE_CATEGORY.SAFE,warp:true,spawn:h.spawn??HUB_SPAWN})), // Rose Court's garden declares its own plaza spawn.
  ...hubRooms.map(r=>({id:r.id,name:r.name,kind:r.kind,category:ZONE_CATEGORY.SAFE,warp:true,spawn:r.spawn})),
  {id:'dive-quarters',name:"Princess' Quarters",kind:'dive',category:ZONE_CATEGORY.DIVE,warp:false},
  {id:'dive-desert',category:ZONE_CATEGORY.OVERWORLD,name:'Dustbreak Desert',kind:'dive',warp:false},

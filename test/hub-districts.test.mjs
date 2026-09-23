@@ -4,6 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
 import {districtData,monthlyWindow,generateDistrict,reachableDistrict,districtBlocked} from '../server/hub-districts.mjs';
 import {createQuestZones} from '../server/zones.mjs';
+import {hubPortals} from '../server/hubs.mjs';
 
 test('monthly reset uses the first at 04:00 Pacific, including daylight-saving months',()=>{
  assert.equal(monthlyWindow(Date.parse('2026-10-01T10:59:59Z')).edition,'2026-09');
@@ -35,8 +36,9 @@ test('district travel, monthly persistence, talks, shared chat and safe live rol
  try{
   setup();act('create',{name:'Alice'});
   for(const def of districtData.districts){
-   act('enter',{zone:def.hub,loadout:{player_info:{playerHealth:77},inventory:[{item_id:'adult_food'}]}});place(1,6);
-   const entered=act('move',{direction:'west'}),id=def.hub+'-garden',map=entered.zones.find(z=>z.id===id);
+   act('enter',{zone:def.hub,loadout:{player_info:{playerHealth:77},inventory:[{item_id:'adult_food'}]}});
+   const gate=hubPortals(def.hub).find(p=>p.target===def.hub+'-garden');place(gate.side==='left'?1:18,gate.y+1); // Lantern and Clockwork open their districts on the left; Rose's castle gate is on the right.
+   const entered=act('move',{direction:gate.side==='left'?'west':'east'}),id=def.hub+'-garden',map=entered.zones.find(z=>z.id===id);
    assert.equal(entered.zone,id);assert.equal(map.name,def.name);assert.deepEqual(entered.position,map.spawn);assert.ok(Buffer.byteLength(JSON.stringify(entered))<262144);
    assert.throws(()=>act('start'),/arena lobby/);assert.throws(()=>act('hub_talk',{fixture:'npc-0'}),/Stand next/);
    const npc=map.fixtures.find(p=>p.id==='npc-0');place(npc.x,npc.y+1);act('hub_talk',{fixture:npc.id});assert.ok(c.hubNotice.includes(npc.line));
@@ -44,7 +46,7 @@ test('district travel, monthly persistence, talks, shared chat and safe live rol
    setup();assert.equal(JSON.stringify(act('enter',{zone:def.hub}).zones.find(z=>z.id===id)),saved,'restart retains the materialized monthly edition');
    assert.equal(c.loadout.inventory.length,1);place(48,25);assert.equal(act('move',{direction:'east'}).zone,def.hub);act('leave');
   }
-  const hub='princess-rose',id=hub+'-garden';act('enter',{zone:hub});place(1,6);const old=act('move',{direction:'west'}).zones.find(z=>z.id===id);
+  const hub='princess-rose',id=hub+'-garden';act('enter',{zone:hub});place(18,13);const old=act('move',{direction:'east'}).zones.find(z=>z.id===id);
   const row=db.prepare('SELECT state FROM quest_characters WHERE id=?').get(c.id),state=JSON.parse(row.state);state.worldTurnDue={id:'pending-needs'};db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),c.id);
   place(10,10);now=Date.parse('2026-10-01T11:00:00Z');db.prepare('UPDATE quest_presence SET seen=?').run(now);
   const next=api.read('',c.id),map=next.zones.find(z=>z.id===id);assert.equal(map.district.edition,'2026-10');assert.notDeepEqual(map.fixtures,old.fixtures);assert.deepEqual(next.position,{x:48,y:25});assert.equal(next.character.worldTurnDue.id,'pending-needs');

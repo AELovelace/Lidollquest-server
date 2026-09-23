@@ -15,7 +15,7 @@ import {levelEnemy,encounterLevel,routeLevelFor,defHpDelta,dexStaminaDelta} from
 import {stackable,slotsUsed,addToInventory} from './loadout.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
 import {manaCapacity} from './magic-balance.mjs';
-import {hubArrival,dungeonPortals,hubRooms,hubCatalog,inHubGap,DAILY_COIN_CAP} from './hubs.mjs';
+import {hubArrival,routePortals,routeHome,returnSource,wildernessGates,hubRooms,hubCatalog,inHubGap,DAILY_COIN_CAP} from './hubs.mjs';
 import {routeCategory} from './zone-categories.mjs';
 import {inExit,nearExit} from './wilderness-links.mjs';
 
@@ -98,9 +98,9 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function back(c,state,destination){
   if(state.pendingDefeat){state.pendingDefeat.returnToHub=true;return;} // Weekly reset may retire the floor, but never interrupts its unread defeat scene.
   if(destination&&travel(c,state,zoneId,destination))return; // Linked wilderness travel preserves the loadout and personal progress inside the same transaction.
-  const origin=destination?(state.dive?.returnZone?.endsWith('-dives')?destination+'-dives':destination):(state.dive?.returnZone??state.dive?.origin??'honeydew-lantern');
+  const origin=destination?routeHome(destination,zoneId,{returnZone:state.dive?.returnZone??'',gate:state.dive?.gate===true}):(state.dive?.returnZone??state.dive?.origin??'honeydew-lantern'); // Crossing to another hub lands in whichever of its rooms hosts this route's opening (Rose: the garden itself; Lantern: its Dive Hall); legacy lobby pad entries still return to lobbies.
   const destinationRoom=[...hubRooms,...hubCatalog].find(z=>z.id===origin);
-  const arrival=hubArrival(destinationRoom,origin.endsWith('-dives')?(state.dive?.hubEntryZone??zoneId):origin+'-dives'); // A retired branch returns beside its original Tundra hall pad.
+  const arrival=hubArrival(destinationRoom,returnSource(origin,state.dive?.hubEntryZone??zoneId)); // A retired branch returns beside its original Tundra opening; legacy lobby entries stand beside the Dive Hall doorway.
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(origin,arrival.x,arrival.y,now(),c.id);
   if(origin.endsWith('-dives'))state.hubVisit=origin;else delete state.hubVisit; // Reconnect after a warp restores the destination hall rather than the previous hub.
   state.dive=null;state.diveReturned=origin;state.diveReturnedPosition=arrival;
@@ -245,17 +245,17 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    const existing=db.prepare('SELECT * FROM quest_presence WHERE owner=?').get(i.owner);
    if(existing&&existing.seen>now()-30000&&(existing.controller!==input.controller||existing.character_id!==c.id||existing.grant_id!==i.id)&&input.takeover!==true)fail('This account is active in another window.','zone_controller_conflict'); // Explicit re-entry can recover this character without discarding its dungeon fight or items.
    if(action==='enter'&&!state.dive&&state.diveReturned){
-    const arrival=state.diveReturnedPosition??hubArrival([...hubRooms,...hubCatalog].find(z=>z.id===state.diveReturned),state.diveReturned.endsWith('-dives')?zoneId:state.diveReturned+'-dives');
+    const arrival=state.diveReturnedPosition??hubArrival([...hubRooms,...hubCatalog].find(z=>z.id===state.diveReturned),returnSource(state.diveReturned,zoneId));
     db.prepare('INSERT INTO quest_presence(owner,character_id,zone,grant_id,controller,x,y,seen,moved) VALUES (?,?,?,?,?,?,?,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=excluded.x,y=excluded.y,seen=excluded.seen,moved=0').run(i.owner,c.id,state.diveReturned,i.id,input.controller,arrival.x,arrival.y,now());return;
    } // A browser suspended across reset resumes in its lobby instead of retrying a retired floor forever.
    if(state.run&&state.run.kind!=='dive')fail('Finish your arena run before diving.');
    if(state.dive&&!owns(state.dive))fail('Leave your current dungeon before entering another route.');
    if(!state.dive){const hall=hubRooms.find(r=>r.id===p?.zone&&r.kind==='dives');if(!p||!hall&&!hubCatalog.some(h=>h.id===p.zone)||p.seen<=now()-30000||p.controller!==input.controller||p.grant_id!==i.id)fail('Enter from an online dive hall.');
-    const portal=dungeonPortals(hall?.parent??p.zone).find(v=>v.target===zoneId);
+    const portal=routePortals(hall??hubCatalog.find(h=>h.id===p.zone)).find(v=>v.target===zoneId); // Halls list their pads and side gaps; a lobby lists its hall's routes (legacy entry) plus its own wall gates.
     const beside=portal?.style==='gap'?inHubGap({x:portal.x-1,y:portal.y-1,w:(portal.w??1)+2,h:(portal.h??1)+2},p.x,p.y):portal&&Math.abs(p.x-portal.x)+Math.abs(p.y-portal.y)<=1; // Wall openings span two tiles; pads are one.
     if(!portal||hall&&!beside)fail(portal?.style==='gap'?'Walk through the wall opening.':'Stand on or beside that glowing portal.'); // Legacy lobby entry remains accepted only for routes connected to that hub.
     if(input.loadout)state.loadout=importLoadout(input.loadout);if(!state.loadout)fail('Import your character first.');
-    const record=current(),origin=hall?.parent??p.zone;if(!record)fail('The weekly floor is not ready.');state.dive={route,zone:zoneId,edition:record.edition,depth:1,origin,returnZone:p.zone,position:{...entry(record.floor,origin)},safeUntil:now()+10*seconds};state.diveReturned=null;delete state.diveReturnedPosition;delete state.hubVisit;
+    const record=current(),origin=hall?.parent??p.zone;if(!record)fail('The weekly floor is not ready.');state.dive={route,zone:zoneId,edition:record.edition,depth:1,origin,returnZone:p.zone,gate:!hall&&input.gate===true&&wildernessGates(p.zone).some(g=>g.target===zoneId),position:{...entry(record.floor,origin)},safeUntil:now()+10*seconds};state.diveReturned=null;delete state.diveReturnedPosition;delete state.hubVisit; // `gate`: entered by walking through a lobby's own wall opening (Rose garden -> Tundra).
    }
    const record=getFloor(state.dive.edition),position=state.dive.position;
    if(!record)fail('The weekly floor is unavailable.');
@@ -346,7 +346,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    position={x:goal.x+dx,y:goal.y+dy};break;
   }
   position??={...entry(f,visit.origin)}; // A boxed-in target still lands the GM on the floor's own arrival tile.
-  state.dive={route,zone:zoneId,edition:record.edition,depth:1,origin:visit.origin,hubOrigin:visit.hubOrigin,...(visit.hubEntryZone?{hubEntryZone:visit.hubEntryZone}:{}),returnZone:visit.returnZone,position:{...position},safeUntil:now()+10*seconds};
+  state.dive={route,zone:zoneId,edition:record.edition,depth:1,origin:visit.origin,hubOrigin:visit.hubOrigin,...(visit.hubEntryZone?{hubEntryZone:visit.hubEntryZone}:{}),returnZone:visit.returnZone,gate:visit.gate===true,position:{...position},safeUntil:now()+10*seconds};
   state.diveReturned=null;delete state.diveReturnedPosition;delete state.hubVisit; // Same bookkeeping as dive_enter.
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(zoneId,position.x,position.y,now(),c.id);
   reveal(c,state,f,position.x,position.y); // Personal fog and claims for this edition are reused, never reset.

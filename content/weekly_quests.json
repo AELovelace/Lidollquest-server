@@ -175,7 +175,7 @@
           "mode": "all",
           "next": "complete",
           "objectives": [
-            {"id": "to_the_beds", "type": "visit", "target": "princess-rose-beds", "text": "Take yourself to the Rose Resting Hall", "count": 1},
+            {"id": "to_the_beds", "type": "visit", "target": "princess-rose-garden", "text": "Take yourself to the dormitory inside The Castle", "count": 1},
             {"id": "went_first", "type": "state", "field": "wet", "op": "lte", "value": 20, "text": "Arrive with your bladder at 20 or below", "count": 1}
           ],
           "branches": []

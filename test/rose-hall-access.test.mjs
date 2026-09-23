@@ -11,7 +11,7 @@ test('Quarters entry belongs only to Rose; retired hub entries resume and return
  const act=(action,extra={})=>{time+=350;c=c?api.read('',c.id).character:c;const s=api.act('',{action,controller:'a',request_id:randomUUID(),character_id:c?.id,revision:c?.revision,...(c?.dive?{edition:c.dive.edition}:{}),...extra});c=s.character;return s;};
  const place=(x,y)=>db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(x,y,c.id);
  const expected={
-  'princess-rose':['dive-quarters','dive-tundra','dive-dungeon'],
+  'princess-rose':['dive-quarters','dive-dungeon'], // Frostveil opens from the Rose garden wall, so its hall lists no Tundra gap.
   'honeydew-lantern':['dive-tundra','dive-desert','dive-nursery','dive-school','dive-forest'],
   'littlebig-clockwork':['dive-desert','dive-mansion','dive-hospital'],
  };

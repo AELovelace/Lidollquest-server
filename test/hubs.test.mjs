@@ -10,19 +10,26 @@ import {diveData} from '../server/dive.mjs';
 import {generateFloor,addFood,validateFloor} from '../server/dive-generation.mjs';
 import {createQuestService} from '../server/service.mjs';
 
-test('both lobbies connect to four shared annexes with quadruple gardens, six beds and eight shops; travel retains inventory',()=>{
+test('every lobby connects to its shared annexes with 50x50 districts, six beds and eight shops; travel retains inventory',()=>{
  const db=new DatabaseSync(':memory:');let time=1000000;
  const zones=createQuestZones(db,{now:()=>time,grant:()=>({owner:'alice',id:'a',client:'lidollquest'}),wallet:()=>({coins:1000}),adjust:()=>{}});
- let c;const act=(action,extra={})=>{time+=1500;const result=zones.act('token',{action,controller:'a',request_id:randomUUID(),character_id:c?.id,revision:c?.revision,...extra});c=result.character;return result;};
+ let c;const act=(action,extra={})=>{time+=1500;const result=zones.act('token',{action,controller:'a',request_id:randomUUID(),character_id:c?.id,revision:c?.revision,...(c?.dive?{edition:c.dive.edition}:{}),...extra});c=result.character;return result;};
  const place=(x,y)=>db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(x,y,c.id);
  try{
   act('create',{name:'Alice'});
   const beside=(g,w,h)=>({left:{x:1,y:g.y+(g.h??1)-1,direction:'west'},right:{x:w-2,y:g.y+(g.h??1)-1,direction:'east'},top:{x:g.x,y:1,direction:'north'},bottom:{x:g.x,y:h-2,direction:'south'}})[g.side]; // Interior tile next to a wall opening, and the step into it.
   for(const lobby of questZones){
    const initial=act('enter',{zone:lobby.id,loadout:{player_info:{playerHealth:20},inventory:[{item_id:'adult_food'}]}});
+   const size=[lobby.width??20,lobby.height??12];
    for(const portal of initial.zones.find(z=>z.id===lobby.id).portals){
+    if(portal.target.startsWith('dive-')){ // Rose Court's garden wall opens straight onto the Tundra where its Beds door used to be.
+     const step=beside(portal,...size);place(step.x,step.y);const crossed=act('move',{direction:step.direction,world_step:true});
+     assert.equal(crossed.zone,portal.target);assert.equal(c.loadout.inventory.length,1);assert.equal(c.dive.returnZone,lobby.id);
+     const home=act('dive_exit');assert.equal(home.zone,lobby.id);assert.deepEqual(home.position,{x:portal.x-1,y:portal.y+1}); // Back one tile inside the same garden gap.
+     continue;
+    }
     assert.throws(()=>act('hub_visit',{zone:portal.target}),/Stand next/);
-    const step=portal.style==='gap'?beside(portal,20,12):null;place(step?step.x:portal.x,step?step.y:portal.y+1);
+    const step=portal.style==='gap'?beside(portal,...size):null;place(step?step.x:portal.x,step?step.y:portal.y+1);
     const room=step?act('move',{direction:step.direction,world_step:true}):act('hub_visit',{zone:portal.target});
     assert.equal(room.zone,portal.target);assert.equal(room.character.loadout.inventory.length,1);
     assert.throws(()=>act('start'),/lobby/);
@@ -32,6 +39,11 @@ test('both lobbies connect to four shared annexes with quadruple gardens, six be
      const fountain=definition.fixtures.find(f=>f.kind==='npc');place(fountain.x,fountain.y+1);assert.throws(()=>act('move',{direction:'north'}),/blocked/);
      place(48,25);assert.equal(act('move',{direction:'west'}).position.x,47); // The extra garden space is playable, not merely painted beyond old movement bounds.
      place(definition.width-2,20);assert.throws(()=>act('move',{direction:'east'}),/blocked/);
+     if(lobby.id==='princess-rose'){ // The Castle keeps Rose Court's six beds in a fixed dormitory beside its entrance.
+      const beds=definition.fixtures.filter(f=>f.kind==='bed');assert.equal(beds.length,6);assert.ok(beds.every(b=>b.x>=39&&b.x<=47&&b.y>=13&&b.y<=19));
+      for(const bed of beds){place(bed.x,bed.y+1);const next=structuredClone(c.loadout);next.player_info.playerHealth=30;act('hub_rest',{fixture:bed.id,loadout:next});assert.equal(c.loadout.player_info.playerHealth,30);}
+      place(43,22);assert.equal(act('move',{direction:'north'}).position.y,21);assert.equal(act('move',{direction:'north'}).position.y,20);assert.equal(act('move',{direction:'north'}).position.y,19); // The dormitory doorway leads straight up from the entry area.
+     }
     }
     if(definition.kind==='beds'){
      assert.equal(definition.fixtures.length,6);
@@ -43,17 +55,17 @@ test('both lobbies connect to four shared annexes with quadruple gardens, six be
      assert.equal(definition.fixtures.filter(f=>f.kind==='bank').length,1);
      for(const merchant of definition.fixtures.filter(f=>f.kind==='shop')){assert.ok(merchant.offers.length);assert.ok(merchant.offers.every(o=>Number.isSafeInteger(o.price)&&o.price>0));}
     }
-    if(definition.kind==='dives'){assert.equal(portal.style,'gap');assert.equal(portal.side,'top');assert.deepEqual(definition.exit,{x:9,y:11,w:2,h:1,style:'gap',side:'bottom'});assert.equal(definition.portals.length,{'honeydew-lantern':5,'littlebig-clockwork':3,'princess-rose':3}[lobby.id]);assert.ok(definition.portals.every(p=>['warp','gap'].includes(p.style)));assert.deepEqual(definition.portals.filter(p=>p.style==='gap').map(p=>p.side+':'+p.target),{'honeydew-lantern':['left:dive-tundra','right:dive-desert'],'littlebig-clockwork':['left:dive-desert'],'princess-rose':['right:dive-tundra']}[lobby.id]);} // West-to-east: Rose | Tundra | Lantern | Desert | LittleBig.
+    if(definition.kind==='dives'){assert.equal(portal.style,'gap');assert.equal(portal.side,'top');assert.deepEqual(definition.exit,{x:9,y:11,w:2,h:1,style:'gap',side:'bottom'});assert.equal(definition.portals.length,{'honeydew-lantern':5,'littlebig-clockwork':3,'princess-rose':2}[lobby.id]);assert.ok(definition.portals.every(p=>['warp','gap'].includes(p.style)));assert.deepEqual(definition.portals.filter(p=>p.style==='gap').map(p=>p.side+':'+p.target),{'honeydew-lantern':['left:dive-tundra','right:dive-desert'],'littlebig-clockwork':['left:dive-desert'],'princess-rose':[]}[lobby.id]);} // West-to-east: Rose | Tundra | Lantern | Desert | LittleBig; Rose's Tundra gap is in its garden wall, not its hall.
     const committed=structuredClone(c.loadout);const reconnect=act('enter',{zone:lobby.id,loadout:{player_info:{},inventory:[]}});
     assert.equal(reconnect.zone,portal.target);assert.deepEqual(c.loadout,committed);
     if(definition.exit.style==='gap'){
      const e=beside(definition.exit,definition.width,definition.height);place(e.x,e.y);
      const returned=act('move',{direction:e.direction,world_step:true});
-     assert.equal(returned.zone,lobby.id);assert.deepEqual(returned.position,{garden:{x:1,y:6},beds:{x:18,y:6},dives:{x:9,y:1}}[definition.kind]); /* Arrive one tile inside the matching lobby opening. */assert.equal(returned.character.worldTurnDue,undefined);
+     assert.equal(returned.zone,lobby.id);assert.deepEqual(returned.position,(lobby.id==='princess-rose'?{garden:{x:18,y:13},dives:{x:9,y:1}}:{garden:{x:1,y:6},beds:{x:18,y:6},dives:{x:9,y:1}})[definition.kind]); /* Arrive one tile inside the matching lobby opening; Rose's castle gate is on its right wall. */assert.equal(returned.character.worldTurnDue,undefined);
     }else {place(10,9);assert.equal(act('hub_visit',{zone:lobby.id}).zone,lobby.id);}
    }
   }
-  assert.equal(hubRooms.length,12);
+  assert.equal(hubRooms.length,11); // Three gardens, three markets, three halls and two Resting Halls: Rose Court's beds moved into The Castle.
  }finally{db.close();}
 });
 

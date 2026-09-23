@@ -1,6 +1,6 @@
 {
-  "_comment": "Safe 50x50 monthly host-zone layouts. Version changes replace the active layout on deployment and return visitors to the entrance; old editions remain archived. Export with python/export_online_districts.py.",
-  "version": 2,
+  "_comment": "Safe 50x50 monthly host-zone layouts. Version changes replace the active layout on deployment and return visitors to the entrance; old editions remain archived. Export with python/export_online_districts.py. A district may declare dormitory {x,y,w,h,door:{x}}: a fixed room above the entry area holding the six shared beds (Rose Court keeps its beds here instead of a Resting Hall).",
+  "version": 3,
   "width": 50,
   "height": 50,
   "reset_hour": 4,
@@ -139,6 +139,15 @@
         "max_depth": 3,
         "hall_width": 3,
         "extra_halls": 2
+      },
+      "dormitory": {
+        "x": 39,
+        "y": 13,
+        "w": 9,
+        "h": 7,
+        "door": {
+          "x": 43
+        }
       },
       "source_zone": "princess_quarters"
     },
