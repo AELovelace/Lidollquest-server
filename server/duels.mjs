@@ -153,11 +153,11 @@ export function createDuels(db,{now=Date.now,roll,parties=null,adjust=()=>{},sav
  // ── Fight ─────────────────────────────────────────────────────────────────────────────────
  function view(d,rows,target){ // The opponent as combat.mjs expects an enemy: their live HP and stats, plus authored numbers for charm difficulty (which duels refuse anyway).
   const row=rows.find(v=>v.m.id===target.id),p=row.s.loadout.player_info;
-  return {name:target.name,hp:target.hp,maxHp:target.maxHp,str:Math.max(1,num(p.str)+num(target.mods?.str)),def:Math.max(0,num(p.def)+num(target.mods?.def)),dex:num(p.dex),exp:0,enemy_id:'duelist',turn:0,level:num(p.level,1),player:target.id,authored:{hp:target.maxHp,str:num(p.str),def:num(p.def)}};
+  return {name:target.name,hp:target.hp,maxHp:target.maxHp,str:Math.max(1,num(p.str)+num(target.mods?.str)),def:Math.max(0,num(p.def)+num(target.mods?.def)),dex:num(p.dex),exp:0,enemy_id:'duelist',turn:0,level:num(p.level,1),player:target.id,avatar:row.s.avatar??'player',authored:{hp:target.maxHp,str:num(p.str),def:num(p.def)}}; // avatar: the client draws the opponent's own sprite.
  }
  function projection(d,rows,m,index){
   const mine=d.sides[index].members.filter(alive),foe=d.sides[1-index].members.find(alive)??d.sides[1-index].members[0];
-  return {...(m.run??{}),hp:m.hp,maxHp:m.maxHp,enemy:view(d,rows,foe),sharedEncounter:d.id,duel:d.id,combatVersion:3,cycle:m.cycle,readyAt:m.readyAt,duration:m.duration,prepared:m.prepared,row:m.row,rowSwapped:m.rowSwapped===true,rowPartner:mine.length>1,rowAlone:!mine.some(v=>v.row!=='back')};
+  return {...(m.run??{}),hp:m.hp,maxHp:m.maxHp,enemy:view(d,rows,foe),sharedEncounter:d.id,duel:d.id,combatVersion:3,cycle:m.cycle,readyAt:m.readyAt,duration:m.duration,prepared:m.prepared,turnReady:m.prepared,phase:'fight',status:m.status,turn:m.cycle,log:d.events.map(v=>v.text),row:m.row,rowSwapped:m.rowSwapped===true,rowPartner:mine.length>1,rowAlone:!mine.some(v=>v.row!=='back')}; // Same fields the Dive projection carries (status, phase, turn, log), so the shared battle HUD reads a duel exactly like a party fight.
  }
  function syncRuns(d,rows){for(const {m,s,index} of rows){if(d.phase==='fight'){s.run=projection(d,rows,m,index);m.run=s.run;syncRunHealth(s,s.run);}}}
  function reset(m,s){m.cycle++;m.prepared=false;m.rowSwapped=false;m.duration=actionDelay(s.loadout.player_info.dex);m.readyAt=now()+m.duration;if(m.run){m.run.turnReady=false;m.run.turn=m.cycle;}} // A new gauge: the next action needs a fresh turn_ready, as in Dive encounters.
