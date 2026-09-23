@@ -78,6 +78,15 @@ export function districtLayout(def,rnd){
  elbow(entry,nearest,3,def.style==='castle'?2:def.style==='market'?5:1);
  rect(42,22,7,6,def.style==='castle'?2:def.style==='market'?8:4);
  for(let y=22;y<=27;y++)for(let x=42;x<49;x++)protectedCells.add(key(x,y));
+ if(def.lobby){ // A lobby town (Honeydew Village): a matching west entry strip and gate onto the Tundra, plus a clear civic strip for each building, its doorstep, the arrival tile, the spawn and the campaign stairs.
+  const tile=def.style==='market'?8:6,road=def.style==='market'?5:1,westNearest=[...f.rooms].sort((a,b)=>Math.hypot(a.cx-4,a.cy-25)-Math.hypot(b.cx-4,b.cy-25))[0];
+  elbow({cx:4,cy:25},westNearest,3,road);rect(1,22,7,6,tile); // Mirror of the east entry: a road into the nearest clearing and a flagstone strip inside the gate.
+  for(let y=22;y<=27;y++)for(let x=1;x<8;x++)protectedCells.add(key(x,y));
+  f.walls[24][0]=0;f.walls[25][0]=0;f.floors[24][0]=f.floors[25][0]=f.floors[25][1]; // West gate (0,24-25): Frostveil Tundra.
+  const square=(x,y)=>Math.hypot(x-25,y-25)<=c.village_square_radius;
+  const civic=[...def.lobby.buildings.flatMap(b=>{const cells=[];for(let y=b.y-1;y<b.y+b.span_h+3;y++)for(let x=b.x-1;x<=b.x+b.span_w;x++)cells.push([x,y]);return cells;}),[def.lobby.spawn.x,def.lobby.spawn.y],[def.lobby.stairs.x,def.lobby.stairs.y]]; // A one-tile ring around each facade, its door row, the arrival row and one more row of breathing room.
+  for(const [x,y] of civic){if(square(x,y)||(x===def.lobby.stairs.x&&y===def.lobby.stairs.y))open(x,y,tile,true);else protectedCells.add(key(x,y));} // Inside the square the strip is flagstone floor; outside it is merely kept clear of props.
+ }
  const d=def.dormitory; // Optional fixed resting room beside the entrance (Rose Court's beds live here): carved after the host layout so it always exists in the same place.
  if(d){const tile=def.style==='castle'?1:def.style==='market'?6:6;rect(d.x,d.y,d.w,d.h,tile);
   for(let y=d.y;y<d.y+d.h;y++)for(let x=d.x;x<d.x+d.w;x++)protectedCells.add(key(x,y)); // Scenery never lands on the beds' floor.

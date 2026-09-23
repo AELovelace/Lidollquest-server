@@ -89,13 +89,12 @@ test('disabled Taiga refuses entry; weekly rollover safely restores the originat
   disabled.player('alice');disabled.act('alice','dive_enter',{zone:TUNDRA_ZONE});assert.throws(()=>disabled.cross('alice'),/unavailable/);assert.equal(disabled.snap('alice').zone,TUNDRA_ZONE);
  }finally{disabled.db.close();}
  const f=fixture();try{
-  f.player('alice','honeydew-lantern');f.place('alice',{x:9,y:0});const hall=f.act('alice','hub_visit',{zone:'honeydew-lantern-dives'});
-  const pad=hall.zones.find(z=>z.id===hall.zone).portals.find(p=>p.target===TUNDRA_ZONE);f.place('alice',pad);
-  f.act('alice','dive_enter',{zone:TUNDRA_ZONE});f.cross('alice');const old=f.snap('alice').dive.edition;
+  f.player('alice','honeydew-lantern');f.place('alice',{x:1,y:25});f.act('alice','move',{direction:'west',world_step:true}); // Honeydew Village's west gate walks straight onto Frostveil.
+  f.cross('alice');const old=f.snap('alice').dive.edition;
   const chest=f.snap('alice').dive.chests[0];f.place('alice',chest);f.act('alice','dive_claim',{chest:chest.id});f.advance(7*86400000);
-  const resumed=f.act('alice','enter',{zone:TAIGA_ZONE,combat_version:3});assert.equal(resumed.zone,'honeydew-lantern-dives');assert.equal(resumed.character.loadout.inventory.length,1);
-  assert.deepEqual(resumed.position,hubArrival(hubRooms.find(h=>h.id===resumed.zone),TUNDRA_ZONE));
-  f.act('alice','dive_enter',{zone:TUNDRA_ZONE});f.cross('alice');assert.notEqual(f.snap('alice').dive.edition,old);assert.equal(f.snap('alice').dive.claimed,0);
+  const resumed=f.act('alice','enter',{zone:TAIGA_ZONE,combat_version:3});assert.equal(resumed.zone,'honeydew-lantern');assert.equal(resumed.character.loadout.inventory.length,1);
+  assert.deepEqual(resumed.position,{x:1,y:25}); // Back inside the village's Tundra gate.
+  f.place('alice',{x:1,y:25});f.act('alice','move',{direction:'west',world_step:true});f.cross('alice');assert.notEqual(f.snap('alice').dive.edition,old);assert.equal(f.snap('alice').dive.claimed,0);
  }finally{f.db.close();}
 });
 

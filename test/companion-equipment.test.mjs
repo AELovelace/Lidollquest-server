@@ -41,9 +41,9 @@ test('all lobby doors, annex exits and dungeon pads arrive on an adjacent interi
   }
   const hall=hubRooms.find(r=>r.parent===root.id&&r.kind==='dives');
   for(const pad of hubDefinition(hall,0).portals){const arrival=hubArrival(hall,pad.target);assert.equal(Math.abs(arrival.x-pad.x)+Math.min(...Array.from({length:pad.h??1},(_,i)=>Math.abs(arrival.y-pad.y-i))),1);} // Two-tile wall openings arrive beside either tile.
-  assert.deepEqual(lobby.exit,root.id==='princess-rose'?{x:2,y:17,style:'stairs'}:{x:1,y:10,style:'stairs'}); // Campaign stairs sit in the bottom-left corner of every court, including the 20x20 garden.
-  assert.deepEqual(hubArrival(root,root.id+'-dives'),{x:9,y:1});
-  assert.deepEqual(hubArrival(root,root.id+'-shops'),root.id==='princess-rose'?{x:15,y:17}:{x:15,y:9});
+  assert.deepEqual(lobby.exit,{'princess-rose':{x:2,y:17,style:'stairs'},'honeydew-lantern':{x:2,y:22,style:'stairs'},'littlebig-clockwork':{x:1,y:10,style:'stairs'}}[root.id]); // Campaign stairs: bottom-left of the courts, inside the village's west entry strip.
+  assert.deepEqual(hubArrival(root,root.id+'-dives'),root.id==='honeydew-lantern'?{x:25,y:25}:{x:9,y:1}); // Below the Community Hall doorstep, or inside the top-wall gap.
+  if(root.id!=='honeydew-lantern')assert.deepEqual(hubArrival(root,root.id+'-shops'),root.id==='princess-rose'?{x:15,y:17}:{x:15,y:9});else assert.deepEqual(hubArrival(root,root.id+'-beds'),{x:29,y:28}); // Honeydew has no Market Hall; its Inn doorstep is on the square.
  }
 });
 test('companion edits use revision receipts, keep the game lease, block combat, and publish cloud equipment safely',()=>{
@@ -86,7 +86,7 @@ test('every live hall route returns to its own pad, including crossing exits and
   act('create',{name:'Alice'});
   for(const root of hubCatalog){
    act('enter',{zone:root.id,loadout:{player_info:{str:10,stamina:100},inventory:[]}});
-   const hall=hubRooms.find(r=>r.parent===root.id&&r.kind==='dives');place(9,0);act('hub_visit',{zone:hall.id});
+   const hall=hubRooms.find(r=>r.parent===root.id&&r.kind==='dives'),hallDoor=root.id==='honeydew-lantern'?[25,25]:[9,0];place(...hallDoor);act('hub_visit',{zone:hall.id}); // Honeydew: the Community Hall doorstep; others: the lobby's top-wall gap.
    for(const pad of hubDefinition(hall,0).portals){
     place(pad.x,pad.y+1);const entered=act('dive_enter',{zone:pad.target});
     const exits=entered.zones.find(z=>z.id===pad.target).exits??[];
@@ -97,10 +97,10 @@ test('every live hall route returns to its own pad, including crossing exits and
      place(pad.x,pad.y+1);act('dive_enter',{zone:pad.target});place(exit.x,exit.y);
      const home=routeHome(exit.zone,pad.target,{returnZone:hall.id}),crossed=act('dive_exit',{zone:exit.zone}),target=[...hubRooms,...hubCatalog].find(r=>r.id===home); // Rose Court receives the Tundra in its garden; the other courts in their halls.
      assert.equal(crossed.zone,target.id);assert.deepEqual(crossed.position,hubArrival(target,pad.target));
-     if(target.parent)act('hub_visit',{zone:target.parent});act('leave');act('enter',{zone:root.id});place(9,0);act('hub_visit',{zone:hall.id});
+     if(target.parent)act('hub_visit',{zone:target.parent});act('leave');act('enter',{zone:root.id});place(...hallDoor);act('hub_visit',{zone:hall.id});
     }
    }
-   const returned=act('hub_visit',{zone:root.id});assert.deepEqual(returned.position,{x:9,y:1});
+   const returned=act('hub_visit',{zone:root.id});assert.deepEqual(returned.position,root.id==='honeydew-lantern'?{x:25,y:25}:{x:9,y:1}); // Below the Community Hall doorstep, or inside the top-wall gap.
    assert.deepEqual(act('enter',{zone:root.id}).position,returned.position);act('leave');
   }
  }finally{db.close();}

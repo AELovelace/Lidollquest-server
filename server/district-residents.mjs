@@ -3,7 +3,7 @@ import {seeded} from './dive-generation.mjs';
 const key=p=>p.x+','+p.y;
 const covers=(p,x,y)=>x>=p.x&&y>=p.y&&x<p.x+(p.span_w??1)&&y<p.y+(p.span_h??1);
 const open=(f,x,y)=>x>0&&y>0&&x<48&&y<48&&!f.walls[y][x]&&!f.fixtures.some(p=>p.solid!==false&&covers(p,x,y));
-const entry=(x,y)=>x>=42&&y>=22&&y<=27;
+const entry=(f,x,y)=>x>=42&&y>=22&&y<=27||(f.district?.lobby===true&&x<=7&&y>=22&&y<=27); // Gate strips: the east entry everywhere, plus the west (Tundra) entry of a lobby town.
 const steps=[[0,1,0],[0,-1,1],[1,0,2],[-1,0,3]];
 
 export function addDistrictResidents(f,definition,data,players=[]){
@@ -14,7 +14,7 @@ export function addDistrictResidents(f,definition,data,players=[]){
   if(f.fixtures.some(n=>n.id===profile.id))continue; // Existing residents retain their positions and identity through content upgrades.
   const cells=[];
   for(let y=2;y<48;y++)for(let x=2;x<48;x++){
-   if(!open(f,x,y)||entry(x,y)||f.fixtures.some(n=>covers(n,x,y))||players.some(p=>p.x===x&&p.y===y))continue;
+   if(!open(f,x,y)||entry(f,x,y)||f.fixtures.some(n=>covers(n,x,y))||players.some(p=>p.x===x&&p.y===y))continue;
    if(steps.filter(([dx,dy])=>open(f,x+dx,y+dy)).length<3)continue;
    cells.push({x,y});
   }
@@ -35,7 +35,7 @@ export function moveDistrictResidents(f,players,time,data){
   const radius=npc.roam_radius??data.roam_radius??8,home=npc.home??npc;
   const choices=steps.filter(([dx,dy])=>{
    const x=npc.x+dx,y=npc.y+dy;
-   return open(f,x,y)&&!entry(x,y)&&Math.abs(x-home.x)+Math.abs(y-home.y)<=radius&&!occupied.has(x+','+y)&&!players.some(p=>p.x===x&&p.y===y);
+   return open(f,x,y)&&!entry(f,x,y)&&Math.abs(x-home.x)+Math.abs(y-home.y)<=radius&&!occupied.has(x+','+y)&&!players.some(p=>p.x===x&&p.y===y);
   });
   if(!choices.length)continue;
   const forward=choices.find(s=>s[2]===npc.facing);if(forward)choices.push(forward); // A slight forward preference makes a stroll less jittery than pure random turns.

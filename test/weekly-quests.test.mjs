@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {validateQuestContent} from '../server/quest-content.mjs';
 import {hubData,hubCatalog,hubRooms} from '../server/hubs.mjs';
-import {districtData} from '../server/hub-districts.mjs';
+import {districtData,districtZone} from '../server/hub-districts.mjs';
 import {combatData} from '../server/combat.mjs';
 import {createWorldContent} from '../server/world-content.mjs';
 import {loadQuestPack} from '../server/service.mjs';
@@ -21,7 +21,7 @@ const assetRef=value=>String(value??''); // Quests carry no artwork of their own
 const validate=quest=>validateQuestContent('quest',quest,{assetRef,spells:combatData.spells,equipment});
 
 const zones=new Set([...hubCatalog.map(h=>h.id),...hubRooms.map(z=>z.id),'dive-quarters','dive-desert','dive-tundra']);
-const residents=new Set(districtData.districts.flatMap(d=>d.npcs.filter(n=>n.roaming&&n.id).map(n=>d.hub+'-garden:'+n.id))); // Only roaming residents keep an authored, stable fixture ID; static greeters are npc-<index>.
+const residents=new Set(districtData.districts.flatMap(d=>d.npcs.filter(n=>n.roaming&&n.id).map(n=>districtZone(d)+':'+n.id))); // Honeydew's residents live in the lobby town itself. // Only roaming residents keep an authored, stable fixture ID; static greeters are npc-<index>.
 const stocked=new Set(hubData.shops.flatMap(s=>s.pool));
 
 test('the weekly quest pack is a quest pack with unique IDs',()=>{
@@ -82,7 +82,7 @@ test('rewards reference real items and stay within the daily coin cap',()=>{
 test('the pack is spread across all three hubs',()=>{
  const perHub=new Map(hubCatalog.map(h=>[h.id,0]));
  for(const quest of pack.quests){
-  const hub=quest.givers[0].split('-garden:')[0];
+  const hub=quest.givers[0].split(':')[0].replace(/-garden$/,'');
   perHub.set(hub,perHub.get(hub)+1);
  }
  for(const [hub,n] of perHub)assert.ok(n>0,hub+' has no weekly quests.');

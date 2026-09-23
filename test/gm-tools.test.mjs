@@ -35,7 +35,7 @@ test('only gamemaster accounts see the flag and can use GM tools, without losing
   const player=await h.join(playerToken,'Player','honeydew-lantern');
   assert.equal(player.gamemaster,false);
   for(const action of ['gm_catalog','gm_warp_zone','gm_zone_reload']){
-   const r=await h.play(playerToken,action,{zone:'honeydew-lantern-shops'});
+   const r=await h.play(playerToken,action,{zone:'littlebig-clockwork-shops'});
    assert.equal(r.status,409,action);assert.equal(r.result.error,'gm_not_gamemaster'); // 409, never 401/403, so the client does not drop its sign-in.
   }
   assert.equal((await h.ok(playerToken,'heartbeat')).zone,'honeydew-lantern'); // Still playing normally afterwards.
@@ -51,7 +51,7 @@ test('the catalogue lists online players and warpable rooms only',async()=>{
   const {receipt}=await h.ok(staffToken,'gm_catalog');
   assert.equal(receipt.action,'gm_catalog');
   assert.deepEqual(receipt.gm.players.map(p=>[p.name,p.zone,p.self]).sort(),[['Player','princess-rose',false],['Staff','honeydew-lantern',true]]);
-  assert.ok(receipt.gm.zones.some(z=>z.id==='honeydew-lantern-shops'));
+  assert.ok(receipt.gm.zones.some(z=>z.id==='littlebig-clockwork-shops'));
   assert.ok(!receipt.gm.zones.some(z=>z.kind==='chat')); // Global chat is never a destination.
   assert.ok(receipt.gm.zones.some(z=>z.id==='dive-quarters')); // Shared weekly Dives are, once their floor exists.
   assert.equal(h.held[staffToken].revision,before); // Reading the list never changes the character.
@@ -64,10 +64,10 @@ test('warp to zone moves the GM, keeps annex bookkeeping, refuses non-rooms and 
   await h.join(staffToken,'Staff','honeydew-lantern');
   assert.equal((await h.play(staffToken,'gm_warp_zone',{zone:'global:ooc'})).result.error,'gm_zone_not_warpable');
   assert.equal((await h.play(staffToken,'gm_warp_zone',{zone:'nowhere'})).result.error,'gm_unknown_zone');
-  const moved=await h.ok(staffToken,'gm_warp_zone',{zone:'honeydew-lantern-shops'});
-  assert.equal(moved.zone,'honeydew-lantern-shops');
-  assert.equal(moved.character.hubVisit,'honeydew-lantern-shops'); // Reconnects resume in the annex, exactly as if the GM had walked in.
-  const exit=moved.zones.find(z=>z.id==='honeydew-lantern-shops').exit;
+  const moved=await h.ok(staffToken,'gm_warp_zone',{zone:'littlebig-clockwork-shops'});
+  assert.equal(moved.zone,'littlebig-clockwork-shops');
+  assert.equal(moved.character.hubVisit,'littlebig-clockwork-shops'); // Reconnects resume in the annex, exactly as if the GM had walked in.
+  const exit=moved.zones.find(z=>z.id==='littlebig-clockwork-shops').exit;
   assert.ok(moved.position.x!==exit.x||moved.position.y!==exit.y); // Never land on the exit tile, which would bounce the client back to the campaign.
   const back=await h.ok(staffToken,'gm_warp_zone',{zone:'princess-rose'});
   assert.equal(back.zone,'princess-rose');assert.equal(back.character.hubVisit,undefined);

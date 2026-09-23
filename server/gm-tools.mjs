@@ -11,10 +11,10 @@ const ONLINE_WINDOW=30000; // Matches the presence freshness window every other 
 const HUB_SPAWN={x:10,y:9}; // hubDefinition() falls back to this tile when a room declares no spawn.
 const zoneInfo=new Map(gmZones.map(z=>[z.id,z])); // One shared catalogue with the web panel: names, kinds and which rooms may be warped into.
 const fail=(status,message,code='gm_tool_rejected')=>{throw Object.assign(Error(message),{status,code});}; // Never 401/403: the client treats those as a lost sign-in.
-export const GM_ACTIONS=Object.freeze(['gm_catalog','gm_warp_zone','gm_warp_player','gm_summon','gm_zone_reload','gm_quest_start','gm_quest_advance','gm_quest_complete','gm_quest_reset','gm_chat_delete','gm_chat_clear','gm_combat_tune']);
+export const GM_ACTIONS=Object.freeze(['gm_catalog','gm_warp_zone','gm_warp_player','gm_summon','gm_zone_reload','gm_quest_start','gm_quest_advance','gm_quest_complete','gm_quest_reset','gm_chat_delete','gm_chat_clear','gm_combat_tune','gm_announce','gm_announce_end']);
 export const COMBAT_KEYS=Object.freeze(['row_swap_costs_turn','row_back_damage_taken','row_back_melee_dealt','row_front_target_weight','reach_damage_mult']); // What the in-game Combat page may retune; bounds come from loot-store.mjs. // Every command the in-game panel can send.
 
-export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new Map(),quests=null,live=null,audit=()=>{},loot=null}={}){
+export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new Map(),quests=null,live=null,audit=()=>{},loot=null,announcements=null}={}){
  const requireGm=i=>{if(i?.gamemaster!==true)fail(409,'GM tools need the gamemaster role on your LiDollID account.','gm_not_gamemaster');}; // 409 keeps an ordinary player's session alive if a stale client ever shows the panel.
  const zoneName=id=>zoneInfo.get(id)?.name??id; // Unknown ids still read sensibly if a new room ships before the catalogue is updated.
  const fresh=characterId=>db.prepare('SELECT p.*,c.name,c.owner AS char_owner,c.state,c.revision FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.character_id=? AND p.seen>?').get(characterId,now()-ONLINE_WINDOW); // A live presence row plus its character.
@@ -97,6 +97,20 @@ export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new 
    let values;try{values=loot.tune({[key]:input.value},i.owner);}catch(e){fail(400,e.message,'gm_unknown_setting');}
    audit(i.owner,'loot_tune','combat',{keys:[key],value:values[key],reason:'in-game'});
    state.hubNotice='[GM] '+key.replace(/_/g,' ')+' is now '+values[key]+'.';state.hubNoticeAt=now();
+   return;
+  }
+  if(action==='gm_announce'){ // "/announce text" from chat or the GM tools: a banner in front of every online player, signed with this GM's character name.
+   if(!announcements)fail(409,'Announcements are not available on this server.','gm_unknown_action');
+   const posted=announcements.post({text:input.text,speaker:c.name,minutes:input.minutes},i.owner);
+   audit(i.owner,'announce','everyone',{text:posted.text,speaker:posted.speaker,minutes:posted.minutes,reason:'in-game'}); // Same audit action as the web panel.
+   state.hubNotice='[GM] Announced to everyone for '+posted.minutes+(posted.minutes===1?' minute.':' minutes.');state.hubNoticeAt=now();
+   return;
+  }
+  if(action==='gm_announce_end'){ // Take the current banner down early.
+   if(!announcements)fail(409,'Announcements are not available on this server.','gm_unknown_action');
+   const ended=announcements.end();
+   if(ended)audit(i.owner,'announce_end','everyone',{text:ended.text,reason:'in-game'});
+   state.hubNotice=ended?'[GM] Announcement ended.':'[GM] No announcement is up right now.';state.hubNoticeAt=now();
    return;
   }
   if(action==='gm_chat_clear'){ // Every line in the GM's current area.

@@ -1,5 +1,5 @@
 {
-  "_comment": "Safe 50x50 monthly host-zone layouts. Version changes replace the active layout on deployment and return visitors to the entrance; old editions remain archived. Export with python/export_online_districts.py. A district may declare dormitory {x,y,w,h,door:{x}}: a fixed room above the entry area holding the six shared beds (Rose Court keeps its beds here instead of a Resting Hall).",
+  "_comment": "Safe 50x50 monthly host-zone layouts. Version changes replace the active layout on deployment and return visitors to the entrance; old editions remain archived. Export with python/export_online_districts.py. A district may declare dormitory {x,y,w,h,door:{x}}: a fixed room above the entry area holding the six shared beds (Rose Court keeps its beds here instead of a Resting Hall). A district may also declare lobby {spawn:{x,y},stairs:{x,y},buildings:[{id,name,sprite,x,y,target}]}: that hub's lobby IS the 50x50 town (no separate garden or market annex). Each building sprite sits in the village square; the tile in front of its door (the exporter adds door) leads into the hub annex named by target (dives = the Community Hall with the Dive pads, beds = the Inn with the six beds), both reused tile for tile from the campaign rooms. Its west wall (0,24-25) opens onto Frostveil Tundra and its east wall (49,24-25) onto Dustbreak Desert; merchants, bank, dumpster and Cursebreaker are spread around the clearings.",
   "version": 3,
   "width": 50,
   "height": 50,
@@ -153,8 +153,48 @@
     },
     {
       "hub": "honeydew-lantern",
-      "name": "Market Square",
+      "name": "Honeydew Village",
       "style": "market",
+      "lobby": {
+        "spawn": {
+          "x": 25,
+          "y": 26
+        },
+        "stairs": {
+          "x": 2,
+          "y": 22
+        },
+        "buildings": [
+          {
+            "id": "community-hall",
+            "name": "Community Hall",
+            "sprite": "sprCommunityCenter",
+            "x": 24,
+            "y": 21,
+            "target": "dives",
+            "span_w": 3,
+            "span_h": 3,
+            "door": {
+              "x": 25,
+              "y": 24
+            }
+          },
+          {
+            "id": "inn",
+            "name": "Honeydew Inn",
+            "sprite": "sprInn",
+            "x": 28,
+            "y": 24,
+            "target": "beds",
+            "span_w": 3,
+            "span_h": 3,
+            "door": {
+              "x": 29,
+              "y": 27
+            }
+          }
+        ]
+      },
       "tileset": "tileTown",
       "scenery": [
         {

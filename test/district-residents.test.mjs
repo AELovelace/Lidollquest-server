@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
-import {districtData,generateDistrict,createHubDistricts,monthlyWindow,districtBlocked} from '../server/hub-districts.mjs';
+import {districtData,generateDistrict,createHubDistricts,monthlyWindow,districtBlocked,districtZone} from '../server/hub-districts.mjs';
 import {moveDistrictResidents} from '../server/district-residents.mjs';
 import {createQuestZones} from '../server/zones.mjs';
 
@@ -33,7 +33,7 @@ test('resident-only upgrades preserve live maps and visitors; movement persists 
  try{
   const oldData={...structuredClone(districtData),resident_version:0},prior=createHubDistricts(db,{now:()=>now,data:oldData});
   const originals=new Map();
-  for(const def of districtData.districts){const id=def.hub+'-garden';originals.set(id,structuredClone(prior.resolve({id})));db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?)').run(id,47,25,123,now);}
+  for(const def of districtData.districts){const id=districtZone(def);originals.set(id,structuredClone(prior.resolve({id})));db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?)').run(id,47,25,123,now);}
   let live=createHubDistricts(db,{now:()=>now});
   for(const [id,old] of originals){const next=live.resolve({id});assert.deepEqual(next.walls,old.walls);assert.deepEqual(next.fixtures.filter(n=>!n.roaming),old.fixtures);assert.equal(next.district.layoutKey,old.district.layoutKey);assert.deepEqual({...db.prepare('SELECT x,y,moved FROM quest_presence WHERE zone=?').get(id)},{x:47,y:25,moved:123});}
   for(let n=0;n<12;n++){now+=3000;db.prepare('UPDATE quest_presence SET seen=?').run(now);live.tick();}

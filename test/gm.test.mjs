@@ -299,10 +299,10 @@ test('the overview reports live presence, rooms and totals',async()=>{
   view=(await h.gm('/gm/overview')).body;
   assert.equal(view.totals.online,1);
   assert.equal(view.players[0].name,'Poppy');
-  assert.equal(view.players[0].zoneName,'Lantern Court');
+  assert.equal(view.players[0].zoneName,'Honeydew Village');
   assert.equal(view.zones.find(z=>z.id==='honeydew-lantern').players,1);
   assert.equal(view.zones.find(z=>z.id==='dive-desert').warp,false);
-  assert.ok(view.zones.find(z=>z.id==='honeydew-lantern-shops').warp);
+  assert.ok(view.zones.find(z=>z.id==='littlebig-clockwork-shops').warp);
 
   h.advance(31000);
   assert.equal((await h.gm('/gm/overview')).body.totals.online,0);
@@ -396,11 +396,11 @@ test('a gamemaster can move a player between rooms but never into a dive',async(
   assert.equal((await h.act('warp',{owner,zone:'nowhere'})).body.error,'gm_unknown_zone');
   assert.equal((await h.act('warp',{owner,zone:'dive-desert'})).body.error,'gm_zone_not_warpable');
 
-  const moved=await h.act('warp',{owner,zone:'honeydew-lantern-shops',reason:'stuck'});
-  assert.equal(moved.body.result.to,'Lantern Market Hall');
+  const moved=await h.act('warp',{owner,zone:'littlebig-clockwork-shops',reason:'stuck'});
+  assert.equal(moved.body.result.to,'Clockwork Market Hall');
   const after=(await h.gm('/gm/overview')).body.players[0];
-  assert.deepEqual({zone:after.zone,x:after.x,y:after.y},{zone:'honeydew-lantern-shops',x:20,y:21});
-  assert.equal((await h.ok(playerToken,'heartbeat')).zone,'honeydew-lantern-shops');
+  assert.deepEqual({zone:after.zone,x:after.x,y:after.y},{zone:'littlebig-clockwork-shops',x:20,y:21});
+  assert.equal((await h.ok(playerToken,'heartbeat')).zone,'littlebig-clockwork-shops');
  }finally{await h.close();}
 });
 
@@ -442,7 +442,7 @@ test('player detail summarises an account without exposing its inventory',async(
   assert.equal((await h.gm('/gm/player?owner=nobody')).status,404);
   const detail=(await h.gm('/gm/player?owner='+owner)).body;
   assert.equal(detail.characters[0].name,'Poppy');
-  assert.equal(detail.presence.zoneName,'Lantern Court');
+  assert.equal(detail.presence.zoneName,'Honeydew Village');
   assert.equal(detail.sanctions[0].kind,'mute');
   assert.equal(detail.chat.at(-1).text,'hello');
   assert.equal(detail.audit[0].action,'mute');
@@ -570,7 +570,7 @@ test('a gamemaster can clear every message in one room; other streams and the au
   assert.equal((await h.act('clear_chat',{zone:''})).body.error,'gm_unknown_zone');
   assert.equal((await h.act('clear_chat',{zone:'nowhere'})).body.error,'gm_unknown_zone');
   const cleared=await h.act('clear_chat',{zone:'honeydew-lantern',reason:'spam wave'});
-  assert.equal(cleared.status,200);assert.equal(cleared.body.result.removed,2);assert.equal(cleared.body.result.zoneName,'Lantern Court');
+  assert.equal(cleared.status,200);assert.equal(cleared.body.result.removed,2);assert.equal(cleared.body.result.zoneName,'Honeydew Village');
   assert.equal((await h.gm('/gm/chat?zone=honeydew-lantern')).body.messages.length,0);
   assert.equal((await h.gm('/gm/chat?zone=global%3Aooc')).body.messages.length,1);
   assert.equal((await h.ok(playerToken,'heartbeat')).chat.length,0);

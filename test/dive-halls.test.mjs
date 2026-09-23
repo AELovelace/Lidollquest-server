@@ -10,12 +10,13 @@ test('hall portals validate proximity, preserve inventory, restore on reconnect 
  const api=createQuestZones(db,{now:()=>time,grant:()=>({owner:'alice',id:'a',client:'lidollquest'}),wallet:()=>({coins:0}),adjust:()=>{},diveOptions:{log:()=>{}},desertOptions:{log:()=>{}}});
  function act(action,extra={}){time+=350;const s=c?api.read('',c.id):null;c=s?.character??c;const result=api.act('',{action,controller:'a',request_id:randomUUID(),character_id:c?.id,revision:c?.revision,...(c?.dive?{edition:c.dive.edition}:{}),...extra});c=result.character;return result;}
  const place=(x,y)=>db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(x,y,c.id);
+ const hallDoor=root=>root==='honeydew-lantern'?[25,25]:[9,0]; // Honeydew's Community Hall opens from the doorstep on the village square; the other halls from the lobby's top-wall gap.
  const enter=portal=>{if(portal.style!=='gap'){place(portal.x,portal.y);return act('dive_enter',{zone:portal.target});}place(portal.side==='left'?1:18,portal.y);return act('move',{direction:portal.side==='left'?'west':'east'});}; // Wilderness routes open through the hall's side walls.
  try{
   act('create',{name:'Alice'});
   for(const root of ['honeydew-lantern','littlebig-clockwork','princess-rose']){
    act('enter',{zone:root,loadout:{player_info:{playerHealth:50,playerHealthMax:50},inventory:[{item_id:'adult_food'}]}});
-   place(9,0);const hall=act('hub_visit',{zone:root+'-dives'});assert.equal(hall.zone,root+'-dives');
+   place(...hallDoor(root));const hall=act('hub_visit',{zone:root+'-dives'});assert.equal(hall.zone,root+'-dives');
    for(const portal of hall.zones.find(z=>z.id===hall.zone).portals){
     place(2,9); // Expanded halls can legitimately offer a pad next to their arrival tile.
     assert.throws(()=>act('dive_enter',{zone:portal.target}),portal.style==='gap'?/wall opening/:/glowing portal/);
@@ -25,11 +26,10 @@ test('hall portals validate proximity, preserve inventory, restore on reconnect 
     const back=act('dive_exit');assert.equal(back.zone,root+'-dives');assert.equal(c.hubVisit,root+'-dives');
     assert.equal(act('enter',{zone:root,loadout:{player_info:{},inventory:[]}}).zone,root+'-dives');assert.deepEqual(c.loadout.inventory,inventory);
    }
-   if(root==='princess-rose')continue; // Its crossing has dedicated two-direction Tundra coverage.
-   const desert=enter(hall.zones.find(z=>z.id===hall.zone).portals.find(p=>p.target==='dive-desert')),opposite=root==='honeydew-lantern'?'littlebig-clockwork':'honeydew-lantern';
+   if(root!=='littlebig-clockwork'){act('hub_visit',{zone:root});continue;} // Rose's Tundra and Honeydew's Desert open from their lobby walls (hub-garden / honeydew-village tests); step back out so the next lobby entry is not resumed inside this hall.
+   const desert=enter(hall.zones.find(z=>z.id===hall.zone).portals.find(p=>p.target==='dive-desert')),opposite='honeydew-lantern';
    const exit=desert.zones.find(z=>z.id==='dive-desert').exits.find(e=>e.zone===opposite);place(exit.x,exit.y);
-   assert.equal(act('dive_exit',{zone:opposite}).zone,opposite+'-dives');assert.equal(c.hubVisit,opposite+'-dives');
-   assert.equal(act('hub_visit',{zone:opposite}).zone,opposite);assert.equal(c.hubVisit,undefined);
+   const crossed=act('dive_exit',{zone:opposite});assert.equal(crossed.zone,opposite);assert.deepEqual(crossed.position,{x:48,y:25});assert.equal(c.hubVisit,undefined); // Westbound Desert walkers step into Honeydew Village beside its east gate.
   }
  }finally{db.close();}
 });
@@ -45,7 +45,7 @@ test('walking back onto every Dive portal returns to the hall after needs settle
   act('create',{name:'Walker'});
   for(const hub of ['princess-rose','honeydew-lantern','littlebig-clockwork']){
    act('enter',{zone:hub,loadout:{player_info:{playerHealth:50,playerHealthMax:50},inventory:[{item_id:'adult_food'}]}});
-   place(9,0);const hall=act('hub_visit',{zone:hub+'-dives'});
+   place(...(hub==='honeydew-lantern'?[25,25]:[9,0]));const hall=act('hub_visit',{zone:hub+'-dives'}); // Honeydew: the Community Hall doorstep; others: the lobby's top-wall gap.
    for(const pad of hall.zones.find(z=>z.id===hall.zone).portals){
     place(pad.x,pad.y);const entered=act('dive_enter',{zone:pad.target});
     const floor=entered.zones.find(z=>z.id===pad.target),portal=floor.exits.find(e=>e.zone===hub)??floor.entrance;
