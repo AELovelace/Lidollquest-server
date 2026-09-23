@@ -23,21 +23,23 @@ function fixture(options={}){
  return {db,awards,loadout,player,place,near,engage,win,act,command,snap,as:n=>owner=n,advance:ms=>time+=ms,setTime:t=>time=Date.parse(t),restart:setup,raw:input=>zones.act('',input),tick:()=>zones.tick(),close:()=>db.close()};
 }
 
-test('area chat follows individual rooms and corridors, survives reconnect and excludes previous editions',()=>{
+test('area chat is one stream per floor heard within the radius, survives reconnect and excludes previous editions',()=>{
  const f=fixture();try{
   const a=f.player(),b=f.player('bob');f.as('alice');
   const floor=f.snap(a).zones.find(z=>z.id===DIVE_ZONE),room=floor.rooms[1];
+  const dist2=(p,q)=>(p.x-q.x)**2+(p.y-q.y)**2,radius=f.snap(a).chatRadius;assert.equal(radius,8);
   f.place(a,room);f.act(a,'chat',{text:'Room one'});
-  const area=f.snap(a).chatArea.id;
-  f.as('bob');assert.equal(f.snap(b).chat.length,0);
-  f.place(b,room);assert.equal(f.snap(b).chat[0].text,'Room one');assert.equal(f.snap(b).chatArea.id,area);
-  f.place(b,floor.rooms[2]);assert.equal(f.snap(b).chat.length,0);f.act(b,'chat',{text:'Room two'});
-  f.as('alice');assert.equal(f.snap(a).chat.length,1);assert.equal(f.snap(a).chat[0].text,'Room one');
-  f.restart();assert.equal(f.snap(a).chat[0].text,'Room one');
+  const area=f.snap(a).chatArea.id;assert.match(f.snap(a).chatArea.name,/floor/);assert.equal(JSON.parse(area).length,4,'route, edition and depth only: no room index');
+  const far=floor.rooms.reduce((best,r)=>dist2(r,room)>dist2(best,room)?r:best);assert.ok(dist2(far,room)>radius*radius,'the floor has a room out of earshot');
+  f.as('bob');f.place(b,far);assert.equal(f.snap(b).chat.length,0,'same stream, too far to hear');assert.equal(f.snap(b).chatArea.id,area);
+  f.place(b,{x:room.x+2,y:room.y+1});assert.equal(f.snap(b).chat[0].text,'Room one');
   const corridor=pathTo(floor,floor.entrance,room).find(p=>!floor.rooms.some(r=>p.x>=r.x&&p.x<r.x+r.w&&p.y>=r.y&&p.y<r.y+r.h));
-  assert.ok(corridor);f.place(a,corridor);assert.equal(f.snap(a).chat.length,0);assert.match(f.snap(a).chatArea.name,/corridors/);
-  f.act(a,'chat',{text:'Hallway'});f.as('bob');f.place(b,corridor);assert.equal(f.snap(b).chat[0].text,'Hallway');
-  f.as('alice');f.setTime('2026-09-21T11:00:01Z');f.tick();f.act(a,'enter',{zone:'princess-rose'});f.act(a,'dive_enter',{loadout:f.loadout});
+  assert.ok(corridor);f.place(b,corridor);assert.equal(f.snap(b).chatArea.id,area,'corridors share the floor stream; walls no longer split a conversation');
+  f.place(b,far);f.act(b,'chat',{text:'Far away'});
+  f.as('alice');assert.deepEqual(f.snap(a).chat.map(m=>m.text),['Room one'],'a far speaker is not heard');
+  f.place(a,far);assert.deepEqual(f.snap(a).chat.map(m=>m.text),['Room one','Far away'],'walking over brings their line into earshot and keeps your own');
+  f.restart();assert.equal(f.snap(a).chat[0].text,'Room one');
+  f.setTime('2026-09-21T11:00:01Z');f.tick();f.act(a,'enter',{zone:'princess-rose'});f.act(a,'dive_enter',{loadout:f.loadout});
   const next=f.snap(a).zones.find(z=>z.id===DIVE_ZONE);f.place(a,next.rooms[1]);assert.notEqual(f.snap(a).chatArea.id,area);assert.equal(f.snap(a).chat.length,0);
  }finally{f.close();}
 });

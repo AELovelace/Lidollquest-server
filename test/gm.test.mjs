@@ -561,3 +561,20 @@ test('a malformed trusted-proxy list is rejected at startup',()=>{
  assert.throws(()=>createQuestService({gmTrustProxy:'nginx.example',walletClient:{}}),/LIDOLLQUEST_GM_TRUST_PROXY/);
  assert.throws(()=>createQuestService({gmTrustProxy:'10.1.1.20/40',walletClient:{}}),/LIDOLLQUEST_GM_TRUST_PROXY/);
 });
+
+test('a gamemaster can clear every message in one room; other streams and the audit trail are untouched',async()=>{
+ const h=harness();await h.started;
+ try{
+  await h.ok(playerToken,'create',{name:'Poppy'});await h.ok(playerToken,'enter',{zone:'honeydew-lantern'});
+  await h.ok(playerToken,'chat',{text:'one'});await h.ok(playerToken,'chat',{text:'two'});await h.ok(playerToken,'chat',{channel:'global',text:'ooc stays'});
+  assert.equal((await h.act('clear_chat',{zone:''})).body.error,'gm_unknown_zone');
+  assert.equal((await h.act('clear_chat',{zone:'nowhere'})).body.error,'gm_unknown_zone');
+  const cleared=await h.act('clear_chat',{zone:'honeydew-lantern',reason:'spam wave'});
+  assert.equal(cleared.status,200);assert.equal(cleared.body.result.removed,2);assert.equal(cleared.body.result.zoneName,'Lantern Court');
+  assert.equal((await h.gm('/gm/chat?zone=honeydew-lantern')).body.messages.length,0);
+  assert.equal((await h.gm('/gm/chat?zone=global%3Aooc')).body.messages.length,1);
+  assert.equal((await h.ok(playerToken,'heartbeat')).chat.length,0);
+  const entry=(await h.gm('/gm/overview')).body.audit.find(a=>a.action==='clear_chat');
+  assert.equal(entry.target,'honeydew-lantern');assert.equal(entry.detail.removed,2);
+ }finally{await h.close();}
+});

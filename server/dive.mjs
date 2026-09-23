@@ -65,9 +65,8 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function chatArea(c,p){
   const state=JSON.parse(c.state),visit=state.dive,record=owns(visit)?getFloor(visit.edition):null;
   if(!record)return null;
-  const index=record.floor.rooms.findIndex(room=>inside(room,p.x,p.y));
-  return {id:JSON.stringify([zoneId,route,record.edition,record.depth,index]),name:index<0?name+' corridors':index===0?name+' entrance':name+' room '+(index+1)};
- } // Scope by committed position, route, edition and floor; clients cannot choose another room's chat.
+  return {id:JSON.stringify([zoneId,route,record.edition,record.depth]),name:name+' floor '+record.depth};
+ } // One stream per route, edition and floor; who hears a line is decided by distance from the speaker's tile (chatReach in zones.mjs), not by room walls.
  function ensure(){
   if(closed||!config.enabled)return;
   if(config.static&&enabledQuery.get(route))return; // Static routes keep their existing floor forever; only a brand-new route generates once.

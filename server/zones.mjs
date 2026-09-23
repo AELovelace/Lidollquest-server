@@ -9,6 +9,9 @@ import {randomUUID,randomInt,createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation,MAX_LEVEL,MAX_STAT} from './combat.mjs';
+const CHAT_RADIUS_DEFAULT=Math.max(1,Number(process.env.CHAT_RADIUS)||8); // Tiles an area message travels from where it was spoken; env CHAT_RADIUS overrides it without a code change.
+const HEARTBEAT_WRITE_INTERVAL=5000; // A heartbeat rewrites quest_presence.seen only when the stored value is at least this old (freshness window is 30 s).
+const CHAT_ECHO_WINDOW=4000; // A repeat of the same line by the same character inside this window is a lag double-send, not new speech.
 const FACING={south:0,north:1,east:2,west:3}; /* Shared with the client's objPlayer.facing encoding (0 S, 1 N, 2 E, 3 W). */
 import {hubArrival,hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog,campaignDives,DAILY_COIN_CAP,configureShopLoot} from './hubs.mjs';
 import {createDive,DIVE_ZONE} from './dive.mjs';
@@ -56,7 +59,8 @@ function canonical(value,depth=0){ // Nested loadout property order may change w
  return value;
 }
 
-export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},highDesertOptions={},onPresence=()=>{},compute=null,live=null,audit=()=>{}}={}) {
+export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},highDesertOptions={},onPresence=()=>{},compute=null,live=null,audit=()=>{},chatRadius=CHAT_RADIUS_DEFAULT}={}) {
+ const chatReach=Math.max(1,Number(chatRadius)||CHAT_RADIUS_DEFAULT),chatReach2=chatReach*chatReach; // Squared once so the per-row distance test below never takes a square root.
  let privateSprites=null;
  const chooseAvatar=(value,owner,cid='')=>typeof value==='string'&&value.startsWith('private-')?(privateSprites?.authorize(owner,cid,value)??fail(403,'Private sprites are unavailable.')):avatar(value);
  db.exec(`CREATE TABLE IF NOT EXISTS quest_characters(id TEXT PRIMARY KEY,owner TEXT NOT NULL,name TEXT NOT NULL,created INTEGER NOT NULL,revision INTEGER NOT NULL DEFAULT 0,state TEXT NOT NULL,creation_id TEXT NOT NULL,UNIQUE(owner,creation_id));
@@ -66,10 +70,13 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  CREATE TABLE IF NOT EXISTS quest_commands(character_id TEXT NOT NULL,request_id TEXT NOT NULL,revision INTEGER NOT NULL,fingerprint TEXT NOT NULL,result TEXT NOT NULL,PRIMARY KEY(character_id,request_id));
  CREATE TABLE IF NOT EXISTS quest_chat(seq INTEGER PRIMARY KEY AUTOINCREMENT,zone TEXT NOT NULL,owner TEXT NOT NULL,character_id TEXT NOT NULL,name TEXT NOT NULL,text TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE INDEX IF NOT EXISTS quest_chat_zone ON quest_chat(zone,seq);
+ CREATE INDEX IF NOT EXISTS quest_chat_owner ON quest_chat(owner,created);
+ CREATE INDEX IF NOT EXISTS quest_chat_character ON quest_chat(character_id,created);
  CREATE TABLE IF NOT EXISTS quest_reward_days(owner TEXT NOT NULL,day INTEGER NOT NULL,coins INTEGER NOT NULL,PRIMARY KEY(owner,day));
  CREATE TABLE IF NOT EXISTS quest_request_limits(owner TEXT PRIMARY KEY,started INTEGER NOT NULL,count INTEGER NOT NULL);`);
  if(!db.prepare('PRAGMA table_info(quest_presence)').all().some(c=>c.name==='facing'))db.exec('ALTER TABLE quest_presence ADD COLUMN facing INTEGER NOT NULL DEFAULT 0'); /* Sprite facing (0 south,1 north,2 east,3 west) so Ctrl+direction turns are visible to other players. */
  if(!db.prepare('PRAGMA table_info(quest_chat)').all().some(c=>c.name==='emote'))db.exec('ALTER TABLE quest_chat ADD COLUMN emote INTEGER NOT NULL DEFAULT 0'); /* "/me" messages are flagged server-side so clients render "* Name does a thing" without trusting player text. */
+ if(!db.prepare('PRAGMA table_info(quest_chat)').all().some(c=>c.name==='x')){db.exec('ALTER TABLE quest_chat ADD COLUMN x INTEGER');db.exec('ALTER TABLE quest_chat ADD COLUMN y INTEGER');} /* Tile the speaker stood on when the line was sent. NULL (announcements, RP notices without a tile, rows from before this column) reaches the whole area. */
  managementSchema(db);
  const rp=createRoleplay(db,{now,roll});
  const rpp=createRpp(db,{now});
@@ -111,7 +118,8 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   act(i,c,state,input,p){const id=state.dive?.zone??(state.dive?DIVE_ZONE:input.zone??p?.zone);return engine(id).act(i,c,state,input,p);}}; // Share settlement and leases, while keeping weekly maps and claims route-scoped.
  function identity(secret){const i=grant(secret,'wallet:read');if(i.client!=='lidollquest')fail(403,'These zones are for LiDollQuest.');return i;} // A registered app ID alone is not a player identity.
  function atomic(work){db.exec('BEGIN IMMEDIATE');try{const result=work();db.exec('COMMIT');return result;}catch(e){db.exec('ROLLBACK');throw e;}}
- function limit(owner){const time=now();db.prepare('DELETE FROM quest_request_limits WHERE started<=?').run(time-60000);const r=db.prepare('INSERT INTO quest_request_limits VALUES (?,?,1) ON CONFLICT(owner) DO UPDATE SET count=count+1 RETURNING count').get(owner,time);if(r.count>600)fail(429,'Please slow down.');}
+ const requestWindows=new Map(); // owner -> {started,count}: the per-minute request ceiling lives in memory, so counting a request no longer costs a database write; a restart simply opens a fresh minute.
+ function limit(owner){const time=now();let w=requestWindows.get(owner);if(!w||w.started<=time-60000){w={started:time,count:0};requestWindows.set(owner,w);}if(++w.count>600)fail(429,'Please slow down.');if(requestWindows.size>4096)for(const [key,old] of requestWindows)if(old.started<=time-60000)requestWindows.delete(key);} // Same 600-per-rolling-minute ceiling as before; stale windows are swept only once the map grows large.
  function character(owner,id){if(!identifier(id))fail(400,'Choose an online character.');const c=db.prepare('SELECT * FROM quest_characters WHERE owner=? AND id=?').get(owner,id);if(!c)fail(404,'Online character not found for this account.');return c;}
  function publicCharacter(c){return {avatar:'player',id:c.id,name:c.name,revision:c.revision,...publicCombatState(JSON.parse(c.state))};} // Existing characters keep their default appearance without a database migration.
  function presence(i,c,controller){const p=db.prepare('SELECT * FROM quest_presence WHERE owner=? AND character_id=? AND grant_id=? AND controller=? AND seen>?').get(i.owner,c.id,i.id,controller,now()-30000);if(!p)fail(409,'Enter the zone again; this connection no longer controls the character.');return p;}
@@ -129,7 +137,8 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   const p=c?db.prepare('SELECT * FROM quest_presence WHERE owner=? AND character_id=? AND seen>?').get(i.owner,c.id,now()-30000):null;
   const peers=p?db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT 64').all(p.zone,now()-30000).filter(r=>enabled(r.owner)).map(r=>{const peer=JSON.parse(r.state);peerStates.set(r.character_id,peer);return {id:r.character_id,name:r.name,restricted:restricted.includes(r.owner),avatar:peer.avatar??'player',x:r.x,y:r.y,facing:r.facing??0,stage:peer.run?.stage??0,fighting:peer.run?.phase==='fight'};}):[]; /* facing lets idle avatars show the direction chosen with Ctrl+arrow. */
   const chatArea=isDungeon(p?.zone)?dive.chatArea(c,p):p?{id:p.zone,name:zone(p.zone).name}:null;
-  const chatRows=(area,channel)=>db.prepare('SELECT seq,name,text,emote,character_id AS characterId,owner,owner LIKE \'activity:%\' AS activity,(SELECT id FROM quest_rp_posts WHERE chat_seq=seq) AS rpId FROM quest_chat WHERE zone=? AND created>? ORDER BY seq DESC LIMIT 100').all(area,now()-86400000).filter(row=>!restricted.includes(row.owner.replace(/^activity:/,''))).slice(0,40).reverse().map(({owner,emote,...row})=>({...row,emote:emote===1,channel})); // RP links come from committed posts, never from player text; emote is a server-set flag.
+  const audible=row=>row.x===null||row.owner===i.owner||row.owner==='activity:'+i.owner||(row.x-p.x)**2+(row.y-p.y)**2<=chatReach2; // Area speech is heard within chatReach tiles of where it was spoken; announcements (no tile) and your own lines always show.
+  const chatRows=(area,channel)=>db.prepare('SELECT seq,name,text,emote,x,y,character_id AS characterId,owner,owner LIKE \'activity:%\' AS activity,(SELECT id FROM quest_rp_posts WHERE chat_seq=seq) AS rpId FROM quest_chat WHERE zone=? AND created>? ORDER BY seq DESC LIMIT 100').all(area,now()-86400000).filter(row=>!restricted.includes(row.owner.replace(/^activity:/,''))&&(channel!=='area'||audible(row))).slice(0,40).reverse().map(({owner,emote,x,y,...row})=>({...row,emote:emote===1,channel})); // RP links come from committed posts, never from player text; emote is a server-set flag; speaker tiles never leave the server.
   const chat=chatArea?chatRows(chatArea.id,'area'):[],globalChat=p?chatRows('global:ooc','global'):[]; // The reserved global stream is independent of hub, dungeon room and weekly edition.
   const partyView=parties.snapshot(c,restricted),partyChat=p&&partyView.party?chatRows('party:'+partyView.party.id,'party'):[]; /* Party chat exists only while the character is in a party; leaving it drops the stream from snapshots. */
   const spent=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,Math.floor(now()/86400000))?.coins??0;
@@ -147,7 +156,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   const questMap=p&&quests&&(Object.keys(live.published().npcs).length||Object.keys(live.published().quests).length)?quests.placements.view(p.zone):null;
   const edition=state?.dive?.edition;
   const visiblePeers=isDungeon(p?.zone)?peers.filter(peer=>peerStates.get(peer.id).dive?.edition===edition):peers;
-  return {zoneCategory:p?zoneCategory(p.zone):null,gamemaster:i.gamemaster===true,questNpcLinks:live?Object.values(live.published().quests).flatMap(q=>[...q.givers,q.turn_in.npc]):[],onlineQuests:quests?quests.snapshot(c,state):null,questVersion:1,worldInstance:questMap?.edition,worldPlacements:questMap?questMap.placements.map(n=>({...n,instance:questMap.edition,...(n.kind==='npc'?{name:live.published().npcs[n.content]?.name??n.name,sprite:live.published().npcs[n.content]?.sprite??n.sprite}:{})})):[],rpp:c?rpp.snapshot(c,state):null,rp:{...rp.snapshot(c,chatArea?.id,restricted),candidates:c&&p?rpCandidates(i,c,p).map(({id,name})=>({id,name})):[]},dungeons:[...engines].map(([id,route])=>({id,category:route.category,enabled:route.available()})),serverTime:now(),loadoutSupport:true,combatVersion:2,diveCombatVersion:3,partySupport:true,globalChatSupport:true,partyChatSupport:true,emoteSupport:true,facingSupport:true,levelCap:MAX_LEVEL,statCap:MAX_STAT,partyChat,...partyView,contentRevision:live?.published().revision??0,contentVersion:1,worldMonsters:p&&!isDungeon(p.zone)&&hubEvents?hubEvents.engine(p.zone).monsters():[],encounter:c?(state?.run?.kind==='hub_event'?hubEvents.engine(p.zone).snapshot(state):engine(p?.zone).encounterSnapshot(state)):null,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,tundra:tundra.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);if(summary.lastResult?.defeatScene){const {content,...scene}=summary.lastResult.defeatScene;summary.lastResult={...summary.lastResult,defeatScene:scene};}return summary;}),character:c?{avatar:'player',id:c.id,name:c.name,revision:c.revision,...publicCombatState(state)}:null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,globalChat,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null,view),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP};
+  return {zoneCategory:p?zoneCategory(p.zone):null,gamemaster:i.gamemaster===true,questNpcLinks:live?Object.values(live.published().quests).flatMap(q=>[...q.givers,q.turn_in.npc]):[],onlineQuests:quests?quests.snapshot(c,state):null,questVersion:1,worldInstance:questMap?.edition,worldPlacements:questMap?questMap.placements.map(n=>({...n,instance:questMap.edition,...(n.kind==='npc'?{name:live.published().npcs[n.content]?.name??n.name,sprite:live.published().npcs[n.content]?.sprite??n.sprite}:{})})):[],rpp:c?rpp.snapshot(c,state):null,rp:{...rp.snapshot(c,chatArea?.id,restricted),candidates:c&&p?rpCandidates(i,c,p).map(({id,name})=>({id,name})):[]},dungeons:[...engines].map(([id,route])=>({id,category:route.category,enabled:route.available()})),serverTime:now(),loadoutSupport:true,combatVersion:2,diveCombatVersion:3,partySupport:true,globalChatSupport:true,chatRadius:chatReach,partyChatSupport:true,emoteSupport:true,facingSupport:true,levelCap:MAX_LEVEL,statCap:MAX_STAT,partyChat,...partyView,contentRevision:live?.published().revision??0,contentVersion:1,worldMonsters:p&&!isDungeon(p.zone)&&hubEvents?hubEvents.engine(p.zone).monsters():[],encounter:c?(state?.run?.kind==='hub_event'?hubEvents.engine(p.zone).snapshot(state):engine(p?.zone).encounterSnapshot(state)):null,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,tundra:tundra.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);if(summary.lastResult?.defeatScene){const {content,...scene}=summary.lastResult.defeatScene;summary.lastResult={...summary.lastResult,defeatScene:scene};}return summary;}),character:c?{avatar:'player',id:c.id,name:c.name,revision:c.revision,...publicCombatState(state)}:null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,globalChat,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null,view),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP};
  } // Snapshots expose only zone avatars and chat, never wallet credentials or account IDs.
  function read(secret,id,view={}){const i=identity(secret);limit(i.owner);districts.refresh();dive.tick();if(view.companion&&!id)id=db.prepare('SELECT character_id FROM quest_presence WHERE owner=? ORDER BY seen DESC LIMIT 1').get(i.owner)?.character_id??db.prepare('SELECT id FROM quest_characters WHERE owner=? ORDER BY created DESC,id LIMIT 1').get(i.owner)?.id;
   return snapshot(i,id?character(i.owner,id):null,view);} // Only this read honours the companion view; every in-play snapshot keeps the beside-a-bank rule.
@@ -171,7 +180,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  const rpArea=(c,p)=>isDungeon(p.zone)?dive.chatArea(c,p)?.id:p.zone;
  function rpCandidates(i,c,p){
   const area=rpArea(c,p);
-  return db.prepare('SELECT c.*,p.zone,p.x,p.y FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? AND c.owner<>? ORDER BY c.name,c.id').all(p.zone,now()-30000,c.owner).filter(other=>enabled(other.owner)&&!(i.blockedAccounts??[]).includes(other.owner)&&rpArea(other,other)===area); // Partner selection follows area chat, including dungeon room and edition boundaries.
+  return db.prepare('SELECT c.*,p.zone,p.x,p.y FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? AND c.owner<>? ORDER BY c.name,c.id').all(p.zone,now()-30000,c.owner).filter(other=>enabled(other.owner)&&!(i.blockedAccounts??[]).includes(other.owner)&&rpArea(other,other)===area&&(other.x-p.x)**2+(other.y-p.y)**2<=chatReach2); // Partner selection follows area chat: same floor/edition and within chatReach tiles.
  }
  function act(secret,input,{buildSnapshot=true}={}){
   const response=(i,c)=>buildSnapshot?snapshot(i,c):{character:{id:c.id}}; // HTTP needs only the committed character ID until purchases settle; direct callers retain full snapshots.
@@ -180,7 +189,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   districts.refresh(); // Materialize monthly maps before the command transaction, keeping rollback and cached geometry consistent.
   dive.tick(); // Scheduled resets and enemy decisions precede command revision checks.
   if(!input||!identifier(input.request_id)||!identifier(input.controller))fail(400,'Supply a stable request ID and controller.');
-   if(Object.keys(input).some(k=>!['quest_version','quest','quest_revision','conversation','placement','choice','branch','objective','content_version','rpp_cost','partners','rp_id','defeat_version','scene','equipment_version','action','request_id','controller','character_id','revision','name','zone','direction','text','channel','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance','item_id','creation','online_revision','member','invitation','battle','target','cycle','patch'].includes(k)))fail(400,'Unsupported zone input.');
+   if(Object.keys(input).some(k=>!['quest_version','quest','quest_revision','conversation','placement','choice','branch','objective','content_version','rpp_cost','partners','rp_id','defeat_version','scene','equipment_version','action','request_id','controller','character_id','revision','name','zone','direction','text','channel','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance','item_id','creation','online_revision','member','invitation','battle','target','cycle','patch','seq'].includes(k)))fail(400,'Unsupported zone input.'); // seq: a chat sequence number for gm_chat_delete.
   if(input.channel!==undefined&&(input.action!=='chat'||!['area','global','party'].includes(input.channel)))fail(400,'Choose Area or OOC (or Party) for this message.'); // A client cannot supply an arbitrary destination or broadcast to several channels at once.
   if(input.takeover!==undefined&&(input.action!=='enter'||typeof input.takeover!=='boolean'))fail(400,'Control can only be transferred by an explicit entry request.'); // Never let movement or a background heartbeat steal control.
   return atomic(()=>{
@@ -205,7 +214,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    if(input.action==='gm_catalog'){gmTools.requireGm(i);presence(i,c,input.controller);return {...response(i,c),receipt:{action:'gm_catalog',request_id:input.request_id,gm:gmTools.catalog(i,c)}};} // A read-only list: no revision bump or journal row, exactly like rp_read.
    if(old){if(old.fingerprint!==fingerprint)fail(409,'This request ID already describes another action.');return {...response(i,c),receipt:JSON.parse(old.result)};}
    if(input.action==='heartbeat'){
-    presence(i,c,input.controller);db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);return response(i,c);
+    const lease=presence(i,c,input.controller);if(now()-lease.seen>=HEARTBEAT_WRITE_INTERVAL)db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);return response(i,c); /* Presence stays fresh for 30 s, so a heartbeat only needs to touch the row every few seconds; the other heartbeats commit nothing and cost no disk write. */
    }
    if((!JSON.parse(c.state).run?.sharedEncounter||!['turn_ready','attack','cast','charm','allure','use_item','flee','submit','stand'].includes(input.action))&&(!Number.isSafeInteger(input.revision)||input.revision!==c.revision))fail(409,'Character changed; refresh before choosing another action.');
    const state=JSON.parse(c.state);let p,rpId;
@@ -262,7 +271,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     if(muted(i.owner))fail(403,'A gamemaster has muted this account; you can still play normally.','rp_muted');
     if(state.run)fail(409,'Finish combat before posting RP.');
     if(isDungeon(p.zone)&&input.edition!==state.dive?.edition)fail(409,'The dungeon edition changed. Refresh before acting.');
-    rpId=rp.post(c,input,rpArea(c,p),rpCandidates(i,c,p));
+    rpId=rp.post(c,input,rpArea(c,p),rpCandidates(i,c,p),{x:p.x,y:p.y}); // The notice line is spoken from the author's tile.
     db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);
    }else if(input.action==='chat'){
     p=presence(i,c,input.controller);
@@ -270,13 +279,17 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     let emote=0;if(/^\/me(\s|$)/i.test(text)){text=text.replace(/^\/me\s*/i,'').trim();emote=1;if(!text)fail(400,'Describe the action after /me.');} /* "/me waves" is stored as an emote flag plus the action text; the prefix never reaches other clients as literal text. */
     if(/^\/\w+/.test(text))fail(400,'Unknown chat command. Use /me for actions or the Party channel for party chat.'); /* Reserve the slash namespace so typos never leak as speech; the client expands /p into the party channel before sending. */
     if(muted(i.owner))fail(403,'A gamemaster has muted this account; you can still play normally.');
-    if(db.prepare('SELECT COUNT(*) AS n FROM quest_chat WHERE owner=? AND created>?').get(i.owner,now()-10000).n>=5)fail(429,'Wait a moment before sending another message.'); // One account quota spans both channels and every zone.
     if(isDungeon(p.zone)&&input.edition!==state.dive?.edition)fail(409,'The dungeon edition changed. Refresh before acting.');
     const partyId=input.channel==='party'?parties.party(c.id)?.id:null;if(input.channel==='party'&&!partyId)fail(409,'Join a party to use party chat.'); /* Party speech is scoped by the party id, so it follows members across hubs, annexes and dungeon rooms. */
     const area=input.channel==='global'?'global:ooc':input.channel==='party'?'party:'+partyId:isDungeon(p.zone)?dive.chatArea(c,p)?.id:p.zone;
     if(!area)fail(409,'Re-enter the area before chatting.');
-    db.prepare('INSERT INTO quest_chat(zone,owner,character_id,name,text,created,emote) VALUES (?,?,?,?,?,?,?)').run(area,i.owner,c.id,c.name,text,now(),emote);
-    db.prepare('DELETE FROM quest_chat WHERE zone=? AND seq NOT IN (SELECT seq FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 100)').run(area,area);
+    const echo=db.prepare('SELECT seq FROM quest_chat WHERE character_id=? AND zone=? AND text=? AND emote=? AND created>?').get(c.id,area,text,emote,now()-CHAT_ECHO_WINDOW); /* A laggy client that re-sends the same line under a fresh request ID must not post it twice: the repeat succeeds quietly, stores nothing and never counts against the quota. */
+    if(!echo){
+     if(db.prepare('SELECT COUNT(*) AS n FROM quest_chat WHERE owner=? AND created>?').get(i.owner,now()-10000).n>=5)fail(429,'Wait a moment before sending another message.'); // One account quota spans both channels and every zone.
+     const spoken=input.channel==='global'||input.channel==='party'?[null,null]:[p.x,p.y]; // Only area speech has a tile; global and party streams reach every member wherever they stand.
+     db.prepare('INSERT INTO quest_chat(zone,owner,character_id,name,text,created,emote,x,y) VALUES (?,?,?,?,?,?,?,?,?)').run(area,i.owner,c.id,c.name,text,now(),emote,spoken[0],spoken[1]);
+     db.prepare('DELETE FROM quest_chat WHERE zone=? AND seq NOT IN (SELECT seq FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 100)').run(area,area);
+    }
     db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);
    }else if(hubEvents&&divePresence&&!isDungeon(divePresence.zone)&&(state.run?.kind==='hub_event'&&!['enter','chat'].includes(input.action)||input.action==='hub_encounter'||input.action==='defeat_complete'&&state.pendingDefeat?.hub)){
     p=presence(i,c,input.controller);hubEvents.engine(p.zone).act(c,state,input,p);
@@ -422,7 +435,8 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    } // Preserve the first imported paperdoll; subsequent changes require the paid makeover, including legacy-client imports.
    publishPlayerActivity(db,{previous:JSON.parse(c.state),state,action:input.action,character:c,owner:i.owner,now,area:()=>{
     const p=db.prepare('SELECT * FROM quest_presence WHERE character_id=? AND seen>?').get(c.id,now()-30000);
-    return p?(isDungeon(p.zone)?dive.chatArea({...c,state:JSON.stringify(state)},p)?.id:p.zone):null;
+    const id=p?(isDungeon(p.zone)?dive.chatArea({...c,state:JSON.stringify(state)},p)?.id:p.zone):null;
+    return id?{id,x:p.x,y:p.y}:null; // Notices are spoken from the character's committed tile, so they travel the same radius as speech.
    }}); // Emit shared notices in this same transaction, using the committed route/room rather than a client-supplied destination.
    if(JSON.stringify(state.loadout)!==JSON.stringify(JSON.parse(c.state).loadout))state.loadoutRevision=c.revision+1;
    c.revision++;c.state=JSON.stringify(state);db.prepare('UPDATE quest_characters SET revision=?,state=? WHERE id=?').run(c.revision,c.state,c.id);

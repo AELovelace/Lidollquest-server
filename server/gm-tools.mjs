@@ -10,7 +10,7 @@ const ONLINE_WINDOW=30000; // Matches the presence freshness window every other 
 const HUB_SPAWN={x:10,y:9}; // hubDefinition() falls back to this tile when a room declares no spawn.
 const zoneInfo=new Map(gmZones.map(z=>[z.id,z])); // One shared catalogue with the web panel: names, kinds and which rooms may be warped into.
 const fail=(status,message,code='gm_tool_rejected')=>{throw Object.assign(Error(message),{status,code});}; // Never 401/403: the client treats those as a lost sign-in.
-export const GM_ACTIONS=Object.freeze(['gm_catalog','gm_warp_zone','gm_warp_player','gm_summon','gm_zone_reload','gm_quest_start','gm_quest_advance','gm_quest_complete','gm_quest_reset']); // Every command the in-game panel can send.
+export const GM_ACTIONS=Object.freeze(['gm_catalog','gm_warp_zone','gm_warp_player','gm_summon','gm_zone_reload','gm_quest_start','gm_quest_advance','gm_quest_complete','gm_quest_reset','gm_chat_delete','gm_chat_clear']); // Every command the in-game panel can send.
 
 export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new Map(),quests=null,live=null,audit=()=>{}}={}){
  const requireGm=i=>{if(i?.gamemaster!==true)fail(409,'GM tools need the gamemaster role on your LiDollID account.','gm_not_gamemaster');}; // 409 keeps an ordinary player's session alive if a stale client ever shows the panel.
@@ -70,12 +70,32 @@ export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new 
   const players=db.prepare('SELECT p.character_id,p.zone,p.x,p.y,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.seen>? ORDER BY c.name,p.character_id LIMIT 200').all(now()-ONLINE_WINDOW)
    .map(r=>{const s=JSON.parse(r.state);return {id:r.character_id,name:r.name,zone:r.zone,zoneName:zoneName(r.zone),x:r.x,y:r.y,self:r.character_id===c.id,dive:isDungeon(r.zone),fighting:Boolean(s.run)};}); // Only names and positions: no account ids, inventory or credentials.
   const zones=gmZones.filter(z=>z.warp||diveOpen(z.id)).map(z=>({id:z.id,name:z.name,kind:z.kind})); // Warpable rooms and live Dives, in the web panel's order.
-  return {serverTime:now(),players,zones,quests:quests?quests.gmCatalog(c):[]};
+  const here=fresh(c.id),area=here?chatAreaOf(c,here):null; // The GM's own area, resolved from their committed presence rather than anything the client sent.
+  const chat=area?db.prepare("SELECT seq,name,text,owner LIKE 'activity:%' AS activity FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 24").all(area).reverse().map(r=>({seq:r.seq,name:r.name,text:r.text,activity:r.activity===1})):[]; // Every recent line in the area, ignoring the radius, so moderation sees what any player here could have seen.
+  return {serverTime:now(),players,zones,quests:quests?quests.gmCatalog(c):[],chat,chatArea:area};
  }
 
+ function chatAreaOf(c,p){return isDungeon(p.zone)&&dives.has(p.zone)?dives.get(p.zone).chatArea(c,p)?.id??null:p.zone;} // Same stream id the snapshot builder uses: hub room, or route+edition+floor inside a Dive.
  function act(i,c,state,input,p){ // Runs inside the caller's transaction; the caller bumps the GM's revision and writes the receipt.
   requireGm(i);
   const action=input.action;
+  if(action==='gm_chat_delete'){ // One line by sequence number, from any area.
+   const seq=Number(input.seq);
+   if(!Number.isSafeInteger(seq)||seq<1)fail(400,'Choose a message to remove.','gm_unknown_message');
+   const row=db.prepare('SELECT * FROM quest_chat WHERE seq=?').get(seq)??fail(404,'That message has already gone.','gm_unknown_message');
+   db.prepare('DELETE FROM quest_chat WHERE seq=?').run(seq);
+   audit(i.owner,'delete_chat',row.owner.replace(/^activity:/,''),{zone:row.zone,name:row.name,text:row.text,reason:'in-game'}); // Same audit action as the web panel, so one report covers both.
+   state.hubNotice='[GM] Removed a line by '+row.name+'.';state.hubNoticeAt=now();
+   return;
+  }
+  if(action==='gm_chat_clear'){ // Every line in the GM's current area.
+   const area=chatAreaOf(c,p);
+   if(!area)fail(409,'Re-enter the area before clearing its chat.','gm_unknown_zone');
+   const removed=Number(db.prepare('DELETE FROM quest_chat WHERE zone=?').run(area).changes);
+   audit(i.owner,'clear_chat',area,{removed,reason:'in-game'});
+   state.hubNotice='[GM] Cleared '+removed+(removed===1?' message':' messages')+' from this area.';state.hubNoticeAt=now();
+   return;
+  }
   if(action==='gm_warp_zone'){
    movable(state,'You',true);
    const z=warpable(input.zone),to=z?z.id:String(input.zone);
