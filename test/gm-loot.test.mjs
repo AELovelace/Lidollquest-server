@@ -94,14 +94,48 @@ test('loot tuning, affix authoring and preview require staff authorization and a
   assert.deepEqual(again.body.result.item,preview.body.result.item,'same seed, same sample');
   assert.equal((await h.act('loot_preview',{item_id:'not_a_real_item'})).status,400);
 
+  // Garments and styles are editable the same way; styles are words only.
+  assert.ok(view.body.garments.length>=25&&view.body.styles.length>=30);
+  assert.ok(view.body.generatedCategories.includes('panties')&&view.body.garmentStatKeys.includes('wet_resist'));
+  const garment={id:'panel_diaper',name:'Panel Diaper',category:'panties',weight:3,desc:'A {style_lower} test diaper.',value:8,childish:9,wet_resist:-3,bulk:4,is_diaper:true};
+  assert.equal((await h.act('loot_garment_save',{garment},{token:playerToken})).status,403);
+  const savedGarment=await h.act('loot_garment_save',{garment,reason:'Event tier.'});
+  assert.equal(savedGarment.status,200,JSON.stringify(savedGarment.body));
+  assert.equal((await h.gm('/gm/loot')).body.counts.garments,view.body.counts.garments+1);
+  assert.match((await h.act('loot_garment_save',{garment:{...garment,id:'bad_cat',category:'weapon'}})).body.error_description,/not a category the generator dresses/);
+  const style={id:'panel_style',name:'Panel',weight:2,desc:'Written from the panel.',garments:['panel_diaper','*']};
+  const savedStyle=await h.act('loot_style_save',{style,reason:'Event look.'});
+  assert.equal(savedStyle.status,200,JSON.stringify(savedStyle.body));
+  assert.deepEqual(savedStyle.body.result.style.garments,['*']);
+  assert.match((await h.act('loot_style_save',{style:{...style,id:'sneaky',def:3}})).body.error_description,/words only/);
+  assert.match((await h.act('loot_style_save',{style:{...style,id:'lost',garments:['nothing_here']}})).body.error_description,/not a garment/);
+  const dressed=await h.act('loot_style_save',{style:{id:'only_panel',name:'Only',weight:1,desc:'x',garments:['panel_diaper']}});
+  assert.equal(dressed.status,200);
+  assert.match((await h.act('loot_garment_delete',{id:'panel_diaper'})).body.error_description,/Styles still dress that garment/);
+  assert.equal((await h.act('loot_style_delete',{id:'only_panel'})).status,200);
+  assert.equal((await h.act('loot_garment_delete',{id:'panel_diaper'})).body.result.source,'custom');
+  const namedByAStyle=new Set(view.body.styles.flatMap(s=>s.garments||[]));
+  const shippedGarment=view.body.garments.find(g=>g.source==='shipped'&&g.category==='dress'&&!namedByAStyle.has(g.id)); // a garment a style names by id cannot retire
+  const retiredGarment=await h.act('loot_garment_delete',{id:shippedGarment.id});
+  assert.equal(retiredGarment.status,200,JSON.stringify(retiredGarment.body));
+  assert.equal(retiredGarment.body.result.retired,true);
+  const named=view.body.garments.find(g=>g.source==='shipped'&&namedByAStyle.has(g.id));
+  assert.match((await h.act('loot_garment_delete',{id:named.id})).body.error_description,/Styles still dress that garment/);
+  assert.equal((await h.act('loot_garment_restore',{id:shippedGarment.id})).status,200);
+  const preview2=await h.act('loot_preview',{item_id:view.body.items.find(id=>id.startsWith('latex_dress_')),level:20,luck:'chest',seed:'gen'});
+  assert.equal(preview2.status,200,JSON.stringify(preview2.body));
+  assert.ok(preview2.body.result.item.item_id.startsWith('gen_'),'the preview shows the generated base');
+
   // Reset returns to the shipped content, and every write left an audit line.
   assert.equal((await h.act('loot_reset',{scope:'nonsense'})).status,400);
   assert.equal((await h.act('loot_reset',{scope:'all',reason:'Event over.'})).status,200);
   const reset=await h.gm('/gm/loot');
   assert.equal(reset.body.tuning.level_growth,view.body.tuning.level_growth);
   assert.equal(reset.body.counts.affixes,view.body.counts.affixes);
+  assert.equal(reset.body.counts.garments,view.body.counts.garments);
+  assert.equal(reset.body.counts.styles,view.body.counts.styles);
   const audit=(await h.gm('/gm/overview')).body.audit;
-  for(const action of ['loot_tune','loot_save','loot_delete','loot_restore','loot_reset'])assert.ok(audit.some(row=>row.action===action&&row.actor===staff),action+' recorded');
+  for(const action of ['loot_tune','loot_save','loot_delete','loot_restore','loot_reset','loot_garment_save','loot_garment_delete','loot_garment_restore','loot_style_save','loot_style_delete'])assert.ok(audit.some(row=>row.action===action&&row.actor===staff),action+' recorded');
   assert.ok(!audit.some(row=>row.action==='loot_preview'),'previews are not audited');
  }finally{await h.close();}
 });

@@ -90,7 +90,8 @@ function weightedPick(entries,weightOf,rnd){ // Same basis as the GML: a 1e-6 gr
 
 const range=(rnd,lo,hi)=>{if(hi<lo)[lo,hi]=[hi,lo];return lo+rnd(hi-lo+1);};
 
-export function createLootRoller(table){ // Built from the shipped table plus live overrides; a missing table returns a no-op roller.
+export function createLootRoller(table,bases=null){ // Built from the shipped table plus live overrides; a missing table returns a no-op roller. `bases` adds the style + garment generator.
+ const generator=createBaseGenerator(bases);
  const has=!!table&&typeof table==='object';
  const tuning={...DEFAULT_TUNING,...(has?table.tuning??{}:{})};
  const order=Array.isArray(tuning.rarity_order)&&tuning.rarity_order.length?tuning.rarity_order:RARITY_ORDER;
@@ -156,8 +157,11 @@ export function createLootRoller(table){ // Built from the shipped table plus li
    const cfg=rarityConfig(tuning,item?.loot?.rarity??'common');
    return {curseMult:cfg.curse_mult,blessMult:cfg.bless_mult,force:cfg.force_blessing?'blessing':''};
   },
-  roll(item,key,{level=1,luck='chest'}={}){ // `key` is the chest's own seed key, so the roll is stable across regeneration.
+  generator,
+  roll(item,key,{level=1,luck='chest'}={}){ // `key` is the chest's own seed key, so the roll is stable across regeneration. Returns the rolled struct, which may be a generated replacement.
    if(!item||typeof item!=='object')return item;
+   if(generator.has&&generator.isTemplate(item)){const gen=generator.generate(item.category,seeded(key+':base'),item.is_diaper===true);if(gen){gen.source_item_id=item.item_id;item=gen;}} // numbered art variant -> style + garment base
+   if(item.source_item_id===undefined)item.source_item_id=item.item_id;
    if(item.base_name===undefined)item.base_name=String(item.name??'');
    if(!has||!eligible(item))return item;
    const rnd=seeded(key+':loot');
@@ -192,6 +196,46 @@ export function createLootRoller(table){ // Built from the shipped table plus li
    return item;
   },
  };
+}
+
+// ── Generated bases: STYLE (words only) + GARMENT (slot and mechanics) ──────────────
+// dive-data.json `bases`, exported from datafiles/generation/loot_bases.json. A numbered pool
+// item (catalog entry flagged pool_template) is swapped for a generated base before the
+// rarity/affix roll, so "Latex Dress #7" becomes "Maid Dress" and then "Crinkly Maid Dress of
+// the Nursery". Styles never carry stats; diaper absorbency is a garment tier.
+export const GENERATED_CATEGORIES=Object.freeze(['dress','torso','pants','skirt','bra','gloves','shoes','socks','corset','panties','diaper_cover']);
+const GARMENT_STAT_KEYS=['atk','atk_min','atk_max','def','hp_regen','value','childish','wet_resist','tum_resist','bulk','bulk_threshold','conceals_panties','is_diaper','is_bloomers','shame_delta','atk_mod','def_mod','dex_mod','int_mod','cha_mod'];
+
+export function createBaseGenerator(bases){
+ const has=!!bases&&typeof bases==='object';
+ const tuning={generated_categories:GENERATED_CATEGORIES,id_prefix:'gen_',id_separator:'_',name_format:'{style} {garment}',desc_format:'{garment_desc} {style_desc}',...(has?bases.tuning??{}:{})};
+ const garments=has&&Array.isArray(bases.garments)?bases.garments:[],styles=has&&Array.isArray(bases.styles)?bases.styles:[];
+ const cats=Array.isArray(tuning.generated_categories)?tuning.generated_categories:GENERATED_CATEGORIES;
+ const list=style=>Array.isArray(style?.garments)?style.garments:['*'];
+ const allows=(style,gid)=>!!style&&style.enabled!==false&&(list(style).includes('*')||list(style).includes(gid));
+ const isTemplate=item=>!!item&&typeof item==='object'&&item.pool_template===true&&!item.quest_item&&cats.includes(item.category);
+ function build(style,garment){ // Every number comes from the garment; the style contributes words only.
+  const sname=String(style.name??style.id),gname=String(garment.name??garment.id);
+  const name=String(tuning.name_format).replace('{style}',sname).replace('{garment}',gname);
+  const gdesc=String(garment.desc??'').replaceAll('{style_lower}',sname.toLowerCase()).replaceAll('{style}',sname);
+  const desc=String(tuning.desc_format).replace('{garment_desc}',gdesc).replace('{style_desc}',String(style.desc??'')).trim();
+  const item={item_id:tuning.id_prefix+String(style.id)+tuning.id_separator+String(garment.id),name,base_name:name,category:String(garment.category??'torso'),desc,rarity:'common',generated:{style:String(style.id),garment:String(garment.id)},magical_effects:[]};
+  for(const key of GARMENT_STAT_KEYS)if(garment[key]!==undefined)item[key]=garment[key];
+  return item;
+ }
+ const pickGarment=(category,rnd,isDiaper)=>weightedPick(garments.filter(g=>g&&g.enabled!==false&&g.category===category&&(isDiaper===undefined||(g.is_diaper===true)===isDiaper)),g=>num(g.weight,1),rnd); // a diaper template stays a diaper: the per-floor panty cap is decided before generation
+ const pickStyle=(gid,rnd)=>weightedPick(styles.filter(s=>allows(s,gid)),s=>num(s.weight,1),rnd);
+ function generate(category,rnd,isDiaper){const garment=pickGarment(category,rnd,isDiaper);if(!garment)return null;const style=pickStyle(String(garment.id),rnd);return style?build(style,garment):null;}
+ function fromId(id){ // "gen_maid_dress" -> the same base; the longest garment suffix wins ("thick_diaper" over "diaper").
+  if(typeof id!=='string'||(tuning.id_prefix&&!id.startsWith(tuning.id_prefix)))return null;
+  const rest=id.slice(tuning.id_prefix.length);
+  let best=null;
+  for(const g of garments){const suffix=tuning.id_separator+String(g.id);if(rest.length>suffix.length&&rest.endsWith(suffix)&&(!best||String(g.id).length>String(best.id).length))best=g;}
+  if(!best)return null;
+  const style=styles.find(s=>s.id===rest.slice(0,rest.length-String(best.id).length-tuning.id_separator.length));
+  return style?build(style,best):null;
+ }
+ return {has:has&&garments.length>0&&styles.length>0,isTemplate,generate,fromId,build,garments,styles,tuning};
 }
 
 export function describeLoot(item){ // "rare - Item Level 14 (Crinkly / of the Nursery)" for inspection and the /gm preview; "" for plain gear.

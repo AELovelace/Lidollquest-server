@@ -141,6 +141,40 @@ test('base stats scale with item level and the tier budget, theme stats do not',
  assert.equal(describeLoot(pick(item=>item.category==='food')),'');
 });
 
+test('numbered pool items become generated style + garment bases before the roll',()=>{
+ const bases=data.bases;
+ assert.ok(bases.garments.length>=25&&bases.styles.length>=30);
+ for(const style of bases.styles)for(const key of ['def','atk','value','childish','wet_resist','bulk','is_diaper'])assert.equal(style[key],undefined,'styles are words only: '+style.id+' carries '+key);
+ const roller=createLootRoller(table,bases);
+ const template=pick(item=>item.pool_template===true&&item.category==='dress');
+ const rolled=roller.roll(structuredClone(template),'gen:1',{level:10,luck:'chest'});
+ assert.notEqual(rolled.item_id,template.item_id,'the template was replaced');
+ assert.ok(rolled.item_id.startsWith('gen_'),rolled.item_id);
+ assert.equal(rolled.source_item_id,template.item_id,'the pool id it replaced is remembered for chest matching');
+ assert.equal(rolled.category,'dress');
+ assert.ok(rolled.generated.style&&rolled.generated.garment);
+ assert.ok(!rolled.name.includes('#'),rolled.name);
+ const again=roller.roll(structuredClone(template),'gen:1',{level:10,luck:'chest'});
+ assert.deepEqual(again,rolled,'deterministic from the key');
+ assert.deepEqual(roller.generator.fromId(rolled.item_id),roller.generator.build(bases.styles.find(s=>s.id===rolled.generated.style),bases.garments.find(g=>g.id===rolled.generated.garment)),'the id rebuilds the same base');
+ assert.equal(roller.generator.fromId('gen_nonsense_thing'),null);
+ assert.equal(roller.generator.fromId('printed_diaper'),null,'authored ids are never mistaken for generated ones');
+ // Diaper tiers are garments: every generated diaper takes its absorbency from the garment, never the style.
+ const diaperTemplate=pick(item=>item.pool_template===true&&item.category==='panties'&&item.is_diaper);
+ const seenGarments=new Set(),seenStyles=new Set();
+ for(let s=0;s<300;s++){
+  const item=roller.roll(structuredClone(diaperTemplate),'diaper:'+s,{level:20,luck:'chest'});
+  const garment=bases.garments.find(g=>g.id===item.generated.garment),style=bases.styles.find(st=>st.id===item.generated.style);
+  assert.ok(style.garments.includes('*')||style.garments.includes(garment.id),style.id+' may not dress '+garment.id);
+  assert.equal(item.is_diaper,garment.is_diaper,'is_diaper comes from the garment');
+  seenGarments.add(garment.id);seenStyles.add(style.id);
+ }
+ assert.ok(seenGarments.size>=4,'several absorbency tiers appear');
+ assert.ok(seenStyles.size>=10,'many styles appear');
+ const unique=pick(item=>!item.pool_template&&item.category==='weapon');
+ assert.equal(roller.roll(structuredClone(unique),'u:1',{level:10}).item_id,unique.item_id,'authored uniques keep their identity');
+});
+
 test('a missing table is a no-op roller so routes without loot data behave as before',()=>{
  const roller=createLootRoller(null);
  const base=pick(item=>item.category==='weapon');

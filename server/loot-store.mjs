@@ -15,7 +15,7 @@
 // which changes whenever any override does, so an edit lands on the next chest
 // without restarting the service. Already-claimed loot keeps the roll it was given.
 
-import {LOOT_SLOTS,LOOT_STAT_KEYS,RARITY_ORDER} from './loot.mjs';
+import {LOOT_SLOTS,LOOT_STAT_KEYS,RARITY_ORDER,GENERATED_CATEGORIES} from './loot.mjs';
 
 const CONTROL=/[\x00-\x1f\x7f]/g; // Stripped from every stored string, exactly as the moderation tools do.
 const ID=/^[a-z][a-z0-9_]{2,47}$/; // Ids are referenced by save data (item.loot.prefix.id), so keep them boring and stable.
@@ -165,16 +165,58 @@ export function validateAffix(input){
  };
 }
 
+// ── Generated bases: garments and styles, editable the same way ──────────────────────────
+// The shipped tables arrive as `bases` inside dive-data.json (from loot_bases.json). Garments own
+// the slot and every number; styles are words only, and the validator refuses a style that
+// carries a stat. Shipped rows retire to a tombstone; custom rows delete outright.
+const GARMENT_NUMBER_BOUNDS={def:[-20,50],atk:[-20,50],atk_min:[0,50],atk_max:[0,50],hp_regen:[0,20],value:[0,10000],childish:[0,10],wet_resist:[-10,10],tum_resist:[-10,10],bulk:[0,20],bulk_threshold:[0,20],shame_delta:[-50,50],atk_mod:[-20,20],def_mod:[-20,20],dex_mod:[-20,20],int_mod:[-20,20],cha_mod:[-20,20]};
+const GARMENT_FLAGS=['conceals_panties','is_diaper','is_bloomers'];
+export const GARMENT_STAT_KEYS=Object.freeze([...Object.keys(GARMENT_NUMBER_BOUNDS),...GARMENT_FLAGS]);
+
+export function validateGarment(input){
+ if(!input||typeof input!=='object'||Array.isArray(input))fail('Send a garment to save.');
+ const id=clean(input.id,48).toLowerCase();
+ if(!ID.test(id))fail('Id must be 3-48 characters: a lowercase letter, then letters, digits or underscores.');
+ const category=clean(input.category,24);
+ if(!GENERATED_CATEGORIES.includes(category))fail(`'${category}' is not a category the generator dresses.`);
+ const out={id,name:clean(input.name,40)||id.replace(/_/g,' '),category,weight:number(input.weight??5,{min:0.1,max:1000,label:'Weight'}),desc:clean(input.desc,240),enabled:input.enabled!==false};
+ if(!out.desc)fail('Give the garment a description; {style} and {style_lower} are substituted.');
+ for(const [key,[min,max]] of Object.entries(GARMENT_NUMBER_BOUNDS)){
+  if(input[key]===undefined||input[key]===null||input[key]==='')continue;
+  out[key]=number(input[key],{min,max,label:key,integer:true}); // every garment number is a whole number
+ }
+ for(const key of GARMENT_FLAGS)if(input[key]===true)out[key]=true;
+ if(out.atk_min!==undefined&&out.atk_max!==undefined&&out.atk_max<out.atk_min)fail('atk_max cannot be below atk_min.');
+ if(out.value===undefined)fail('Give the garment a coin value.');
+ return out;
+}
+
+export function validateStyle(input,garments=[]){
+ if(!input||typeof input!=='object'||Array.isArray(input))fail('Send a style to save.');
+ const id=clean(input.id,48).toLowerCase();
+ if(!ID.test(id))fail('Id must be 3-48 characters: a lowercase letter, then letters, digits or underscores.');
+ for(const key of GARMENT_STAT_KEYS)if(input[key]!==undefined&&input[key]!==null&&input[key]!=='')fail(`Styles are words only: '${key}' belongs on a garment.`);
+ const list=Array.isArray(input.garments)?[...new Set(input.garments.map(g=>clean(g,48)))]:['*'];
+ if(!list.length)fail('List the garments this style may dress, or * for all of them.');
+ const known=new Set(garments.map(g=>g.id));
+ for(const gid of list)if(gid!=='*'&&!known.has(gid))fail(`'${gid}' is not a garment.`);
+ const out={id,name:clean(input.name,40)||id.replace(/_/g,' '),weight:number(input.weight??4,{min:0.1,max:1000,label:'Weight'}),desc:clean(input.desc,240),garments:list.includes('*')?['*']:list,enabled:input.enabled!==false};
+ if(!out.desc)fail('Give the style a description sentence.');
+ return out;
+}
+
 export function createLootStore(db,{now=Date.now}={}){
  db.exec(`CREATE TABLE IF NOT EXISTS gm_loot_tuning(key TEXT PRIMARY KEY,value TEXT NOT NULL,updated INTEGER NOT NULL,actor TEXT NOT NULL DEFAULT '');
- CREATE TABLE IF NOT EXISTS gm_loot_affixes(id TEXT PRIMARY KEY,payload TEXT NOT NULL,retired INTEGER NOT NULL DEFAULT 0,updated INTEGER NOT NULL,actor TEXT NOT NULL DEFAULT '');`);
+ CREATE TABLE IF NOT EXISTS gm_loot_affixes(id TEXT PRIMARY KEY,payload TEXT NOT NULL,retired INTEGER NOT NULL DEFAULT 0,updated INTEGER NOT NULL,actor TEXT NOT NULL DEFAULT '');
+ CREATE TABLE IF NOT EXISTS gm_loot_bases(kind TEXT NOT NULL,id TEXT NOT NULL,payload TEXT NOT NULL,retired INTEGER NOT NULL DEFAULT 0,updated INTEGER NOT NULL,actor TEXT NOT NULL DEFAULT '',PRIMARY KEY(kind,id));`);
 
  // A cheap fingerprint of every override, so the roller can cache itself and rebuild
  // only when a gamemaster has actually changed something.
  const revision=()=>{
   const t=db.prepare('SELECT COUNT(*) AS n,COALESCE(MAX(updated),0) AS at FROM gm_loot_tuning').get();
   const a=db.prepare('SELECT COUNT(*) AS n,COALESCE(MAX(updated),0) AS at FROM gm_loot_affixes').get();
-  return `${t.n}:${t.at}:${a.n}:${a.at}`;
+  const b=db.prepare('SELECT COUNT(*) AS n,COALESCE(MAX(updated),0) AS at FROM gm_loot_bases').get();
+  return `${t.n}:${t.at}:${a.n}:${a.at}:${b.n}:${b.at}`;
  };
 
  const tuningRows=()=>Object.fromEntries(db.prepare('SELECT key,value FROM gm_loot_tuning').all().map(r=>[r.key,JSON.parse(r.value)]));
@@ -246,11 +288,70 @@ export function createLootStore(db,{now=Date.now}={}){
 
  function reset(scope='all'){ // Fall back to exactly what the last content export shipped.
   const what=String(scope??'all');
-  if(what!=='tuning')db.prepare('DELETE FROM gm_loot_affixes').run();
-  if(what!=='affixes')db.prepare('DELETE FROM gm_loot_tuning').run();
+  if(what==='all'||what==='affixes')db.prepare('DELETE FROM gm_loot_affixes').run();
+  if(what==='all'||what==='tuning')db.prepare('DELETE FROM gm_loot_tuning').run();
+  if(what==='all'||what==='bases')db.prepare('DELETE FROM gm_loot_bases').run();
   return {scope:what};
  }
 
- return {revision,apply,list,tune,save,remove,restore,reset,
+ // ── Bases (garments and styles) ──
+ const baseRows=kind=>db.prepare('SELECT * FROM gm_loot_bases WHERE kind=?').all(kind);
+ function applyBases(shipped){ // Merge the shipped garments and styles with every live override.
+  const out={tuning:{...(shipped?.tuning??{})},garments:[...(shipped?.garments??[])],styles:[...(shipped?.styles??[])]};
+  for(const kind of ['garment','style']){
+   const list=kind==='garment'?out.garments:out.styles;
+   for(const row of baseRows(kind)){
+    const i=list.findIndex(e=>e.id===row.id);
+    if(i>=0)list.splice(i,1);
+    if(row.retired)continue;
+    list.push(JSON.parse(row.payload));
+   }
+  }
+  return out;
+ }
+ function listBases(shipped,kind){ // shipped, edited, custom and retired rows in one roster.
+  const base=new Map((kind==='garment'?shipped?.garments:shipped?.styles??[]).map(e=>[e.id,e]));
+  const out=[],seen=new Set();
+  for(const row of baseRows(kind)){seen.add(row.id);out.push({...JSON.parse(row.payload),source:base.has(row.id)?'edited':'custom',retired:Boolean(row.retired),updated:row.updated,actor:row.actor});}
+  for(const [id,e] of base)if(!seen.has(id))out.push({...e,source:'shipped',retired:false,updated:0,actor:''});
+  out.sort((a,b)=>a.id.localeCompare(b.id));
+  return out;
+ }
+ function saveBase(kind,input,shipped,actor=''){
+  const row=kind==='garment'?validateGarment(input):validateStyle(input,applyBases(shipped).garments);
+  db.prepare('INSERT INTO gm_loot_bases(kind,id,payload,retired,updated,actor) VALUES (?,?,?,0,?,?) ON CONFLICT(kind,id) DO UPDATE SET payload=excluded.payload,retired=0,updated=excluded.updated,actor=excluded.actor')
+   .run(kind,row.id,JSON.stringify(row),now(),String(actor??''));
+  return row;
+ }
+ function removeBase(kind,id,shipped,actor=''){
+  const key=clean(id,48).toLowerCase();
+  const base=(kind==='garment'?shipped?.garments:shipped?.styles??[]).find(e=>e.id===key);
+  const override=db.prepare('SELECT * FROM gm_loot_bases WHERE kind=? AND id=?').get(kind,key);
+  if(!base&&!override)fail(`That ${kind} does not exist.`,'gm_unknown_loot');
+  if(kind==='garment'){ // A garment still named by a live style would leave that style pointing at nothing.
+   const live=applyBases(shipped);
+   const users=live.styles.filter(s=>Array.isArray(s.garments)&&s.garments.includes(key)&&s.id!==key).map(s=>s.id);
+   if(users.length)fail(`Styles still dress that garment: ${users.slice(0,6).join(', ')}. Edit them first.`);
+   if(live.garments.filter(g=>g.id!==key&&g.category===base?.category).length===0&&base)fail('Keep at least one garment per category, or nothing can drop there.');
+  }
+  if(base){
+   db.prepare('INSERT INTO gm_loot_bases(kind,id,payload,retired,updated,actor) VALUES (?,?,?,1,?,?) ON CONFLICT(kind,id) DO UPDATE SET payload=excluded.payload,retired=1,updated=excluded.updated,actor=excluded.actor')
+    .run(kind,key,JSON.stringify({...base,enabled:false}),now(),String(actor??''));
+   return {kind,id:key,retired:true,source:'shipped'};
+  }
+  db.prepare('DELETE FROM gm_loot_bases WHERE kind=? AND id=?').run(kind,key);
+  return {kind,id:key,retired:false,source:'custom'};
+ }
+ function restoreBase(kind,id,actor=''){
+  const key=clean(id,48).toLowerCase();
+  const row=db.prepare('SELECT * FROM gm_loot_bases WHERE kind=? AND id=?').get(kind,key)??fail(`That ${kind} is not retired.`,'gm_unknown_loot');
+  if(!row.retired)fail(`That ${kind} is already live.`,'gm_unknown_loot');
+  db.prepare('DELETE FROM gm_loot_bases WHERE kind=? AND id=?').run(kind,key);
+  return {kind,id:key,restored:true,actor:String(actor??'')};
+ }
+ function resetBases(){db.prepare('DELETE FROM gm_loot_bases').run();return {scope:'bases'};}
+
+ return {revision,apply,list,tune,save,remove,restore,reset,applyBases,listBases,saveBase,removeBase,restoreBase,resetBases,
+  generatedCategories:GENERATED_CATEGORIES,garmentStatKeys:GARMENT_STAT_KEYS,garmentBounds:GARMENT_NUMBER_BOUNDS,
   tuningKeys:TUNING_KEYS,scalarBounds:SCALAR_BOUNDS,rarityBounds:RARITY_BOUNDS,slots:LOOT_SLOTS,statKeys:LOOT_STAT_KEYS,rarityOrder:RARITY_ORDER,overcapStats:OVERCAP_STATS};
 }

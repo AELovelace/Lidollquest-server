@@ -335,6 +335,54 @@ tr.sel td{background:#2c1e3d}
       <div class="row"><input id="aReason" class="grow" maxlength="240" placeholder="Why (recorded in the audit log)"><button class="go" id="aSave">Save affix</button><button id="aCancel">Cancel</button></div>
     </div>
 
+    <h2 style="margin-top:14px">Garments</h2>
+    <p class="note">The slot and every number of a generated base. Numbered pool items are replaced by a style dressed onto one of these when they drop; a diaper template only ever becomes a diaper garment. Retiring a garment is refused while a style still names it, and each category keeps at least one.</p>
+    <div class="row">
+      <select id="garmentFilter"><option value="">Every category</option></select>
+      <input id="garmentSearch" class="grow" placeholder="Search id or name" maxlength="60">
+      <button class="go" id="garmentNew">Write a new one</button>
+      <button class="bad" id="lootResetBases">Reset garments and styles</button>
+    </div>
+    <div class="scroll"><table><thead><tr><th>Garment</th><th>Category</th><th>Weight</th><th>Numbers</th><th>Source</th><th></th></tr></thead><tbody id="garmentList"></tbody></table></div>
+    <p id="garmentEmpty" class="empty" hidden>Nothing matches that filter.</p>
+    <div id="garmentEditor" class="ench-form" hidden>
+      <h2 id="garmentEditorTitle">Edit garment</h2>
+      <div class="ench">
+        <div><label for="gId">Id</label><input id="gId" maxlength="48" placeholder="lowercase_with_underscores"></div>
+        <div><label for="gName">Name</label><input id="gName" maxlength="40" placeholder="Thin Diaper"></div>
+        <div><label for="gCategory">Category</label><select id="gCategory"></select></div>
+        <div><label for="gWeight">Pick weight</label><input id="gWeight" type="number" min="0.1" max="1000" step="0.1"></div>
+        <div style="grid-column:1/-1"><label for="gDesc">Description ({style} and {style_lower} are substituted)</label><input id="gDesc" maxlength="240"></div>
+      </div>
+      <label class="src">Numbers (blank = none)</label>
+      <div class="ench" id="gNumbers"></div>
+      <div class="row" id="gFlags"></div>
+      <div class="row"><label><input type="checkbox" id="gEnabled" checked> Enabled</label></div>
+      <div class="row"><input id="gReason" class="grow" maxlength="240" placeholder="Why (recorded in the audit log)"><button class="go" id="gSave">Save garment</button><button id="gCancel">Cancel</button></div>
+    </div>
+
+    <h2 style="margin-top:14px">Styles</h2>
+    <p class="note">Words only. A style is a name, a sentence and the garments it may dress; the panel refuses any number on a style.</p>
+    <div class="row">
+      <input id="styleSearch" class="grow" placeholder="Search id, name or garment" maxlength="60">
+      <button class="go" id="styleNew">Write a new one</button>
+    </div>
+    <div class="scroll"><table><thead><tr><th>Style</th><th>Weight</th><th>Garments</th><th>Source</th><th></th></tr></thead><tbody id="styleList"></tbody></table></div>
+    <p id="styleEmpty" class="empty" hidden>Nothing matches that filter.</p>
+    <div id="styleEditor" class="ench-form" hidden>
+      <h2 id="styleEditorTitle">Edit style</h2>
+      <div class="ench">
+        <div><label for="sId">Id</label><input id="sId" maxlength="48" placeholder="lowercase_with_underscores"></div>
+        <div><label for="sName">Name</label><input id="sName" maxlength="40" placeholder="Maid"></div>
+        <div><label for="sWeight">Pick weight</label><input id="sWeight" type="number" min="0.1" max="1000" step="0.1"></div>
+        <div style="grid-column:1/-1"><label for="sDesc">Description sentence appended to the item</label><input id="sDesc" maxlength="240"></div>
+      </div>
+      <label class="src">Garments it may dress</label>
+      <div class="slots" id="sGarments"></div>
+      <div class="row"><label><input type="checkbox" id="sEnabled" checked> Enabled</label></div>
+      <div class="row"><input id="sReason" class="grow" maxlength="240" placeholder="Why (recorded in the audit log)"><button class="go" id="sSave">Save style</button><button id="sCancel">Cancel</button></div>
+    </div>
+
     <h2 style="margin-top:14px">Preview a roll</h2>
     <p class="note">Rolls one sample with the live table. It never touches chest receipts or the audit log.</p>
     <div class="ench">
@@ -1067,7 +1115,7 @@ tr.sel td{background:#2c1e3d}
    body.appendChild(tr);
   });
   $("lootEmpty").hidden=shown>0;
-  $("lootCounts").textContent=lootData.counts.affixes+" affixes / "+lootData.counts.titles+" legendary titles live";
+  $("lootCounts").textContent=lootData.counts.affixes+" affixes / "+lootData.counts.titles+" legendary titles / "+lootData.counts.garments+" garments / "+lootData.counts.styles+" styles live";
  }
 
  function lootRenderSlotBoxes(selected){
@@ -1156,6 +1204,95 @@ tr.sel td{background:#2c1e3d}
   });
  }
 
+
+ // ---- Generated bases: garments and styles -------------------------------------
+ function garmentNumbers(g){
+  return lootData.garmentStatKeys.filter(function(k){return g[k]!==undefined&&g[k]!==false&&g[k]!==null;}).map(function(k){return g[k]===true?k:k+" "+g[k];}).join(", ");
+ }
+ function lootRenderGarments(){
+  var filter=$("garmentFilter"),query=$("garmentSearch").value.toLowerCase().trim();
+  if(!filter.options.length||filter.options.length!==lootData.generatedCategories.length+1){clear(filter);filter.appendChild(el("option",null,"Every category")).value="";lootData.generatedCategories.forEach(function(c){var o=el("option",null,c);o.value=c;filter.appendChild(o);});}
+  var body=$("garmentList");clear(body);var shown=0;
+  lootData.garments.forEach(function(g){
+   if(filter.value&&g.category!==filter.value)return;
+   if(query&&(g.id+" "+g.name).toLowerCase().indexOf(query)<0)return;
+   shown++;
+   var tr=el("tr"),name=el("td");name.appendChild(el("span",null,g.name||g.id));
+   if(g.enabled===false&&!g.retired)name.appendChild(el("span","tag mute","off"));
+   if(g.is_diaper)name.appendChild(el("span","tag dive","diaper"));
+   name.appendChild(el("div","mono",g.id));tr.appendChild(name);
+   tr.appendChild(el("td",null,g.category));tr.appendChild(el("td",null,String(g.weight)));
+   tr.appendChild(el("td","mono",garmentNumbers(g)));
+   tr.appendChild(el("td","src "+(g.retired?"retired":g.source),g.retired?"retired":g.source));
+   var actions=el("td"),edit=el("button","sm","Edit");edit.addEventListener("click",function(){openGarmentEditor(g);});actions.appendChild(edit);
+   if(g.retired){var back=el("button","sm","Restore");back.addEventListener("click",function(){act("loot_garment_restore",{id:g.id},"Restored "+g.id+".").then(loadLoot);});actions.appendChild(back);}
+   else{var drop=el("button","sm bad",g.source==="custom"?"Delete":"Retire");drop.addEventListener("click",function(){if(!window.confirm((g.source==="custom"?"Delete ":"Retire ")+g.id+"? Loot already rolled keeps it."))return;act("loot_garment_delete",{id:g.id},g.id+" removed.").then(loadLoot);});actions.appendChild(drop);}
+   tr.appendChild(actions);body.appendChild(tr);
+  });
+  $("garmentEmpty").hidden=shown>0;
+ }
+ function openGarmentEditor(g){
+  $("garmentEditorTitle").textContent=g?("Edit "+g.id):"Write a new garment";
+  $("gId").value=g?g.id:"";$("gId").disabled=Boolean(g);
+  $("gName").value=g?(g.name||""):"";
+  var cat=$("gCategory");clear(cat);lootData.generatedCategories.forEach(function(c){var o=el("option",null,c);o.value=c;if((g?g.category:"panties")===c)o.selected=true;cat.appendChild(o);});
+  $("gWeight").value=g?g.weight:5;$("gDesc").value=g?(g.desc||""):"";
+  var nums=$("gNumbers");clear(nums);
+  Object.keys(lootData.garmentBounds).forEach(function(k){var b=lootData.garmentBounds[k],wrap=el("div"),label=el("label",null,k.replace(/_/g," "));label.setAttribute("for","gn_"+k);var input=el("input");input.id="gn_"+k;input.type="number";input.step="1";input.min=String(b[0]);input.max=String(b[1]);input.value=g&&g[k]!==undefined?String(g[k]):"";wrap.appendChild(label);wrap.appendChild(input);nums.appendChild(wrap);});
+  var flags=$("gFlags");clear(flags);
+  ["conceals_panties","is_diaper","is_bloomers"].forEach(function(k){var label=el("label"),box=el("input");box.type="checkbox";box.id="gf_"+k;box.checked=Boolean(g&&g[k]);label.appendChild(box);label.appendChild(document.createTextNode(" "+k.replace(/_/g," ")));flags.appendChild(label);});
+  $("gEnabled").checked=!g||g.enabled!==false;
+  $("garmentEditor").hidden=false;$("gId").focus();
+ }
+ function collectGarment(){
+  var out={id:$("gId").value.trim().toLowerCase(),name:$("gName").value.trim(),category:$("gCategory").value,weight:Number($("gWeight").value),desc:$("gDesc").value.trim(),enabled:$("gEnabled").checked};
+  Object.keys(lootData.garmentBounds).forEach(function(k){var raw=$("gn_"+k).value.trim();if(raw!=="")out[k]=Number(raw);});
+  ["conceals_panties","is_diaper","is_bloomers"].forEach(function(k){if($("gf_"+k).checked)out[k]=true;});
+  return out;
+ }
+ function lootRenderStyles(){
+  var query=$("styleSearch").value.toLowerCase().trim(),body=$("styleList");clear(body);var shown=0;
+  lootData.styles.forEach(function(s){
+   if(query&&(s.id+" "+s.name+" "+(s.garments||[]).join(" ")).toLowerCase().indexOf(query)<0)return;
+   shown++;
+   var tr=el("tr"),name=el("td");name.appendChild(el("span",null,s.name||s.id));
+   if(s.enabled===false&&!s.retired)name.appendChild(el("span","tag mute","off"));
+   name.appendChild(el("div","mono",s.id));tr.appendChild(name);
+   tr.appendChild(el("td",null,String(s.weight)));
+   var list=s.garments||["*"];tr.appendChild(el("td",null,list.indexOf("*")>=0?"any garment":list.join(", ")));
+   tr.appendChild(el("td","src "+(s.retired?"retired":s.source),s.retired?"retired":s.source));
+   var actions=el("td"),edit=el("button","sm","Edit");edit.addEventListener("click",function(){openStyleEditor(s);});actions.appendChild(edit);
+   if(s.retired){var back=el("button","sm","Restore");back.addEventListener("click",function(){act("loot_style_restore",{id:s.id},"Restored "+s.id+".").then(loadLoot);});actions.appendChild(back);}
+   else{var drop=el("button","sm bad",s.source==="custom"?"Delete":"Retire");drop.addEventListener("click",function(){if(!window.confirm((s.source==="custom"?"Delete ":"Retire ")+s.id+"? Loot already rolled keeps it."))return;act("loot_style_delete",{id:s.id},s.id+" removed.").then(loadLoot);});actions.appendChild(drop);}
+   tr.appendChild(actions);body.appendChild(tr);
+  });
+  $("styleEmpty").hidden=shown>0;
+ }
+ function openStyleEditor(s){
+  $("styleEditorTitle").textContent=s?("Edit "+s.id):"Write a new style";
+  $("sId").value=s?s.id:"";$("sId").disabled=Boolean(s);
+  $("sName").value=s?(s.name||""):"";$("sWeight").value=s?s.weight:4;$("sDesc").value=s?(s.desc||""):"";
+  var host=$("sGarments");clear(host);var selected=s?(s.garments||["*"]):["*"];
+  [{id:"*",name:"any garment"}].concat(lootData.garments.filter(function(g){return !g.retired;})).forEach(function(g){var label=el("label"),box=el("input");box.type="checkbox";box.value=g.id;box.checked=selected.indexOf(g.id)>=0;label.appendChild(box);label.appendChild(document.createTextNode(" "+(g.id==="*"?g.name:g.id)));host.appendChild(label);});
+  $("sEnabled").checked=!s||s.enabled!==false;
+  $("styleEditor").hidden=false;$("sId").focus();
+ }
+ function collectStyle(){
+  var garments=[],boxes=$("sGarments").querySelectorAll("input");
+  for(var i=0;i<boxes.length;i++)if(boxes[i].checked)garments.push(boxes[i].value);
+  return {id:$("sId").value.trim().toLowerCase(),name:$("sName").value.trim(),weight:Number($("sWeight").value),desc:$("sDesc").value.trim(),garments:garments,enabled:$("sEnabled").checked};
+ }
+ $("garmentFilter").addEventListener("change",function(){if(lootData)lootRenderGarments();});
+ $("garmentSearch").addEventListener("input",function(){if(lootData)lootRenderGarments();});
+ $("garmentNew").addEventListener("click",function(){if(lootData)openGarmentEditor(null);});
+ $("gCancel").addEventListener("click",function(){$("garmentEditor").hidden=true;});
+ $("gSave").addEventListener("click",function(){if(!lootData)return;act("loot_garment_save",{garment:collectGarment(),reason:$("gReason").value},"Garment saved.").then(function(result){if(!result)return;$("garmentEditor").hidden=true;$("gReason").value="";loadLoot();});});
+ $("styleSearch").addEventListener("input",function(){if(lootData)lootRenderStyles();});
+ $("styleNew").addEventListener("click",function(){if(lootData)openStyleEditor(null);});
+ $("sCancel").addEventListener("click",function(){$("styleEditor").hidden=true;});
+ $("sSave").addEventListener("click",function(){if(!lootData)return;act("loot_style_save",{style:collectStyle(),reason:$("sReason").value},"Style saved.").then(function(result){if(!result)return;$("styleEditor").hidden=true;$("sReason").value="";loadLoot();});});
+ $("lootResetBases").addEventListener("click",function(){if(!window.confirm("Put every garment and style back to what the last content export shipped? Loot already rolled keeps what it was given."))return;act("loot_reset",{scope:"bases"},"Garments and styles reset to the shipped tables.").then(loadLoot);});
+
  function loadLoot(){
   if(!token)return;
   var epoch=perfEpoch;
@@ -1164,7 +1301,7 @@ tr.sel td{background:#2c1e3d}
    lootData=payload;
    lootRenderRarity();lootRenderScalars();lootRenderLuck();lootRenderOvercap();lootRenderRoutes();
    $("lootTitles").value=(payload.legendary_titles||[]).join("\n");
-   lootRenderList();lootRenderPreviewPickers();
+   lootRenderList();lootRenderGarments();lootRenderStyles();lootRenderPreviewPickers();
   }).catch(function(error){say("err",error.message);});
  }
 

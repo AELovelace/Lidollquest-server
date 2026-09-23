@@ -3,10 +3,24 @@ import {districtData} from './hub-districts.mjs';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {seeded} from './dive-generation.mjs';
+import {createLootRoller} from './loot.mjs';
 
 export const hubData=JSON.parse(readFileSync(new URL('./hub-data.json',import.meta.url),'utf8'));
 export const campaignDives=JSON.parse(readFileSync(new URL('./campaign-dives-data.json',import.meta.url),'utf8')).routes;
 const c=hubData.config;
+// Shop stock rolls through the same Adjective + Item + Rarity table as chests (shipped as `loot`
+// inside dive-data.json). zones.mjs hands over the live gamemaster store so a /gm retune reaches
+// the next day's stock; without it the shipped table alone is used (tests, tools).
+const shopLootData=(()=>{try{return JSON.parse(readFileSync(new URL('./dive-data.json',import.meta.url),'utf8'));}catch{return {};}})();
+const shopLootTable=shopLootData.loot??null,shopLootBases=shopLootData.bases??null;
+let shopLoot={store:null,revision:null,roller:createLootRoller(shopLootTable,shopLootBases)};
+export function configureShopLoot(store){shopLoot={store,revision:null,roller:createLootRoller(store?store.apply(shopLootTable):shopLootTable,store?store.applyBases(shopLootBases):shopLootBases)};}
+function shopRoller(){
+ if(!shopLoot.store)return shopLoot.roller;
+ const revision=shopLoot.store.revision();
+ if(revision!==shopLoot.revision)shopLoot={...shopLoot,revision,roller:createLootRoller(shopLoot.store.apply(shopLootTable),shopLoot.store.applyBases(shopLootBases))};
+ return shopLoot.roller;
+}
 if(!Number.isInteger(c.stock_size)||c.stock_size<1||c.stock_size>24||!Number.isFinite(c.coin_price_multiplier)||c.coin_price_multiplier<=0||c.coin_price_multiplier>100||!Number.isInteger(c.inventory_capacity)||c.inventory_capacity<1||c.inventory_capacity>512||!Number.isInteger(c.rest_tick_ms)||c.rest_tick_ms<500)throw Error('Invalid online hub tuning');
 export const DAILY_COIN_CAP=c.daily_coin_cap??250;
 if(!Number.isInteger(DAILY_COIN_CAP)||DAILY_COIN_CAP<1||DAILY_COIN_CAP>100000)throw Error('Invalid daily coin cap'); // One account-wide UTC earnings allowance shared by arena payouts, dungeon bosses and item sales.
@@ -46,8 +60,10 @@ export function shopOffers(zone,shop,time){
  // Keep a meal available at the general merchant and apothecary every day.
  const food=pool.includes('adult_food')?'adult_food':null;if(food)pool.splice(pool.indexOf(food),1);
  for(let slot=0;slot<c.stock_size&&(pool.length||slot===0&&food);slot++){
-  const id=slot===0&&food?food:pool.splice(rnd(pool.length),1)[0],item=structuredClone(hubData.items[id]);
+  const id=slot===0&&food?food:pool.splice(rnd(pool.length),1)[0];let item=structuredClone(hubData.items[id]);
   if(item.atk_min!==undefined){item.atk=item.atk_min+rnd(item.atk_max-item.atk_min+1);item.desc=item.desc?.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}
+  const roller=shopRoller(),hub=hubRooms.find(r=>r.id===zone)?.parent??zone; // Annex shops use their parent hub's level band.
+  item=roller.roll(item,`${zone}:${shop.id}:${day}:${slot}`,{level:roller.routeLevel(hub,1),luck:'shop'}); // Rarity, level and affixes with shop luck (no epics); the rolled name and value are what the player sees and pays for.
   const price=Math.max(1,Math.ceil(item.value*c.coin_price_multiplier));
   offers.push({id:`${day}-${slot}`,price,item});
  }return offers;

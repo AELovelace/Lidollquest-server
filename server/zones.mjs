@@ -10,7 +10,7 @@ import {readFileSync} from 'node:fs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation,MAX_LEVEL,MAX_STAT} from './combat.mjs';
 const FACING={south:0,north:1,east:2,west:3}; /* Shared with the client's objPlayer.facing encoding (0 S, 1 N, 2 E, 3 W). */
-import {hubArrival,hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog,campaignDives,DAILY_COIN_CAP} from './hubs.mjs';
+import {hubArrival,hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog,campaignDives,DAILY_COIN_CAP,configureShopLoot} from './hubs.mjs';
 import {createDive,DIVE_ZONE} from './dive.mjs';
 import {createEnchantmentStore} from './enchantment-store.mjs';
 import {createLootStore} from './loot-store.mjs';
@@ -81,6 +81,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  const bank=createBank(db);
  const enchantments=createEnchantmentStore(db,{now}); // One live curse/blessing table behind every route and the /gm panel.
  const loot=createLootStore(db,{now}); // One live Adjective + Item + Rarity table behind every route and the /gm panel.
+ configureShopLoot(loot); // Hub shopkeepers roll their daily stock through the same live table.
  const quarters=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,enchantments,loot,...diveOptions});
  const highTrail=floor=>addNorthTrail(floor,(highDesertOptions.data??highDesertData).config)|openExitGaps(floor); // Dustbreak's north-center gate leads up to the High Desert.
  const desert=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:desertData,generate:generateDesert,upgradeFloor:highTrail,travel,enchantments,loot,...desertOptions});

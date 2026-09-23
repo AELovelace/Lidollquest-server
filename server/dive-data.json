@@ -255,7 +255,8 @@
       "childish": 6,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "diaper": {
       "item_id": "diaper",
@@ -2108,7 +2109,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "all_in_one_2": {
       "item_id": "all_in_one_2",
@@ -2122,7 +2124,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "baby_one_piece_1": {
       "item_id": "baby_one_piece_1",
@@ -2136,7 +2139,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "babydoll_top_1": {
       "item_id": "babydoll_top_1",
@@ -2150,7 +2154,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "cat_bodysuit_1": {
       "item_id": "cat_bodysuit_1",
@@ -2165,7 +2170,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "denim_shorttalls_1": {
       "item_id": "denim_shorttalls_1",
@@ -2179,7 +2185,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "diaper_cover_all_1": {
       "item_id": "diaper_cover_all_1",
@@ -2193,7 +2200,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "ducky_romper_1": {
       "item_id": "ducky_romper_1",
@@ -2208,7 +2216,8 @@
       "conceals_panties": true,
       "bulk_threshold": 3,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "frilly_dress_1": {
       "item_id": "frilly_dress_1",
@@ -2242,7 +2251,8 @@
           "lock_text": "You wrestle with {item}, trying to free your legs..."
         }
       ],
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "hello_kitty_dress_1": {
       "item_id": "hello_kitty_dress_1",
@@ -2256,7 +2266,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "holey_all_in_one_1": {
       "item_id": "holey_all_in_one_1",
@@ -2270,7 +2281,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_apron_1": {
       "item_id": "latex_apron_1",
@@ -2284,7 +2296,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_playsuit_1": {
       "item_id": "latex_playsuit_1",
@@ -2298,7 +2311,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "loli_dress_1": {
       "item_id": "loli_dress_1",
@@ -2312,7 +2326,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "mummys_pumpkin_t_shirt_1": {
       "item_id": "mummys_pumpkin_t_shirt_1",
@@ -2326,7 +2341,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "net_body_suit_1": {
       "item_id": "net_body_suit_1",
@@ -2340,7 +2356,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "pinafore_1": {
       "item_id": "pinafore_1",
@@ -2354,7 +2371,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "pink_rubber_top_1": {
       "item_id": "pink_rubber_top_1",
@@ -2368,7 +2386,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "pink_shorttalls_1": {
       "item_id": "pink_shorttalls_1",
@@ -2382,7 +2401,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "pink_tutu_dress_1": {
       "item_id": "pink_tutu_dress_1",
@@ -2396,7 +2416,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "pumpkin_dress_1": {
       "item_id": "pumpkin_dress_1",
@@ -2410,7 +2431,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "romantic_dress_1": {
       "item_id": "romantic_dress_1",
@@ -2424,7 +2446,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "romper_2": {
       "item_id": "romper_2",
@@ -2439,7 +2462,8 @@
       "conceals_panties": true,
       "bulk_threshold": 3,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "romper_3": {
       "item_id": "romper_3",
@@ -2454,7 +2478,8 @@
       "conceals_panties": true,
       "bulk_threshold": 3,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "school_uniform_1": {
       "item_id": "school_uniform_1",
@@ -2468,7 +2493,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "school_uniform_2": {
       "item_id": "school_uniform_2",
@@ -2482,7 +2508,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "schoolgirl_top_1": {
       "item_id": "schoolgirl_top_1",
@@ -2496,7 +2523,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "smock_dress_1": {
       "item_id": "smock_dress_1",
@@ -2510,7 +2538,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "smock_1": {
       "item_id": "smock_1",
@@ -2524,7 +2553,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "sweet_body_leotard_1": {
       "item_id": "sweet_body_leotard_1",
@@ -2539,7 +2569,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tot_body_diaper_1": {
       "item_id": "tot_body_diaper_1",
@@ -2553,7 +2584,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "turquise_check_dress_1": {
       "item_id": "turquise_check_dress_1",
@@ -2567,7 +2599,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "unicorn_tutu_1": {
       "item_id": "unicorn_tutu_1",
@@ -2581,7 +2614,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "a_b_c_shortalls_1": {
       "item_id": "a_b_c_shortalls_1",
@@ -2595,7 +2629,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "anime_superheroine_1": {
       "item_id": "anime_superheroine_1",
@@ -2609,7 +2644,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "apron_1": {
       "item_id": "apron_1",
@@ -2623,7 +2659,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "baby_frilly_1": {
       "item_id": "baby_frilly_1",
@@ -2638,7 +2675,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "is_frilly_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "baby_frilly_2": {
       "item_id": "baby_frilly_2",
@@ -2653,7 +2691,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "is_frilly_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "baby_frilly_3": {
       "item_id": "baby_frilly_3",
@@ -2667,7 +2706,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "basque_1": {
       "item_id": "basque_1",
@@ -2682,7 +2722,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "basque_2": {
       "item_id": "basque_2",
@@ -2697,7 +2738,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bear_top_dress_1": {
       "item_id": "bear_top_dress_1",
@@ -2711,7 +2753,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "bitch_top_1": {
       "item_id": "bitch_top_1",
@@ -2725,7 +2768,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "black_clubbing_dress_1": {
       "item_id": "black_clubbing_dress_1",
@@ -2740,7 +2784,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "is_frilly_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "black_exposing_clubbing_dress_1": {
       "item_id": "black_exposing_clubbing_dress_1",
@@ -2754,7 +2799,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "black_slut_clubbing_dress_1": {
       "item_id": "black_slut_clubbing_dress_1",
@@ -2768,7 +2814,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "blazing_dress_1": {
       "item_id": "blazing_dress_1",
@@ -2782,7 +2829,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "blouse_pink_1": {
       "item_id": "blouse_pink_1",
@@ -2796,7 +2844,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "blouse_1": {
       "item_id": "blouse_1",
@@ -2810,7 +2859,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "blue_clubbing_dress_1": {
       "item_id": "blue_clubbing_dress_1",
@@ -2824,7 +2874,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "blue_exposing_clubbing_dress_1": {
       "item_id": "blue_exposing_clubbing_dress_1",
@@ -2838,7 +2889,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bodysuit_1": {
       "item_id": "bodysuit_1",
@@ -2853,7 +2905,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bodysuit_2a": {
       "item_id": "bodysuit_2a",
@@ -2868,7 +2921,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bodysuit_2b": {
       "item_id": "bodysuit_2b",
@@ -2883,7 +2937,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bodysuit_2c": {
       "item_id": "bodysuit_2c",
@@ -2898,7 +2953,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bodysuit_2e": {
       "item_id": "bodysuit_2e",
@@ -2913,7 +2969,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bodysuit_2f": {
       "item_id": "bodysuit_2f",
@@ -2928,7 +2985,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bodysuit_2g": {
       "item_id": "bodysuit_2g",
@@ -2943,7 +3001,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bodysuit_3": {
       "item_id": "bodysuit_3",
@@ -2958,7 +3017,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bodysuit_4": {
       "item_id": "bodysuit_4",
@@ -2973,7 +3033,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bondage_ribbons_1": {
       "item_id": "bondage_ribbons_1",
@@ -2987,7 +3048,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bridal_dress_1a": {
       "item_id": "bridal_dress_1a",
@@ -3001,7 +3063,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bridal_dress_1b": {
       "item_id": "bridal_dress_1b",
@@ -3015,7 +3078,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bridal_dress_2a": {
       "item_id": "bridal_dress_2a",
@@ -3029,7 +3093,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bridal_dress_2b": {
       "item_id": "bridal_dress_2b",
@@ -3043,7 +3108,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bridal_dress_3a": {
       "item_id": "bridal_dress_3a",
@@ -3057,7 +3123,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bridal_dress_3b": {
       "item_id": "bridal_dress_3b",
@@ -3071,7 +3138,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bridal_dress_4a": {
       "item_id": "bridal_dress_4a",
@@ -3085,7 +3153,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bridal_dress_4b": {
       "item_id": "bridal_dress_4b",
@@ -3099,7 +3168,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bridal_dress_5": {
       "item_id": "bridal_dress_5",
@@ -3113,7 +3183,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bridal_dress_6": {
       "item_id": "bridal_dress_6",
@@ -3127,7 +3198,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bridal_dress_7": {
       "item_id": "bridal_dress_7",
@@ -3141,7 +3213,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bunny_dress_1": {
       "item_id": "bunny_dress_1",
@@ -3155,7 +3228,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bunny_outfit_1": {
       "item_id": "bunny_outfit_1",
@@ -3169,7 +3243,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bunny_suit_1a": {
       "item_id": "bunny_suit_1a",
@@ -3183,7 +3258,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bunny_suit_1b": {
       "item_id": "bunny_suit_1b",
@@ -3197,7 +3273,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bunny_suit_1c": {
       "item_id": "bunny_suit_1c",
@@ -3211,7 +3288,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bunny_suit_2": {
       "item_id": "bunny_suit_2",
@@ -3225,7 +3303,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bunny_suit_3": {
       "item_id": "bunny_suit_3",
@@ -3239,7 +3318,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bunny_suit_4": {
       "item_id": "bunny_suit_4",
@@ -3253,7 +3333,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bunny_suit_5": {
       "item_id": "bunny_suit_5",
@@ -3267,7 +3348,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "business_dress_fetish_1": {
       "item_id": "business_dress_fetish_1",
@@ -3281,7 +3363,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "business_dress_pinstripe_1": {
       "item_id": "business_dress_pinstripe_1",
@@ -3295,7 +3378,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "business_dress_polka_1": {
       "item_id": "business_dress_polka_1",
@@ -3309,7 +3393,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "butterfly_wings_1": {
       "item_id": "butterfly_wings_1",
@@ -3323,7 +3408,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "cafe_maid_dress_1": {
       "item_id": "cafe_maid_dress_1",
@@ -3337,7 +3423,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "chainmail_top_1": {
       "item_id": "chainmail_top_1",
@@ -3351,7 +3438,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "cheerleader_1": {
       "item_id": "cheerleader_1",
@@ -3365,7 +3453,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "cheerleader_2": {
       "item_id": "cheerleader_2",
@@ -3379,7 +3468,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "cheerleader_3": {
       "item_id": "cheerleader_3",
@@ -3393,7 +3483,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "cheerleader_4": {
       "item_id": "cheerleader_4",
@@ -3407,7 +3498,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "cheerleader_5": {
       "item_id": "cheerleader_5",
@@ -3421,7 +3513,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "cheerleader_6": {
       "item_id": "cheerleader_6",
@@ -3435,7 +3528,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "cheerleader_9": {
       "item_id": "cheerleader_9",
@@ -3449,7 +3543,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "commando_outfit_1": {
       "item_id": "commando_outfit_1",
@@ -3463,7 +3558,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "crop_top_1": {
       "item_id": "crop_top_1",
@@ -3475,7 +3571,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "crop_top_2": {
       "item_id": "crop_top_2",
@@ -3487,7 +3584,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "crop_top_3": {
       "item_id": "crop_top_3",
@@ -3499,7 +3597,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "crop_top_4": {
       "item_id": "crop_top_4",
@@ -3511,7 +3610,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "crop_top_5": {
       "item_id": "crop_top_5",
@@ -3523,7 +3623,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "crop_top_6": {
       "item_id": "crop_top_6",
@@ -3535,7 +3636,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "croptop_10": {
       "item_id": "croptop_10",
@@ -3547,7 +3649,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "croptop_11": {
       "item_id": "croptop_11",
@@ -3559,7 +3662,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "croptop_12": {
       "item_id": "croptop_12",
@@ -3571,7 +3675,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "croptop_14": {
       "item_id": "croptop_14",
@@ -3583,7 +3688,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "croptop_16": {
       "item_id": "croptop_16",
@@ -3595,7 +3701,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "croptop_17": {
       "item_id": "croptop_17",
@@ -3607,7 +3714,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "croptop_18": {
       "item_id": "croptop_18",
@@ -3619,7 +3727,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "croptop_19": {
       "item_id": "croptop_19",
@@ -3631,7 +3740,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "croptop_20": {
       "item_id": "croptop_20",
@@ -3643,7 +3753,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "croptop_7": {
       "item_id": "croptop_7",
@@ -3655,7 +3766,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "croptop_8": {
       "item_id": "croptop_8",
@@ -3667,7 +3779,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "croptop_9": {
       "item_id": "croptop_9",
@@ -3679,7 +3792,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "cultist_robe_1": {
       "item_id": "cultist_robe_1",
@@ -3693,7 +3807,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "dainty_dress_1": {
       "item_id": "dainty_dress_1",
@@ -3707,7 +3822,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "dining_dress_1": {
       "item_id": "dining_dress_1",
@@ -3721,7 +3837,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "dining_dress_2": {
       "item_id": "dining_dress_2",
@@ -3735,7 +3852,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "dinosaur_dress_1": {
       "item_id": "dinosaur_dress_1",
@@ -3749,7 +3867,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "doll_dress_1": {
       "item_id": "doll_dress_1",
@@ -3763,7 +3882,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "eveing_dress_1": {
       "item_id": "eveing_dress_1",
@@ -3777,7 +3897,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "eveing_dress_2": {
       "item_id": "eveing_dress_2",
@@ -3791,7 +3912,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "eveing_dress_3": {
       "item_id": "eveing_dress_3",
@@ -3805,7 +3927,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "eveing_dress_4": {
       "item_id": "eveing_dress_4",
@@ -3819,7 +3942,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "eveing_dress_5": {
       "item_id": "eveing_dress_5",
@@ -3833,7 +3957,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "fertility_goddess_dress_1": {
       "item_id": "fertility_goddess_dress_1",
@@ -3847,7 +3972,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "fertility_goddess_dress_2": {
       "item_id": "fertility_goddess_dress_2",
@@ -3861,7 +3987,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "fertility_goddess_dress_3": {
       "item_id": "fertility_goddess_dress_3",
@@ -3875,7 +4002,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "fertility_goddess_dress_4": {
       "item_id": "fertility_goddess_dress_4",
@@ -3889,7 +4017,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "fertility_goddess_dress_5": {
       "item_id": "fertility_goddess_dress_5",
@@ -3903,7 +4032,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "fertility_goddess_dress_6": {
       "item_id": "fertility_goddess_dress_6",
@@ -3917,7 +4047,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "fetish_baby_dress_1": {
       "item_id": "fetish_baby_dress_1",
@@ -3931,7 +4062,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "fishnet_dress_1": {
       "item_id": "fishnet_dress_1",
@@ -3945,7 +4077,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "fishnet_dress_2": {
       "item_id": "fishnet_dress_2",
@@ -3959,7 +4092,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "fishnet_top_1": {
       "item_id": "fishnet_top_1",
@@ -3973,7 +4107,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "fishnet_top_2": {
       "item_id": "fishnet_top_2",
@@ -3987,7 +4122,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "floofy_babydoll_1": {
       "item_id": "floofy_babydoll_1",
@@ -4001,7 +4137,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "full_body_romper_1": {
       "item_id": "full_body_romper_1",
@@ -4016,7 +4153,8 @@
       "conceals_panties": true,
       "bulk_threshold": 3,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "furry_hood_outfit_1": {
       "item_id": "furry_hood_outfit_1",
@@ -4030,7 +4168,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "gingham_dress_1": {
       "item_id": "gingham_dress_1",
@@ -4044,7 +4183,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "gingham_outfit_1": {
       "item_id": "gingham_outfit_1",
@@ -4058,7 +4198,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "hex_dress_1": {
       "item_id": "hex_dress_1",
@@ -4072,7 +4213,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "kimono_1": {
       "item_id": "kimono_1",
@@ -4086,7 +4228,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "kimono_2": {
       "item_id": "kimono_2",
@@ -4100,7 +4243,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "kimono_3": {
       "item_id": "kimono_3",
@@ -4114,7 +4258,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "kimono_4": {
       "item_id": "kimono_4",
@@ -4128,7 +4273,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "kitty_baby_dress_1a": {
       "item_id": "kitty_baby_dress_1a",
@@ -4142,7 +4288,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "kitty_baby_dress_1b": {
       "item_id": "kitty_baby_dress_1b",
@@ -4156,7 +4303,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_catsuit_1": {
       "item_id": "latex_catsuit_1",
@@ -4170,7 +4318,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_catsuit_2": {
       "item_id": "latex_catsuit_2",
@@ -4184,7 +4333,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_catsuit_3": {
       "item_id": "latex_catsuit_3",
@@ -4198,7 +4348,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_dress_1": {
       "item_id": "latex_dress_1",
@@ -4212,7 +4363,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_dress_10": {
       "item_id": "latex_dress_10",
@@ -4226,7 +4378,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_dress_11a": {
       "item_id": "latex_dress_11a",
@@ -4240,7 +4393,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_dress_11b": {
       "item_id": "latex_dress_11b",
@@ -4254,7 +4408,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_dress_12": {
       "item_id": "latex_dress_12",
@@ -4268,7 +4423,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_dress_2": {
       "item_id": "latex_dress_2",
@@ -4282,7 +4438,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_dress_3": {
       "item_id": "latex_dress_3",
@@ -4296,7 +4453,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_dress_4": {
       "item_id": "latex_dress_4",
@@ -4310,7 +4468,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_dress_5": {
       "item_id": "latex_dress_5",
@@ -4324,7 +4483,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_dress_6": {
       "item_id": "latex_dress_6",
@@ -4338,7 +4498,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_dress_7": {
       "item_id": "latex_dress_7",
@@ -4352,7 +4513,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_dress_8": {
       "item_id": "latex_dress_8",
@@ -4366,7 +4528,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_dress_9": {
       "item_id": "latex_dress_9",
@@ -4380,7 +4543,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_dungarees_1": {
       "item_id": "latex_dungarees_1",
@@ -4394,7 +4558,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_jacket_1": {
       "item_id": "latex_jacket_1",
@@ -4408,7 +4573,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_shirt_1": {
       "item_id": "latex_shirt_1",
@@ -4422,7 +4588,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_shirt_2": {
       "item_id": "latex_shirt_2",
@@ -4436,7 +4603,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "leather_jacket_1": {
       "item_id": "leather_jacket_1",
@@ -4450,7 +4618,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "leotard_1": {
       "item_id": "leotard_1",
@@ -4464,7 +4633,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "leotard_2": {
       "item_id": "leotard_2",
@@ -4479,7 +4649,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "leotard_3": {
       "item_id": "leotard_3",
@@ -4494,7 +4665,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "lolita_swimsuit_1": {
       "item_id": "lolita_swimsuit_1",
@@ -4508,7 +4680,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "lollipop_dress_1": {
       "item_id": "lollipop_dress_1",
@@ -4522,7 +4695,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "lycra_bodysuit_1": {
       "item_id": "lycra_bodysuit_1",
@@ -4537,7 +4711,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "magical_dress_1": {
       "item_id": "magical_dress_1",
@@ -4551,7 +4726,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "magical_dress_2": {
       "item_id": "magical_dress_2",
@@ -4565,7 +4741,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "magical_dress_3": {
       "item_id": "magical_dress_3",
@@ -4579,7 +4756,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "magical_dress_4": {
       "item_id": "magical_dress_4",
@@ -4593,7 +4771,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "magical_dress_5": {
       "item_id": "magical_dress_5",
@@ -4608,7 +4787,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "magical_dress_6": {
       "item_id": "magical_dress_6",
@@ -4623,7 +4803,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "magical_dress_7": {
       "item_id": "magical_dress_7",
@@ -4638,7 +4819,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "maid_dress_1": {
       "item_id": "maid_dress_1",
@@ -4652,7 +4834,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "maid_dress_12": {
       "item_id": "maid_dress_12",
@@ -4666,7 +4849,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "maid_dress_13": {
       "item_id": "maid_dress_13",
@@ -4680,7 +4864,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "maid_dress_14": {
       "item_id": "maid_dress_14",
@@ -4695,7 +4880,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "maid_dress_2": {
       "item_id": "maid_dress_2",
@@ -4709,7 +4895,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "maid_dress_3": {
       "item_id": "maid_dress_3",
@@ -4724,7 +4911,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "maid_dress_4": {
       "item_id": "maid_dress_4",
@@ -4738,7 +4926,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "maid_dress_5": {
       "item_id": "maid_dress_5",
@@ -4753,7 +4942,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "maid_dress_6": {
       "item_id": "maid_dress_6",
@@ -4768,7 +4958,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "maid_dress_7": {
       "item_id": "maid_dress_7",
@@ -4782,7 +4973,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "maid_dress_8": {
       "item_id": "maid_dress_8",
@@ -4796,7 +4988,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "maid_dress_9": {
       "item_id": "maid_dress_9",
@@ -4810,7 +5003,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "maid_waitress_dress_1": {
       "item_id": "maid_waitress_dress_1",
@@ -4824,7 +5018,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "maternity_dress_1": {
       "item_id": "maternity_dress_1",
@@ -4838,7 +5033,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "milking_harness_1": {
       "item_id": "milking_harness_1",
@@ -4852,7 +5048,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "missing_dress_1": {
       "item_id": "missing_dress_1",
@@ -4866,7 +5063,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "missing_hobble_dress_1": {
       "item_id": "missing_hobble_dress_1",
@@ -4880,7 +5078,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "missing_shirt_1": {
       "item_id": "missing_shirt_1",
@@ -4894,7 +5093,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "missing_suit_1": {
       "item_id": "missing_suit_1",
@@ -4908,7 +5108,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "missing_super_short_dress_1": {
       "item_id": "missing_super_short_dress_1",
@@ -4922,7 +5123,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "missing_top_1": {
       "item_id": "missing_top_1",
@@ -4936,7 +5138,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "monokini_1": {
       "item_id": "monokini_1",
@@ -4950,7 +5153,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "monokini_2": {
       "item_id": "monokini_2",
@@ -4964,7 +5168,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "monokini_3": {
       "item_id": "monokini_3",
@@ -4978,7 +5183,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "monokini_6": {
       "item_id": "monokini_6",
@@ -4992,7 +5198,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "monokini_7": {
       "item_id": "monokini_7",
@@ -5006,7 +5213,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "monokini_8": {
       "item_id": "monokini_8",
@@ -5020,7 +5228,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "monokini_9": {
       "item_id": "monokini_9",
@@ -5034,7 +5243,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "navy_tiny_clubbing_dress_1": {
       "item_id": "navy_tiny_clubbing_dress_1",
@@ -5048,7 +5258,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "negligee_1": {
       "item_id": "negligee_1",
@@ -5062,7 +5273,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "negligee_2": {
       "item_id": "negligee_2",
@@ -5076,7 +5288,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "negligee_3": {
       "item_id": "negligee_3",
@@ -5090,7 +5303,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "negligee_4": {
       "item_id": "negligee_4",
@@ -5104,7 +5318,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "negligee_5": {
       "item_id": "negligee_5",
@@ -5118,7 +5333,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "neko_maid_skirt_1": {
       "item_id": "neko_maid_skirt_1",
@@ -5132,7 +5348,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "neko_maid_1": {
       "item_id": "neko_maid_1",
@@ -5146,7 +5363,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "nightie_1": {
       "item_id": "nightie_1",
@@ -5160,7 +5378,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "nightie_2": {
       "item_id": "nightie_2",
@@ -5174,7 +5393,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "nightie_3": {
       "item_id": "nightie_3",
@@ -5188,7 +5408,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "nightie_4": {
       "item_id": "nightie_4",
@@ -5202,7 +5423,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "nun_bodysuit_1": {
       "item_id": "nun_bodysuit_1",
@@ -5216,7 +5438,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "nun_dress_1": {
       "item_id": "nun_dress_1",
@@ -5230,7 +5453,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "onesie_1": {
       "item_id": "onesie_1",
@@ -5244,7 +5468,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "onesie_2": {
       "item_id": "onesie_2",
@@ -5258,7 +5483,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "open_front_dress_1a": {
       "item_id": "open_front_dress_1a",
@@ -5272,7 +5498,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "open_front_dress_1b": {
       "item_id": "open_front_dress_1b",
@@ -5286,7 +5513,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "ornate_latex_dress_1": {
       "item_id": "ornate_latex_dress_1",
@@ -5300,7 +5528,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "pinafore_dress_1": {
       "item_id": "pinafore_dress_1",
@@ -5314,7 +5543,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "pink_clubbing_dress_1": {
       "item_id": "pink_clubbing_dress_1",
@@ -5328,7 +5558,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "pink_exposing_clubbing_dress_1": {
       "item_id": "pink_exposing_clubbing_dress_1",
@@ -5342,7 +5573,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "pink_floral_dress_1": {
       "item_id": "pink_floral_dress_1",
@@ -5356,7 +5588,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "pink_sequins_dress_1": {
       "item_id": "pink_sequins_dress_1",
@@ -5370,7 +5603,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "pink_slut_clubbing_dress_1": {
       "item_id": "pink_slut_clubbing_dress_1",
@@ -5384,7 +5618,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "police_uniform_1": {
       "item_id": "police_uniform_1",
@@ -5398,7 +5633,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "priestess_1": {
       "item_id": "priestess_1",
@@ -5412,7 +5648,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "priestess_2": {
       "item_id": "priestess_2",
@@ -5426,7 +5663,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "priestess_3": {
       "item_id": "priestess_3",
@@ -5440,7 +5678,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "priestess_4": {
       "item_id": "priestess_4",
@@ -5454,7 +5693,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "priestess_5": {
       "item_id": "priestess_5",
@@ -5468,7 +5708,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "priestess_6": {
       "item_id": "priestess_6",
@@ -5482,7 +5723,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "purple_cocktail_dress_1": {
       "item_id": "purple_cocktail_dress_1",
@@ -5496,7 +5738,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "ribbon_dress_1": {
       "item_id": "ribbon_dress_1",
@@ -5511,7 +5754,8 @@
       "bulk_threshold": 3,
       "conceals_panties": true,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "romper_blue_1": {
       "item_id": "romper_blue_1",
@@ -5526,7 +5770,8 @@
       "conceals_panties": true,
       "bulk_threshold": 3,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "romper_1": {
       "item_id": "romper_1",
@@ -5541,7 +5786,8 @@
       "conceals_panties": true,
       "bulk_threshold": 3,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "romper_10": {
       "item_id": "romper_10",
@@ -5556,7 +5802,8 @@
       "conceals_panties": true,
       "bulk_threshold": 3,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "romper_11": {
       "item_id": "romper_11",
@@ -5571,7 +5818,8 @@
       "conceals_panties": true,
       "bulk_threshold": 3,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "romper_12": {
       "item_id": "romper_12",
@@ -5586,7 +5834,8 @@
       "conceals_panties": true,
       "bulk_threshold": 3,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "romper_4": {
       "item_id": "romper_4",
@@ -5601,7 +5850,8 @@
       "conceals_panties": true,
       "bulk_threshold": 3,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "romper_6": {
       "item_id": "romper_6",
@@ -5616,7 +5866,8 @@
       "conceals_panties": true,
       "bulk_threshold": 3,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "romper_8": {
       "item_id": "romper_8",
@@ -5631,7 +5882,8 @@
       "conceals_panties": true,
       "bulk_threshold": 3,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "romper_9": {
       "item_id": "romper_9",
@@ -5646,7 +5898,8 @@
       "conceals_panties": true,
       "bulk_threshold": 3,
       "warp_full_hem": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "rope_harness_1": {
       "item_id": "rope_harness_1",
@@ -5660,7 +5913,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "royal_dress_1": {
       "item_id": "royal_dress_1",
@@ -5674,7 +5928,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "royal_dress_2a": {
       "item_id": "royal_dress_2a",
@@ -5688,7 +5943,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "royal_dress_2b": {
       "item_id": "royal_dress_2b",
@@ -5702,7 +5958,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "royal_dress_3": {
       "item_id": "royal_dress_3",
@@ -5716,7 +5973,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "royal_dress_4": {
       "item_id": "royal_dress_4",
@@ -5730,7 +5988,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "rubber_dress_1": {
       "item_id": "rubber_dress_1",
@@ -5744,7 +6003,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "rubber_dress_2": {
       "item_id": "rubber_dress_2",
@@ -5758,7 +6018,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "rubber_dress_4": {
       "item_id": "rubber_dress_4",
@@ -5772,7 +6033,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "rubber_dress_5": {
       "item_id": "rubber_dress_5",
@@ -5786,7 +6048,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "rubber_dress_6": {
       "item_id": "rubber_dress_6",
@@ -5800,7 +6063,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "rubber_dress_7": {
       "item_id": "rubber_dress_7",
@@ -5814,7 +6078,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "rubber_dress_8": {
       "item_id": "rubber_dress_8",
@@ -5828,7 +6093,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "rugged_crop_top_1": {
       "item_id": "rugged_crop_top_1",
@@ -5840,7 +6106,8 @@
       "hp_restore": 0,
       "value": 15,
       "childish": 5,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "sailor_fleece_dress_1": {
       "item_id": "sailor_fleece_dress_1",
@@ -5854,7 +6121,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "schoolgirl_uniform_1": {
       "item_id": "schoolgirl_uniform_1",
@@ -5868,7 +6136,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "schoolgirl_uniform_2": {
       "item_id": "schoolgirl_uniform_2",
@@ -5882,7 +6151,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "schoolgirl_uniform_3": {
       "item_id": "schoolgirl_uniform_3",
@@ -5896,7 +6166,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "schoolgirl_uniform_4": {
       "item_id": "schoolgirl_uniform_4",
@@ -5910,7 +6181,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "sequin_dress_1": {
       "item_id": "sequin_dress_1",
@@ -5924,7 +6196,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shirt_1": {
       "item_id": "shirt_1",
@@ -5938,7 +6211,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shirt_2": {
       "item_id": "shirt_2",
@@ -5952,7 +6226,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shirt_3a": {
       "item_id": "shirt_3a",
@@ -5966,7 +6241,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shirt_3b": {
       "item_id": "shirt_3b",
@@ -5980,7 +6256,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shirt_4a": {
       "item_id": "shirt_4a",
@@ -5994,7 +6271,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shirt_4b": {
       "item_id": "shirt_4b",
@@ -6008,7 +6286,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "sinful_priestess_dress_1": {
       "item_id": "sinful_priestess_dress_1",
@@ -6022,7 +6301,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "sinful_priestess_dress_2": {
       "item_id": "sinful_priestess_dress_2",
@@ -6036,7 +6316,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "sinful_priestess_dress_3": {
       "item_id": "sinful_priestess_dress_3",
@@ -6050,7 +6331,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "sinful_priestess_dress_4": {
       "item_id": "sinful_priestess_dress_4",
@@ -6064,7 +6346,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "slave_dress_1": {
       "item_id": "slave_dress_1",
@@ -6078,7 +6361,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "slave_dress_2": {
       "item_id": "slave_dress_2",
@@ -6092,7 +6376,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "sparkely_long_dress_1": {
       "item_id": "sparkely_long_dress_1",
@@ -6106,7 +6391,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "string_monokini_10": {
       "item_id": "string_monokini_10",
@@ -6120,7 +6406,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "string_monokini_11": {
       "item_id": "string_monokini_11",
@@ -6134,7 +6421,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "string_monokini_12": {
       "item_id": "string_monokini_12",
@@ -6148,7 +6436,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "string_monokini_14": {
       "item_id": "string_monokini_14",
@@ -6162,7 +6451,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "string_monokini_1a": {
       "item_id": "string_monokini_1a",
@@ -6176,7 +6466,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "string_monokini_1b": {
       "item_id": "string_monokini_1b",
@@ -6190,7 +6481,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "string_monokini_2": {
       "item_id": "string_monokini_2",
@@ -6204,7 +6496,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "string_monokini_3": {
       "item_id": "string_monokini_3",
@@ -6218,7 +6511,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "string_monokini_4": {
       "item_id": "string_monokini_4",
@@ -6232,7 +6526,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "string_monokini_5": {
       "item_id": "string_monokini_5",
@@ -6246,7 +6541,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "string_monokini_6": {
       "item_id": "string_monokini_6",
@@ -6260,7 +6556,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "string_monokini_7": {
       "item_id": "string_monokini_7",
@@ -6274,7 +6571,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "string_monokini_8": {
       "item_id": "string_monokini_8",
@@ -6288,7 +6586,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "string_monokini_9": {
       "item_id": "string_monokini_9",
@@ -6302,7 +6601,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "striped_top_1": {
       "item_id": "striped_top_1",
@@ -6316,7 +6616,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "superheroine_1": {
       "item_id": "superheroine_1",
@@ -6330,7 +6631,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "swimming_top_1": {
       "item_id": "swimming_top_1",
@@ -6344,7 +6646,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "swimming_top_1a": {
       "item_id": "swimming_top_1a",
@@ -6358,7 +6661,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "t_shirt_1": {
       "item_id": "t_shirt_1",
@@ -6372,7 +6676,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "t_shirt_10": {
       "item_id": "t_shirt_10",
@@ -6386,7 +6691,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "t_shirt_11": {
       "item_id": "t_shirt_11",
@@ -6400,7 +6706,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "t_shirt_14": {
       "item_id": "t_shirt_14",
@@ -6414,7 +6721,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "t_shirt_15": {
       "item_id": "t_shirt_15",
@@ -6428,7 +6736,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "t_shirt_2": {
       "item_id": "t_shirt_2",
@@ -6442,7 +6751,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "t_shirt_3": {
       "item_id": "t_shirt_3",
@@ -6456,7 +6766,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "t_shirt_4": {
       "item_id": "t_shirt_4",
@@ -6470,7 +6781,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "t_shirt_5": {
       "item_id": "t_shirt_5",
@@ -6484,7 +6796,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "t_shirt_6": {
       "item_id": "t_shirt_6",
@@ -6498,7 +6811,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "t_shirt_7": {
       "item_id": "t_shirt_7",
@@ -6512,7 +6826,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "t_shirt_8": {
       "item_id": "t_shirt_8",
@@ -6526,7 +6841,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "t_shirt_9": {
       "item_id": "t_shirt_9",
@@ -6540,7 +6856,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "teddybear_dress_1": {
       "item_id": "teddybear_dress_1",
@@ -6554,7 +6871,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tight_dress_1": {
       "item_id": "tight_dress_1",
@@ -6568,7 +6886,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tongue_bosysuit_1": {
       "item_id": "tongue_bosysuit_1",
@@ -6582,7 +6901,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tongue_bosysuit_1a": {
       "item_id": "tongue_bosysuit_1a",
@@ -6596,7 +6916,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tongue_bosysuit_2": {
       "item_id": "tongue_bosysuit_2",
@@ -6610,7 +6931,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tongue_bosysuit_2a": {
       "item_id": "tongue_bosysuit_2a",
@@ -6624,7 +6946,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tube_top_1": {
       "item_id": "tube_top_1",
@@ -6638,7 +6961,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tube_top_10": {
       "item_id": "tube_top_10",
@@ -6652,7 +6976,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tube_top_11": {
       "item_id": "tube_top_11",
@@ -6666,7 +6991,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tube_top_2": {
       "item_id": "tube_top_2",
@@ -6680,7 +7006,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tube_top_4": {
       "item_id": "tube_top_4",
@@ -6694,7 +7021,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tube_top_5": {
       "item_id": "tube_top_5",
@@ -6708,7 +7036,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tube_top_6": {
       "item_id": "tube_top_6",
@@ -6722,7 +7051,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tube_top_7": {
       "item_id": "tube_top_7",
@@ -6736,7 +7066,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tube_top_8": {
       "item_id": "tube_top_8",
@@ -6750,7 +7081,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tube_top_9": {
       "item_id": "tube_top_9",
@@ -6764,7 +7096,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tubetop_3": {
       "item_id": "tubetop_3",
@@ -6778,7 +7111,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "turtle_swimsuit_1": {
       "item_id": "turtle_swimsuit_1",
@@ -6792,7 +7126,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "vest_dress_1": {
       "item_id": "vest_dress_1",
@@ -6806,7 +7141,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "vest_1": {
       "item_id": "vest_1",
@@ -6819,7 +7155,8 @@
       "value": 15,
       "childish": 5,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "vest_2": {
       "item_id": "vest_2",
@@ -6833,7 +7170,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "vest_3": {
       "item_id": "vest_3",
@@ -6847,7 +7185,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "vest_4": {
       "item_id": "vest_4",
@@ -6861,7 +7200,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "vest_5": {
       "item_id": "vest_5",
@@ -6875,7 +7215,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "vest_6": {
       "item_id": "vest_6",
@@ -6889,7 +7230,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "vest_7": {
       "item_id": "vest_7",
@@ -6903,7 +7245,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "vest_8": {
       "item_id": "vest_8",
@@ -6917,7 +7260,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "warrior_chestplate_1": {
       "item_id": "warrior_chestplate_1",
@@ -6931,7 +7275,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "warrior_chestplate_2": {
       "item_id": "warrior_chestplate_2",
@@ -6944,7 +7289,8 @@
       "value": 15,
       "childish": 5,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "warrior_chestplate_3": {
       "item_id": "warrior_chestplate_3",
@@ -6958,7 +7304,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "warrior_chestplate_4": {
       "item_id": "warrior_chestplate_4",
@@ -6972,7 +7319,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "warrior_chestplate_5": {
       "item_id": "warrior_chestplate_5",
@@ -6986,7 +7334,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "warrior_chestplate_6": {
       "item_id": "warrior_chestplate_6",
@@ -7000,7 +7349,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "white_babydoll_1": {
       "item_id": "white_babydoll_1",
@@ -7014,7 +7364,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "white_clubbing_dress_1": {
       "item_id": "white_clubbing_dress_1",
@@ -7028,7 +7379,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "white_slut_clubbing_dress_1": {
       "item_id": "white_slut_clubbing_dress_1",
@@ -7042,7 +7394,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "witch_bodysuit_1": {
       "item_id": "witch_bodysuit_1",
@@ -7056,7 +7409,8 @@
       "childish": 5,
       "bulk_threshold": 3,
       "conceals_panties": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "wrestler_suit_1": {
       "item_id": "wrestler_suit_1",
@@ -7070,7 +7424,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "yellow_babydoll_1": {
       "item_id": "yellow_babydoll_1",
@@ -7084,7 +7439,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bikini_12": {
       "item_id": "bikini_12",
@@ -7096,7 +7452,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bikini_1": {
       "item_id": "bikini_1",
@@ -7108,7 +7465,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bikini_10": {
       "item_id": "bikini_10",
@@ -7120,7 +7478,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bikini_11": {
       "item_id": "bikini_11",
@@ -7132,7 +7491,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bikini_13": {
       "item_id": "bikini_13",
@@ -7144,7 +7504,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bikini_2": {
       "item_id": "bikini_2",
@@ -7156,7 +7517,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bikini_3": {
       "item_id": "bikini_3",
@@ -7168,7 +7530,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bikini_4": {
       "item_id": "bikini_4",
@@ -7180,7 +7543,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bikini_5": {
       "item_id": "bikini_5",
@@ -7192,7 +7556,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bikini_6": {
       "item_id": "bikini_6",
@@ -7204,7 +7569,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bikini_7": {
       "item_id": "bikini_7",
@@ -7216,7 +7582,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bikini_8": {
       "item_id": "bikini_8",
@@ -7228,7 +7595,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bikini_9": {
       "item_id": "bikini_9",
@@ -7240,7 +7608,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bra_1": {
       "item_id": "bra_1",
@@ -7252,7 +7621,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bra_2": {
       "item_id": "bra_2",
@@ -7264,7 +7634,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bra_3": {
       "item_id": "bra_3",
@@ -7276,7 +7647,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bra_4": {
       "item_id": "bra_4",
@@ -7288,7 +7660,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bra_5": {
       "item_id": "bra_5",
@@ -7300,7 +7673,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bra_6": {
       "item_id": "bra_6",
@@ -7312,7 +7686,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bra_7": {
       "item_id": "bra_7",
@@ -7324,7 +7699,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bra_8": {
       "item_id": "bra_8",
@@ -7336,7 +7712,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "cupless_bra_1": {
       "item_id": "cupless_bra_1",
@@ -7348,7 +7725,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "cupless_bra_2": {
       "item_id": "cupless_bra_2",
@@ -7360,7 +7738,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "exercise_bra_1": {
       "item_id": "exercise_bra_1",
@@ -7372,7 +7751,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "exercise_bra_2": {
       "item_id": "exercise_bra_2",
@@ -7384,7 +7764,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "exercise_bra_5": {
       "item_id": "exercise_bra_5",
@@ -7396,7 +7777,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "heart_bra_1": {
       "item_id": "heart_bra_1",
@@ -7408,7 +7790,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_bra_1": {
       "item_id": "latex_bra_1",
@@ -7420,7 +7803,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "latex_bra_2": {
       "item_id": "latex_bra_2",
@@ -7432,7 +7816,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "metal_bra_1": {
       "item_id": "metal_bra_1",
@@ -7444,7 +7829,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "onahole_bra_1": {
       "item_id": "onahole_bra_1",
@@ -7456,7 +7842,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "pasties_1": {
       "item_id": "pasties_1",
@@ -7468,7 +7855,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "pasties_2": {
       "item_id": "pasties_2",
@@ -7480,7 +7868,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "portal_bra_1": {
       "item_id": "portal_bra_1",
@@ -7492,7 +7881,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "ribbon_bra_1": {
       "item_id": "ribbon_bra_1",
@@ -7504,7 +7894,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "spade_bra_1": {
       "item_id": "spade_bra_1",
@@ -7516,7 +7907,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stripper_bra_1": {
       "item_id": "stripper_bra_1",
@@ -7528,7 +7920,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stripper_bra_2": {
       "item_id": "stripper_bra_2",
@@ -7540,7 +7933,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tartan_bra_1": {
       "item_id": "tartan_bra_1",
@@ -7552,7 +7946,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tassels_1": {
       "item_id": "tassels_1",
@@ -7564,7 +7959,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tongue_bust_1": {
       "item_id": "tongue_bust_1",
@@ -7576,7 +7972,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tongue_bust_1a": {
       "item_id": "tongue_bust_1a",
@@ -7588,7 +7985,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tongue_bust_2": {
       "item_id": "tongue_bust_2",
@@ -7600,7 +7998,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tongue_bust_2a": {
       "item_id": "tongue_bust_2a",
@@ -7612,7 +8011,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trainee_bra_1": {
       "item_id": "trainee_bra_1",
@@ -7624,7 +8024,8 @@
       "hp_restore": 0,
       "value": 8,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "ballet_corset_1": {
       "item_id": "ballet_corset_1",
@@ -7666,7 +8067,8 @@
           }
         }
       ],
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "bat_corset_1": {
       "item_id": "bat_corset_1",
@@ -7678,7 +8080,8 @@
       "hp_restore": 0,
       "value": 18,
       "childish": 3,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "bat_corset_2": {
       "item_id": "bat_corset_2",
@@ -7690,7 +8093,8 @@
       "hp_restore": 0,
       "value": 18,
       "childish": 3,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "bat_corset_3": {
       "item_id": "bat_corset_3",
@@ -7702,7 +8106,8 @@
       "hp_restore": 0,
       "value": 18,
       "childish": 3,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "bondage_corset_1": {
       "item_id": "bondage_corset_1",
@@ -7714,7 +8119,8 @@
       "hp_restore": 0,
       "value": 18,
       "childish": 3,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "bondage_corset_2": {
       "item_id": "bondage_corset_2",
@@ -7726,7 +8132,8 @@
       "hp_restore": 0,
       "value": 18,
       "childish": 3,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "bondage_corset_3": {
       "item_id": "bondage_corset_3",
@@ -7738,7 +8145,8 @@
       "hp_restore": 0,
       "value": 18,
       "childish": 3,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "fetish_corset_1": {
       "item_id": "fetish_corset_1",
@@ -7750,7 +8158,8 @@
       "hp_restore": 0,
       "value": 18,
       "childish": 3,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "gothic_corset_1": {
       "item_id": "gothic_corset_1",
@@ -7762,7 +8171,8 @@
       "hp_restore": 0,
       "value": 18,
       "childish": 3,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "leather_corset_1": {
       "item_id": "leather_corset_1",
@@ -7774,7 +8184,8 @@
       "hp_restore": 0,
       "value": 18,
       "childish": 3,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "missing_corset_1": {
       "item_id": "missing_corset_1",
@@ -7786,7 +8197,8 @@
       "hp_restore": 0,
       "value": 18,
       "childish": 3,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "missing_corset_2": {
       "item_id": "missing_corset_2",
@@ -7798,7 +8210,8 @@
       "hp_restore": 0,
       "value": 18,
       "childish": 3,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "santa_corset_1": {
       "item_id": "santa_corset_1",
@@ -7810,7 +8223,8 @@
       "hp_restore": 0,
       "value": 18,
       "childish": 3,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "satin_corset_1": {
       "item_id": "satin_corset_1",
@@ -7822,7 +8236,8 @@
       "hp_restore": 0,
       "value": 18,
       "childish": 3,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "spike_corset_1": {
       "item_id": "spike_corset_1",
@@ -7834,7 +8249,8 @@
       "hp_restore": 0,
       "value": 18,
       "childish": 3,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "vinyl_corset_1": {
       "item_id": "vinyl_corset_1",
@@ -7846,7 +8262,8 @@
       "hp_restore": 0,
       "value": 18,
       "childish": 3,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "bunny_suit_gloves_1": {
       "item_id": "bunny_suit_gloves_1",
@@ -7858,7 +8275,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "cat_gloves_1": {
       "item_id": "cat_gloves_1",
@@ -7870,7 +8288,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "combat_gloves_1": {
       "item_id": "combat_gloves_1",
@@ -7882,7 +8301,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "fake_nails_1": {
       "item_id": "fake_nails_1",
@@ -7894,7 +8314,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "football_gloves_1": {
       "item_id": "football_gloves_1",
@@ -7906,7 +8327,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "gape_gloves_1": {
       "item_id": "gape_gloves_1",
@@ -7918,7 +8340,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "handmaiden_gloves_1": {
       "item_id": "handmaiden_gloves_1",
@@ -7930,7 +8353,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "handmaiden_gloves_2": {
       "item_id": "handmaiden_gloves_2",
@@ -7942,7 +8366,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "hex_gloves_1": {
       "item_id": "hex_gloves_1",
@@ -7954,7 +8379,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "kitty_claws_1": {
       "item_id": "kitty_claws_1",
@@ -7966,7 +8392,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "kitty_claws_2": {
       "item_id": "kitty_claws_2",
@@ -7978,7 +8405,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "kitty_claws_3": {
       "item_id": "kitty_claws_3",
@@ -7990,7 +8418,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "mittens_1": {
       "item_id": "mittens_1",
@@ -8002,7 +8431,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "mittens_2": {
       "item_id": "mittens_2",
@@ -8014,7 +8444,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "mittens_3": {
       "item_id": "mittens_3",
@@ -8026,7 +8457,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "mittens_4": {
       "item_id": "mittens_4",
@@ -8038,7 +8470,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "mittens_5": {
       "item_id": "mittens_5",
@@ -8050,7 +8483,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "mittens_6": {
       "item_id": "mittens_6",
@@ -8062,7 +8496,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "mittens_7": {
       "item_id": "mittens_7",
@@ -8074,7 +8509,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "pom_poms_1": {
       "item_id": "pom_poms_1",
@@ -8086,7 +8522,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "pom_poms_2": {
       "item_id": "pom_poms_2",
@@ -8098,7 +8535,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "qo_s_gloves_1": {
       "item_id": "qo_s_gloves_1",
@@ -8110,7 +8548,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "thumb_vibrators_1": {
       "item_id": "thumb_vibrators_1",
@@ -8122,7 +8561,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tongue_gloves_1": {
       "item_id": "tongue_gloves_1",
@@ -8134,7 +8574,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tongue_gloves_1a": {
       "item_id": "tongue_gloves_1a",
@@ -8146,7 +8587,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tongue_gloves_2": {
       "item_id": "tongue_gloves_2",
@@ -8158,7 +8600,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "tongue_gloves_2a": {
       "item_id": "tongue_gloves_2a",
@@ -8170,7 +8613,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 4,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_bloomers_2": {
       "item_id": "trousers_bloomers_2",
@@ -8185,7 +8629,8 @@
       "conceals_panties": true,
       "bulk_threshold": 2,
       "is_bloomers": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_canvas": {
       "item_id": "trousers_canvas",
@@ -8228,7 +8673,8 @@
       "conceals_panties": true,
       "bulk_threshold": 2,
       "is_bloomers": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_buttockless": {
       "item_id": "trousers_buttockless",
@@ -8326,7 +8772,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_jeans_2": {
       "item_id": "trousers_jeans_2",
@@ -8340,7 +8787,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_jeans_3": {
       "item_id": "trousers_jeans_3",
@@ -8354,7 +8802,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_kitty_pyjamas": {
       "item_id": "trousers_kitty_pyjamas",
@@ -8396,7 +8845,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_leggings_2": {
       "item_id": "trousers_leggings_2",
@@ -8410,7 +8860,8 @@
       "childish": 3,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "trousers_witch": {
       "item_id": "trousers_witch",
@@ -8450,7 +8901,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_bunny_2": {
       "item_id": "shoes_bunny_2",
@@ -8462,7 +8914,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_cat": {
       "item_id": "shoes_cat",
@@ -8534,7 +8987,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_ballet_boots_2": {
       "item_id": "shoes_ballet_boots_2",
@@ -8546,7 +9000,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_ballet_heels": {
       "item_id": "shoes_ballet_heels",
@@ -8570,7 +9025,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_booties_2": {
       "item_id": "shoes_booties_2",
@@ -8582,7 +9038,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_booties_3": {
       "item_id": "shoes_booties_3",
@@ -8594,7 +9051,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_booties_bunny": {
       "item_id": "shoes_booties_bunny",
@@ -8654,7 +9112,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_boots_nun_2": {
       "item_id": "shoes_boots_nun_2",
@@ -8666,7 +9125,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_boots_straps": {
       "item_id": "shoes_boots_straps",
@@ -8690,7 +9150,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_fetish_boots_1": {
       "item_id": "shoes_fetish_boots_1",
@@ -8702,7 +9163,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_armadillo_1": {
       "item_id": "shoes_heels_armadillo_1",
@@ -8714,7 +9176,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_court_1": {
       "item_id": "shoes_heels_court_1",
@@ -8726,7 +9189,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_court_2": {
       "item_id": "shoes_heels_court_2",
@@ -8738,7 +9202,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_court_3": {
       "item_id": "shoes_heels_court_3",
@@ -8750,7 +9215,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_court_4": {
       "item_id": "shoes_heels_court_4",
@@ -8762,7 +9228,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_court_5": {
       "item_id": "shoes_heels_court_5",
@@ -8774,7 +9241,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_court_bow_1": {
       "item_id": "shoes_heels_court_bow_1",
@@ -8786,7 +9254,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_court_bow_2": {
       "item_id": "shoes_heels_court_bow_2",
@@ -8798,7 +9267,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_court_bow_3": {
       "item_id": "shoes_heels_court_bow_3",
@@ -8810,7 +9280,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_dildo": {
       "item_id": "shoes_heels_dildo",
@@ -8846,7 +9317,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_queen_2": {
       "item_id": "shoes_heels_queen_2",
@@ -8858,7 +9330,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_savior": {
       "item_id": "shoes_heels_savior",
@@ -8882,7 +9355,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_wedge_2": {
       "item_id": "shoes_heels_wedge_2",
@@ -8894,7 +9368,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_heels_wedge_3": {
       "item_id": "shoes_heels_wedge_3",
@@ -8906,7 +9381,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_mary_janes": {
       "item_id": "shoes_mary_janes",
@@ -8930,7 +9406,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_peep_toe_heels_2": {
       "item_id": "shoes_peep_toe_heels_2",
@@ -8942,7 +9419,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_peep_toe_heels_3": {
       "item_id": "shoes_peep_toe_heels_3",
@@ -8954,7 +9432,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_platform_heels_1": {
       "item_id": "shoes_platform_heels_1",
@@ -8966,7 +9445,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_platform_heels_2": {
       "item_id": "shoes_platform_heels_2",
@@ -8978,7 +9458,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_platform_heels_3": {
       "item_id": "shoes_platform_heels_3",
@@ -8990,7 +9471,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_platform_heels_4": {
       "item_id": "shoes_platform_heels_4",
@@ -9002,7 +9484,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_platform_heels_5": {
       "item_id": "shoes_platform_heels_5",
@@ -9014,7 +9497,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_platform_heels_6": {
       "item_id": "shoes_platform_heels_6",
@@ -9026,7 +9510,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_rollerskates_1": {
       "item_id": "shoes_rollerskates_1",
@@ -9038,7 +9523,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_rollerskates_2": {
       "item_id": "shoes_rollerskates_2",
@@ -9050,7 +9536,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_rollerskates_3": {
       "item_id": "shoes_rollerskates_3",
@@ -9062,7 +9549,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_rollerskates_4": {
       "item_id": "shoes_rollerskates_4",
@@ -9074,7 +9562,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_rollerskates_5": {
       "item_id": "shoes_rollerskates_5",
@@ -9086,7 +9575,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_sandals_1": {
       "item_id": "shoes_sandals_1",
@@ -9098,7 +9588,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_sandals_2": {
       "item_id": "shoes_sandals_2",
@@ -9110,7 +9601,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_sandals_3": {
       "item_id": "shoes_sandals_3",
@@ -9122,7 +9614,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_sneakers_1": {
       "item_id": "shoes_sneakers_1",
@@ -9134,7 +9627,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_sneakers_2": {
       "item_id": "shoes_sneakers_2",
@@ -9146,7 +9640,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_tall_platform_heels_1": {
       "item_id": "shoes_tall_platform_heels_1",
@@ -9158,7 +9653,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_tall_platform_heels_2": {
       "item_id": "shoes_tall_platform_heels_2",
@@ -9170,7 +9666,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_thigh_heels_1": {
       "item_id": "shoes_thigh_heels_1",
@@ -9182,7 +9679,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_thigh_heels_2": {
       "item_id": "shoes_thigh_heels_2",
@@ -9194,7 +9692,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_thigh_heels_3": {
       "item_id": "shoes_thigh_heels_3",
@@ -9206,7 +9705,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_thigh_heels_latex_w_c": {
       "item_id": "shoes_thigh_heels_latex_w_c",
@@ -9230,7 +9730,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_tongue_1b": {
       "item_id": "shoes_tongue_1b",
@@ -9242,7 +9743,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_tongue_2a": {
       "item_id": "shoes_tongue_2a",
@@ -9254,7 +9756,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_tongue_2b": {
       "item_id": "shoes_tongue_2b",
@@ -9266,7 +9769,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_tongue_3a": {
       "item_id": "shoes_tongue_3a",
@@ -9278,7 +9782,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_tongue_3b": {
       "item_id": "shoes_tongue_3b",
@@ -9290,7 +9795,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_tongue_4a": {
       "item_id": "shoes_tongue_4a",
@@ -9302,7 +9808,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "shoes_tongue_4b": {
       "item_id": "shoes_tongue_4b",
@@ -9314,7 +9821,8 @@
       "hp_restore": 0,
       "value": 10,
       "childish": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_babydoll": {
       "item_id": "skirts_babydoll",
@@ -9356,7 +9864,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_apron_1": {
       "item_id": "skirts_apron_1",
@@ -9370,7 +9879,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_chainmail": {
       "item_id": "skirts_chainmail",
@@ -9426,7 +9936,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_cupcake_tray_2": {
       "item_id": "skirts_cupcake_tray_2",
@@ -9440,7 +9951,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_cupcake_tray_3": {
       "item_id": "skirts_cupcake_tray_3",
@@ -9454,7 +9966,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_cupcake_tray_4": {
       "item_id": "skirts_cupcake_tray_4",
@@ -9468,7 +9981,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_cupcake_tray_5": {
       "item_id": "skirts_cupcake_tray_5",
@@ -9482,7 +9996,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_flight_attendant_1": {
       "item_id": "skirts_flight_attendant_1",
@@ -9496,7 +10011,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_floral": {
       "item_id": "skirts_floral",
@@ -9538,7 +10054,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_gown_1b": {
       "item_id": "skirts_gown_1b",
@@ -9552,7 +10069,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_grope_me_1": {
       "item_id": "skirts_grope_me_1",
@@ -9566,7 +10084,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_lace_mini": {
       "item_id": "skirts_lace_mini",
@@ -9594,7 +10113,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_latex_2": {
       "item_id": "skirts_latex_2",
@@ -9608,7 +10128,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_latex_hobble_1": {
       "item_id": "skirts_latex_hobble_1",
@@ -9622,7 +10143,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_latex_mini_1": {
       "item_id": "skirts_latex_mini_1",
@@ -9636,7 +10158,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_latex_mini_2": {
       "item_id": "skirts_latex_mini_2",
@@ -9650,7 +10173,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_micro_1": {
       "item_id": "skirts_micro_1",
@@ -9664,7 +10188,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_micro_2": {
       "item_id": "skirts_micro_2",
@@ -9678,7 +10203,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_micro_3": {
       "item_id": "skirts_micro_3",
@@ -9692,7 +10218,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_micro_4": {
       "item_id": "skirts_micro_4",
@@ -9706,7 +10233,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_naughty": {
       "item_id": "skirts_naughty",
@@ -9762,7 +10290,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_priestess_1": {
       "item_id": "skirts_priestess_1",
@@ -9776,7 +10305,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_priestess_2": {
       "item_id": "skirts_priestess_2",
@@ -9790,7 +10320,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_punishment": {
       "item_id": "skirts_punishment",
@@ -9818,7 +10349,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_tartan_micro_1": {
       "item_id": "skirts_tartan_micro_1",
@@ -9832,7 +10364,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_tartan_micro_2": {
       "item_id": "skirts_tartan_micro_2",
@@ -9846,7 +10379,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_tartan_micro_3": {
       "item_id": "skirts_tartan_micro_3",
@@ -9860,7 +10394,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_tartan_mini_1": {
       "item_id": "skirts_tartan_mini_1",
@@ -9874,7 +10409,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_tartan_mini_2": {
       "item_id": "skirts_tartan_mini_2",
@@ -9888,7 +10424,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_tartan_mini_3": {
       "item_id": "skirts_tartan_mini_3",
@@ -9902,7 +10439,8 @@
       "childish": 4,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "skirts_zip": {
       "item_id": "skirts_zip",
@@ -9988,7 +10526,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "socks_5": {
       "item_id": "socks_5",
@@ -10000,7 +10539,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_1": {
       "item_id": "stockings_1",
@@ -10012,7 +10552,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_10": {
       "item_id": "stockings_10",
@@ -10024,7 +10565,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_11": {
       "item_id": "stockings_11",
@@ -10036,7 +10578,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_12": {
       "item_id": "stockings_12",
@@ -10048,7 +10591,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_2": {
       "item_id": "stockings_2",
@@ -10060,7 +10604,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_3": {
       "item_id": "stockings_3",
@@ -10072,7 +10617,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_4": {
       "item_id": "stockings_4",
@@ -10084,7 +10630,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_5": {
       "item_id": "stockings_5",
@@ -10096,7 +10643,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_6": {
       "item_id": "stockings_6",
@@ -10108,7 +10656,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_7": {
       "item_id": "stockings_7",
@@ -10120,7 +10669,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_8": {
       "item_id": "stockings_8",
@@ -10132,7 +10682,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_9": {
       "item_id": "stockings_9",
@@ -10144,7 +10695,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_maid_1": {
       "item_id": "stockings_maid_1",
@@ -10156,7 +10708,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_maid_2": {
       "item_id": "stockings_maid_2",
@@ -10168,7 +10721,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_maid_3": {
       "item_id": "stockings_maid_3",
@@ -10180,7 +10734,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_princess_bride": {
       "item_id": "stockings_princess_bride",
@@ -10276,7 +10831,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_stripper_2": {
       "item_id": "stockings_stripper_2",
@@ -10288,7 +10844,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_tongue_1a": {
       "item_id": "stockings_tongue_1a",
@@ -10300,7 +10857,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_tongue_1b": {
       "item_id": "stockings_tongue_1b",
@@ -10312,7 +10870,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_tongue_2a": {
       "item_id": "stockings_tongue_2a",
@@ -10324,7 +10883,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "stockings_tongue_2b": {
       "item_id": "stockings_tongue_2b",
@@ -10336,7 +10896,8 @@
       "hp_restore": 0,
       "value": 5,
       "childish": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "beads_1": {
       "item_id": "beads_1",
@@ -10783,7 +11344,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_giant_teddy_2": {
       "item_id": "knickers_giant_teddy_2",
@@ -10798,7 +11360,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_bikini_briefs_1": {
       "item_id": "knickers_bikini_briefs_1",
@@ -10813,7 +11376,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_bikini_briefs_2": {
       "item_id": "knickers_bikini_briefs_2",
@@ -10828,7 +11392,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_bikini_briefs_3": {
       "item_id": "knickers_bikini_briefs_3",
@@ -10843,7 +11408,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_bikini_briefs_4": {
       "item_id": "knickers_bikini_briefs_4",
@@ -10858,7 +11424,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_bikini_briefs_5": {
       "item_id": "knickers_bikini_briefs_5",
@@ -10873,7 +11440,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_bikini_briefs_6": {
       "item_id": "knickers_bikini_briefs_6",
@@ -10888,7 +11456,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_bikini_briefs_7": {
       "item_id": "knickers_bikini_briefs_7",
@@ -10903,7 +11472,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_bikini_briefs_8": {
       "item_id": "knickers_bikini_briefs_8",
@@ -10918,7 +11488,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_bloomers_1": {
       "item_id": "knickers_bloomers_1",
@@ -10933,7 +11504,8 @@
       "childish": 3,
       "bulk": 1,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_bloomers_2": {
       "item_id": "knickers_bloomers_2",
@@ -10948,7 +11520,8 @@
       "childish": 3,
       "bulk": 1,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_1": {
       "item_id": "knickers_briefs_1",
@@ -10963,7 +11536,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_10": {
       "item_id": "knickers_briefs_10",
@@ -10978,7 +11552,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_11": {
       "item_id": "knickers_briefs_11",
@@ -10993,7 +11568,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_12": {
       "item_id": "knickers_briefs_12",
@@ -11008,7 +11584,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_13": {
       "item_id": "knickers_briefs_13",
@@ -11023,7 +11600,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_14": {
       "item_id": "knickers_briefs_14",
@@ -11038,7 +11616,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_15": {
       "item_id": "knickers_briefs_15",
@@ -11053,7 +11632,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_16": {
       "item_id": "knickers_briefs_16",
@@ -11068,7 +11648,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_19": {
       "item_id": "knickers_briefs_19",
@@ -11083,7 +11664,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_2": {
       "item_id": "knickers_briefs_2",
@@ -11098,7 +11680,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_3": {
       "item_id": "knickers_briefs_3",
@@ -11113,7 +11696,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_4": {
       "item_id": "knickers_briefs_4",
@@ -11128,7 +11712,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_5": {
       "item_id": "knickers_briefs_5",
@@ -11143,7 +11728,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_6": {
       "item_id": "knickers_briefs_6",
@@ -11158,7 +11744,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_7": {
       "item_id": "knickers_briefs_7",
@@ -11173,7 +11760,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_8": {
       "item_id": "knickers_briefs_8",
@@ -11188,7 +11776,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_9": {
       "item_id": "knickers_briefs_9",
@@ -11203,7 +11792,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_b_b_c": {
       "item_id": "knickers_briefs_b_b_c",
@@ -11458,7 +12048,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_tongue_2": {
       "item_id": "knickers_briefs_tongue_2",
@@ -11473,7 +12064,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_briefs_tonight": {
       "item_id": "knickers_briefs_tonight",
@@ -11563,7 +12155,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_crotch_rope_1": {
       "item_id": "knickers_crotch_rope_1",
@@ -11578,7 +12171,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_crotchless_1": {
       "item_id": "knickers_crotchless_1",
@@ -11593,7 +12187,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_crotchless_2": {
       "item_id": "knickers_crotchless_2",
@@ -11608,7 +12203,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_crotchless_3": {
       "item_id": "knickers_crotchless_3",
@@ -11623,7 +12219,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_crotchless_4": {
       "item_id": "knickers_crotchless_4",
@@ -11638,7 +12235,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_crotchless_5": {
       "item_id": "knickers_crotchless_5",
@@ -11653,7 +12251,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_crotchless_6": {
       "item_id": "knickers_crotchless_6",
@@ -11668,7 +12267,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_crotchless_7": {
       "item_id": "knickers_crotchless_7",
@@ -11683,7 +12283,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_cutoffs_1": {
       "item_id": "knickers_cutoffs_1",
@@ -11698,7 +12299,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_cutoffs_2": {
       "item_id": "knickers_cutoffs_2",
@@ -11713,7 +12315,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_cutoffs_3": {
       "item_id": "knickers_cutoffs_3",
@@ -11728,7 +12331,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_1": {
       "item_id": "knickers_diaper_1",
@@ -11744,7 +12348,8 @@
       "bulk": 3,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_10": {
       "item_id": "knickers_diaper_10",
@@ -11760,7 +12365,8 @@
       "bulk": 2,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_11": {
       "item_id": "knickers_diaper_11",
@@ -11776,7 +12382,8 @@
       "bulk": 2,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_12": {
       "item_id": "knickers_diaper_12",
@@ -11792,7 +12399,8 @@
       "bulk": 2,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_13": {
       "item_id": "knickers_diaper_13",
@@ -11808,7 +12416,8 @@
       "bulk": 2,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_14": {
       "item_id": "knickers_diaper_14",
@@ -11824,7 +12433,8 @@
       "bulk": 6,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_15": {
       "item_id": "knickers_diaper_15",
@@ -11840,7 +12450,8 @@
       "bulk": 6,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_16": {
       "item_id": "knickers_diaper_16",
@@ -11856,7 +12467,8 @@
       "bulk": 5,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_17": {
       "item_id": "knickers_diaper_17",
@@ -11872,7 +12484,8 @@
       "bulk": 5,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_18": {
       "item_id": "knickers_diaper_18",
@@ -11888,7 +12501,8 @@
       "bulk": 3,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_19": {
       "item_id": "knickers_diaper_19",
@@ -11904,7 +12518,8 @@
       "bulk": 10,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_2": {
       "item_id": "knickers_diaper_2",
@@ -11920,7 +12535,8 @@
       "bulk": 3,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_20": {
       "item_id": "knickers_diaper_20",
@@ -11936,7 +12552,8 @@
       "bulk": 10,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_21": {
       "item_id": "knickers_diaper_21",
@@ -11952,7 +12569,8 @@
       "bulk": 6,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_22": {
       "item_id": "knickers_diaper_22",
@@ -11968,7 +12586,8 @@
       "bulk": 4,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_23": {
       "item_id": "knickers_diaper_23",
@@ -11984,7 +12603,8 @@
       "bulk": 3,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_24": {
       "item_id": "knickers_diaper_24",
@@ -12000,7 +12620,8 @@
       "bulk": 2,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_25": {
       "item_id": "knickers_diaper_25",
@@ -12016,7 +12637,8 @@
       "bulk": 5,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_26": {
       "item_id": "knickers_diaper_26",
@@ -12032,7 +12654,8 @@
       "bulk": 2,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_27": {
       "item_id": "knickers_diaper_27",
@@ -12048,7 +12671,8 @@
       "bulk": 3,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_3": {
       "item_id": "knickers_diaper_3",
@@ -12064,7 +12688,8 @@
       "bulk": 5,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_4": {
       "item_id": "knickers_diaper_4",
@@ -12080,7 +12705,8 @@
       "bulk": 3,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_5": {
       "item_id": "knickers_diaper_5",
@@ -12096,7 +12722,8 @@
       "bulk": 4,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_6": {
       "item_id": "knickers_diaper_6",
@@ -12112,7 +12739,8 @@
       "bulk": 4,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_7": {
       "item_id": "knickers_diaper_7",
@@ -12128,7 +12756,8 @@
       "bulk": 4,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_8": {
       "item_id": "knickers_diaper_8",
@@ -12144,7 +12773,8 @@
       "bulk": 3,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_9": {
       "item_id": "knickers_diaper_9",
@@ -12160,7 +12790,8 @@
       "bulk": 3,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_bunny_1": {
       "item_id": "knickers_diaper_bunny_1",
@@ -12176,7 +12807,8 @@
       "bulk": 3,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_bunny_2": {
       "item_id": "knickers_diaper_bunny_2",
@@ -12192,7 +12824,8 @@
       "bulk": 3,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_bunny_3": {
       "item_id": "knickers_diaper_bunny_3",
@@ -12208,7 +12841,8 @@
       "bulk": 3,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_bunny_4": {
       "item_id": "knickers_diaper_bunny_4",
@@ -12224,7 +12858,8 @@
       "bulk": 3,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_cloth_1": {
       "item_id": "knickers_diaper_cloth_1",
@@ -12240,7 +12875,8 @@
       "bulk": 2,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_cloth_2": {
       "item_id": "knickers_diaper_cloth_2",
@@ -12256,7 +12892,8 @@
       "bulk": 2,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_cloth_3": {
       "item_id": "knickers_diaper_cloth_3",
@@ -12272,7 +12909,8 @@
       "bulk": 2,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_cloth_4": {
       "item_id": "knickers_diaper_cloth_4",
@@ -12288,7 +12926,8 @@
       "bulk": 2,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_diaper_cover": {
       "item_id": "knickers_diaper_cover",
@@ -12367,7 +13006,8 @@
       "bulk": 3,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_diaper_velcro_2": {
       "item_id": "knickers_diaper_velcro_2",
@@ -12383,7 +13023,8 @@
       "bulk": 3,
       "is_diaper": true,
       "bulk_threshold": 0,
-      "rarity": "uncommon"
+      "rarity": "uncommon",
+      "pool_template": true
     },
     "knickers_facehugger_2": {
       "item_id": "knickers_facehugger_2",
@@ -12398,7 +13039,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_g_string_1": {
       "item_id": "knickers_g_string_1",
@@ -12413,7 +13055,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_g_string_2": {
       "item_id": "knickers_g_string_2",
@@ -12428,7 +13071,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_g_string_3": {
       "item_id": "knickers_g_string_3",
@@ -12443,7 +13087,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_g_string_4": {
       "item_id": "knickers_g_string_4",
@@ -12458,7 +13103,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_g_string_5": {
       "item_id": "knickers_g_string_5",
@@ -12473,7 +13119,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_g_string_6": {
       "item_id": "knickers_g_string_6",
@@ -12488,7 +13135,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_g_string_7": {
       "item_id": "knickers_g_string_7",
@@ -12503,7 +13151,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_g_string_8": {
       "item_id": "knickers_g_string_8",
@@ -12518,7 +13167,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_g_string_9": {
       "item_id": "knickers_g_string_9",
@@ -12533,7 +13183,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_g_string_be_mine": {
       "item_id": "knickers_g_string_be_mine",
@@ -12578,7 +13229,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_hotpants_2": {
       "item_id": "knickers_hotpants_2",
@@ -12593,7 +13245,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_hotpants_3": {
       "item_id": "knickers_hotpants_3",
@@ -12608,7 +13261,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_hotpants_4": {
       "item_id": "knickers_hotpants_4",
@@ -12623,7 +13277,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_meat_toilet_1": {
       "item_id": "knickers_meat_toilet_1",
@@ -12638,7 +13293,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_meat_toilet_2": {
       "item_id": "knickers_meat_toilet_2",
@@ -12653,7 +13309,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_meat_toilet_3": {
       "item_id": "knickers_meat_toilet_3",
@@ -12668,7 +13325,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_micro_shorts_black": {
       "item_id": "knickers_micro_shorts_black",
@@ -12713,7 +13371,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_plastic_pants_2": {
       "item_id": "knickers_plastic_pants_2",
@@ -12728,7 +13387,8 @@
       "childish": 6,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_plastic_pants_3": {
       "item_id": "knickers_plastic_pants_3",
@@ -12743,7 +13403,8 @@
       "childish": 7,
       "conceals_panties": true,
       "bulk_threshold": 2,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_plastic_pants_4": {
       "item_id": "knickers_plastic_pants_4",
@@ -12758,7 +13419,8 @@
       "childish": 8,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_plastic_pants_5": {
       "item_id": "knickers_plastic_pants_5",
@@ -12773,7 +13435,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_plastic_pants_6": {
       "item_id": "knickers_plastic_pants_6",
@@ -12789,7 +13452,8 @@
       "conceals_panties": true,
       "bulk_threshold": 4,
       "cursed": true,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_plug_panties_1": {
       "item_id": "knickers_plug_panties_1",
@@ -12804,7 +13468,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_plug_panties_2": {
       "item_id": "knickers_plug_panties_2",
@@ -12819,7 +13484,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_plug_panties_3": {
       "item_id": "knickers_plug_panties_3",
@@ -12834,7 +13500,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_portal_hotpants": {
       "item_id": "knickers_portal_hotpants",
@@ -12894,7 +13561,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_strapon_2": {
       "item_id": "knickers_strapon_2",
@@ -12909,7 +13577,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_strapon_3": {
       "item_id": "knickers_strapon_3",
@@ -12924,7 +13593,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_strapon_4": {
       "item_id": "knickers_strapon_4",
@@ -12939,7 +13609,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_swimming_bottoms_1": {
       "item_id": "knickers_swimming_bottoms_1",
@@ -12954,7 +13625,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_1": {
       "item_id": "knickers_thong_1",
@@ -12969,7 +13641,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_10": {
       "item_id": "knickers_thong_10",
@@ -12984,7 +13657,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_18": {
       "item_id": "knickers_thong_18",
@@ -12999,7 +13673,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_19": {
       "item_id": "knickers_thong_19",
@@ -13014,7 +13689,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_2": {
       "item_id": "knickers_thong_2",
@@ -13029,7 +13705,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_3": {
       "item_id": "knickers_thong_3",
@@ -13044,7 +13721,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_4": {
       "item_id": "knickers_thong_4",
@@ -13059,7 +13737,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_5": {
       "item_id": "knickers_thong_5",
@@ -13074,7 +13753,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_6": {
       "item_id": "knickers_thong_6",
@@ -13089,7 +13769,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_7": {
       "item_id": "knickers_thong_7",
@@ -13104,7 +13785,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_8": {
       "item_id": "knickers_thong_8",
@@ -13119,7 +13801,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_9": {
       "item_id": "knickers_thong_9",
@@ -13134,7 +13817,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_big_cock_lover": {
       "item_id": "knickers_thong_big_cock_lover",
@@ -13224,7 +13908,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_stripper_2": {
       "item_id": "knickers_thong_stripper_2",
@@ -13239,7 +13924,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_thong_sure_thing": {
       "item_id": "knickers_thong_sure_thing",
@@ -13269,7 +13955,8 @@
       "childish": 3,
       "bulk": 1,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_training_pants_2": {
       "item_id": "knickers_training_pants_2",
@@ -13284,7 +13971,8 @@
       "childish": 3,
       "bulk": 1,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_training_pants_3": {
       "item_id": "knickers_training_pants_3",
@@ -13299,7 +13987,8 @@
       "childish": 3,
       "bulk": 1,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_training_pants_4": {
       "item_id": "knickers_training_pants_4",
@@ -13314,7 +14003,8 @@
       "childish": 3,
       "bulk": 1,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_training_pants_sexy": {
       "item_id": "knickers_training_pants_sexy",
@@ -13344,7 +14034,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_string_bow_panties_1": {
       "item_id": "knickers_string_bow_panties_1",
@@ -13359,7 +14050,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_tartan_panties_1": {
       "item_id": "knickers_tartan_panties_1",
@@ -13374,7 +14066,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_vaginal_seal_1": {
       "item_id": "knickers_vaginal_seal_1",
@@ -13389,7 +14082,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "knickers_woolen_panties_1": {
       "item_id": "knickers_woolen_panties_1",
@@ -13404,7 +14098,8 @@
       "childish": 3,
       "bulk": 0,
       "bulk_threshold": 0,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "bondage_chastity_cage_1": {
       "item_id": "bondage_chastity_cage_1",
@@ -20018,6 +20713,18 @@
           "base": 86,
           "per_floor": 2
         },
+        "honeydew-lantern": {
+          "base": 3,
+          "per_floor": 0
+        },
+        "princess-rose": {
+          "base": 8,
+          "per_floor": 0
+        },
+        "littlebig-clockwork": {
+          "base": 60,
+          "per_floor": 0
+        },
         "default": {
           "base": 5,
           "per_floor": 2
@@ -20660,6 +21367,767 @@
       "Milk Tooth",
       "Little Sparrow",
       "The Good Girl"
+    ]
+  },
+  "bases": {
+    "_comment": "Generated base items: a STYLE (purely descriptive words) dressed onto a GARMENT (the slot and the mechanics). The loot roller replaces every numbered pool item (items.json entries flagged pool_template) with a generated '<style>_<garment>' base before rolling rarity and affixes, so 'Latex Dress #7' becomes 'Maid Dress' and then 'Crinkly Maid Dress of the Nursery'. Styles never carry stats (Decision 2026-09-22); diaper absorbency lives in the garment tiers and moves through affixes. Campaign: scrLootRoll.gml. Service: server/loot.mjs. Reference: python/loot_roll.py. Change one, change all, then re-run python/export_online_dive.py.",
+    "tuning": {
+      "generated_categories": [
+        "dress",
+        "torso",
+        "pants",
+        "skirt",
+        "bra",
+        "gloves",
+        "shoes",
+        "socks",
+        "corset",
+        "panties",
+        "diaper_cover"
+      ],
+      "id_prefix": "gen_",
+      "id_separator": "_",
+      "name_format": "{style} {garment}",
+      "desc_format": "{garment_desc} {style_desc}"
+    },
+    "garments": [
+      {
+        "id": "dress",
+        "name": "Dress",
+        "category": "dress",
+        "weight": 10,
+        "def": 1,
+        "value": 15,
+        "childish": 5,
+        "bulk_threshold": 3,
+        "conceals_panties": true,
+        "desc": "A {style_lower} dress. Fills both torso and pants slots."
+      },
+      {
+        "id": "gown",
+        "name": "Gown",
+        "category": "dress",
+        "weight": 3,
+        "def": 3,
+        "value": 18,
+        "childish": 3,
+        "bulk_threshold": 3,
+        "conceals_panties": true,
+        "desc": "A long {style_lower} gown with real weight to its skirts. Fills both torso and pants slots."
+      },
+      {
+        "id": "top",
+        "name": "Top",
+        "category": "torso",
+        "weight": 10,
+        "def": 1,
+        "value": 15,
+        "childish": 5,
+        "bulk_threshold": 3,
+        "conceals_panties": true,
+        "desc": "A {style_lower} top that hangs low enough to hide what is underneath."
+      },
+      {
+        "id": "blouse",
+        "name": "Blouse",
+        "category": "torso",
+        "weight": 5,
+        "def": 1,
+        "value": 15,
+        "childish": 5,
+        "desc": "A {style_lower} blouse."
+      },
+      {
+        "id": "crop_top",
+        "name": "Crop Top",
+        "category": "torso",
+        "weight": 5,
+        "def": 1,
+        "value": 10,
+        "childish": 2,
+        "desc": "A {style_lower} crop top that stops well above the waist."
+      },
+      {
+        "id": "pants",
+        "name": "Pants",
+        "category": "pants",
+        "weight": 8,
+        "def": 1,
+        "value": 12,
+        "childish": 3,
+        "bulk_threshold": 2,
+        "conceals_panties": true,
+        "desc": "{style} pants."
+      },
+      {
+        "id": "hotpants",
+        "name": "Hotpants",
+        "category": "pants",
+        "weight": 4,
+        "def": 1,
+        "value": 12,
+        "childish": 4,
+        "bulk_threshold": 2,
+        "conceals_panties": true,
+        "desc": "{style} hotpants, cut short."
+      },
+      {
+        "id": "trousers",
+        "name": "Trousers",
+        "category": "pants",
+        "weight": 4,
+        "def": 2,
+        "value": 14,
+        "childish": 1,
+        "bulk_threshold": 3,
+        "conceals_panties": true,
+        "desc": "Sensible {style_lower} trousers. Grown-up, and roomy enough to hide a lot."
+      },
+      {
+        "id": "bloomers",
+        "name": "Bloomers",
+        "category": "pants",
+        "weight": 4,
+        "def": 0,
+        "value": 8,
+        "childish": 6,
+        "bulk_threshold": 2,
+        "conceals_panties": true,
+        "wet_resist": 1,
+        "is_bloomers": true,
+        "desc": "Billowy {style_lower} bloomers. Cute, and they hide a great deal."
+      },
+      {
+        "id": "skirt",
+        "name": "Skirt",
+        "category": "skirt",
+        "weight": 8,
+        "def": 1,
+        "value": 12,
+        "childish": 4,
+        "bulk_threshold": 2,
+        "conceals_panties": true,
+        "desc": "A {style_lower} skirt."
+      },
+      {
+        "id": "miniskirt",
+        "name": "Miniskirt",
+        "category": "skirt",
+        "weight": 4,
+        "def": 1,
+        "value": 12,
+        "childish": 4,
+        "bulk_threshold": 1,
+        "conceals_panties": true,
+        "desc": "A {style_lower} miniskirt. It hides very little."
+      },
+      {
+        "id": "bra",
+        "name": "Bra",
+        "category": "bra",
+        "weight": 8,
+        "def": 0,
+        "value": 8,
+        "childish": 2,
+        "desc": "A {style_lower} bra."
+      },
+      {
+        "id": "bikini_top",
+        "name": "Bikini Top",
+        "category": "bra",
+        "weight": 4,
+        "def": 0,
+        "value": 8,
+        "childish": 2,
+        "desc": "A {style_lower} bikini top."
+      },
+      {
+        "id": "gloves",
+        "name": "Gloves",
+        "category": "gloves",
+        "weight": 8,
+        "def": 1,
+        "value": 10,
+        "childish": 4,
+        "desc": "{style} gloves."
+      },
+      {
+        "id": "mittens",
+        "name": "Mittens",
+        "category": "gloves",
+        "weight": 3,
+        "def": 1,
+        "value": 10,
+        "childish": 8,
+        "desc": "{style} mittens. Fingers are for big girls."
+      },
+      {
+        "id": "shoes",
+        "name": "Shoes",
+        "category": "shoes",
+        "weight": 8,
+        "def": 1,
+        "value": 10,
+        "childish": 2,
+        "desc": "{style} shoes."
+      },
+      {
+        "id": "heels",
+        "name": "Heels",
+        "category": "shoes",
+        "weight": 4,
+        "def": 1,
+        "value": 10,
+        "childish": 1,
+        "desc": "{style} heels. Tricky to run in."
+      },
+      {
+        "id": "boots",
+        "name": "Boots",
+        "category": "shoes",
+        "weight": 4,
+        "def": 1,
+        "value": 10,
+        "childish": 2,
+        "desc": "{style} boots."
+      },
+      {
+        "id": "booties",
+        "name": "Booties",
+        "category": "shoes",
+        "weight": 3,
+        "def": 1,
+        "value": 10,
+        "childish": 8,
+        "desc": "Soft {style_lower} booties."
+      },
+      {
+        "id": "socks",
+        "name": "Socks",
+        "category": "socks",
+        "weight": 8,
+        "def": 0,
+        "value": 5,
+        "childish": 3,
+        "desc": "{style} socks."
+      },
+      {
+        "id": "stockings",
+        "name": "Stockings",
+        "category": "socks",
+        "weight": 5,
+        "def": 0,
+        "value": 5,
+        "childish": 1,
+        "desc": "{style} stockings."
+      },
+      {
+        "id": "corset",
+        "name": "Corset",
+        "category": "corset",
+        "weight": 8,
+        "def": 2,
+        "value": 18,
+        "childish": 3,
+        "desc": "A stiff {style_lower} corset."
+      },
+      {
+        "id": "panties",
+        "name": "Panties",
+        "category": "panties",
+        "weight": 10,
+        "def": 0,
+        "value": 8,
+        "childish": 3,
+        "wet_resist": 1,
+        "bulk": 0,
+        "desc": "{style} panties. Ordinary underwear with nothing to catch an accident."
+      },
+      {
+        "id": "training_pants",
+        "name": "Training Pants",
+        "category": "panties",
+        "weight": 5,
+        "def": 0,
+        "value": 8,
+        "childish": 6,
+        "wet_resist": -1,
+        "bulk": 1,
+        "desc": "{style} training pants. A little padding, a lot of hope."
+      },
+      {
+        "id": "pull_up",
+        "name": "Pull-Up",
+        "category": "panties",
+        "weight": 5,
+        "def": 0,
+        "value": 8,
+        "childish": 7,
+        "wet_resist": -2,
+        "bulk": 2,
+        "is_diaper": true,
+        "desc": "{style} pull-up. Thin, discreet, and absorbent enough for daytime."
+      },
+      {
+        "id": "thin_diaper",
+        "name": "Thin Diaper",
+        "category": "panties",
+        "weight": 8,
+        "def": 0,
+        "value": 8,
+        "childish": 8,
+        "wet_resist": -2,
+        "bulk": 3,
+        "is_diaper": true,
+        "desc": "A thin {style_lower} diaper. Crinkles a little, holds a little."
+      },
+      {
+        "id": "diaper",
+        "name": "Diaper",
+        "category": "panties",
+        "weight": 8,
+        "def": 0,
+        "value": 8,
+        "childish": 9,
+        "wet_resist": -3,
+        "bulk": 4,
+        "is_diaper": true,
+        "desc": "A {style_lower} diaper. Proper padding, proper crinkle."
+      },
+      {
+        "id": "thick_diaper",
+        "name": "Thick Diaper",
+        "category": "panties",
+        "weight": 5,
+        "def": 0,
+        "value": 8,
+        "childish": 9,
+        "wet_resist": -3,
+        "bulk": 6,
+        "is_diaper": true,
+        "desc": "A thick {style_lower} diaper that forces a waddle."
+      },
+      {
+        "id": "overnight_diaper",
+        "name": "Overnight Diaper",
+        "category": "panties",
+        "weight": 3,
+        "def": 0,
+        "value": 8,
+        "childish": 10,
+        "wet_resist": -4,
+        "bulk": 5,
+        "is_diaper": true,
+        "desc": "An overnight {style_lower} diaper. Built to hold through anything."
+      },
+      {
+        "id": "max_absorbency_diaper",
+        "name": "Maximum Absorbency Diaper",
+        "category": "panties",
+        "weight": 1,
+        "def": 0,
+        "value": 8,
+        "childish": 10,
+        "wet_resist": -4,
+        "bulk": 10,
+        "is_diaper": true,
+        "desc": "A {style_lower} diaper of frankly ridiculous thickness. Nothing gets past it, and nothing hides it."
+      },
+      {
+        "id": "plastic_pants",
+        "name": "Plastic Pants",
+        "category": "diaper_cover",
+        "weight": 8,
+        "def": 0,
+        "value": 8,
+        "childish": 6,
+        "wet_resist": -1,
+        "bulk_threshold": 3,
+        "conceals_panties": true,
+        "desc": "{style} plastic pants that snap over a diaper and keep leaks in."
+      },
+      {
+        "id": "diaper_cover",
+        "name": "Diaper Cover",
+        "category": "diaper_cover",
+        "weight": 5,
+        "def": 1,
+        "value": 12,
+        "childish": 5,
+        "bulk_threshold": 2,
+        "conceals_panties": true,
+        "desc": "A {style_lower} diaper cover."
+      }
+    ],
+    "styles": [
+      {
+        "id": "plain",
+        "name": "Plain",
+        "weight": 12,
+        "desc": "Nothing to say about it, which is sometimes the point.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "maid",
+        "name": "Maid",
+        "weight": 8,
+        "desc": "Black and white, with a frilled apron edge and a bow at the back.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "skimpy",
+        "name": "Skimpy",
+        "weight": 6,
+        "desc": "Cut so small that it is mostly an idea.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "bridal",
+        "name": "Bridal",
+        "weight": 4,
+        "desc": "Ivory satin and a scatter of seed pearls.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "latex",
+        "name": "Latex",
+        "weight": 6,
+        "desc": "Glossy, skin-tight and squeaky when it moves.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "rubber",
+        "name": "Rubber",
+        "weight": 4,
+        "desc": "Thick rubber with a faint talc smell.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "bunny",
+        "name": "Bunny",
+        "weight": 6,
+        "desc": "Soft white plush with little embroidered ears somewhere on it.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "kitty",
+        "name": "Kitty",
+        "weight": 6,
+        "desc": "Printed with paw prints and one smug cat face.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "schoolgirl",
+        "name": "Schoolgirl",
+        "weight": 6,
+        "desc": "Navy pleats and a crisp white trim.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "cheerleader",
+        "name": "Cheerleader",
+        "weight": 4,
+        "desc": "Team colours and a big block letter.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "nursery",
+        "name": "Nursery",
+        "weight": 8,
+        "desc": "Pastel prints of blocks, ducks and clouds.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "princess",
+        "name": "Princess",
+        "weight": 6,
+        "desc": "Pink tulle and gold thread, fit for a very small court.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "fairy",
+        "name": "Fairy",
+        "weight": 4,
+        "desc": "Gauzy layers dusted with glitter that never quite comes off.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "witchy",
+        "name": "Witchy",
+        "weight": 4,
+        "desc": "Black lace, purple lining and a faint smell of herbs.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "gothic",
+        "name": "Gothic",
+        "weight": 4,
+        "desc": "Black velvet, silver buckles and far too many straps.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "christmas",
+        "name": "Christmas",
+        "weight": 2,
+        "desc": "Red and green with white fur trim and a tiny bell.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "pumpkin",
+        "name": "Pumpkin",
+        "weight": 2,
+        "desc": "Orange with a black jack-o-lantern grin.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "sailor",
+        "name": "Sailor",
+        "weight": 4,
+        "desc": "Navy and white with a square collar and an anchor.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "nurse",
+        "name": "Nurse",
+        "weight": 4,
+        "desc": "Clinical white with a red cross and a starched edge.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "cupcake",
+        "name": "Cupcake",
+        "weight": 4,
+        "desc": "Frosting-pink with sprinkles printed all over.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "tartan",
+        "name": "Tartan",
+        "weight": 4,
+        "desc": "A red and green check with a scratchy wool feel.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "gingham",
+        "name": "Gingham",
+        "weight": 4,
+        "desc": "Blue and white picnic check.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "polka_dot",
+        "name": "Polka Dot",
+        "weight": 4,
+        "desc": "White spots on a bright ground.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "satin",
+        "name": "Satin",
+        "weight": 4,
+        "desc": "Cool, slippery and shiny.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "lace",
+        "name": "Lace",
+        "weight": 4,
+        "desc": "Delicate lace that shows more than it covers.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "velvet",
+        "name": "Velvet",
+        "weight": 3,
+        "desc": "Deep, soft velvet that catches the light.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "denim",
+        "name": "Denim",
+        "weight": 4,
+        "desc": "Faded blue denim with copper rivets.",
+        "garments": [
+          "dress",
+          "top",
+          "pants",
+          "hotpants",
+          "trousers",
+          "skirt",
+          "miniskirt",
+          "diaper_cover"
+        ]
+      },
+      {
+        "id": "fishnet",
+        "name": "Fishnet",
+        "weight": 3,
+        "desc": "Wide black net and not much else.",
+        "garments": [
+          "dress",
+          "top",
+          "crop_top",
+          "bra",
+          "gloves",
+          "stockings",
+          "socks",
+          "corset"
+        ]
+      },
+      {
+        "id": "sporty",
+        "name": "Sporty",
+        "weight": 4,
+        "desc": "Stretchy jersey with a racing stripe.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "ballet",
+        "name": "Ballet",
+        "weight": 3,
+        "desc": "Blush pink with satin ribbons.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "cottage",
+        "name": "Cottage",
+        "weight": 4,
+        "desc": "Tiny flowers on soft cotton.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "mermaid",
+        "name": "Mermaid",
+        "weight": 3,
+        "desc": "Sea-green scales that shimmer teal.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "unicorn",
+        "name": "Unicorn",
+        "weight": 3,
+        "desc": "Rainbow stripes and a tiny golden horn print.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "strawberry",
+        "name": "Strawberry",
+        "weight": 3,
+        "desc": "Red with little green-leaf strawberries all over.",
+        "garments": [
+          "*"
+        ]
+      },
+      {
+        "id": "cloth",
+        "name": "Cloth",
+        "weight": 4,
+        "desc": "Old-fashioned folded cotton, pinned at the hips.",
+        "garments": [
+          "thin_diaper",
+          "diaper",
+          "thick_diaper",
+          "overnight_diaper",
+          "max_absorbency_diaper",
+          "pull_up",
+          "training_pants",
+          "diaper_cover"
+        ]
+      },
+      {
+        "id": "printed",
+        "name": "Printed",
+        "weight": 6,
+        "desc": "Covered in cheerful cartoon prints that fade when wet.",
+        "garments": [
+          "thin_diaper",
+          "diaper",
+          "thick_diaper",
+          "overnight_diaper",
+          "max_absorbency_diaper",
+          "pull_up",
+          "training_pants",
+          "plastic_pants",
+          "diaper_cover"
+        ]
+      },
+      {
+        "id": "medical",
+        "name": "Medical",
+        "weight": 3,
+        "desc": "Plain white with blue tapes and a wetness stripe.",
+        "garments": [
+          "thin_diaper",
+          "diaper",
+          "thick_diaper",
+          "overnight_diaper",
+          "max_absorbency_diaper",
+          "pull_up",
+          "plastic_pants"
+        ]
+      }
     ]
   }
 }
