@@ -178,3 +178,22 @@ test('branch Dives are entered along the trail from their parent',async()=>{
   assert.equal(taiga.character.dive.hubOrigin,'princess-rose'); // The client uses this to pick the campaign hub to return to.
  }finally{await h.close();}
 });
+
+test('in-game chat moderation lists the area, removes one line or clears everything, and is audited',async()=>{
+ const h=harness();await h.started;
+ try{
+  await h.join(playerToken,'Player','honeydew-lantern');await h.join(staffToken,'Staff','honeydew-lantern');
+  await h.ok(playerToken,'chat',{text:'first'});await h.ok(playerToken,'chat',{text:'second'});
+  let {receipt}=await h.ok(staffToken,'gm_catalog');
+  assert.equal(receipt.gm.chatArea,'honeydew-lantern');assert.deepEqual(receipt.gm.chat.map(m=>m.text),['first','second']);
+  const denied=await h.play(playerToken,'gm_chat_clear');assert.equal(denied.status,409);assert.equal(denied.result.error,'gm_not_gamemaster');
+  assert.equal((await h.play(staffToken,'gm_chat_delete',{seq:0})).status,400);
+  const removed=await h.ok(staffToken,'gm_chat_delete',{seq:receipt.gm.chat[0].seq});assert.match(removed.character.hubNotice,/Removed a line by Player/);
+  assert.equal((await h.play(staffToken,'gm_chat_delete',{seq:receipt.gm.chat[0].seq})).status,404);
+  ({receipt}=await h.ok(staffToken,'gm_catalog'));assert.deepEqual(receipt.gm.chat.map(m=>m.text),['second']);
+  assert.deepEqual((await h.ok(playerToken,'heartbeat')).chat.map(m=>m.text),['second']);
+  const cleared=await h.ok(staffToken,'gm_chat_clear');assert.match(cleared.character.hubNotice,/Cleared 1 message from/);
+  assert.equal((await h.ok(playerToken,'heartbeat')).chat.length,0);
+  assert.equal(h.audit('delete_chat').length,1);assert.equal(h.audit('clear_chat').length,1);
+ }finally{await h.close();}
+});

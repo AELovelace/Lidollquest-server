@@ -176,11 +176,77 @@
       </article>
       <article data-guide-id="loot" tabindex="-1" hidden>
         <h3>Loot: adjective + item + rarity</h3>
-        <p>Every wearable or weapon a chest hands out is a unique copy. It rolls a <b>rarity tier</b> (common, uncommon, rare, epic, legendary), an <b>item level</b> from the route and floor, level-scaled base stats, and <b>affixes</b>: an adjective in front, an "of the ..." title behind from rare up, and bonus lines. A dress fills torso and pants, so it rolls two passes. Legendary copies also get a quoted title and a guaranteed blessing from the curses and blessings table.</p>
-        <p>The <b>Loot</b> tab edits the live table. <b>Rarity tiers</b> set each tier's weight, affix count, stat budget and colour. <b>Luck profiles</b> multiply the tier weights for a drop source. <b>Route levels</b> set the item level each route hands out on floor one and how fast it climbs. <b>Over-cap bonuses</b> decide what a stat pushed past 100 by gear is worth. <b>Affixes</b> can be edited, retired, restored or written new; each one names its slots, its lowest tier, its tags (no two affixes on one item share a tag) and one to four stat lines with per-level growth.</p>
-        <p><b>Garments</b> and <b>Styles</b> are the generated base items: every numbered pool item becomes a style dressed onto a garment when it drops. A garment owns the slot and every number (a Thin Diaper, an Overnight Diaper, a Gown); a style is words only (Maid, Skimpy, Bridal) plus the garments it may dress, and the panel refuses a number on a style. Both can be edited, retired, restored or written new; a garment cannot retire while a style still names it, and each category keeps at least one.</p>
-        <p>Use <b>Preview a roll</b> to see the exact item a seed produces before you apply a change. Edits reach the next chest without a restart. Loot a player already holds keeps the roll it was given, and <b>Reset</b> puts everything back to the last content export. Never author <code>is_diaper</code> as an affix: the panel refuses it, because a diaper is identity, not a stat.</p>
-        <p><button type="button" data-gm-tool="loot">Open the Loot tab</button></p>
+        <p>Every wearable or weapon a chest hands out is a unique copy. It rolls a <b>rarity tier</b> (common, uncommon, rare, epic, legendary), an <b>item level</b> from the route and floor, level-scaled base stats, and <b>affixes</b>: an adjective in front, an "of the ..." title behind from rare up, and bonus stat lines. The name tells the story at a glance: <i>"Sodden Fluffy Diaper of the Nursery"</i> in purple says epic, wet-themed and absorbent before anyone opens the tooltip. Common gear keeps its plain authored name and colour.</p>
+        <p>The <b>Loot</b> tab edits the live table. Edits reach the next chest on every route without a restart. Loot a player already holds keeps the roll it was given, and every Apply, Save, Retire and Reset is written to the audit log with the reason you type.</p>
+
+        <h4>How one drop is decided</h4>
+        <p>The roll is seeded from the chest itself, so regenerating a floor or previewing the same seed twice gives the same item. In order:</p>
+        <ul>
+          <li><b>Base item.</b> A numbered pool item (a "Latex Dress #7") is swapped for a generated base: a <b>style</b> (words only, "Maid") dressed onto a <b>garment</b> (the slot and every number, "Dress"). A diaper template only ever becomes a diaper garment. Quest items, consumables and locked items never roll.</li>
+          <li><b>Rarity tier.</b> Each tier's weight is multiplied by the drop source's <b>luck profile</b>, then one tier is drawn. With the shipped weights (60 / 25 / 10 / 4 / 1) roughly one chest in a hundred is legendary before luck.</li>
+          <li><b>Item level.</b> The route's base level plus per-floor growth for the floor, plus a small jitter (shipped: minus one to plus two), never above the item level cap.</li>
+          <li><b>Base stats.</b> ATK, DEF and HP regen are multiplied by the level curve and the tier's stat budget. A zero stays zero: socks never gain ATK. Theme stats such as wet resist, bulk and childish only move through affixes.</li>
+          <li><b>Affix passes.</b> The tier says how many affixes each slot gets (shipped: none, one, two, three, four). The first pick becomes the adjective; the next becomes the "of the ..." title from rare up. A dress counts as two slots, torso then pants, and takes its title from the pants pass. No two affixes on one item may share a tag, and if nothing legal remains for a prefix or title the roller falls back to a bonus line.</li>
+          <li><b>Legendary title.</b> A legendary copy takes one line from the Legendary titles list and wears it in quotes in front of the whole name.</li>
+          <li><b>Coin value.</b> The base value times the tier's value multiplier, growing with item level.</li>
+          <li><b>Curse or blessing.</b> The curses and blessings roller runs last with the tier's bless and curse multipliers. Shipped: epics double their blessing chance, legendaries never curse and always bless.</li>
+        </ul>
+        <p>Online, every chest and loose treasure pickup rolls with the <b>chest</b> profile. The mob, elite, boss and shop rows, and the drop and elite chances, describe the campaign's battle drops and shops; they ride along in the same table so both copies share one shape, but the desktop game reads the shipped file, so change those in the desktop editor and export.</p>
+
+        <h4>Reading the tab, card by card</h4>
+        <ul>
+          <li><b>Rarity tiers.</b> One row per tier. <i>Weight</i> is the raw draw chance, <i>Affixes / slot</i> how many lines each slot rolls (0 to 6), <i>Suffix</i> whether the tier may take an "of the ..." title, <i>Stat budget x</i> scales base stats (0.5 to 5), <i>Value x</i> scales coins, <i>Bless x</i> and <i>Curse x</i> feed the curses and blessings ramps (0 turns one off), <i>Force blessing</i> guarantees one, and <i>Colour</i> tints the name and chest.</li>
+          <li><b>Level curve and drops.</b> <i>level growth</i> is the per-level stat multiplier (shipped 0.08, so level 100 gear is about nine times level 1); the preview under it shows a base DEF 2 item at levels 1 to 100 for every tier so you can see the shape before you apply. <i>ilvl jitter</i> min and max spread the item level around the route level. <i>ilvl cap</i>, <i>level cap</i> and <i>stat cap</i> are all 100 by decision. <i>legendary cha gate</i> is the charisma a shop needs before it will show a legendary. <i>value level growth</i> is coin growth per level. The enemy drop, boss drop, elite chance, elite HP, elite level bonus and boss level bonus fields are the campaign's battle-drop settings described above.</li>
+          <li><b>Luck profiles.</b> One row per drop source; each cell multiplies that tier's weight. A zero removes the tier for that source, which is how shops never hand out epics. Common is never listed because it is whatever is left.</li>
+          <li><b>Over-cap bonuses.</b> Base stats stop at 100 from level-ups, but gear may push the total past it. <i>Per point %</i> is what each point over the cap is worth, <i>Ceiling %</i> stops the bonus growing, and <i>Effect</i> names what the bonus does for that stat.</li>
+          <li><b>Route levels.</b> <i>Base</i> is the item level on floor one and <i>Per floor</i> how much it climbs each floor deeper. The <b>default</b> row covers any route without its own row. A chest authored with its own level ignores this table.</li>
+          <li><b>Legendary titles.</b> One per line. Keep at least one, or the panel refuses the retune.</li>
+          <li><b>Apply rates.</b> Type why, then Apply. Every value is checked against its bounds and the whole card is refused if one is wrong, so nothing half-applies.</li>
+        </ul>
+
+        <h4>Writing an affix</h4>
+        <p>Choose <b>Write a new one</b>, or select a row to edit it. Shipped affixes are <b>retired</b> rather than deleted so a later content push cannot resurrect a mistake by surprise; the Retired filter lists them and <b>Restore</b> brings one back. Custom affixes are deleted outright.</p>
+        <ul>
+          <li><b>Id</b> is permanent: 3 to 48 characters, a lowercase letter first, then letters, digits or underscores. Rolled loot remembers the id, so keep it once players hold the affix.</li>
+          <li><b>Adjective</b> goes in front of the name ("Crinkly"); <b>Title</b> goes behind ("of the Nursery"). Give at least one, or tick <b>Bonus-only</b> for a silent stat line. An affix with both may be drawn as either.</li>
+          <li><b>Pick weight</b> (0.1 to 1000) is relative to every other legal affix for that slot and tier.</li>
+          <li><b>Lowest tier</b> hides the affix below that rarity. Set it to rare or above for anything you want to feel special.</li>
+          <li><b>Tags</b> are comma separated. No two affixes sharing a tag can land on one item, so tag every wet-themed line "wet" and a diaper can never be both Sodden and Soaked.</li>
+          <li><b>Slots</b> are the equipment slots it may roll onto. A dress asks torso and pants; the panel refuses "dress" as a slot for that reason. Pick at least one.</li>
+          <li><b>Stat lines</b>, one to four. Each rolls a whole number between min and max, and both ends grow by the per-level value times (item level minus one). A line that rolls zero is skipped, and an affix whose every line can only roll zero is refused. Childish clamps to 0 to 10 and bulk never goes negative.</li>
+          <li><b>Flavour</b> is a sentence appended to the item description once.</li>
+        </ul>
+        <p>Never author <code>is_diaper</code> as a stat: the panel refuses it, because a diaper is identity, not a stat. Only the stats in the stat line dropdown may change.</p>
+
+        <h4>Garments and styles</h4>
+        <p>These are the generated base items. A <b>garment</b> owns the slot and every number: category, pick weight, the numbers (ATK, DEF, absorbency, bulk and so on), flags such as diaper, a coin value and a description where <code>{style}</code> and <code>{style_lower}</code> are substituted. A <b>style</b> is words only: a name, a description sentence, a pick weight, and the garments it may dress (or <code>*</code> for all of them). The panel refuses any number on a style. Retiring a garment is refused while a style still names it, and each category keeps at least one garment so a template always has something to become. Both editors follow the same retire, restore and delete rules as affixes.</p>
+
+        <h4>Preview a roll</h4>
+        <p>Pick a base item from the dive catalog, a source level, a luck profile and a seed, then <b>Roll</b>. The result is the exact item the server would hand out from the live table, with its tier, item level, affixes and stat lines spelled out. <b>Roll another</b> bumps the seed. Previews never touch chest receipts or the audit log, so roll as many as you like. Use the same seed before and after an edit to see exactly what changed.</p>
+
+        <h4>Worked example: a wet-themed epic adjective for diapers</h4>
+        <ul>
+          <li>Write a new affix with id <code>sodden</code>, adjective "Sodden", weight 6, lowest tier epic, tag "wet", slots panties and diaper cover.</li>
+          <li>Add a stat line: wet resist min 4, max 8, per-level growth 0.1 on both ends, so a level 50 copy rolls roughly 8 to 12.</li>
+          <li>Flavour: "It has clearly been through a lot." Reason: "Epic wet adjective for the flood event." Save.</li>
+          <li>Preview a Thin Diaper at level 50 with the chest profile and roll until an epic appears. Confirm the adjective, then send a test character into any Dive: the next chest they open uses the new table.</li>
+        </ul>
+
+        <h4>Resetting</h4>
+        <p><b>Reset rates</b> returns only the rarity, curve, luck, over-cap, route level and title cards to the last content export. <b>Reset garments and styles</b> drops every custom or edited base. <b>Reset everything</b> does all of that plus the affix pool. Each asks for confirmation and is recorded in the audit log. Loot already rolled keeps what it was given in every case.</p>
+
+        <h4>Shipped versus live</h4>
+        <p>The desktop game editor's Loot tabs author the shipped baseline in the campaign data files; an export ships that baseline to the server and the offline game. The Loot tab here layers live overrides on top for online play only. Edited shipped entries show a Source of "edited", your own show "custom", and Reset returns to the export. Changes you want in the offline game, or in every future export, belong in the desktop editor.</p>
+
+        <h4>Something is not rolling</h4>
+        <ul>
+          <li><b>My affix never appears.</b> Check, in order: it is Enabled; the slot you are rolling is in its slot list; the tier you rolled is at or above its lowest tier; a tag on it is not already used by an earlier pick on the same item; its weight is not tiny beside the others; the tier rolls any affixes at all (common rolls none by decision).</li>
+          <li><b>Preview shows the plain name.</b> The roll was common, or the base item is not wearable, or it is a quest, consumable or locked item. Roll another seed or raise the source level and luck.</li>
+          <li><b>A player's item did not change after my edit.</b> Correct: loot keeps the roll it was given. Only new chests use the new table.</li>
+          <li><b>Apply rates was refused.</b> One field is outside its bounds or the legendary title list is empty; the message names it. Nothing was saved.</li>
+          <li><b>A retire was refused.</b> A style still names that garment, or it is the last garment in its category. Retire the style first, or write a replacement garment.</li>
+        </ul>
+        <p><button type="button" data-gm-tool="loot">Open the Loot tab</button> <button type="button" data-gm-tool="enchantments">Open Curses &amp; Blessings</button></p>
       </article>
       <article data-guide-id="monsters" tabindex="-1" hidden>
         <h3>Monsters and live encounters</h3>

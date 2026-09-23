@@ -18,7 +18,7 @@ test('inspection isolates committed appearance, validates live area and never ex
   const room=entered.zones.find(z=>z.id==='dive-quarters').rooms[1];
   db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(room.x,room.y,chars.bob.id);
   const aliceView=api.read('alice',chars.alice.id),bobView=api.read('bob',chars.bob.id);
-  assert.notEqual(aliceView.chatArea.id,bobView.chatArea.id,'room chat remains separate');
+  assert.equal(aliceView.chatArea.id,bobView.chatArea.id,'one chat stream per floor; distance decides who hears whom');
   assert.ok(aliceView.peers.some(peer=>peer.id===chars.bob.id),'the other room player is displayed on this floor');
   assert.equal(api.inspect('alice',chars.alice.id,chars.bob.id,'alice').character_id,chars.bob.id,'displayed dive players remain inspectable across room boundaries');
   const same=db.prepare('SELECT x,y FROM quest_presence WHERE character_id=?').get(chars.alice.id);db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(same.x,same.y,chars.bob.id);

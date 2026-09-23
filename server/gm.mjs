@@ -335,6 +335,14 @@ export function createGameMasterPanel(db,{walletClient,live=null,artJobs=null,wo
    db.prepare('DELETE FROM quest_chat WHERE seq=?').run(seq);
    record(actor,'delete_chat',row.owner.replace(/^activity:/,''),{zone:row.zone,name:row.name,text:row.text,reason:clean(input.reason,240)});
    return {seq,zone:row.zone,zoneName:zoneName(row.zone)};
+  },
+  clear_chat(input,actor){ // Every message in one area at once; the global stream and generated Dive floors count as areas too.
+   const zone=clean(input.zone,200);
+   if(!zone)fail(400,'Choose a room to clear.','gm_unknown_zone');
+   if(!zoneById.has(zone)&&!db.prepare('SELECT 1 FROM quest_chat WHERE zone=? LIMIT 1').get(zone))fail(400,'That room has no chat to clear.','gm_unknown_zone'); // Dive floors use generated ids outside the catalogue, so any area that actually holds messages is accepted.
+   const removed=Number(db.prepare('DELETE FROM quest_chat WHERE zone=?').run(zone).changes);
+   record(actor,'clear_chat',zone,{removed,reason:clean(input.reason,240)});
+   return {zone,zoneName:zoneName(zone),removed};
   }};
 
  async function body(req,limit=16*1024){

@@ -37,7 +37,7 @@ export function createRoleplay(db,{now=Date.now,roll=randomInt}={}){
   const seen=db.prepare('SELECT last_read_id FROM quest_rp_reads WHERE character_id=?').get(c.id)?.last_read_id??0;
   return {supported:true,maxCharacters:RP_MAX_CHARACTERS,seen,progress:progress(c),posts:rows.filter(r=>!restricted.includes(r.owner)).map(summary)};
  }
- function post(c,input,area,candidates){
+ function post(c,input,area,candidates,at={x:null,y:null}){ // at: the author's tile, so the notice travels the same radius as speech.
   if(typeof input.text!=='string'||Array.from(input.text).length>RP_MAX_CHARACTERS)fail(400,'RP posts must be at most 12,000 characters.');
   const text=input.text.normalize('NFC').replace(/\r\n?/g,'\n').replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069#]/g,' ').trim();
   const words=(text.match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)??[]).length,chars=Array.from(text).length;
@@ -50,7 +50,7 @@ export function createRoleplay(db,{now=Date.now,roll=randomInt}={}){
   const appearance=inspectionProjection(c);delete appearance.account_id;
   const id=Number(db.prepare('INSERT INTO quest_rp_posts(author,owner,name,area,text,appearance,words,chars,created) VALUES (?,?,?,?,?,?,?,?,?)').run(c.id,c.owner,c.name,area,text,JSON.stringify(appearance),words,chars,now()).lastInsertRowid);
   for(const p of chosen)db.prepare('INSERT INTO quest_rp_partners VALUES (?,?,?)').run(id,p.id,p.name);
-  const seq=Number(db.prepare('INSERT INTO quest_chat(zone,owner,character_id,name,text,created) VALUES (?,?,?,?,?,?)').run(area,c.owner,c.id,c.name,c.name+' posted an rp',now()).lastInsertRowid);
+  const seq=Number(db.prepare('INSERT INTO quest_chat(zone,owner,character_id,name,text,created,x,y) VALUES (?,?,?,?,?,?,?,?)').run(area,c.owner,c.id,c.name,c.name+' posted an rp',now(),at?.x??null,at?.y??null).lastInsertRowid);
   db.prepare('UPDATE quest_rp_posts SET chat_seq=? WHERE id=?').run(seq,id);
   db.prepare('DELETE FROM quest_chat WHERE zone=? AND seq NOT IN (SELECT seq FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 100)').run(area,area);
   db.prepare('UPDATE quest_rp_progress SET total_words=total_words+?,total_chars=total_chars+?,level_words=level_words+?,level_chars=level_chars+? WHERE character_id=?').run(words,chars,words,chars,c.id);

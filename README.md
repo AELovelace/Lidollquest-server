@@ -65,7 +65,7 @@ the collection retries outstanding game-diamond refunds. Regression coverage:
 ## Shared RP and admin journal
 
 `rp_post` accepts a narrative up to 12,000 Unicode characters and one to eight
-distinct partner character IDs in the author's current area-chat room. Active
+distinct partner character IDs within chat radius in the author's current area. Active
 presence, controller, revision, dungeon edition, account blocks and mutes apply.
 The durable command receipt prevents duplicate posts/counts; an account can post
 once per ten seconds. Unicode letters/numbers form words (internal apostrophes
@@ -238,7 +238,7 @@ Run `node --test test/enchantment-store.test.mjs test/enchantment.test.mjs test/
 
 ### Area and global OOC chat
 
-Snapshots retain room-scoped `chat`/`chatArea` and add `globalChatSupport: true`
+Snapshots retain area-scoped `chat`/`chatArea` (heard by distance, see below) and add `globalChatSupport: true`
 plus a separate `globalChat` array. Both histories have channel metadata, shared
 sequence IDs, a 40-message visible limit, a 100-row stored limit per stream, and a
 24-hour visibility window. Global speech uses `quest_chat.zone = 'global:ooc'`
@@ -264,6 +264,26 @@ new clients refuse OOC sends when the server does not advertise support.
 
 Run `node --test test/global-chat.test.mjs test/dive.test.mjs test/gm.test.mjs`.
 The game checkout's GX browser fixture supports `--global-chat-only`.
+
+### Radius chat, echo suppression and clearing (2026-09-23)
+
+Area speech is heard by distance. `quest_chat` rows store the speaker's committed
+tile (`x`, `y`); a reader sees an area line when they stand within `chatRadius`
+tiles of it (Euclidean, default 8, env `CHAT_RADIUS`), when the row has no tile
+(`broadcast`, legacy rows) or when their own account wrote it. Global and party
+streams ignore distance. Snapshots carry `chatRadius`. Dive streams are one per
+route, edition and depth; room walls no longer split them. RP partners must be within
+the radius, and RP/activity notices carry the author's tile.
+
+A `chat` command whose character, stream, text and emote flag match a row from the
+last four seconds succeeds without storing anything and without spending quota, so
+a laggy client retrying under a new request ID never double-posts.
+
+In-game GM tools: `gm_catalog` now returns `chat` (last 24 lines of the GM's area,
+radius ignored) and `chatArea`; `gm_chat_delete {seq}` and `gm_chat_clear` mirror
+the panel's `delete_chat` and `clear_chat` and share their audit actions.
+
+Run `node --test test/global-chat.test.mjs test/dive.test.mjs test/gm.test.mjs test/gm-tools.test.mjs test/zones.test.mjs`.
 
 ### Recorded server performance
 
@@ -463,6 +483,7 @@ credentials. `GET /gm/whoami` reports the signed-in account.
 | `suspend` / `unsuspend` | Refuses every authenticated route with `account_suspended` (zones, cloud saves and character management alike), drops the session immediately and removes the player from other rosters. Local campaign saves are untouched; cloud sync simply pauses until it is lifted. |
 | `broadcast` | Posts an announcement into a room as an activity line, which clients already render apart from player speech. |
 | `delete_chat` | Removes one message by `seq`. |
+| `clear_chat` | Removes every message in one stream (`zone`: a room id, `global:ooc` or a Dive floor id). Refuses an empty or unknown zone; audits `removed`. |
 
 Sanctions take `minutes` (0 records an indefinite one) and an optional `reason`.
 Expired sanctions clear themselves on the next lookup, so no sweeper is required.
@@ -1149,3 +1170,16 @@ The GM NPCs and Quests tabs support online drafts, publication, dialogue, manage
 ### GM authoring help
 
 Open **GM Guide** in the admin console for the lost-parcel tutorial, searchable reference topics and live content-ID lookup. NPCs, Quests, Monsters, Zones and Generation Jobs also have contextual help buttons. The guide ships with the server; no external documentation login is needed.
+
+### Write pressure (2026-09-23)
+
+Three changes cut committed writes per request without changing behaviour:
+`PRAGMA synchronous=NORMAL` (SQLite's recommended WAL setting: commits survive an
+application crash; only an OS crash or power loss can drop the last few
+milliseconds), the 600-per-minute request ceiling now counts in memory
+(`requestWindows` in zones.mjs; the `quest_request_limits` table is kept but no
+longer written, and a restart opens a fresh minute), and a heartbeat rewrites
+`quest_presence.seen` only when the stored value is at least five seconds old
+(`HEARTBEAT_WRITE_INTERVAL`; the freshness window is still 30 s). An idle client's
+heartbeat is therefore a read-only transaction. Chat stays in quest.sqlite: a
+separate file would add a second commit per send, not remove one.

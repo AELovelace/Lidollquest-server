@@ -47,7 +47,7 @@ test('blocks, mutes and the account spam budget apply to both chat channels',()=
  }finally{f.close();}
 });
 
-test('dungeon rooms keep area boundaries while OOC reaches other rooms and hubs with mute enforcement',()=>{
+test('dungeon speech stays within the radius while OOC reaches other floors and hubs with mute enforcement',()=>{
  const f=fixture();try{
   f.player('Alice','princess-rose');f.player('Bob','princess-rose');f.player('Cara','honeydew-lantern');
   f.act('Alice','dive_enter');const entered=f.act('Bob','dive_enter');
@@ -73,5 +73,38 @@ test('global history remains bounded, expires, sanitizes text and requires live 
   assert.equal(f.read('Alice').globalChat.length,40);assert.equal(f.read('Alice').globalChat.at(-1).text,'Latest');
   f.advance(86400001);assert.equal(f.read('Alice').globalChat.length,0);
   assert.throws(()=>f.act('Alice','chat',{channel:'global',text:'expired presence'}),/connection|Enter|enter/);
+ }finally{f.close();}
+});
+
+test('area speech is heard within the chat radius, own lines always show, and announcements reach the whole room',()=>{
+ const f=fixture();try{
+  f.player('Alice','honeydew-lantern');f.player('Bob','honeydew-lantern');
+  const at=(owner,x,y)=>f.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE owner=?').run(x,y,owner); // Presence is the committed tile the server measures from.
+  at('Alice',2,2);at('Bob',10,2); // Eight tiles apart: exactly on the default radius.
+  f.act('Alice','chat',{text:'Edge of earshot'});assert.equal(f.read('Alice').chatRadius,8);
+  assert.equal(f.read('Bob').chat.at(-1).text,'Edge of earshot');
+  at('Bob',11,2);assert.equal(f.read('Bob').chat.length,0,'nine tiles away is silent');
+  at('Bob',8,8);assert.equal(f.read('Bob').chat.length,0,'diagonal distance counts: sqrt(72) is more than eight');
+  at('Bob',7,7);assert.equal(f.read('Bob').chat.length,1,'sqrt(50) is within eight');
+  at('Alice',18,10);assert.equal(f.read('Alice').chat.at(-1).text,'Edge of earshot','your own lines stay visible wherever you walk');
+  f.db.prepare("INSERT INTO quest_chat(zone,owner,character_id,name,text,created) VALUES ('honeydew-lantern','activity:gm','gm','Gamemaster','Everyone hears this',?)").run(Date.parse('2026-09-19T12:00:00Z'));
+  at('Bob',1,1);assert.equal(f.read('Bob').chat.at(-1).text,'Everyone hears this','rows without a tile reach the whole room');
+  assert.equal(f.read('Bob').chat.at(-1).x,undefined,'speaker tiles never leave the server');
+  f.act('Bob','chat',{channel:'global',text:'OOC ignores distance'});assert.equal(f.read('Alice').globalChat.at(-1).text,'OOC ignores distance');
+ }finally{f.close();}
+});
+
+test('a line re-sent inside the echo window is stored once even under a fresh request ID',()=>{
+ const f=fixture();try{
+  f.player('Alice','honeydew-lantern');f.player('Bob','honeydew-lantern');
+  const stored=()=>f.db.prepare("SELECT COUNT(*) n FROM quest_chat WHERE owner='Alice'").get().n;
+  f.act('Alice','chat',{text:'Did this send?'});f.act('Alice','chat',{text:'Did this send?'}); // Two request IDs a quarter second apart: a laggy double-tap.
+  assert.equal(stored(),1);assert.equal(f.read('Bob').chat.length,1);
+  f.act('Alice','chat',{channel:'global',text:'Did this send?'});assert.equal(stored(),2,'the same words on another stream are new speech');
+  f.act('Alice','chat',{text:'/me waves'});f.act('Alice','chat',{text:'/me waves'});assert.equal(stored(),3,'emotes are matched as emotes');
+  f.advance(4001);f.act('Alice','chat',{text:'Did this send?'});assert.equal(stored(),4,'outside the window a repeat is deliberate');
+  f.act('Alice','chat',{text:'Quota filler'});assert.equal(stored(),5); // Five stored lines inside ten seconds: the quota is now full.
+  f.act('Alice','chat',{text:'Quota filler'});assert.equal(stored(),5,'an echo still succeeds quietly instead of tripping the quota');
+  assert.throws(()=>f.act('Alice','chat',{text:'Sixth line'}),e=>e.status===429);
  }finally{f.close();}
 });
