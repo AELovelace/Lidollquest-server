@@ -43,7 +43,9 @@ export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQues
  }
  function visible(zone,edition,f){return realize(zone,edition,f).map(p=>{const n=live.published().npcs[p.content];return {...p,...(p.kind==='npc'&&n?{name:n.name,sprite:n.sprite,retired:n.retired}:{})};});}
  function tick(){ // NPC walking is deterministic, bounded, and pauses while a conversation holds its placement.
+  const known=new Set(base.catalog().map(z=>z.id)); // Rooms retired by a deployment (Rose Court's old Resting Hall) keep their saved placements but must never be ticked or mapped.
   for(const {zone} of db.prepare('SELECT DISTINCT zone FROM world_placement_maps').all()){
+   if(!known.has(zone))continue;
    const map=base.map(zone),row=db.prepare('SELECT * FROM world_placement_maps WHERE zone=? AND edition=?').get(zone,map.edition);if(!row||!map.floor)continue;const placements=JSON.parse(row.body),free=new Set(tiles(map.floor).map(p=>p.x+','+p.y));let changed=false;
    for(const p of placements){const n=live.published().npcs[p.content];if(p.kind!=='npc'||!n?.wander_radius||Math.floor(now()/2000)===(p.step??0))continue;if(db.prepare("SELECT 1 FROM online_conversations WHERE placement=? AND expires>?").get(p.id,now()))continue;p.step=Math.floor(now()/2000);const direction=parseInt(hash([p.id,p.step]).slice(0,2),16)%4,[dx,dy]=[[0,-1],[-1,0],[1,0],[0,1]][direction],x=p.x+dx,y=p.y+dy;
     if(Math.abs(x-p.home.x)+Math.abs(y-p.home.y)<=n.wander_radius&&free.has(x+','+y)&&![...obstacles(map.floor),...placements.filter(v=>v.id!==p.id),...map.players].some(v=>v.x===x&&v.y===y)){p.x=x;p.y=y;}changed=true;

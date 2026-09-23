@@ -115,6 +115,8 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  const world=quests?{npcCatalog:()=>[...hubCatalog,...hubRooms].flatMap(base=>(hubDefinition(zone(base.id),now()).fixtures??[]).filter(f=>f.kind==='npc').map(f=>({id:base.id+':'+f.id,name:f.name,zone:base.id}))),catalog:baseWorld.catalog,map:quests.placements.view,act:quests.placements.act}:baseWorld;
  if(live){live.mapReady=(zone,edition,floor,options)=>quests.placements.realize(zone,edition,floor,options);live.questEvent=quests.event;live.placementPositions=quests.placements.positions;}
  const isDungeon=id=>engines.has(id);
+ {const known=new Set([...questZones,...hubRooms].map(z=>z.id)); // A deployment can retire a room (Rose Court's old Resting Hall): characters parked there resume at their lobby's spawn instead of failing every request.
+  for(const row of db.prepare('SELECT owner,zone FROM quest_presence').all()){if(known.has(row.zone)||row.zone.startsWith('dive-'))continue;const lobby=hubCatalog.find(h=>row.zone.startsWith(h.id+'-'))?.id??hubCatalog[0].id,spawn=hubDefinition(zone(lobby),now()).spawn;db.prepare('UPDATE quest_presence SET zone=?,x=?,y=? WHERE owner=?').run(lobby,spawn.x,spawn.y,row.owner);}}
  const gmTools=createGmTools(db,{now,zone,blocked,isDungeon,dives:engines,quests,live,audit,loot});
  const saveOther=(oc,os)=>{const previous=JSON.parse(oc.state);if(JSON.stringify(os.loadout)!==JSON.stringify(previous.loadout))os.loadoutRevision=oc.revision+1;oc.revision++;oc.state=JSON.stringify(os);db.prepare('UPDATE quest_characters SET revision=?,state=? WHERE id=?').run(oc.revision,oc.state,oc.id);}; // Commit another participant's state inside the caller's transaction, as Dive encounters do.
  const pvpAllowed=id=>!isDungeon(id)||zoneCategory(id)===ZONE_CATEGORY.OVERWORLD; // Story overworlds (Desert, High Desert, Taiga, Tundra) host duels; dungeon Dives do not.
@@ -314,6 +316,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     dive.act(i,c,state,input,divePresence);
     db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(now(),c.id);
    }else if(input.action==='enter'){
+    if(state.hubVisit&&!hubRooms.some(r=>r.id===state.hubVisit))delete state.hubVisit; // A retired annex cannot be resumed; fall through to the lobby the client asked for.
     const z=zone(state.hubVisit??input.zone),active=db.prepare('SELECT * FROM quest_presence WHERE owner=? AND seen>?').get(i.owner,now()-30000);
     const prior=db.prepare('SELECT grant_id,seen FROM quest_presence WHERE owner=?').get(i.owner);
     arrival=!prior||prior.grant_id!==i.id?'join':prior.seen<=now()-30000?'return':null;
