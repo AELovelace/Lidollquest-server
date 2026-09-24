@@ -39,6 +39,7 @@ export function createDiveControls(db,{now,data,live,current,getFloor,saveFloor,
   for(const c of visitors()){const s=JSON.parse(c.state),position=entry(floor,s.dive.origin);s.dive.edition=job.edition;s.dive.position={...position};s.dive.safeUntil=now()+10000;delete s.lastResult;s.lastResult=null;saveCharacter(c,s);db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(position.x,position.y,now(),c.id);}
   db.prepare("UPDATE world_regeneration SET status='complete' WHERE id=?").run(job.id);
  } // Called within the simulation transaction: map switch, visitors and fresh claim namespace commit together.
+ const authored=type=>{const def=data.enemies[type];return def&&typeof def.roaming==='boolean'?def.roaming:null;}; // A monster's explicit "Roams by default" trait, or null when its export never said (Quarters, the wilderness routes).
  function reconcile(record){
   const before=record.floor.enemies.length;record.floor.enemies=record.floor.enemies.filter(e=>!(e.manual&&!e.respawning&&e.dead&&!e.engaged));if(before!==record.floor.enemies.length)saveFloor(record);
   if(!live.published().enabled)return;const f=record.floor,t=live.published().zones[zone];if(!t)return;
@@ -50,9 +51,9 @@ export function createDiveControls(db,{now,data,live,current,getFloor,saveFloor,
     if(foe.manual&&(!foe.respawning||live.published().monsters[foe.type]?.retired)){foe.remove=true;changed=true;continue;}
     if(!foe.manual&&!t.spawning)continue;
     if(!foe.manual)foe.type=foe.id===f.bossId?(t.boss_enemy_id??foe.type):pick()??foe.type;
-    foe.definition=structuredClone(data.enemies[foe.type]);foe.dead=false;foe.roaming=foe.manual?foe.roaming:enemyRoams(data,{id:foe.id,type:foe.type});changed=true;
+    foe.definition=structuredClone(data.enemies[foe.type]);foe.dead=false;foe.roaming=foe.manual?foe.roaming:foe.id===f.bossId?false:(authored(foe.type)??foe.roaming??enemyRoams(data,{id:foe.id,type:foe.type}));changed=true; // A respawn walks the way its monster is authored; a silent monster keeps the flag the generator gave this enemy (wilderness routes ship no trait and roam).
    }
-   if(!foe.manual&&!foe.dead&&foe.roaming!==enemyRoams(data,{id:foe.id,type:foe.type})){foe.roaming=enemyRoams(data,{id:foe.id,type:foe.type});changed=true;} // A spawned enemy always walks the way its monster is authored; the map-wide switch (config.roaming, dive.mjs) is applied at movement time, so a map frozen by an old zone row thaws on its next tick.
+   const want=foe.manual||foe.dead?null:foe.id===f.bossId?false:authored(foe.type);if(want!==null&&foe.roaming!==want){foe.roaming=want;changed=true;} // Repair only against an explicit authored trait; the map-wide switch (config.roaming, dive.mjs) is applied at movement time.
    if(!foe.definition){foe.definition=structuredClone(data.enemies[foe.type]);changed=true;}
   }
   if(f.populationRevision!==live.published().revision){
@@ -68,7 +69,7 @@ export function createDiveControls(db,{now,data,live,current,getFloor,saveFloor,
     let excess=residents.length-wanted;for(const foe of residents)if(excess>0&&!foe.engaged){foe.remove=true;excess--;}
     let missing=wanted-residents.filter(e=>!e.remove).length;
     for(let y=room.y;y<room.y+room.h&&missing>0;y++)for(let x=room.x;x<room.x+room.w&&missing>0;x++)if(walkable(f,x,y)&&![...f.enemies,...f.chests,...(f.pickups??[]),f.entrance,...(f.exits??[]),...visitors().map(c=>JSON.parse(c.state).dive.position)].some(p=>p.x===x&&p.y===y)){
-     const type=pick();if(!type)break;const definition=structuredClone(data.enemies[type]);f.enemies.push({id:'spawn-'+randomUUID(),type,definition,x,y,spawn:{x,y},roaming:enemyRoams(data,{type}),engaged:null,respawnAt:0});missing--;}
+     const type=pick();if(!type)break;const definition=structuredClone(data.enemies[type]),sibling=f.enemies.find(e=>!e.manual&&e.type===type&&typeof e.roaming==='boolean');f.enemies.push({id:'spawn-'+randomUUID(),type,definition,x,y,spawn:{x,y},roaming:authored(type)??sibling?.roaming??enemyRoams(data,{type}),engaged:null,respawnAt:0});missing--;} // A top-up copies an explicit trait, else how its kind already walks this floor, else the generator default.
    }
    if(!f.enemies.some(e=>e.engaged))f.populationRevision=live.published().revision;changed=true;
   }

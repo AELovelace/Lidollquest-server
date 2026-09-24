@@ -111,6 +111,7 @@
   ],
   "enemies": {
     "frost_slime": {
+      "roaming": true,
       "enemy_id": "frost_slime",
       "name": "Frost Slime",
       "hp": 20,
@@ -124,6 +125,7 @@
       "battle_sprite": "sprBattleFrostSlime"
     },
     "snow_hare": {
+      "roaming": true,
       "enemy_id": "snow_hare",
       "name": "Snow Hare",
       "hp": 26,
@@ -137,6 +139,7 @@
       "battle_sprite": "sprBattleSnowHare"
     },
     "rime_sprite": {
+      "roaming": true,
       "enemy_id": "rime_sprite",
       "name": "Rime Sprite",
       "hp": 32,
@@ -150,6 +153,7 @@
       "battle_sprite": "sprBattleRimeSprite"
     },
     "elder_witch": {
+      "roaming": true,
       "enemy_id": "elder_witch",
       "name": "Elder Nursery Witch",
       "hp": 80,
@@ -166,6 +170,7 @@
       "battle_sprite": "sprWitch"
     },
     "nursery_witch": {
+      "roaming": true,
       "enemy_id": "nursery_witch",
       "name": "Nursery Witch",
       "hp": 45,
@@ -182,6 +187,7 @@
       "battle_sprite": "sprWitch"
     },
     "diaper_fairy": {
+      "roaming": true,
       "enemy_id": "diaper_fairy",
       "name": "Diaper Fairy",
       "hp": 25,
@@ -198,6 +204,7 @@
       "battle_sprite": "sprFairy"
     },
     "shadow_fairy": {
+      "roaming": true,
       "enemy_id": "shadow_fairy",
       "name": "Shadow Diaper Fairy",
       "hp": 45,
@@ -214,6 +221,7 @@
       "battle_sprite": "sprFairy"
     },
     "bloated_slime": {
+      "roaming": true,
       "enemy_id": "bloated_slime",
       "name": "Bloated Bottle Slime",
       "hp": 70,
@@ -229,6 +237,7 @@
       "battle_sprite": "sprGiantSlime"
     },
     "goblin_brute": {
+      "roaming": true,
       "enemy_id": "goblin_brute",
       "name": "Goblin Brute",
       "hp": 50,
@@ -244,6 +253,7 @@
       "battle_sprite": "sprGoblinBrute"
     },
     "goblin": {
+      "roaming": true,
       "enemy_id": "goblin",
       "name": "Goblin",
       "hp": 30,
@@ -257,6 +267,7 @@
       "battle_sprite": "sprGoblin"
     },
     "nanny_golem": {
+      "roaming": true,
       "enemy_id": "nanny_golem",
       "name": "Nanny Golem",
       "hp": 70,
@@ -273,6 +284,7 @@
       "battle_sprite": "sprGolem1"
     },
     "teddy_mimic": {
+      "roaming": true,
       "enemy_id": "teddy_mimic",
       "name": "Teddy Mimic",
       "hp": 35,

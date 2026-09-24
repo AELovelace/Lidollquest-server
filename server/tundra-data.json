@@ -77,6 +77,7 @@
   ],
   "enemies": {
     "frost_slime": {
+      "roaming": true,
       "enemy_id": "frost_slime",
       "name": "Frost Slime",
       "hp": 20,
@@ -90,6 +91,7 @@
       "battle_sprite": "sprBattleFrostSlime"
     },
     "snow_hare": {
+      "roaming": true,
       "enemy_id": "snow_hare",
       "name": "Snow Hare",
       "hp": 26,
@@ -103,6 +105,7 @@
       "battle_sprite": "sprBattleSnowHare"
     },
     "rime_sprite": {
+      "roaming": true,
       "enemy_id": "rime_sprite",
       "name": "Rime Sprite",
       "hp": 32,
