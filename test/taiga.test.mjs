@@ -64,7 +64,7 @@ test('Taiga requires the north Tundra trail; transfers, replay, reconnect and lo
   f.place('alice',{x:50,y:1});const command=f.command('alice','move',{direction:'north',world_step:true}); /* Walk into the top-wall gap. */const first=f.raw('alice',command);f.raw('alice',command);
   assert.equal(first.zone,TAIGA_ZONE);assert.deepEqual(first.position,{x:40,y:78});assert.equal(first.character.worldTurnDue,undefined);assert.equal(first.character.dive.hubOrigin,'princess-rose');
   assert.equal(first.dive.claimed,0);const loot=first.dive.chests[0];f.place('alice',loot);f.act('alice','dive_claim',{chest:loot.id});
-  f.restart();const resumed=f.act('alice','enter',{zone:TAIGA_ZONE,combat_version:3});assert.equal(resumed.dive.claimed,1);assert.equal(resumed.character.loadout.inventory.length,2);
+  f.restart();const resumed=f.act('alice','enter',{zone:TAIGA_ZONE,combat_version:3});assert.equal(resumed.dive.claimed,1);assert.equal(resumed.character.loadout.inventory.filter(i=>i.category!=='ingredient').length,2);
   const exit=f.floor('alice').exits[0];f.place('alice',{x:exit.x,y:exit.y-1});const back=f.act('alice','move',{direction:'south'});
   assert.equal(back.zone,TUNDRA_ZONE);assert.deepEqual(back.position,{x:50,y:1});assert.equal(back.dive.claimed,1);
   f.cross('alice');assert.equal(f.snap('alice').dive.claimed,1);assert.equal(f.act('alice','dive_exit').zone,TUNDRA_ZONE);assert.equal(f.act('alice','dive_exit').zone,'princess-rose');
@@ -92,7 +92,7 @@ test('disabled Taiga refuses entry; weekly rollover safely restores the originat
   f.player('alice','honeydew-lantern');f.place('alice',{x:1,y:25});f.act('alice','move',{direction:'west',world_step:true}); // Honeydew Village's west gate walks straight onto Frostveil.
   f.cross('alice');const old=f.snap('alice').dive.edition;
   const chest=f.snap('alice').dive.chests[0];f.place('alice',chest);f.act('alice','dive_claim',{chest:chest.id});f.advance(7*86400000);
-  const resumed=f.act('alice','enter',{zone:TAIGA_ZONE,combat_version:3});assert.equal(resumed.zone,'honeydew-lantern');assert.equal(resumed.character.loadout.inventory.length,1);
+  const resumed=f.act('alice','enter',{zone:TAIGA_ZONE,combat_version:3});assert.equal(resumed.zone,'honeydew-lantern');assert.equal(resumed.character.loadout.inventory.filter(i=>i.category!=='ingredient').length,1);
   assert.deepEqual(resumed.position,{x:1,y:25}); // Back inside the village's Tundra gate.
   f.place('alice',{x:1,y:25});f.act('alice','move',{direction:'west',world_step:true});f.cross('alice');assert.notEqual(f.snap('alice').dive.edition,old);assert.equal(f.snap('alice').dive.claimed,0);
  }finally{f.db.close();}

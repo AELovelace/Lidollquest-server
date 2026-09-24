@@ -17,6 +17,7 @@ import {createMommybotProfile} from './mommybot-profile.mjs';
 import {createGameMasterPanel} from './gm.mjs';
 import {createEnchantmentStore} from './enchantment-store.mjs';
 import {createLootStore} from './loot-store.mjs';
+import {createAlchemyStore} from './alchemy-store.mjs';
 import {diveData} from './dive.mjs';
 import {createPerformanceMonitor} from './performance.mjs';
 import {createComputePool,computeWorkerCount} from './compute-pool.mjs';
@@ -45,7 +46,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
  if(poolSize)compute=createComputePool({size:poolSize,observe:metrics.observe});
  const live=createWorldContent(db,{now,spells:combatData.spells,equipment:{...hubData.equipment,...combatData.defeat_items},defeatEquipment:combatData.defeat_equipment,questPack});
  const artJobs=createWorldJobs(db,{live,now,...artJobOptions});
- const gm=createGameMasterPanel(db,{walletClient,announcements:()=>zones.announcements,live,artJobs,world:()=>zones.world,performanceSnapshot:metrics.snapshot,enchantments:createEnchantmentStore(db,{now}),enchantmentTable:()=>diveData.enchantments,loot:createLootStore(db,{now}),lootTable:()=>diveData.loot,lootItems:()=>diveData.items,lootBases:()=>diveData.bases,allow:gmAllow,trustProxy:gmTrustProxy,requireTls:gmRequireTls,enabled:gmEnabled,now,log}); // Staff moderation owns its own tables and never touches wallet credentials.
+ const gm=createGameMasterPanel(db,{walletClient,announcements:()=>zones.announcements,live,artJobs,world:()=>zones.world,performanceSnapshot:metrics.snapshot,enchantments:createEnchantmentStore(db,{now}),enchantmentTable:()=>diveData.enchantments,loot:createLootStore(db,{now}),lootTable:()=>diveData.loot,lootItems:()=>diveData.items,lootBases:()=>diveData.bases,alchemy:createAlchemyStore(db,{now}),alchemyTable:()=>diveData.alchemy,allow:gmAllow,trustProxy:gmTrustProxy,requireTls:gmRequireTls,enabled:gmEnabled,now,log}); // Staff moderation owns its own tables and never touches wallet credentials.
  const zones=createQuestZones(db,{now,roll,compute,live,measure:metrics.measure,onPresence:onlineFeed.record,enabled:owner=>!gm.suspended(owner),muted:gm.muted,audit:gm.record,grant:()=>{if(!identity)throw Error('Missing request identity');return identity;},wallet:owner=>({coins:db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(owner)?.coins??0}),adjust:(owner,asset,amount,id,reason)=>{
   if(asset!=='coins'||!Number.isSafeInteger(amount)||amount<1||amount>dailyCoinCap())throw Error('Invalid server award'); // A single entitlement can never exceed one day's whole allowance.
   db.prepare('INSERT INTO reward_outbox(id,owner,amount,reason) VALUES (?,?,?,?)').run(id,owner,amount,reason);

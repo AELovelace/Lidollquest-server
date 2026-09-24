@@ -12,7 +12,7 @@ import {applyDefeatEquipment} from './defeat-equipment.mjs';
 import {generateFloor,dressFloor,addFood,weeklyWindow,seeded,pathTo,walkable,inside,enemyRoams} from './dive-generation.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation,MAX_STAT,currentTuning} from './combat.mjs';
 import {levelEnemy,encounterLevel,routeLevelFor,defHpDelta,dexStaminaDelta} from './scaling.mjs';
-import {stackable,slotsUsed,addToInventory} from './loadout.mjs';
+import {stackable,slotsUsed,addToInventory,setStackTokens} from './loadout.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
 import {manaCapacity} from './magic-balance.mjs';
 import {hubArrival,routePortals,routeHome,returnSource,wildernessGates,hubRooms,hubCatalog,inHubGap,dailyCoinCap} from './hubs.mjs';
@@ -25,13 +25,13 @@ const fail=(message,code='dive_conflict')=>{throw Object.assign(Error(message),{
 const clone=structuredClone;
 const seconds=1000,minutes=60000;
 
-export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,measure=(_name,work)=>work(),upgradeFloor=()=>false,travel=()=>false,enchantments=null,loot=null,compute=null,live=null}){
+export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,measure=(_name,work)=>work(),upgradeFloor=()=>false,travel=()=>false,enchantments=null,loot=null,alchemyStore=null,compute=null,live=null}){
  const baseline=structuredClone(data);if(live){live.register(baseline);data=live.resolve(baseline);} // Each engine keeps mutable configuration isolated from shipped exports.
  const config=data.config,route=config.route,zoneId=config.zone_id??DIVE_ZONE,theme=config.theme??'princess_quarters',name=config.name??"Princess' Quarters - Dungeon Dive",bossId=(config.boss_id??'iris')||'world_boss';
  const category=routeCategory(config); // 'dive' for instanced boss routes, 'overworld' for open wilderness; fails fast on bad authored data.
  // Only dive-data.json carries the curse/blessing table; Desert, Tundra, Taiga and
  // the campaign weeklies share that one table rather than each shipping a copy.
- const rollLoot=createDiveLootRoller(data,{table:data.enchantments??diveData.enchantments,enchantments:enchantments??createEnchantmentStore(db,{now}),lootTable:data.loot??diveData.loot??null,lootBases:data.bases??diveData.bases??null,loot:loot??createLootStore(db,{now})}); // One policy covers every online route and its personal floor progress; gamemaster retunes reach all of them.
+ const rollLoot=createDiveLootRoller(data,{table:data.enchantments??diveData.enchantments,enchantments:enchantments??createEnchantmentStore(db,{now}),lootTable:data.loot??diveData.loot??null,lootBases:data.bases??diveData.bases??null,loot:loot??createLootStore(db,{now}),alchemy:data.alchemy??diveData.alchemy??null,alchemyStore,alchemyZone:zoneId}); // One policy covers every online route and its personal floor progress; gamemaster retunes reach all of them.
  const owns=visit=>visit?.route===route; // Each route maintains only its own visits and encounter locks.
  const safe=(floor,x,y)=>(floor.safeRooms??[floor.rooms[0]]).some(r=>inside(r,x,y));
  const entry=(floor,origin)=>floor.entries?.[origin]??floor.entrance;
@@ -234,7 +234,12 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(!stackable(personal.rolls[chest.id])&&slotsUsed(state.loadout.inventory)>=config.inventory_capacity){if(automatic){state.dive.lootNotice='Inventory full. Treasure remains here.';state.dive.lootNoticeAt=now();return;}fail('Inventory full. This treasure remains unclaimed.');}
   if(!personal.rolls[chest.id])personal.rolls[chest.id]=rollLoot(record.edition,c.id,chest,personal.rolls); // Capacity was checked first; only successful claims consume the allowance.
   const item=clone(personal.rolls[chest.id]);if(origins)origins.mint(c.id,item);addToInventory(state.loadout.inventory,item);personal.claimed.push(chest.id);saveProgress(c,record.edition,personal);
-  state.dive.lootNotice='Found '+(item.name??item.item_id)+'.';state.dive.lootNoticeAt=now();
+  const bundle=!chest.kind&&record.floor.chests.some(ch=>ch.id===chest.id)?rollLoot.ingredient(record.edition,c.id,chest):null; // room chests may also hold ingredients; loose treasure, food and potion pickups never do. Seeded, so replays find the same bundle.
+  if(bundle){ // Ingredients stack and never use a slot, so a full bag cannot block them.
+   if(origins){const tokens=[],prices=new Map();for(let n=0;n<bundle.quantity;n++){const unit=clone(bundle);delete unit.quantity;origins.mint(c.id,unit);if(unit.online_item){tokens.push(unit.online_item);prices.set(unit.online_item,unit.online_sell_price);}}setStackTokens(bundle,tokens,prices);} // one resale right per unit, like bought stacks
+   addToInventory(state.loadout.inventory,bundle);
+  }
+  state.dive.lootNotice='Found '+(item.name??item.item_id)+(bundle?' and '+bundle.name+(bundle.quantity>1?' x'+bundle.quantity:''):'')+'.';state.dive.lootNoticeAt=now();
  } // Inventory, deterministic item roll and personal claim commit together inside the zone transaction.
  function handles(input,p){return input.action==='dive_enter'&&(input.zone??DIVE_ZONE)===zoneId||input.action==='enter'&&input.zone===zoneId||p?.zone===zoneId;}
  function act(i,c,state,input,p){

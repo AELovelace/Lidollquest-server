@@ -55,7 +55,7 @@ export function buildAllowList(text){ // Comma-separated addresses and CIDR bloc
  return list;
 } // Rejected loudly at construction so a typo cannot silently admit the whole network.
 
-export function createGameMasterPanel(db,{walletClient,announcements=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn}={}){
+export function createGameMasterPanel(db,{walletClient,announcements=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn}={}){
  const announcementStore=()=>typeof announcements==='function'?announcements():announcements; // Passed lazily by service.mjs because the zones module is created after the panel.
  const rp=createRoleplay(db,{now}); // RP journals use the same live staff authorization as every moderation tool.
  const rpp=createRpp(db,{now}); // Staff-only RPP gifts and purchase history never touch premium currencies.
@@ -81,6 +81,16 @@ export function createGameMasterPanel(db,{walletClient,announcements=null,live=n
 
  // The Adjective + Item + Rarity table a gamemaster edits: the same store every dive
  // route rolls through, layered over the shipped baseline exported into dive-data.json.
+ const alchemyStore=()=>alchemy??fail(503,'Alchemy tuning is not available on this deployment.','gm_alchemy_unavailable');
+ const alchemyBase=()=>(typeof alchemyTable==='function'?alchemyTable():alchemyTable)??fail(503,'This deployment shipped no alchemy tables (re-run export_online_dive.py).','gm_alchemy_unavailable');
+ const alchemyView=()=>{ // Everything the /gm Alchemy tab shows: live and shipped sections, which keys are overridden, and the pickers' vocabularies.
+  const base=alchemyBase(),store=alchemyStore(),liveTable=store.apply(base);
+  const top=i=>{const p=i.alchemy?.pigments??{};return Object.keys(p).sort((a,b)=>p[b]-p[a])[0]??'';};
+  return {revision:store.revision(),sections:store.sectionKeys,overridden:store.overriddenKeys(),
+   live:{brewing:liveTable.brewing,chest_loot:liveTable.chest_loot},shipped:{brewing:base.brewing,chest_loot:base.chest_loot},
+   colours:(base.colors??[]).map(c=>({id:c.id,name:c.name,family:c.family})),
+   ingredients:Object.values(base.ingredients??{}).map(i=>({id:i.item_id,name:i.name,tier:i.alchemy?.tier??1,role:i.alchemy?.role??'herb',colour:top(i)})).sort((a,b)=>a.name.localeCompare(b.name))};
+ };
  const lootStore=()=>loot??fail(503,'Loot tuning is not available on this deployment.','gm_loot_unavailable');
  const lootBase=()=>(typeof lootTable==='function'?lootTable():lootTable)??{tuning:{},affixes:[],legendary_titles:[]};
  const lootCatalog=()=>(typeof lootItems==='function'?lootItems():lootItems)??{};
@@ -272,6 +282,18 @@ export function createGameMasterPanel(db,{walletClient,announcements=null,live=n
    record(actor,'enchant_reset','enchantments',{...result,reason:clean(input.reason,240)});
    return {...result,revision:enchantStore().revision()};
   },
+  alchemy_save(input,actor){
+   const section=String(input.section??'');
+   const saved=alchemyStore().save(section,input.patch,alchemyBase(),actor); // Refused unless the whole merged section stays valid.
+   record(actor,'alchemy_save',section,{keys:Object.keys(saved),reason:clean(input.reason,240)});
+   return {section,saved,revision:alchemyStore().revision()};
+  },
+  alchemy_reset(input,actor){
+   const scope=String(input.scope??'all'),key=input.key?String(input.key):null;
+   const result=alchemyStore().reset(scope,key);
+   record(actor,'alchemy_reset',scope,{...result,reason:clean(input.reason,240)});
+   return {...result,revision:alchemyStore().revision()};
+  },
   loot_tune(input,actor){
    const values=lootStore().tune(input.tuning,actor);
    record(actor,'loot_tune','loot',{keys:Object.keys(values),reason:clean(input.reason,240)});
@@ -426,6 +448,7 @@ export function createGameMasterPanel(db,{walletClient,announcements=null,live=n
    if(url.pathname==='/gm/asset'&&req.method==='GET')return send(200,live.asset(url.searchParams.get('id')));
    if(url.pathname==='/gm/enchantments'&&req.method==='GET')return send(200,enchantView()); // Content tuning, behind the same staff identity as every moderation tool.
    if(url.pathname==='/gm/loot'&&req.method==='GET')return send(200,lootView()); // Adjective + Item + Rarity tuning and affix authoring.
+   if(url.pathname==='/gm/alchemy'&&req.method==='GET')return send(200,alchemyView()); // Chest odds and brewing rules (alchemy-store.mjs).
    if(url.pathname==='/gm/rp'&&req.method==='GET')return send(200,rp.journal(Object.fromEntries(url.searchParams)));
    if(url.pathname==='/gm/rpp'&&req.method==='GET')return send(200,rpp.journal(url.searchParams.get('character')??''));
    if(url.pathname==='/gm/chat'&&req.method==='GET'){

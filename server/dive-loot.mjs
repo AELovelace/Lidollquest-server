@@ -3,7 +3,24 @@ import {createEnchanter} from './enchantment.mjs';
 import {createLootRoller} from './loot.mjs';
 
 const plainPanties=item=>item?.category==='panties'&&!item.is_diaper;
-export function createDiveLootRoller(data,{enchantments=null,table=data.enchantments,loot=null,lootTable=data.loot??null,lootBases=data.bases??null}={}){
+// Alchemy ingredient bundles (2026-09-24): a chest may also hold a bundle of ONE ingredient, on top of its item.
+// Same table and maths as alchemy_chest_roll() in scrLootChestSystem.gml, but seeded from the chest's own key so a
+// reconnect or duplicate command always finds the same bundle. `alchemy` is dive-data.json's {chest_loot, ingredients}.
+export function rollIngredient(alchemy,zoneId,key){
+ const table=alchemy?.chest_loot,items=alchemy?.ingredients??{};if(!table)return null; // no table shipped: no bundles
+ const rnd=seeded(key+':ingredient'); // its own stream, so the chest's item roll is untouched
+ if(rnd(10000)>=Math.round((Number(table.chance)||0)*100))return null; // most chests hold only their item
+ const zone=table.online_zones?.[zoneId],list=v=>Array.isArray(v)?v:[];
+ const ids=[...new Set([...list(table.zones?.[zone]),...list(table.everywhere)])].filter(id=>items[id]?.category==='ingredient'); // unknown routes fall back to "everywhere" only
+ const tier=id=>Math.min(5,Math.max(1,Math.floor(Number(items[id].alchemy?.tier)||1)));
+ const weights=ids.map(id=>Math.max(0,Number(table.tier_weights?.[String(tier(id))])||0)),total=weights.reduce((a,b)=>a+b,0);if(total<=0)return null;
+ let left=rnd(1000000)/1000000*total,pick=ids.length-1;for(let i=0;i<ids.length;i++){left-=weights[i];if(left<0){pick=i;break;}} // weighted by tier: herbs often, star shards rarely
+ const min=Math.max(1,Math.floor(Number(table.qty_min)||1)),max=Math.max(min,Math.floor(Number(table.qty_max)||min));
+ const quantity=tier(ids[pick])>=(Number(table.single_from_tier)||99)?1:min+rnd(max-min+1); // rare ingredients always come alone
+ return {...structuredClone(items[ids[pick]]),quantity};
+}
+
+export function createDiveLootRoller(data,{enchantments=null,table=data.enchantments,loot=null,lootTable=data.loot??null,lootBases=data.bases??null,alchemy=data.alchemy??null,alchemyStore=null,alchemyZone=data.config.zone_id??data.config.route}={}){
  const limit=data.config.non_diaper_panties_per_floor??1;
  if(!Number.isInteger(limit)||limit<0||limit>99)throw Error('Online non-diaper panties per floor must be an integer from 0 to 99.');
  const general=data.item_pool??Object.keys(data.items).sort();
@@ -31,7 +48,7 @@ export function createDiveLootRoller(data,{enchantments=null,table=data.enchantm
   return lootCache.roller;
  };
  const routeKey=data.config.zone_id??data.config.route??'default';
- return function roll(edition,character,chest,rolls,depth=1){
+ function roll(edition,character,chest,rolls,depth=1){
   if(rolls[chest.id])return structuredClone(rolls[chest.id]); // Preserve receipts and older rolls even when previous tuning allowed more panties.
   const key=`${data.config.route}:${edition}:${depth}:${character}:${chest.id}`,rnd=seeded(key);
   const pool=chest.kind==='food'?data.food_pool:chest.kind==='potion'?data.potion_pool:general;
@@ -45,4 +62,13 @@ export function createDiveLootRoller(data,{enchantments=null,table=data.enchantm
  enchanter()(item,key,roller.enchantMods(item)); // Two rarity-scaled ramps decide a curse, a blessing or nothing at all for this copy; the loot tier may double or force a blessing.
   return item; // All other loot retains its original seeded selection and stat roll.
  };
+ let alchemyCache={revision:null,table:alchemy};
+ const liveAlchemy=()=>{ // /gm Alchemy overrides (alchemy-store.mjs) reach the next claim; re-merged only when they change.
+  if(!alchemyStore||!alchemy)return alchemy;
+  const revision=alchemyStore.revision();
+  if(revision!==alchemyCache.revision)alchemyCache={revision,table:alchemyStore.apply(alchemy)};
+  return alchemyCache.table;
+ };
+ roll.ingredient=(edition,character,chest,depth=1)=>rollIngredient(liveAlchemy(),alchemyZone,`${data.config.route}:${edition}:${depth}:${character}:${chest.id}`); // the chest's bundle, or null
+ return roll;
 }

@@ -1,5 +1,5 @@
 import {removeCursedGear} from './curse-removal.mjs';
-import {districtData,districtZone,shopFixtures,marketServices,storeSlug} from './hub-districts.mjs';
+import {districtData,districtZone,shopFixtures,marketServices,storeSlug,cauldronFixture} from './hub-districts.mjs';
 import {districtSize} from './district-layouts.mjs';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -48,7 +48,7 @@ const VILLAGE_ROOM_SPAWN=Object.freeze({x:10,y:17}); // Arrivals stand just insi
 export const INN_BEDS=Object.freeze([{x:2,y:3},{x:5,y:3},{x:9,y:3},{x:12,y:3},{x:16,y:3},{x:3,y:15}]); // One or two beds per Inn bedroom, three tiles apart so labels stay readable.
 const villageRoom=(art,fixtures)=>({width:art.width,height:art.height,spawn:{...VILLAGE_ROOM_SPAWN},exit:{...VILLAGE_ROOM_EXIT},walls:art.walls,floors:art.floors,wallTiles:art.wallTiles,decorTiles:art.decorTiles,tilesets:art.tilesets,fixtures,authored:true}); // authored: the client paints these tile grids instead of a generic interior.
 const innFixtures=[...hubData.beds.map((bed,i)=>({...bed,kind:'bed',...INN_BEDS[i],span_w:1,span_h:1,solid:true})),{id:'innkeeper',name:'Innkeeper',kind:'npc',avatar:'objNPCInnkeeper',x:12,y:15,span_w:1,span_h:1,solid:true,line:'Welcome to the Honeydew Inn, sweetheart. Pick any bed you like and rest as long as you need. Nobody here minds a little accident.'}]; // The innkeeper stands where the campaign places her.
-export const villageRooms=Object.freeze({dives:villageRoom(communityHall,[]),beds:villageRoom(innRoom,innFixtures)}); // Community Hall (Dive pads in the old companion room, top-left) and Inn (six beds in its bedrooms).
+export const villageRooms=Object.freeze({dives:villageRoom(communityHall,[cauldronFixture(14,2)]),beds:villageRoom(innRoom,innFixtures)}); // The Community Hall's quiet north-east room holds Honeydew's brewing cauldron. // Community Hall (Dive pads in the old companion room, top-left) and Inn (six beds in its bedrooms).
 export const STORE={width:11,height:9,spawn:{x:5,y:6},exit:{x:5,y:7,style:'door'},counter:{y:4,gap:5},keeper:{x:5,y:2}}; // A LittleBigCity store: one room per merchant, a planter counter with a gap in the middle, the keeper behind it, the door at the bottom back onto the sidewalk.
 const storeRoom=shop=>({width:STORE.width,height:STORE.height,spawn:{...STORE.spawn},exit:{...STORE.exit},store:true,
  walls:Array.from({length:STORE.height},(_,y)=>Array.from({length:STORE.width},(_,x)=>x===0||y===0||x===STORE.width-1||y===STORE.height-1?1:0)),
@@ -77,7 +77,7 @@ export const hubRooms=[...hubCatalog.flatMap(root=>annexKinds(root).map(kind=>({
  width:kind==='garden'?gardenWidth:kind==='shops'?c.shop_width:20,height:kind==='garden'?gardenHeight:kind==='shops'?c.shop_height:12,
  spawn:kind==='garden'?{x:gardenWidth-2,y:Math.floor(gardenHeight/2)}:kind==='beds'?{x:1,y:6}:kind==='shops'?{x:20,y:21}:{x:9,y:10}, // Dive Hall arrivals stand just inside its bottom-wall opening.
  exit:kind==='garden'?{x:gardenWidth-1,y:Math.floor(gardenHeight/2)-1,w:1,h:2,style:'gap',side:'right'}:kind==='beds'?{x:0,y:5,w:1,h:2,style:'gap',side:'left'}:kind==='shops'?{x:20,y:22,style:'stairs'}:{x:9,y:11,w:2,h:1,style:'gap',side:'bottom'}, // Market Halls keep their stairs; the Dive Hall returns through a bottom-wall opening.
- fixtures:kind==='beds'?hubData.beds.map((bed,i)=>({...bed,kind:'bed',x:3+(i%3)*6,y:3+Math.floor(i/3)*4})):
+ fixtures:kind==='beds'?[...hubData.beds.map((bed,i)=>({...bed,kind:'bed',x:3+(i%3)*6,y:3+Math.floor(i/3)*4})),...(root.id==='littlebig-clockwork'?[cauldronFixture(18,5)]:[])]: // The LittleBig Inn keeps LittleBigCity's brewing cauldron by its east wall.
  kind==='shops'?[...shopFixtures().map((shop,i)=>({...shop,x:[6,14,25,33][i%4],y:6+Math.floor(i/4)*9})),...marketServices().map(service=>({...service,...({bank:{x:30,y:20},dumpster:{x:34,y:20},'curse-remover':{x:9,y:20}})[service.id]})),...(hubData.market_halls.find(h=>h.hub===root.id)?.decorations??[])]:
  [], // Monthly districts supply their own persisted scenery and NPC fixtures; Rose Court's beds live inside The Castle district's dormitory instead of a Resting Hall.
  ...(root.id==='honeydew-lantern'?villageRooms[kind]:{}), // The village's Inn and Community Hall replace the generic annex geometry with the campaign rooms (20x20, authored tiles, door exit).

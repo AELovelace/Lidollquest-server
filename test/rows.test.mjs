@@ -6,7 +6,7 @@ import {createQuestZones} from '../server/zones.mjs';
 import {pathTo} from '../server/dive-generation.mjs';
 import {DEFAULT_TUNING} from '../server/loot.mjs';
 import {pickTarget,rowDamageTaken,rowMeleeDealt,weaponProfile,isArrow} from '../server/scaling.mjs';
-import {stackable,slotsUsed,addToInventory,takeFromStack,importLoadout} from '../server/loadout.mjs';
+import {stackable,slotsUsed,addToInventory,takeFromStack,importLoadout,stackLimit,INGREDIENT_STACK_MAX} from '../server/loadout.mjs';
 import {combatAction,readyTurn,beginRound} from '../server/combat.mjs';
 
 const t=DEFAULT_TUNING;
@@ -34,6 +34,16 @@ test('stacks: consumables and ammo merge into one entry up to stack_max and neve
  assert.ok(takeFromStack(bag,isArrow,2));assert.equal(bag.some(i=>i.quantity===510),true,'an emptied stack disappears');
  assert.equal(takeFromStack(bag,i=>i.item_id==='none',1),false);
  assert.ok(stackable({category:'food'}));assert.ok(stackable({category:'weapon',stackable:true}));assert.ok(!stackable({category:'torso'}));
+});
+
+test('stacks: alchemy ingredients stack to 512 even when the shared stack_max is lower, and never use a slot',()=>{
+ const bag=[];
+ assert.ok(stackable({category:'ingredient'}),'ingredients stack');
+ addToInventory(bag,{item_id:'dandelion',category:'ingredient',quantity:500},99);addToInventory(bag,{item_id:'dandelion',category:'ingredient',quantity:12},99); // a lowered tuning (99) must not shrink ingredient stacks
+ assert.equal(bag.length,1);assert.equal(bag[0].quantity,512,'fills to exactly 512');
+ addToInventory(bag,{item_id:'dandelion',category:'ingredient'},99);assert.equal(bag.length,2,'the 513th unit starts a new stack');
+ assert.equal(slotsUsed(bag),0,'ingredient stacks never count toward the bag cap');
+ assert.equal(stackLimit({category:'ingredient'},99),INGREDIENT_STACK_MAX);assert.equal(stackLimit({category:'ingredient',stack_max:20},99),20,'a per-item stack_max still wins');assert.equal(stackLimit({category:'food'},99),99,'other stackables keep the tuning');
 });
 
 function solo(weapon,extra={}){ // A solo arena-style run through combat.mjs with a chosen weapon in the paperdoll.

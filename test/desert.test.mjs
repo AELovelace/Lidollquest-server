@@ -34,7 +34,7 @@ test('both hub entrances share one Desert; loot, chat, replay and reconnect are 
   const a=f.player('alice','honeydew-lantern'),b=f.player('bob','littlebig-clockwork');
   const east=f.snap(b).position;f.as('alice');const west=f.snap(a).position;assert.ok(east.x>west.x);assert.equal(f.snap(a).peers.length,2);
   const chest=f.snap(a).dive.chests[0];f.near(a,chest);const claim=f.command(a,'dive_claim',{chest:chest.id});f.raw(claim);f.raw(claim);
-  assert.equal(f.snap(a).character.loadout.inventory.length,1);assert.ok(f.snap(a).character.loadout.inventory[0].online_item);
+  assert.equal(f.snap(a).character.loadout.inventory.filter(i=>i.category!=='ingredient').length,1);assert.ok(f.snap(a).character.loadout.inventory[0].online_item);
   const room=f.floor(a).rooms[2];f.place(a,room);f.act(a,'chat',{text:'Desert friends'});
   f.as('bob');assert.equal(f.snap(b).dive.claimed,0);assert.equal(f.snap(b).chat.length,0);f.place(b,room);assert.equal(f.snap(b).chat[0].text,'Desert friends');f.near(b,chest);f.act(b,'dive_claim',{chest:chest.id});assert.equal(f.snap(b).dive.claimed,1);
   f.restart();assert.equal(f.snap(b).dive.claimed,1);assert.equal(f.snap(b).zone,DESERT_ZONE);
@@ -60,9 +60,9 @@ test('Desert reset and restart retain committed loot, isolate Quarters fights, a
   const a=f.player('alice','honeydew-lantern'),old=f.snap(a).dive.edition,chest=f.snap(a).dive.chests[0];f.near(a,chest);f.act(a,'dive_claim',{chest:chest.id});
   const b=f.player('bob','littlebig-clockwork');f.act(b,'dive_exit');f.act(b,'enter',{zone:'princess-rose'});f.act(b,'dive_enter');const quarters=f.snap(b),iris=quarters.dive.enemies.find(e=>e.id==='iris'),qfloor=quarters.zones.find(z=>z.id==='dive-quarters'),path=pathTo(qfloor,qfloor.entrance,iris);f.place(b,path.at(-2));f.act(b,'dive_engage',{encounter:'iris'});
   f.as('alice');f.time('2026-09-21T11:00:01Z');f.tick();f.act(a,'enter',{zone:DESERT_ZONE});assert.equal(f.snap(a).zone,'honeydew-lantern');
-  f.act(a,'dive_enter',{zone:DESERT_ZONE});assert.notEqual(f.snap(a).dive.edition,old);assert.equal(f.snap(a).dive.claimed,0);assert.equal(f.snap(a).character.loadout.inventory.length,1);
+  f.act(a,'dive_enter',{zone:DESERT_ZONE});assert.notEqual(f.snap(a).dive.edition,old);assert.equal(f.snap(a).dive.claimed,0);assert.equal(f.snap(a).character.loadout.inventory.filter(i=>i.category!=='ingredient').length,1);
   assert.throws(()=>f.act(a,'dive_claim',{edition:old,chest:chest.id}),/edition changed/);
-  f.restart();assert.equal(f.snap(a).character.loadout.inventory.length,1);assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM dive_editions WHERE route=?').get(desertData.config.route).n,2);
+  f.restart();assert.equal(f.snap(a).character.loadout.inventory.filter(i=>i.category!=='ingredient').length,1);assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM dive_editions WHERE route=?').get(desertData.config.route).n,2);
   f.as('bob');assert.equal(f.snap(b).character.dive,null,'expired disconnected Quarters fight returns independently');
  }finally{f.db.close();}
 });
