@@ -42,6 +42,8 @@ const SCALAR_BOUNDS={
  avg_str_base:[0,100],avg_str_per_level:[0,5],heal_reference_hp:[1,1000],party_level_slack:[0,50],
  stamina_base:[1,1000],stamina_per_level:[0,50],stamina_dex_share:[0,5], // Stamina curve.
  row_swap_costs_turn:[0,1],row_back_damage_taken:[0.1,1],row_back_melee_dealt:[0.1,1],row_front_target_weight:[1,10],reach_damage_mult:[0.1,2],stack_max:[1,9999], // Rows, reach weapons, stacking.
+ atelier_price:[1,10000],emporium_price:[1,10000], // LiDollCoins per Diaper Atelier / Clothes Emporium roll in the companion.
+ move_delay_ms:[50,2000],crawl_move_delay_ms:[50,4000], // Online step cooldowns in milliseconds (crawl.mjs movementDelay). Below 50 ms clients would be refused on ordinary clock drift.
 };
 const RARITY_BOUNDS={weight:[0,1000],affixes:[0,6],budget_mult:[0.5,5],value_mult:[0,50],bless_mult:[0,10],curse_mult:[0,10]};
 const OVERCAP_STATS=['str','def','dex','int','cha'];
@@ -110,7 +112,7 @@ export function validateTuning(patch){
  if(!patch||typeof patch!=='object'||Array.isArray(patch))fail('Send the tuning values to change.');
  const out={};
  for(const [key,value] of Object.entries(patch)){
-  if(Object.hasOwn(SCALAR_BOUNDS,key)){const [min,max]=SCALAR_BOUNDS[key];out[key]=number(value,{min,max,label:key,integer:['ilvl_jitter_min','ilvl_jitter_max','ilvl_cap','level_cap','stat_cap','elite_level_bonus','boss_level_bonus','hp_late_from','party_level_slack','row_swap_costs_turn','row_front_target_weight','stack_max'].includes(key)});continue;}
+  if(Object.hasOwn(SCALAR_BOUNDS,key)){const [min,max]=SCALAR_BOUNDS[key];out[key]=number(value,{min,max,label:key,integer:['ilvl_jitter_min','ilvl_jitter_max','ilvl_cap','level_cap','stat_cap','elite_level_bonus','boss_level_bonus','hp_late_from','party_level_slack','row_swap_costs_turn','row_front_target_weight','stack_max','atelier_price','emporium_price'].includes(key)});continue;}
   if(key==='rarity'){out.rarity=validateRarityRows(value);continue;}
   if(key==='luck_profiles'){out.luck_profiles=validateLuck(value);continue;}
   if(key==='overcap'){out.overcap=validateOvercap(value);continue;}

@@ -44,5 +44,8 @@ export function createBank(db){
   }
   db.prepare('INSERT INTO quest_bank VALUES (?,?) ON CONFLICT(character_id) DO UPDATE SET items=excluded.items').run(c.id,JSON.stringify(stored));
  } // Storage, inventory, character revision and request receipt commit in the surrounding command transaction.
- return {snapshot,transfer,locate,commit};
+ const count=c=>items(c.id).length;
+ function deposit(c,item){const stored=items(c.id),entry={id:randomUUID(),item};stored.push(entry);commit(c,stored);return entry;} // Server-issued delivery (companion shop rolls). Callers check capacity before charging; the pending purchase then locks this character's bank until delivery.
+ const has=(c,id)=>items(c.id).some(entry=>entry.id===id);
+ return {snapshot,transfer,locate,commit,count,deposit,has};
 }

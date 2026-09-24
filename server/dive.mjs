@@ -289,7 +289,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(action==='move'||action==='dive_engage'){
    if(state.run)fail('Finish combat first.'); // Exploration stays available while stat points are banked.
    if(action==='dive_engage'){const foe=f.enemies.find(e=>e.id===input.encounter);if(!foe||Math.abs(foe.x-p.x)+Math.abs(foe.y-p.y)>1)fail('Approach that enemy first.');start(c,state,record,foe);return;}
-   if(now()-p.moved<movementDelay(state.loadout))fail('Movement is too fast.');const d={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];if(!d)fail('Choose a direction.');
+   if(now()-p.moved<movementDelay(state.loadout,currentTuning()))fail('Movement is too fast.'); /* Same live move_delay_ms / crawl_move_delay_ms as the hubs. */ const d={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];if(!d)fail('Choose a direction.');
    const x=p.x+d[0],y=p.y+d[1];if(!walkable(f,x,y))fail('That tile is blocked.');const foe=f.enemies.find(e=>e.x===x&&e.y===y&&e.respawnAt<=now());
    if(foe){start(c,state,record,foe);return;}
    const exit=f.exits?.find(e=>inExit(e,x,y)); // Pads are one tile; overworld wall gaps span two.

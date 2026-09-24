@@ -90,9 +90,12 @@ export function companionSource(db,c,p){
 
 export function companionEquipment(db,c,state,p,input,catalog,capacity,now){
  if(state.run)fail('Leave combat before changing equipment.');
+ editCompanionLoadout(db,c,state,p,input,now,loadout=>changeEquipment(loadout,input,catalog,capacity));
+}
+export function editCompanionLoadout(db,c,state,p,input,now,change){ // Apply `change` to whichever loadout the companion sheet shows (online state or latest cloud save) and commit it there.
  const selected=companionSource(db,c,p);
  if(!selected.loadout||input.equipment_version!==selected.version)fail('Your equipment changed. Refresh and choose it again.');
- const next=changeEquipment(importLoadout(selected.loadout),input,catalog,capacity);
+ const next=change(importLoadout(selected.loadout));
  if(selected.cloud){
   const head=db.prepare('SELECT * FROM quest_cloud_heads WHERE character_id=?').get(c.id);
   if(head?.paused)fail('Resume cloud sync in the game before changing saved equipment.');

@@ -17,7 +17,7 @@ const shopLootData=(()=>{try{return JSON.parse(readFileSync(new URL('./dive-data
 const shopLootTable=shopLootData.loot??null,shopLootBases=shopLootData.bases??null;
 let shopLoot={store:null,revision:null,roller:createLootRoller(shopLootTable,shopLootBases)};
 export function configureShopLoot(store){shopLoot={store,revision:null,roller:createLootRoller(store?store.apply(shopLootTable):shopLootTable,store?store.applyBases(shopLootBases):shopLootBases)};}
-function shopRoller(){
+export function shopRoller(){
  if(!shopLoot.store)return shopLoot.roller;
  const revision=shopLoot.store.revision();
  if(revision!==shopLoot.revision)shopLoot={...shopLoot,revision,roller:createLootRoller(shopLoot.store.apply(shopLootTable),shopLoot.store.applyBases(shopLootBases))};
@@ -107,7 +107,7 @@ export function shopOffers(zone,shop,time,level=1){ // `level`: the shopper's le
 export function hubDefinition(z,time,level=1){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??LOBBY_EXIT,restTickMs:c.rest_tick_ms,portals:z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z),fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:shopOffers(z.id,hubData.shops.find(s=>s.id===f.id),time,level)}:f)};} // `level`: the viewing character's level, so merchants show that shopper's scaled stock.
 export function nearbyFixture(z,p,id,kind){const f=z.fixtures?.find(f=>f.id===id&&f.kind===kind);if(!f||Math.abs(f.x-p.x)+Math.abs(f.y-p.y)>1)fail('Stand next to that '+kind+'.');return f;}
 
-export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWager(id,char,state,paid,amount): a duel stake settled through the same durable debit path.
+export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWager(id,char,state,paid,amount): a duel stake settled through the same durable debit path; hooks.companionShop(...,reservation) delivers a companion roll.
  db.exec(`CREATE TABLE IF NOT EXISTS hub_purchases(id TEXT PRIMARY KEY,owner TEXT NOT NULL,character_id TEXT NOT NULL,item TEXT NOT NULL,price INTEGER NOT NULL,status TEXT NOT NULL DEFAULT 'pending');
  CREATE INDEX IF NOT EXISTS hub_pending_purchases ON hub_purchases(owner,status);`);
  function prepare(i,char,state,z,p,input){
@@ -128,12 +128,13 @@ export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWage
    const item=JSON.parse(row.item);
    if(item.duel_wager){hooks.duelWager?.(id,char,state,paid,row.price);} // Escrow for a duel: the duel module records the outcome; nothing lands in the bag.
    else if(item.trade_escrow){hooks.tradeEscrow?.(id,char,state,paid,row.price);} // Escrow for a trade, likewise.
+   else if(item.companion_shop){hooks.companionShop?.(id,char,state,paid,row.price,item);} // A companion Atelier/Emporium roll: delivered to the bank, not the bag.
    else if(item.hub_service==='curse_remove'){
     const previous=structuredClone(state);
     if(paid){state.loadout=item.loadout;origins.reconcile(char,state,previous);state.loadoutRevision=char.revision+1;}
     state.hubNotice=paid?`Removed ${item.name} for ${row.price} LiDollCoins.${item.disposed?' The used diaper was disposed of.':' The item is in your bag and remains cursed.'}`:'Not enough LiDollCoins. Your equipment was not changed.';
    }else if(paid)addToInventory(state.loadout.inventory,origins.mint(char.id,item,row.price)); // Resale never exceeds the actual paid price, even with discounted stock tuning; stackables merge into an existing stack.
-   delete state.pendingPurchase;if(item.hub_service!=='curse_remove'&&!item.duel_wager&&!item.trade_escrow)state.hubNotice=paid?`Bought ${item.name??item.item_id} for ${row.price} LiDollCoins.`:'Not enough LiDollCoins. Nothing was purchased.';state.hubNoticeAt=now();
+   delete state.pendingPurchase;if(item.hub_service!=='curse_remove'&&!item.duel_wager&&!item.trade_escrow&&!item.companion_shop)state.hubNotice=paid?`Bought ${item.name??item.item_id} for ${row.price} LiDollCoins.`:'Not enough LiDollCoins. Nothing was purchased.';state.hubNoticeAt=now();
    db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),char.id);
    db.prepare('UPDATE hub_purchases SET status=? WHERE id=?').run(paid?'delivered':'declined',id);db.exec('COMMIT');
   }catch(error){db.exec('ROLLBACK');throw error;}
