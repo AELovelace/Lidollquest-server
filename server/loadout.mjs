@@ -29,6 +29,7 @@ export function importLoadout(input) { // Campaign data is intentionally client-
  result.player_mp_max=number(result.player_mp_max,0);result.player_mp=number(result.player_mp,0,0,result.player_mp_max);
  refreshMana(result); // Mage capacity derives from INT, so old and new imports cannot double it repeatedly.
  if(!Array.isArray(result.player_spells)||result.player_spells.length>512||result.inventory.some(item=>!object(item)||typeof item.item_id!=='string'))fail('Invalid inventory or learned spells.');
+ mergeStacks(result.inventory); // Duplicate consumable rows from older clients or saves become one stack each on import.
  return result;
 }
 
@@ -45,17 +46,36 @@ export function syncRunHealth(state,run) { // Save current HP without permanentl
 // ── Stacks: consumables and ammo share one bag entry with a quantity; only unstackable entries count toward the slot cap ──
 export const stackable=item=>!!item&&typeof item==='object'&&(item.stackable===true||['food','drink','ammo'].includes(item.category)); // Same rule as inv_item_stackable() in scrInventory.gml.
 export const slotsUsed=inventory=>(inventory??[]).filter(item=>!stackable(item)).length; // What "N / 99" counts: gear, quest items and other singles.
+export const stackTokens=item=>Array.isArray(item?.online_items)?item.online_items.filter(t=>typeof t==='string'&&t!==''):(typeof item?.online_item==='string'&&item.online_item!==''?[item.online_item]:[]); // Every resale right a stack carries (one per purchased or looted unit, in order); a single item has at most one. Same as inv_stack_tokens() in scrInventory.gml.
+export function setStackTokens(item,tokens,prices=null){ // Rewrite a stack's rights: the first token is the unit sold next (`online_item`, what the client prices and sells); the rest wait in `online_items`. The sell price is kept only when it is known for that front unit.
+ const list=[...new Set(tokens.filter(t=>typeof t==='string'&&t!==''))];
+ if(!list.length){delete item.online_items;delete item.online_item;delete item.online_sell_price;return item;}
+ item.online_items=list;item.online_item=list[0];
+ const price=prices?.get(list[0]);if(Number.isSafeInteger(price)&&price>0)item.online_sell_price=price;else delete item.online_sell_price; // reconcile() prices the new front unit from its origin row.
+ return item;
+}
+const stackPrices=item=>{const tokens=stackTokens(item);return new Map(tokens.length&&Number.isSafeInteger(item.online_sell_price)?[[tokens[0],item.online_sell_price]]:[]);}; // The only price an entry knows locally is its front unit's.
 export function addToInventory(inventory,item,stackMax=512){ // Merge into an existing stack when the item stacks; otherwise append. Returns the entry that grew.
  if(stackable(item)){
   const max=Math.max(1,Math.floor(Number(item.stack_max)||stackMax)),add=Math.max(1,Math.floor(Number(item.quantity)||1));
-  const stack=inventory.find(other=>stackable(other)&&other.item_id===item.item_id&&(other.online_item??null)===(item.online_item??null)&&(Number(other.quantity)||1)+add<=max); // Server-minted resale rights are per purchase, so a tracked unit only joins a stack with the same rights; campaign pickups merge freely.
-  if(stack){stack.quantity=(Number(stack.quantity)||1)+add;return stack;}
-  item.quantity=add;
+  const stack=inventory.find(other=>stackable(other)&&other.item_id===item.item_id&&(Number(other.quantity)||1)+add<=max); // Identical consumables always share one entry; each tracked unit's resale right rides along in online_items, so two purchases no longer sit as two rows.
+  if(stack){stack.quantity=(Number(stack.quantity)||1)+add;setStackTokens(stack,[...stackTokens(stack),...stackTokens(item)],new Map([...stackPrices(stack),...stackPrices(item)]));return stack;}
+  item.quantity=add;setStackTokens(item,stackTokens(item),stackPrices(item));
  }
  inventory.push(item);return item;
+}
+export function mergeStacks(inventory,stackMax=512){ // Fold duplicate consumable entries (old saves, purchases made before rights could share a stack) into one stack each, keeping every right in order. Same as inv_merge_stacks() in scrInventory.gml.
+ const out=[];for(const item of inventory){if(stackable(item))addToInventory(out,item,stackMax);else out.push(item);}
+ inventory.splice(0,inventory.length,...out);return inventory;
 }
 export function takeFromStack(inventory,match,count=1){ // Consume `count` units from the first matching stack; the entry disappears at zero. Returns true when enough was there.
  const index=inventory.findIndex(item=>stackable(item)&&match(item));if(index<0)return false;
  const item=inventory[index],have=Math.max(1,Math.floor(Number(item.quantity)||1));if(have<count)return false;
- if(have===count)inventory.splice(index,1);else item.quantity=have-count;return true;
+ if(have===count)inventory.splice(index,1);else{item.quantity=have-count;setStackTokens(item,stackTokens(item).slice(0,item.quantity),stackPrices(item));} // Units eaten or shot give up the newest rights first, so the front unit stays sellable.
+ return true;
+}
+export function removeUnit(item,token){ // Sell or hand over one unit of a stack; the right `token` leaves with it. Returns the units left (0: the entry is gone or was a single item, so the caller splices it).
+ const have=Math.max(1,Math.floor(Number(item.quantity)||1));
+ if(!stackable(item)||have<=1)return 0;
+ item.quantity=have-1;setStackTokens(item,stackTokens(item).filter(t=>t!==token),stackPrices(item));return item.quantity;
 }

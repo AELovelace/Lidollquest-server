@@ -34,6 +34,8 @@ export const DEFAULT_TUNING=Object.freeze({
  rarity_order:RARITY_ORDER,
  luck_profiles:{chest:{uncommon:1.2,rare:1.5,epic:1,legendary:0.25}},
  route_levels:{default:{base:5,per_floor:2}},
+ shop_levels:{default:{min:1,max:100}}, // Hub shop stock rolls at the shopper's own level, clamped into the hub's band (hubs.mjs shopOffers).
+ shop_levels:{default:{min:1,max:100}}, // Hub shop stock rolls at the shopper's own level, clamped into the hub's band (hubs.mjs shopOffers).
  // Level scaling (scaling.mjs). hp_base + hp_per_level per level below hp_late_from, hp_per_level_late after, plus DEF x hp_def_share.
  hp_base:100,hp_per_level:5,hp_per_level_late:3,hp_late_from:41,hp_def_share:0.6,
  def_mitigation_k:100, // damage x k/(k+DEF): DEF 100 halves a hit instead of zeroing it.
@@ -163,6 +165,14 @@ export function createLootRoller(table,bases=null){ // Built from the shipped ta
    if(Number.isFinite(override))return Math.max(1,Math.min(num(tuning.ilvl_cap,100),Math.floor(override)));
    const rows=tuning.route_levels??{},row=rows[route]??rows.default??{base:5,per_floor:2};
    return Math.max(1,Math.min(num(tuning.ilvl_cap,100),Math.floor(num(row.base,5)+num(row.per_floor,2)*(Math.max(1,depth)-1))));
+  },
+  shopLevel(hub,level=1){ // The level a hub's merchants roll stock at for one shopper: their level clamped into the hub's authored band, so a beginner in LittleBig still sees city gear and a veteran in Honeydew still sees village gear.
+   const rows=tuning.shop_levels??{},row=rows[hub]??rows.default??{min:1,max:100},cap=num(tuning.ilvl_cap,100);
+   return Math.max(1,Math.min(cap,Math.min(num(row.max,100),Math.max(num(row.min,1),Math.floor(num(level,1))))));
+  },
+  shopLevel(hub,level=1){ // The level a hub's merchants roll stock at for one shopper: their level clamped into the hub's authored band, so a beginner in LittleBig still sees city gear and a veteran in Honeydew still sees village gear.
+   const rows=tuning.shop_levels??{},row=rows[hub]??rows.default??{min:1,max:100},cap=num(tuning.ilvl_cap,100);
+   return Math.max(1,Math.min(cap,Math.min(num(row.max,100),Math.max(num(row.min,1),Math.floor(num(level,1))))));
   },
   enchantMods(item){ // What the curse/blessing roller should do for this copy's tier.
    const cfg=rarityConfig(tuning,item?.loot?.rarity??'common');

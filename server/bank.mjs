@@ -1,5 +1,5 @@
 import {randomUUID} from 'node:crypto';
-import {stackable,slotsUsed} from './loadout.mjs'; // Withdrawing a stack never needs a free slot.
+import {stackable,slotsUsed,addToInventory} from './loadout.mjs'; // Withdrawing a stack never needs a free slot.
 import {hubData,nearbyFixture} from './hubs.mjs';
 import {importLoadout} from './loadout.mjs';
 
@@ -39,7 +39,7 @@ export function createBank(db){
    const index=stored.findIndex(entry=>entry.id===input.bank_item);
    if(index<0)fail('That item is no longer in your bank.');
    if(!stackable(stored[index].item)&&slotsUsed(inventory)>=hubData.config.inventory_capacity)fail('Inventory full. The item stays in your bank.');
-   inventory.push(stored.splice(index,1)[0].item);
+   addToInventory(inventory,stored.splice(index,1)[0].item); // A withdrawn consumable rejoins its stack (rights included) instead of opening a second row.
    importLoadout(state.loadout); // Reject a withdrawal that would exceed reconnect payload/complexity limits.
   }
   db.prepare('INSERT INTO quest_bank VALUES (?,?) ON CONFLICT(character_id) DO UPDATE SET items=excluded.items').run(c.id,JSON.stringify(stored));

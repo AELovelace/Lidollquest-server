@@ -81,7 +81,8 @@ for(const [kind,room] of Object.entries(villageRooms))validateCourtyard(room,kin
 export const LOBBY_EXIT=Object.freeze({x:1,y:10,style:'stairs'}); // Bottom-left stairs back to the singleplayer campaign. // Only declared wall openings are traversable; all other perimeter cells remain walls.
 export const hubBlocked=(z,x,y)=>z.fixtures?.some(f=>f.solid!==false&&x>=f.x&&y>=f.y&&x<f.x+(f.span_w??1)&&y<f.y+(f.span_h??1))??false;
 import {stackable,slotsUsed,addToInventory} from './loadout.mjs'; // Stack-aware capacity and purchases.
-export function shopOffers(zone,shop,time){
+export const shopperLevel=state=>Math.max(1,Math.floor(Number(state?.loadout?.player_info?.level)||1)); // The level hub stock is rolled at for this character (clamped per hub by shopLevel).
+export function shopOffers(zone,shop,time,level=1){ // `level`: the shopper's level; the item picks are shared per day, only their rolled level differs per shopper.
  const day=Math.floor(time/86400000),rnd=seeded(`${zone}:${shop.id}:${day}`),pool=[...shop.pool],offers=[];
  // Keep a meal available at the general merchant and apothecary every day.
  const food=pool.includes('adult_food')?'adult_food':null;if(food)pool.splice(pool.indexOf(food),1);
@@ -89,12 +90,12 @@ export function shopOffers(zone,shop,time){
   const id=slot===0&&food?food:pool.splice(rnd(pool.length),1)[0];let item=structuredClone(hubData.items[id]);
   if(item.atk_min!==undefined){item.atk=item.atk_min+rnd(item.atk_max-item.atk_min+1);item.desc=item.desc?.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}
   const roller=shopRoller(),hub=hubRooms.find(r=>r.id===zone)?.parent??zone; // Annex shops use their parent hub's level band.
-  item=roller.roll(item,`${zone}:${shop.id}:${day}:${slot}`,{level:roller.routeLevel(hub,1),luck:'shop'}); // Rarity, level and affixes with shop luck (no epics); the rolled name and value are what the player sees and pays for.
+  item=roller.roll(item,`${zone}:${shop.id}:${day}:${slot}`,{level:roller.shopLevel(hub,level),luck:'shop'}); // Rarity, level and affixes with shop luck (no epics) at the shopper's level clamped into the hub's shop_levels band; the rolled name and value are what the player sees and pays for.
   const price=Math.max(1,Math.ceil(item.value*c.coin_price_multiplier));
   offers.push({id:`${day}-${slot}`,price,item});
  }return offers;
-} // Stock is shared, deterministic and inexhaustible; purchases never consume somebody else's offer.
-export function hubDefinition(z,time){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??LOBBY_EXIT,restTickMs:c.rest_tick_ms,portals:z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z.id),fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:shopOffers(z.id,hubData.shops.find(s=>s.id===f.id),time)}:f)};}
+} // Stock is deterministic and inexhaustible; the same eight items greet everyone that day, scaled to each shopper.
+export function hubDefinition(z,time,level=1){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??LOBBY_EXIT,restTickMs:c.rest_tick_ms,portals:z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z.id),fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:shopOffers(z.id,hubData.shops.find(s=>s.id===f.id),time,level)}:f)};} // `level`: the viewing character's level, so merchants show that shopper's scaled stock.
 export function nearbyFixture(z,p,id,kind){const f=z.fixtures?.find(f=>f.id===id&&f.kind===kind);if(!f||Math.abs(f.x-p.x)+Math.abs(f.y-p.y)>1)fail('Stand next to that '+kind+'.');return f;}
 
 export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWager(id,char,state,paid,amount): a duel stake settled through the same durable debit path.
@@ -103,7 +104,7 @@ export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWage
  function prepare(i,char,state,z,p,input){
   if(state.run||!state.loadout)fail('Leave combat before shopping.');
   nearbyFixture(z,p,input.fixture,'shop');
-  const shop=hubData.shops.find(s=>s.id===input.fixture),offer=shopOffers(z.id,shop,now()).find(o=>o.id===input.offer);
+  const shop=hubData.shops.find(s=>s.id===input.fixture),offer=shopOffers(z.id,shop,now(),shopperLevel(state)).find(o=>o.id===input.offer); // Priced and rolled exactly as this shopper saw it.
   if(!offer)fail('The stock changed. Reopen the shop.');
   if(!stackable(offer.item)&&slotsUsed(state.loadout.inventory)>=c.inventory_capacity)fail('Inventory full. No coins were charged.'); // Stacks (arrows, snacks) never need a free slot.
   const id=createHash('sha256').update(char.id+':'+input.request_id).digest('hex');

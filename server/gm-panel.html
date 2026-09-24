@@ -305,6 +305,9 @@ tr.sel td{background:#2c1e3d}
     <h2 style="margin-top:14px">Route levels</h2>
     <p class="note">The item level a route hands out: base on floor one, plus per-floor growth.</p>
     <div class="scroll"><table><thead><tr><th>Route</th><th>Base</th><th>Per floor</th></tr></thead><tbody id="lootRoutes"></tbody></table></div>
+    <h2 style="margin-top:14px">Shop levels</h2>
+    <p class="muted">Hub merchants roll each shopper's stock at that player's level, clamped into these bands. The default row covers any hub without its own row.</p>
+    <div class="scroll"><table><thead><tr><th>Hub</th><th>Min</th><th>Max</th></tr></thead><tbody id="lootShops"></tbody></table></div>
 
     <h2 style="margin-top:14px">Legendary titles</h2>
     <label class="src" for="lootTitles">One per line. A legendary copy takes one at random and wears it in quotes.</label>
@@ -1063,6 +1066,15 @@ tr.sel td{background:#2c1e3d}
   });
  }
 
+ function lootRenderShops(){
+  var body=$("lootShops");clear(body);
+  Object.keys(lootData.tuning.shop_levels||{}).forEach(function(hub){
+   var row=lootData.tuning.shop_levels[hub],tr=el("tr");tr.appendChild(el("td",null,hub));
+   [["min",1,100],["max",1,100]].forEach(function(spec){var td=el("td"),input=el("input");input.id="sh_"+hub+"_"+spec[0];input.type="number";input.step="1";input.min=String(spec[1]);input.max=String(spec[2]);input.value=String(row[spec[0]]);input.style.width="70px";td.appendChild(input);tr.appendChild(td);});
+   body.appendChild(tr);
+  });
+ }
+
  function lootCollectTuning(){
   var patch={},rarity={},luck={},overcap={},routes={},bad=null;
   Object.keys(lootData.scalarBounds).forEach(function(key){var v=lootNumber("lt_"+key);if(v===null||!isFinite(v)){bad=bad||key;return;}patch[key]=v;});
@@ -1074,7 +1086,8 @@ tr.sel td{background:#2c1e3d}
   Object.keys(lootData.tuning.luck_profiles||{}).forEach(function(name){luck[name]={};lootData.rarityOrder.slice(1).forEach(function(tier){luck[name][tier]=Number($("luck_"+name+"_"+tier).value);});});
   lootData.overcapStats.forEach(function(stat){overcap[stat]={per_point:Number($("oc_"+stat+"_per_point").value),ceiling:Number($("oc_"+stat+"_ceiling").value),effect:$("oc_"+stat+"_effect").value.trim()};});
   Object.keys(lootData.tuning.route_levels||{}).forEach(function(route){routes[route]={base:Number($("rt_"+route+"_base").value),per_floor:Number($("rt_"+route+"_per_floor").value)};});
-  patch.rarity=rarity;patch.luck_profiles=luck;patch.overcap=overcap;patch.route_levels=routes;
+  var shops={};Object.keys(lootData.tuning.shop_levels||{}).forEach(function(hub){shops[hub]={min:Number($("sh_"+hub+"_min").value),max:Number($("sh_"+hub+"_max").value)};});
+  patch.rarity=rarity;patch.luck_profiles=luck;patch.overcap=overcap;patch.route_levels=routes;if(Object.keys(shops).length)patch.shop_levels=shops;
   patch.legendary_titles=$("lootTitles").value.split("\n").map(function(t){return t.trim();}).filter(Boolean);
   return {patch:patch,bad:bad};
  }
@@ -1311,7 +1324,7 @@ tr.sel td{background:#2c1e3d}
   return api("/gm/loot").then(function(payload){
    if(epoch!==perfEpoch||!token)return;
    lootData=payload;
-   lootRenderRarity();lootRenderScalars();lootRenderLuck();lootRenderOvercap();lootRenderRoutes();
+   lootRenderRarity();lootRenderScalars();lootRenderLuck();lootRenderOvercap();lootRenderRoutes();lootRenderShops();
    $("lootTitles").value=(payload.legendary_titles||[]).join("\n");
    lootRenderList();lootRenderGarments();lootRenderStyles();lootRenderPreviewPickers();
   }).catch(function(error){say("err",error.message);});
