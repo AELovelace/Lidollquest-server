@@ -15,7 +15,7 @@ import {levelEnemy,encounterLevel,routeLevelFor,defHpDelta,dexStaminaDelta} from
 import {stackable,slotsUsed,addToInventory} from './loadout.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
 import {manaCapacity} from './magic-balance.mjs';
-import {hubArrival,routePortals,routeHome,returnSource,wildernessGates,hubRooms,hubCatalog,inHubGap,DAILY_COIN_CAP} from './hubs.mjs';
+import {hubArrival,routePortals,routeHome,returnSource,wildernessGates,hubRooms,hubCatalog,inHubGap,dailyCoinCap} from './hubs.mjs';
 import {routeCategory} from './zone-categories.mjs';
 import {inExit,nearExit} from './wilderness-links.mjs';
 
@@ -127,7 +127,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(!record||now()>=record.ends+(grace?10*minutes:0)&&record.edition!==latest())return 0;
   const p=progress(c,record.edition);if(!p.completed||p.coinsPaid>=config.boss_coins)return 0;
   const day=Math.floor(now()/86400000),used=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(c.owner,day)?.coins??0;
-  const amount=Math.min(config.boss_coins-p.coinsPaid,Math.max(0,DAILY_COIN_CAP-used));
+  const amount=Math.min(config.boss_coins-p.coinsPaid,Math.max(0,dailyCoinCap()-used));
   if(amount){adjust(c.owner,'coins',amount,randomUUID(),'Dungeon Dive: '+record.edition);db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=coins+excluded.coins').run(c.owner,day,amount);p.coinsPaid+=amount;saveProgress(c,record.edition,p);}
   return amount;
  }

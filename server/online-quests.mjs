@@ -3,7 +3,7 @@ import {refreshMana} from './magic-balance.mjs';
 import {randomUUID,createHash} from 'node:crypto';
 import {awardExperience,combatData} from './combat.mjs';
 import {changeEquipment} from './companion-equipment.mjs';
-import {hubData,DAILY_COIN_CAP} from './hubs.mjs';
+import {hubData,dailyCoinCap} from './hubs.mjs';
 import {createQuestPlacements} from './quest-placements.mjs';
 const clone=structuredClone,fail=(message,status=409)=>{throw Object.assign(Error(message),{status,code:'online_quest_conflict'});};
 const digest=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
@@ -88,7 +88,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
   if(r.xp){next.run={enemy:{exp:r.xp},log:[],hp:next.loadout.player_info.playerHealth,maxHp:next.loadout.player_info.playerHealthMax};awardExperience(next,roll);delete next.run;}
   for(const spell of r.spells){db.prepare('INSERT OR IGNORE INTO quest_rpp_unlocks VALUES (?,?,?,?)').run(c.id,spell,'spell',now());if(!next.loadout.player_spells.includes(spell))next.loadout.player_spells.push(spell);}
   if(r.rpp){const balance=db.prepare('SELECT balance FROM quest_rpp_wallets WHERE character_id=?').get(c.id)?.balance??0;if(balance+r.rpp>1000000000)fail('Spend some RPP before claiming this reward.');db.prepare('INSERT INTO quest_rpp_wallets VALUES (?,?) ON CONFLICT(character_id) DO UPDATE SET balance=balance+excluded.balance').run(c.id,r.rpp);db.prepare('INSERT INTO quest_rpp_ledger(request_id,fingerprint,owner,character_id,kind,amount,balance,actor,reason,created) VALUES (?,?,?,?,?,?,?,?,?,?)').run('quest:'+q.id,q.revision,c.owner,c.id,'quest',r.rpp,balance+r.rpp,'quest',q.definition.name,now());}
-  const day=Math.floor(now()/86400000),spent=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(c.owner,day)?.coins??0,paid=Math.min(r.coins,Math.max(0,DAILY_COIN_CAP-spent));
+  const day=Math.floor(now()/86400000),spent=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(c.owner,day)?.coins??0,paid=Math.min(r.coins,Math.max(0,dailyCoinCap()-spent));
   if(paid){adjust(c.owner,'coins',paid,'quest-'+q.id,'Quest: '+q.definition.name);db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=coins+excluded.coins').run(c.owner,day,paid);}
   const result={quest:key,name:q.definition.name,coins:paid,cappedCoins:r.coins-paid,xp:r.xp,rpp:r.rpp,items:r.items};db.prepare('INSERT INTO online_quest_claims VALUES (?,?,?,?,?)').run(q.id,c.id,key,now(),JSON.stringify(result));q.state.status='claimed';q.state.reward=result;save(q);Object.assign(s,next);s.questReward=result;
  } // The caller's transaction owns the claim, inventory, progression, currency outbox, and command receipt.

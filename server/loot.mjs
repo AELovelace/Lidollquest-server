@@ -32,7 +32,7 @@ export const DEFAULT_TUNING=Object.freeze({
   legendary:{weight:1,affixes:4,suffix:true,budget_mult:2,value_mult:12,colour:'#ff9f1c',bless_mult:1,curse_mult:0,force_blessing:true},
  },
  rarity_order:RARITY_ORDER,
- luck_profiles:{chest:{uncommon:1.2,rare:1.5,epic:1,legendary:0.25}},
+ luck_profiles:{chest:{uncommon:1.2,rare:1.5,epic:1,legendary:0.25},atelier_diamond:{uncommon:1,rare:1,epic:1,legendary:1},emporium_diamond:{uncommon:1,rare:1,epic:1,legendary:1}}, // atelier_diamond / emporium_diamond weight the companion's 1-diamond rolls above diamond_roll_floor; the coin rolls read `atelier` / `emporium` when a GM adds them.
  route_levels:{default:{base:5,per_floor:2}},
  shop_levels:{default:{min:1,max:100}}, // Hub shop stock rolls at the shopper's own level, clamped into the hub's band (hubs.mjs shopOffers).
  shop_levels:{default:{min:1,max:100}}, // Hub shop stock rolls at the shopper's own level, clamped into the hub's band (hubs.mjs shopOffers).
@@ -47,6 +47,8 @@ export const DEFAULT_TUNING=Object.freeze({
  // Battle rows and reach weapons (scaling.mjs rows section, scrBattleInit/scrLootRoll on the client).
  row_swap_costs_turn:0,row_back_damage_taken:0.5,row_back_melee_dealt:0.5,row_front_target_weight:3,reach_damage_mult:0.75,
  stack_max:512, // Consumables and ammo stack this high in one bag entry; stacks never count toward the slot cap.
+ daily_coin_cap:9999, // Account-wide LiDollCoins one player may earn per UTC day across arena payouts, Dive bosses, weekly quests and item sales (hubs.mjs dailyCoinCap). Live on the /gm Loot tab and the in-game GM Combat page.
+ diamond_roll_floor:2, // Companion diamond rolls (exactly 1 diamond) never land below this rarity index: 0 common, 1 uncommon, 2 rare, 3 epic, 4 legendary (companion-shops.mjs).
  move_delay_ms:150,crawl_move_delay_ms:300, // Online walking: milliseconds the server demands between steps (crawl.mjs movementDelay). The zone snapshot ships them as moveDelayMs / crawlMoveDelayMs so the client paces itself to the same clock.
  atelier_price:3,emporium_price:3, // LiDollCoins per companion roll (companion-shops.mjs). Odds come from the `atelier`/`emporium` luck profiles and item level from shop_levels.atelier/.emporium, each falling back to the plain rarity weights and the default band.
 });
@@ -115,11 +117,12 @@ export function createLootRoller(table,bases=null){ // Built from the shipped ta
  const ids=new Set();
  for(const affix of affixes){if(!affix?.id||ids.has(affix.id))throw Error('Loot affix ids must be present and unique: '+affix?.id);ids.add(affix.id);}
 
- function pickRarity(luckName,rnd){
+ function pickRarity(luckName,rnd,floor=0){ // `floor`: the lowest rarity index this roll may land on (companion diamond rolls); tiers below it get no weight at all.
   const luck=tuning.luck_profiles?.[luckName]??{};
-  const weights=order.map(tier=>Math.max(0,rarityConfig(tuning,tier).weight*num(luck[tier],1)));
+  const low=Math.max(0,Math.min(order.length-1,Math.floor(num(floor,0)))); // clamp into the tier list
+  const weights=order.map((tier,i)=>i<low?0:Math.max(0,rarityConfig(tuning,tier).weight*num(luck[tier],1)));
   const total=weights.reduce((a,b)=>a+b,0);
-  if(total<=0)return order[0];
+  if(total<=0)return order[low]; // every allowed tier weighted to zero: hand out the floor itself
   let roll=rnd(1000000)/1000000*total;
   for(let i=0;i<order.length;i++){roll-=weights[i];if(roll<0)return order[i];}
   return order[order.length-1];
@@ -181,14 +184,14 @@ export function createLootRoller(table,bases=null){ // Built from the shipped ta
    return {curseMult:cfg.curse_mult,blessMult:cfg.bless_mult,force:cfg.force_blessing?'blessing':''};
   },
   generator,
-  roll(item,key,{level=1,luck='chest'}={}){ // `key` is the chest's own seed key, so the roll is stable across regeneration. Returns the rolled struct, which may be a generated replacement.
+  roll(item,key,{level=1,luck='chest',floor=0}={}){ // `floor`: minimum rarity index (see pickRarity). // `key` is the chest's own seed key, so the roll is stable across regeneration. Returns the rolled struct, which may be a generated replacement.
    if(!item||typeof item!=='object')return item;
    if(generator.has&&generator.isTemplate(item)){const gen=generator.generate(item.category,seeded(key+':base'),item.is_diaper===true);if(gen){gen.source_item_id=item.item_id;item=gen;}} // numbered art variant -> style + garment base
    if(item.source_item_id===undefined)item.source_item_id=item.item_id;
    if(item.base_name===undefined)item.base_name=String(item.name??'');
    if(!has||!eligible(item))return item;
    const rnd=seeded(key+':loot');
-   const tier=pickRarity(luck,rnd),cfg=rarityConfig(tuning,tier);
+   const tier=pickRarity(luck,rnd,floor),cfg=rarityConfig(tuning,tier);
    const cap=Math.max(1,Math.floor(num(tuning.ilvl_cap,100)));
    const ilvl=Math.max(1,Math.min(cap,Math.floor(num(level,1))+range(rnd,Math.floor(num(tuning.ilvl_jitter_min,-1)),Math.floor(num(tuning.ilvl_jitter_max,2)))));
    scaleBase(item,ilvl,tier);

@@ -11,7 +11,7 @@ import {createQuestZones} from './zones.mjs';
 import {createCloudSaves} from './cloud-saves.mjs';
 import {createCharacterManagement} from './character-management.mjs';
 import {createPrivateSprites} from './private-sprites.mjs';
-import {DAILY_COIN_CAP} from './hubs.mjs';
+import {dailyCoinCap} from './hubs.mjs';
 import {createOnlineFeed} from './online-feed.mjs';
 import {createMommybotProfile} from './mommybot-profile.mjs';
 import {createGameMasterPanel} from './gm.mjs';
@@ -47,7 +47,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
  const artJobs=createWorldJobs(db,{live,now,...artJobOptions});
  const gm=createGameMasterPanel(db,{walletClient,announcements:()=>zones.announcements,live,artJobs,world:()=>zones.world,performanceSnapshot:metrics.snapshot,enchantments:createEnchantmentStore(db,{now}),enchantmentTable:()=>diveData.enchantments,loot:createLootStore(db,{now}),lootTable:()=>diveData.loot,lootItems:()=>diveData.items,lootBases:()=>diveData.bases,allow:gmAllow,trustProxy:gmTrustProxy,requireTls:gmRequireTls,enabled:gmEnabled,now,log}); // Staff moderation owns its own tables and never touches wallet credentials.
  const zones=createQuestZones(db,{now,roll,compute,live,measure:metrics.measure,onPresence:onlineFeed.record,enabled:owner=>!gm.suspended(owner),muted:gm.muted,audit:gm.record,grant:()=>{if(!identity)throw Error('Missing request identity');return identity;},wallet:owner=>({coins:db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(owner)?.coins??0}),adjust:(owner,asset,amount,id,reason)=>{
-  if(asset!=='coins'||!Number.isSafeInteger(amount)||amount<1||amount>DAILY_COIN_CAP)throw Error('Invalid server award'); // A single entitlement can never exceed one day's whole allowance.
+  if(asset!=='coins'||!Number.isSafeInteger(amount)||amount<1||amount>dailyCoinCap())throw Error('Invalid server award'); // A single entitlement can never exceed one day's whole allowance.
   db.prepare('INSERT INTO reward_outbox(id,owner,amount,reason) VALUES (?,?,?,?)').run(id,owner,amount,reason);
  }});
  db.prepare('INSERT OR IGNORE INTO mommybot_online_seen SELECT owner,seen FROM quest_presence').run(); // Seed existing sessions on rollout without announcing their next heartbeat as a fresh join.
@@ -68,8 +68,11 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
  async function settlePurchases(owner,token){
   if(purchases.has(owner))return purchases.get(owner);
   const task=(async()=>{for(const row of db.prepare("SELECT * FROM hub_purchases WHERE owner=? AND status='pending'").all(owner)){
-   try{const receipt=await metrics.measureAsync('account.debit',()=>walletClient.credit(token,{request_id:'shop-'+row.id,kind:'debit',amount:row.price}));zones.completePurchase(row.id,true);db.prepare('UPDATE wallet_cache SET coins=? WHERE owner=?').run(receipt.balance,owner);}
-   catch(error){if(error.code==='insufficient_balance')zones.completePurchase(row.id,false);else log('quest_purchase_delivery_pending',row.id,error.status??'transport');}
+   const diamond=JSON.parse(row.item)?.currency==='diamonds'; /* Companion diamond rolls reserve {companion_shop, currency:'diamonds', item} and are paid with the wallet's one-diamond debit, never the coin balance. */
+   try{
+    if(diamond){if(typeof walletClient.diamonds!=='function')throw Object.assign(Error('Diamond payments are unavailable.'),{status:503});await metrics.measureAsync('account.debit',()=>walletClient.diamonds(token,{request_id:'shop-'+row.id,asset:'diamonds',kind:'debit',amount:1}));zones.completePurchase(row.id,true);} /* The durable request id makes a retried or replayed debit idempotent, exactly like coins. */
+    else{const receipt=await metrics.measureAsync('account.debit',()=>walletClient.credit(token,{request_id:'shop-'+row.id,kind:'debit',amount:row.price}));zones.completePurchase(row.id,true);db.prepare('UPDATE wallet_cache SET coins=? WHERE owner=?').run(receipt.balance,owner);}
+   }catch(error){if(error.code==='insufficient_balance'||(diamond&&error.status===403))zones.completePurchase(row.id,false);else log('quest_purchase_delivery_pending',row.id,error.status??'transport');} /* A diamond debit the wallet refuses for consent (403) is declined rather than retried forever. */
   }})();purchases.set(owner,task);try{await task;}finally{purchases.delete(owner);}
  } // Retry a durable debit ID before accepting any subsequent inventory-changing command.
  let active=0;const perToken=new Map();
@@ -127,7 +130,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
    const receipt=result.receipt;identity=verified;try{result=metrics.measure(req.method==='GET'?'zones.read':'zones.refresh',()=>zones.read(token,result.character?.id,req.method==='GET'?view:{companion:['bank_sell','companion_equip','companion_unequip','companion_roll','companion_withdraw'].includes(input?.action)}));if(receipt)result.receipt=receipt;}finally{identity=null;} // Build exactly one final view after purchase settlement, including durable replay receipts.
    await flush(verified.owner,token);result.coins=db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(verified.owner).coins;
    result.pendingCoins=db.prepare('SELECT COALESCE(SUM(amount),0) AS n FROM reward_outbox WHERE owner=? AND delivered=0').get(verified.owner).n;
-   result.capabilities={unifiedCreation:true,inspection:true,friends:true,cloudSaves:true,saveManagement:true,characterManagement:true,characterDescriptions:true,companionEquipment:true,companionBank:true,bankSales:true,companionShops:true,companionWithdraw:true};
+   result.capabilities={unifiedCreation:true,inspection:true,friends:true,cloudSaves:true,saveManagement:true,characterManagement:true,characterDescriptions:true,companionEquipment:true,companionBank:true,bankSales:true,companionShops:true,companionWithdraw:true,companionDiamondRolls:true};
    res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(metrics.measure('response.serialize',()=>JSON.stringify(result)));
   }finally{active--;const count=perToken.get(token)-1;if(count)perToken.set(token,count);else perToken.delete(token);}
  })().catch(error=>{if(res.destroyed)return;if(res.headersSent){res.destroy();return;}res.writeHead(error.status??503,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({error:error.code??'zone_request_failed',error_description:error.status?error.message:'Online zones are temporarily unavailable.'}));});});
