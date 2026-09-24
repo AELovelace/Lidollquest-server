@@ -4,7 +4,8 @@ import {districtSize} from './district-layouts.mjs';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {seeded} from './dive-generation.mjs';
-import {createLootRoller} from './loot.mjs';
+import {createLootRoller,DEFAULT_TUNING} from './loot.mjs';
+import {currentTuning} from './combat.mjs'; // Live loot tuning (daily_coin_cap); combat.mjs never imports this module, so there is no cycle.
 import {roseCourtyard,GARDEN_PORTALS,validateCourtyard} from './hub-garden.mjs';
 
 export const hubData=JSON.parse(readFileSync(new URL('./hub-data.json',import.meta.url),'utf8'));
@@ -24,8 +25,9 @@ export function shopRoller(){
  return shopLoot.roller;
 }
 if(!Number.isInteger(c.stock_size)||c.stock_size<1||c.stock_size>24||!Number.isFinite(c.coin_price_multiplier)||c.coin_price_multiplier<=0||c.coin_price_multiplier>100||!Number.isInteger(c.inventory_capacity)||c.inventory_capacity<1||c.inventory_capacity>512||!Number.isInteger(c.rest_tick_ms)||c.rest_tick_ms<500)throw Error('Invalid online hub tuning');
-export const DAILY_COIN_CAP=c.daily_coin_cap??250;
-if(!Number.isInteger(DAILY_COIN_CAP)||DAILY_COIN_CAP<1||DAILY_COIN_CAP>100000)throw Error('Invalid daily coin cap'); // One account-wide UTC earnings allowance shared by arena payouts, dungeon bosses and item sales.
+export const DAILY_COIN_CAP=c.daily_coin_cap??DEFAULT_TUNING.daily_coin_cap; // Shipped fallback only (hub-data.json config, else the tuning default): every live check goes through dailyCoinCap().
+if(!Number.isInteger(DAILY_COIN_CAP)||DAILY_COIN_CAP<1||DAILY_COIN_CAP>100000)throw Error('Invalid daily coin cap'); // One account-wide UTC earnings allowance shared by arena payouts, dungeon bosses, weekly quests and item sales.
+export function dailyCoinCap(){const n=Number(currentTuning()?.daily_coin_cap);return Number.isInteger(n)&&n>=1&&n<=100000?n:DAILY_COIN_CAP;} // The /gm Loot tab (daily_coin_cap) and the in-game GM Combat page retune the allowance live; a malformed key falls back to the shipped cap.
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'hub_conflict'});};
 if(c.shop_width!==40||c.shop_height!==24||c.curse_removal_price!==20)throw Error('Invalid market dimensions or curse service price');
 const gardenWidth=districtData.width,gardenHeight=districtData.height;

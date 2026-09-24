@@ -5,7 +5,7 @@
     "stock_size": 8,
     "coin_price_multiplier": 1,
     "inventory_capacity": 99,
-    "daily_coin_cap": 1000,
+    "daily_coin_cap": 9999,
     "rest_tick_ms": 1000,
     "garden_width": 40,
     "garden_height": 24,
