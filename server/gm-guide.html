@@ -250,6 +250,20 @@
         </ul>
         <p><button type="button" data-gm-tool="loot">Open the Loot tab</button> <button type="button" data-gm-tool="enchantments">Open Curses &amp; Blessings</button></p>
       </article>
+      <article data-guide-id="alchemy" tabindex="-1" hidden>
+        <h3>Alchemy: chests and brewing</h3>
+        <p>The <b>Alchemy</b> tab edits two live tables. <b>Chest odds</b> decide how often an online Dive room chest also holds a bundle of one ingredient, and which ingredients each route can drop. They apply from the next chest claim. <b>Brewing</b> decides how cauldron brews turn out: skill and XP, mishap odds, rarity, adjectives, colour effects, specials, secret recipes and mishap texts.</p>
+        <p>Brewing happens in the player's own game, so the server sends your brewing changes to every player with their next update. There's no restart and no game patch. Potions already brewed keep what they were.</p>
+        <ul>
+          <li><b>Chest odds:</b> chance is the percent of opened room chests with a bundle. Tier weights decide how often each ingredient tier is picked. The "What a chest can hold" table shows the real per-chest odds for any route.</li>
+          <li><b>Brewing numbers:</b> each group (Skill, Difficulty, Quality, Potency, Bad adjective odds, Mishaps, Specials) saves as one setting. Only the groups you actually changed are saved.</li>
+          <li><b>Adjectives:</b> change how often each adjective is picked. Ingredients still lean toward their own.</li>
+          <li><b>Advanced JSON:</b> pick any setting, such as brewing.colours or chest_loot.zones, and edit it directly. "changed" means your override is live; "Back to shipped" removes it.</li>
+        </ul>
+        <p>Every save is checked against the whole table. A number out of range, an unknown ingredient, a recipe naming a missing adjective, or removing an adjective that ingredients lean toward is refused, and the message says why. Nothing is saved when a check fails. Every save and reset goes in the audit log.</p>
+        <p>Cauldrons stand in Honeydew's Community Hall, in The Castle's dormitory beside the beds, and in the LittleBig Inn. Players can also brew anywhere with the Portable Alchemy Kit (riskier brews).</p>
+        <p><button type="button" data-gm-tool="alchemy">Open the Alchemy tab</button> <button type="button" data-gm-tool="loot">Open the Loot tab</button></p>
+      </article>
       <article data-guide-id="monsters" tabindex="-1" hidden>
         <h3>Monsters and live encounters</h3>
         <p>Use Monsters to create or duplicate a definition, edit combat stats and existing spells, select artwork, and author defeat scenes. Review then publish. Shipped defeat content is labelled Game default; editing combat stats does not require replacing its dialogue. Restore default removes a scene override.</p>

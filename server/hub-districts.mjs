@@ -9,7 +9,9 @@ const hubBeds=hubJson.beds; // The same six bed profiles the Resting Halls use.
 export const districtZone=def=>def.lobby?def.hub:def.hub+'-garden'; // A lobby town (Honeydew Village) is its hub's own zone; every other district is the hub's "garden" annex.
 export const shopFixtures=()=>hubJson.shops.map(shop=>({id:shop.id,name:shop.name,sprite:shop.sprite,kind:'shop'})); // The eight merchants, wherever a hub keeps them (a Market Hall or the village clearings).
 export const marketServices=()=>[{id:'bank',name:'Bank',kind:'bank'},{id:'dumpster',name:'Dumpster',kind:'dumpster',sprite:'sprCityTrashCan'},{id:'curse-remover',name:'Cursebreaker',kind:'npc',avatar:'objNPCMossWitch',service:'curse_remove',price:hubJson.config.curse_removal_price,line:'I can release one piece of cursed gear for 20 LiDollCoins. Choose what you would like removed. Items returned to your bag remain cursed; used diapers are disposed of.'}]; // Bank, dumpster and Cursebreaker travel with the merchants.
-export const SERVICE_KINDS=['npc','shop','bank','dumpster']; // Fixtures a player must be able to stand beside.
+export const SERVICE_KINDS=['npc','shop','bank','dumpster','cauldron']; // Fixtures a player must be able to stand beside.
+export const cauldronFixture=(x,y)=>({id:'cauldron',name:'Cauldron',kind:'cauldron',x,y,span_w:1,span_h:1,solid:true}); // A brewing station: the client draws objCauldron and opens the brewing panel beside it (scrAlchemy); brewing itself is client-side.
+export const dormitoryCauldron=d=>cauldronFixture(d.x+d.w-1,d.y+Math.floor(d.h/2)); // East wall of a dormitory, clear of the three bed columns and the doorway (Rose Court: The Castle, 47,16).
 export const dormitoryBeds=(d,beds=hubBeds)=>beds.map((bed,i)=>({...bed,kind:'bed',x:d.x+1+(i%3)*3,y:d.y+1+Math.floor(i/3)*3,span_w:1,span_h:1,solid:true})); // Two rows of three beds, three tiles apart so their name labels never overlap, with a free aisle between and around them.
 const clock=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'});
 const parts=time=>Object.fromEntries(clock.formatToParts(time).map(p=>[p.type,p.value]));
@@ -40,6 +42,7 @@ export function generateDistrict(definition,window,data=districtData){
  if(definition.dormitory){ // Beds are fixed fixtures: the same tiles every month, reachable from the entrance in a few steps.
   const d=definition.dormitory;if(!(d.w>=9&&d.h>=6&&d.x>=1&&d.y>=1&&d.x+d.w<=width-2&&d.y+d.h<=east.y-1&&d.door.x>=d.x&&d.door.x<d.x+d.w))throw Error('District dormitory must be at least 9x6, sit above the entry area and own its doorway');
   for(const bed of dormitoryBeds(d)){f.fixtures.push(bed);for(const c of footprint(bed))occupied.add(c.x+','+c.y);}
+  const pot=dormitoryCauldron(d);f.fixtures.push(pot);occupied.add(pot.x+','+pot.y); // the castle's brewing station sits with the beds
  }
  for(const b of lobby?.buildings??[]){const facade={id:b.id,kind:'scenery',name:'',sprite:b.sprite,x:b.x,y:b.y,span_w:b.span_w,span_h:b.span_h,solid:true};f.fixtures.push(facade);for(const c of footprint(facade))occupied.add(c.x+','+c.y);} // Plaza buildings (Community Hall / Inn, Coliseum / Inn): solid props whose doorsteps are lobby portals (hubs.mjs lobbyPortals).
  if(lobby?.storefronts){ // LittleBigCity: every merchant gets a storefront on a city-block facade, its doorstep on the sidewalk below (south face) or above (north face). Blocks change monthly, so the doors do too.
@@ -98,7 +101,12 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
  db.exec('CREATE TABLE IF NOT EXISTS hub_district_editions(zone TEXT NOT NULL,edition TEXT NOT NULL,content TEXT NOT NULL,PRIMARY KEY(zone,edition)); CREATE TABLE IF NOT EXISTS hub_district_current(zone TEXT PRIMARY KEY,edition TEXT NOT NULL);');
  const cache=new Map();
  const visitors=id=>db.prepare('SELECT x,y FROM quest_presence WHERE zone=? AND seen>?').all(id,now()-30000);
- const upgrade=(id,f,def)=>{if((f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)))persist(id,f);};
+ const addCauldron=(f,def)=>{ // Editions generated before cauldrons existed gain the dormitory's pot on load, without regenerating the month.
+  if(!def.dormitory||f.fixtures.some(x=>x.kind==='cauldron'))return false;
+  const pot=dormitoryCauldron(def.dormitory);if(districtBlocked(f,pot.x,pot.y))return false; // a resident is standing there: try again next load
+  f.fixtures.push(pot);return true;
+ };
+ const upgrade=(id,f,def)=>{const pot=addCauldron(f,def);if(((f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)))||pot)persist(id,f);};
  const persist=(id,f)=>db.prepare('UPDATE hub_district_editions SET content=? WHERE zone=? AND edition=?').run(JSON.stringify(f),id,f.district.layoutKey);
  function ensure(def){
   const id=districtZone(def),window=monthlyWindow(now(),data.reset_hour),layoutKey=`${window.edition}:v${data.version}`,cached=cache.get(id);if(cached?.district.layoutKey===layoutKey){upgrade(id,cached,def);return cached;}

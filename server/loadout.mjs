@@ -44,7 +44,9 @@ export function syncRunHealth(state,run) { // Save current HP without permanentl
 }
 
 // ── Stacks: consumables and ammo share one bag entry with a quantity; only unstackable entries count toward the slot cap ──
-export const stackable=item=>!!item&&typeof item==='object'&&(item.stackable===true||['food','drink','ammo'].includes(item.category)); // Same rule as inv_item_stackable() in scrInventory.gml.
+export const INGREDIENT_STACK_MAX=512; // Alchemy ingredients always stack this high, whatever the shared stack_max tuning says. Same as INGREDIENT_STACK_MAX in scrInventory.gml.
+export const stackable=item=>!!item&&typeof item==='object'&&(item.stackable===true||['food','drink','ammo','ingredient'].includes(item.category)); // Same rule as inv_item_stackable() in scrInventory.gml; ingredients stack and never take a bag slot.
+export const stackLimit=(item,stackMax=512)=>Math.max(1,Math.floor(Number(item?.stack_max)||(item?.category==='ingredient'?INGREDIENT_STACK_MAX:stackMax))); // Per-item stack_max, else 512 for ingredients, else the tuning. Same as inv_stack_max() in scrInventory.gml.
 export const slotsUsed=inventory=>(inventory??[]).filter(item=>!stackable(item)).length; // What "N / 99" counts: gear, quest items and other singles.
 export const stackTokens=item=>Array.isArray(item?.online_items)?item.online_items.filter(t=>typeof t==='string'&&t!==''):(typeof item?.online_item==='string'&&item.online_item!==''?[item.online_item]:[]); // Every resale right a stack carries (one per purchased or looted unit, in order); a single item has at most one. Same as inv_stack_tokens() in scrInventory.gml.
 export function setStackTokens(item,tokens,prices=null){ // Rewrite a stack's rights: the first token is the unit sold next (`online_item`, what the client prices and sells); the rest wait in `online_items`. The sell price is kept only when it is known for that front unit.
@@ -57,7 +59,7 @@ export function setStackTokens(item,tokens,prices=null){ // Rewrite a stack's ri
 const stackPrices=item=>{const tokens=stackTokens(item);return new Map(tokens.length&&Number.isSafeInteger(item.online_sell_price)?[[tokens[0],item.online_sell_price]]:[]);}; // The only price an entry knows locally is its front unit's.
 export function addToInventory(inventory,item,stackMax=512){ // Merge into an existing stack when the item stacks; otherwise append. Returns the entry that grew.
  if(stackable(item)){
-  const max=Math.max(1,Math.floor(Number(item.stack_max)||stackMax)),add=Math.max(1,Math.floor(Number(item.quantity)||1));
+  const max=stackLimit(item,stackMax),add=Math.max(1,Math.floor(Number(item.quantity)||1));
   const stack=inventory.find(other=>stackable(other)&&other.item_id===item.item_id&&(Number(other.quantity)||1)+add<=max); // Identical consumables always share one entry; each tracked unit's resale right rides along in online_items, so two purchases no longer sit as two rows.
   if(stack){stack.quantity=(Number(stack.quantity)||1)+add;setStackTokens(stack,[...stackTokens(stack),...stackTokens(item)],new Map([...stackPrices(stack),...stackPrices(item)]));return stack;}
   item.quantity=add;setStackTokens(item,stackTokens(item),stackPrices(item));

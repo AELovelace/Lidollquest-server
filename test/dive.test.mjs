@@ -6,6 +6,7 @@ import {createQuestZones} from '../server/zones.mjs';
 import {DAILY_COIN_CAP} from '../server/hubs.mjs';
 import {diveData,DIVE_ZONE} from '../server/dive.mjs';
 import {generateFloor,validateFloor,weeklyWindow,pathTo,walkable,dressFloor} from '../server/dive-generation.mjs';
+const gear=bag=>bag.filter(i=>i.category!=='ingredient'); // chests may add a seeded ingredient bundle beside their item
 
 function fixture(options={}){
  const db=new DatabaseSync(':memory:');let time=Date.parse('2026-09-16T12:00:00Z'),owner='alice',zones;
@@ -82,13 +83,13 @@ test('a pending Dive movement-needs turn resumes with its collected loot and set
  const f=fixture();try{
   const id=f.player(),ch=f.snap(id).dive.chests[0];f.near(id,ch);
   const p=f.snap(id).position,direction=ch.x>p.x?'east':ch.x<p.x?'west':ch.y>p.y?'south':'north';
-  let s=f.act(id,'move',{direction,world_step:true});assert.equal(s.character.loadout.inventory.length,1);assert.ok(s.character.worldTurnDue);
-  const due=s.character.worldTurnDue.id,item=s.character.loadout.inventory[0];
-  f.restart();s=f.act(id,'enter',{zone:DIVE_ZONE,loadout:f.loadout});assert.equal(s.character.worldTurnDue.id,due);assert.deepEqual(s.character.loadout.inventory,[item]);
+  let s=f.act(id,'move',{direction,world_step:true});assert.equal(gear(s.character.loadout.inventory).length,1);assert.ok(s.character.worldTurnDue);
+  const due=s.character.worldTurnDue.id,item=s.character.loadout.inventory; // the claimed item plus any ingredient bundle
+  f.restart();s=f.act(id,'enter',{zone:DIVE_ZONE,loadout:f.loadout});assert.equal(s.character.worldTurnDue.id,due);assert.deepEqual(s.character.loadout.inventory,item);
   const next=structuredClone(s.character.loadout);next.player_info.hunger=123;
   const command=f.command(id,'world_turn',{world_turn_id:due,loadout:next});s=f.raw(command);
-  assert.equal(s.character.worldTurnDue,undefined);assert.deepEqual(s.character.loadout.inventory,[item]);assert.equal(s.character.loadout.player_info.hunger,123);
-  assert.deepEqual(f.raw(command).character.loadout.inventory,[item]);assert.equal(f.snap(id).dive.claimed,1);
+  assert.equal(s.character.worldTurnDue,undefined);assert.deepEqual(s.character.loadout.inventory,item);assert.equal(s.character.loadout.player_info.hunger,123);
+  assert.deepEqual(f.raw(command).character.loadout.inventory,item);assert.equal(f.snap(id).dive.claimed,1);
  }finally{f.close();}
 });
 
@@ -99,9 +100,9 @@ test('room chests collect on contact once per character and stay unclaimed when 
   const full=structuredClone(f.loadout);full.inventory=Array.from({length:99},()=>({item_id:'hair_bow'}));f.act(a,'loadout',{loadout:full});
   let s=f.act(a,'move',{direction});assert.equal(s.dive.claimed,0);assert.equal(s.character.loadout.inventory.length,99);assert.match(s.character.dive.lootNotice,/Inventory full/);
   f.act(a,'loadout',{loadout:f.loadout});f.place(a,pos);f.advance(350);
-  const input=f.command(a,'move',{direction});s=f.raw(input);assert.equal(s.dive.claimed,1);assert.equal(s.character.loadout.inventory.length,1);
-  const item=s.character.loadout.inventory[0];assert.deepEqual(f.raw(input).character.loadout.inventory,[item]);
-  f.place(a,pos);assert.deepEqual(f.act(a,'move',{direction}).character.loadout.inventory,[item]);
+  const input=f.command(a,'move',{direction});s=f.raw(input);assert.equal(s.dive.claimed,1);assert.equal(gear(s.character.loadout.inventory).length,1);
+  const item=s.character.loadout.inventory;assert.deepEqual(f.raw(input).character.loadout.inventory,item); // the claimed item plus any ingredient bundle
+  f.place(a,pos);assert.deepEqual(f.act(a,'move',{direction}).character.loadout.inventory,item);
   f.restart();assert.equal(f.snap(a).dive.claimed,1);
   const b=f.player('bob');f.near(b,ch);const bp=f.snap(b).position;
   assert.equal(f.act(b,'move',{direction:ch.x>bp.x?'east':ch.x<bp.x?'west':ch.y>bp.y?'south':'north'}).dive.claimed,1);
@@ -141,8 +142,8 @@ test('live dressing upgrade preserves walls, claims, inventory, fights and playe
 });
 test('both lobbies share a floor; personal chest claims survive replay, inventory limits and reconnects',()=>{
  const f=fixture();try{const a=f.player(),first=f.snap(a),ch=first.dive.chests[0];f.near(a,ch);
-  const input=f.command(a,'dive_claim',{chest:ch.id}),claimed=f.raw(input);assert.equal(claimed.character.loadout.inventory.length,1);assert.equal(f.raw(input).character.loadout.inventory.length,1);
-  f.advance(31000);let resumed=f.act(a,'enter',{zone:DIVE_ZONE,loadout:{...f.loadout,inventory:[]}});assert.equal(resumed.character.loadout.inventory.length,1);assert.equal(resumed.dive.claimed,1);
+  const input=f.command(a,'dive_claim',{chest:ch.id}),claimed=f.raw(input);assert.equal(gear(claimed.character.loadout.inventory).length,1);assert.equal(gear(f.raw(input).character.loadout.inventory).length,1);
+  f.advance(31000);let resumed=f.act(a,'enter',{zone:DIVE_ZONE,loadout:{...f.loadout,inventory:[]}});assert.equal(gear(resumed.character.loadout.inventory).length,1);assert.equal(resumed.dive.claimed,1);
   const second=resumed.dive.chests[1];f.near(a,second);const full=structuredClone(resumed.character.loadout);full.inventory=Array.from({length:99},()=>({item_id:'hair_bow'}));f.act(a,'loadout',{loadout:full});assert.throws(()=>f.act(a,'dive_claim',{chest:second.id}),/Inventory full/);assert.equal(f.snap(a).dive.claimed,1);
   f.act(a,'dive_exit');assert.equal(f.snap(a).zone,'princess-rose');
   const b=f.player('bob','princess-rose'),bs=f.snap(b);assert.equal(bs.dive.edition,first.dive.edition);assert.equal(bs.dive.claimed,0);assert.deepEqual(bs.zones.at(-1).walls,first.zones.at(-1).walls);f.near(b,ch);assert.equal(f.act(b,'dive_claim',{chest:ch.id}).dive.claimed,1);assert.equal(f.act(b,'dive_exit').zone,'princess-rose');

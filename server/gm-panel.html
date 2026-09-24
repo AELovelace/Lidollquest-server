@@ -121,6 +121,7 @@ tr.sel td{background:#2c1e3d}
   <button type="button" role="tab" id="tab-rpp" aria-controls="panel-rpp" aria-selected="false" tabindex="-1">RPP</button>
   <button type="button" role="tab" id="tab-enchantments" aria-controls="panel-enchantments" aria-selected="false" tabindex="-1">Curses &amp; Blessings</button>
   <button type="button" role="tab" id="tab-loot" aria-controls="panel-loot" aria-selected="false" tabindex="-1">Loot</button>
+  <button type="button" role="tab" id="tab-alchemy" aria-controls="panel-alchemy" aria-selected="false" tabindex="-1">Alchemy</button>
   <button type="button" role="tab" id="tab-moderation" aria-controls="panel-moderation" aria-selected="false" tabindex="-1">Moderation</button>
   <button type="button" role="tab" id="tab-performance" aria-controls="panel-performance" aria-selected="false" tabindex="-1">Performance</button>
 <button type="button" role="tab" id="tab-monsters" aria-controls="panel-monsters" aria-selected="false" tabindex="-1">Monsters</button>
@@ -407,6 +408,38 @@ tr.sel td{background:#2c1e3d}
     </div>
     <div class="row"><button class="go" id="pRoll">Roll</button><button id="pAgain">Roll another</button></div>
     <p id="pResult" class="curve"></p>
+  </section>
+</div>
+<div class="tab-panel" id="panel-alchemy" role="tabpanel" aria-labelledby="tab-alchemy" tabindex="0" hidden>
+  <section class="wide" aria-labelledby="alchemyHeading">
+    <h2 id="alchemyHeading">Alchemy: ingredients, chests and brewing</h2>
+    <p class="note">Chest odds decide how often an online dive room chest also holds a bundle of one ingredient, and which ingredients each route can drop. They apply from the next chest claim. Brewing rules decide how cauldron brews turn out. Brewing runs in the player's game, so a change reaches each player with their next server update, no restart and no client patch. Every save is checked against the whole table, and a value that would break brewing is refused with its reason. Reset puts the shipped values from the last content export back.</p>
+    <div class="row"><b id="alchemyStatus" class="mono"></b><button id="alchemyReload">Reload</button><button id="alchemyResetChests">Reset chest odds</button><button id="alchemyResetBrewing">Reset brewing</button><button class="bad" id="alchemyResetAll">Reset everything</button></div>
+
+    <h2 style="margin-top:14px">Chest odds</h2>
+    <p class="note">Chance is the percent of opened room chests that also hold a bundle. Tier weights decide how often each tier is picked (tier 1 herbs are common, tier 5 Star Shards rare). Ingredients at "always alone from tier" or higher come one at a time.</p>
+    <div class="ench" id="alchemyChestFields"></div>
+    <div class="row"><input id="alchemyChestReason" placeholder="Reason (kept in the audit log)" style="flex:1"><button id="alchemyChestSave">Apply chest odds</button></div>
+
+    <h2 style="margin-top:14px">What a chest can hold</h2>
+    <div class="row"><label for="alchemyZone">Route or zone</label><select id="alchemyZone"></select></div>
+    <div class="scroll"><table><thead><tr><th>Ingredient</th><th>Tier</th><th>Role</th><th>Colour</th><th>Per chest</th><th>Bundle</th></tr></thead><tbody id="alchemyZoneOdds"></tbody></table></div>
+
+    <h2 style="margin-top:14px">Brewing numbers</h2>
+    <p class="note">Skill: XP to the next level is xp base + xp per level x level. Mishap chance is base + (difficulty - skill) x per point, clamped to min..max. Bad adjective odds per slot fall from "at skill 1" to "at skill 100". Kit penalties only apply to the Portable Alchemy Kit.</p>
+    <div id="alchemyBrewFields"></div>
+    <div class="row"><input id="alchemyBrewReason" placeholder="Reason (kept in the audit log)" style="flex:1"><button id="alchemyBrewSave">Apply brewing numbers</button></div>
+
+    <h2 style="margin-top:14px">Adjectives</h2>
+    <p class="note">Weight is how often an adjective is picked among the good (or bad) ones. Ingredient leans still push their own adjectives up or down. Stinky brings extra bad adjectives; Pure cancels one.</p>
+    <div class="scroll"><table><thead><tr><th>Adjective</th><th>Kind</th><th>Weight</th><th>What it does</th></tr></thead><tbody id="alchemyAdjectives"></tbody></table></div>
+    <div class="row"><input id="alchemyAdjReason" placeholder="Reason (kept in the audit log)" style="flex:1"><button id="alchemyAdjSave">Apply adjective weights</button></div>
+
+    <h2 style="margin-top:14px">Advanced: edit any section as JSON</h2>
+    <p class="note">For colour effects, specials, secret recipes, mishap texts and each zone's ingredient list. Pick a setting, edit the JSON and save. "Shipped" means nobody has changed it; "changed" means a gamemaster override is live.</p>
+    <div class="row"><label for="alchemyKey">Setting</label><select id="alchemyKey"></select><b id="alchemyKeySource" class="mono"></b></div>
+    <textarea id="alchemyJson" rows="16" spellcheck="false" style="width:100%;font-family:monospace"></textarea>
+    <div class="row"><input id="alchemyJsonReason" placeholder="Reason (kept in the audit log)" style="flex:1"><button id="alchemyJsonSave">Save this setting</button><button id="alchemyJsonReset">Back to shipped</button></div>
   </section>
 </div>
 <div class="tab-panel" id="panel-moderation" role="tabpanel" aria-labelledby="tab-moderation" tabindex="0" hidden>
@@ -1377,6 +1410,7 @@ tr.sel td{background:#2c1e3d}
    loadPerformance();
    if(!ench)loadEnchantments(); // Read the table once per session; edits refresh it themselves.
    if(!lootData)loadLoot(); // Same for the loot table.
+   if(!alchemyData)loadAlchemy(); // And the alchemy tables.
    if(selected)loadPlayer(selected);
   }).catch(function(error){
    if(epoch!==perfEpoch)return;
@@ -1475,6 +1509,169 @@ tr.sel td{background:#2c1e3d}
  $("announceText").addEventListener("keydown",function(e){if(e.key==="Enter")$("announce").click();});
  /* WORLD_PANEL */
 /* GM_GUIDE_SCRIPT */
+
+ // ── Alchemy tab (alchemy-store.mjs): chest odds, brewing numbers, adjective weights and a JSON editor ──
+ var alchemyData=null;
+ var ALCHEMY_GROUPS=[
+  {key:"skill",label:"Skill",fields:["xp_base","xp_per_level","xp_per_difficulty","first_brew_mult","grey_margin","grey_mult","mishap_mult","hint_colour_from_level","identify_mystery_from_level","max_level"]},
+  {key:"difficulty",label:"Difficulty",fields:["per_tier","catalyst_bonus","min","max"]},
+  {key:"quality",label:"Quality",fields:["skill_weight","tier_weight","jitter","kit_penalty"]},
+  {key:"potency",label:"Potency",fields:["min","max"]},
+  {key:"bad_chance",label:"Bad adjective odds",fields:["at_skill_1","at_skill_100","lean_per_point","kit_penalty","min","max"]},
+  {key:"mishap",label:"Mishaps",fields:["base","per_point","min","max","kit_penalty"]},
+  {key:"special",label:"Specials (of X)",fields:["catalyst_chance","legendary_catalyst_chance"]}
+ ];
+ var ALCHEMY_SINGLES=["lean_weight","muddy_share","liquid_pigment_mult","base_value"];
+
+ function alchemyLabel(text){return text.replace(/_/g," ");}
+ function alchemyInput(id,value){var i=document.createElement("input");i.id=id;i.type="number";i.step="any";i.value=String(value);return i;}
+ function alchemyField(parent,id,label,value){var wrap=el("div");var l=el("label",null,alchemyLabel(label));l.htmlFor=id;wrap.appendChild(l);wrap.appendChild(alchemyInput(id,value));parent.appendChild(wrap);}
+
+ function alchemyRender(){
+  var d=alchemyData,live=d.live,chest=live.chest_loot,brew=live.brewing;
+  var changed=d.overridden.brewing.length+d.overridden.chest_loot.length;
+  $("alchemyStatus").textContent=d.ingredients.length+" ingredients, "+Object.keys(brew.adjectives).length+" adjectives, "+brew.secret_recipes.length+" secret recipes, "+(changed?changed+" setting(s) changed":"all shipped values");
+  // ── chest odds ──
+  var cf=$("alchemyChestFields");clear(cf);
+  alchemyField(cf,"acChance","chance (%)",chest.chance);
+  alchemyField(cf,"acQtyMin","bundle min",chest.qty_min);
+  alchemyField(cf,"acQtyMax","bundle max",chest.qty_max);
+  alchemyField(cf,"acSingle","always alone from tier",chest.single_from_tier);
+  for(var t=1;t<=5;t++)alchemyField(cf,"acTier"+t,"tier "+t+" weight",chest.tier_weights[String(t)]);
+  // ── zone picker: every zone list, plus the online routes that use them ──
+  var zs=$("alchemyZone"),keep=zs.value;clear(zs);
+  Object.keys(chest.online_zones).sort().forEach(function(route){var o=el("option",null,route+" (uses "+chest.online_zones[route]+")");o.value=chest.online_zones[route];zs.appendChild(o);});
+  Object.keys(chest.zones).sort().forEach(function(zone){var o=el("option",null,"zone: "+zone);o.value=zone;zs.appendChild(o);});
+  if(keep)zs.value=keep;
+  alchemyRenderZone();
+  // ── brewing numbers ──
+  var bf=$("alchemyBrewFields");clear(bf);
+  ALCHEMY_GROUPS.forEach(function(group){
+   bf.appendChild(el("h3",null,group.label));
+   var grid=el("div","ench");
+   group.fields.forEach(function(f){alchemyField(grid,"ab_"+group.key+"_"+f,f,brew[group.key][f]);});
+   bf.appendChild(grid);
+  });
+  bf.appendChild(el("h3",null,"Other"));
+  var other=el("div","ench");
+  ALCHEMY_SINGLES.forEach(function(f){alchemyField(other,"ab_"+f,f,brew[f]);});
+  bf.appendChild(other);
+  // ── adjectives ──
+  var body=$("alchemyAdjectives");clear(body);
+  Object.keys(brew.adjectives).sort().forEach(function(id){
+   var a=brew.adjectives[id],tr=el("tr");
+   tr.appendChild(el("td",null,a.name+" ("+id+")"));
+   tr.appendChild(el("td",a.bad?"bad":"ok",a.bad?"bad":"good"));
+   var td=el("td"),w=alchemyInput("aw_"+id,a.weight);w.style.width="80px";td.appendChild(w);tr.appendChild(td);
+   tr.appendChild(el("td",null,a.desc||""));
+   body.appendChild(tr);
+  });
+  // ── JSON editor ──
+  var ks=$("alchemyKey"),keepKey=ks.value;clear(ks);
+  ["brewing","chest_loot"].forEach(function(section){
+   d.sections[section].forEach(function(key){var o=el("option",null,section+"."+key);o.value=section+"."+key;ks.appendChild(o);});
+  });
+  ks.value=keepKey||"brewing.colours";
+  alchemyShowJson();
+ }
+
+ function alchemyRenderZone(){
+  var d=alchemyData,chest=d.live.chest_loot,zone=$("alchemyZone").value,body=$("alchemyZoneOdds");clear(body);
+  if(!zone)return;
+  var byId={};d.ingredients.forEach(function(i){byId[i.id]=i;});
+  var ids=[];(chest.zones[zone]||[]).concat(chest.everywhere||[]).forEach(function(id){if(ids.indexOf(id)<0&&byId[id])ids.push(id);});
+  var total=0;ids.forEach(function(id){total+=Number(chest.tier_weights[String(byId[id].tier)]||0);});
+  ids.sort(function(a,b){return Number(chest.tier_weights[String(byId[b].tier)]||0)-Number(chest.tier_weights[String(byId[a].tier)]||0)||byId[a].name.localeCompare(byId[b].name);});
+  ids.forEach(function(id){
+   var i=byId[id],w=Number(chest.tier_weights[String(i.tier)]||0),pct=total>0?chest.chance*w/total:0,tr=el("tr");
+   tr.appendChild(el("td",null,i.name));tr.appendChild(el("td",null,String(i.tier)));tr.appendChild(el("td",null,i.role));tr.appendChild(el("td",null,i.colour));
+   tr.appendChild(el("td","mono",pct.toFixed(2)+"%"));
+   tr.appendChild(el("td",null,i.tier>=chest.single_from_tier?"1":chest.qty_min+"-"+chest.qty_max));
+   body.appendChild(tr);
+  });
+ }
+
+ function alchemyShowJson(){
+  var d=alchemyData,parts=$("alchemyKey").value.split("."),section=parts[0],key=parts[1];
+  $("alchemyJson").value=JSON.stringify(d.live[section][key],null,2);
+  $("alchemyKeySource").textContent=d.overridden[section].indexOf(key)>=0?"changed":"shipped";
+ }
+
+ function alchemyNumber(id){var v=$(id).value.trim();return v===""?NaN:Number(v);}
+
+ function loadAlchemy(){
+  if(!token)return;
+  var epoch=perfEpoch;
+  return api("/gm/alchemy").then(function(payload){
+   if(epoch!==perfEpoch||!token)return;
+   alchemyData=payload;alchemyRender();
+  }).catch(function(error){say("err",error.message);});
+ }
+
+ function alchemySave(section,patch,reasonId,label){
+  if(!alchemyData)return;
+  if(!Object.keys(patch).length){say("err","Nothing changed.");return;}
+  act("alchemy_save",{section:section,patch:patch,reason:$(reasonId).value},label).then(function(result){
+   if(result)$(reasonId).value="";
+   loadAlchemy();
+  });
+ }
+
+ $("alchemyReload").addEventListener("click",function(){loadAlchemy();});
+ $("alchemyZone").addEventListener("change",function(){if(alchemyData)alchemyRenderZone();});
+ $("alchemyKey").addEventListener("change",function(){if(alchemyData)alchemyShowJson();});
+ $("alchemyChestSave").addEventListener("click",function(){
+  if(!alchemyData)return;
+  var chest=alchemyData.live.chest_loot,patch={},tiers={};
+  var fields={chance:"acChance",qty_min:"acQtyMin",qty_max:"acQtyMax",single_from_tier:"acSingle"};
+  Object.keys(fields).forEach(function(k){var v=alchemyNumber(fields[k]);if(v!==chest[k])patch[k]=v;});
+  var tiersChanged=false;
+  for(var t=1;t<=5;t++){tiers[String(t)]=alchemyNumber("acTier"+t);if(tiers[String(t)]!==chest.tier_weights[String(t)])tiersChanged=true;}
+  if(tiersChanged)patch.tier_weights=tiers;
+  alchemySave("chest_loot",patch,"alchemyChestReason","Chest odds applied to every dive route.");
+ });
+ $("alchemyBrewSave").addEventListener("click",function(){
+  if(!alchemyData)return;
+  var brew=alchemyData.live.brewing,patch={};
+  ALCHEMY_GROUPS.forEach(function(group){
+   var next=Object.assign({},brew[group.key]),dirty=false;
+   group.fields.forEach(function(f){var v=alchemyNumber("ab_"+group.key+"_"+f);if(v!==brew[group.key][f]){next[f]=v;dirty=true;}});
+   if(dirty)patch[group.key]=next;
+  });
+  ALCHEMY_SINGLES.forEach(function(f){var v=alchemyNumber("ab_"+f);if(v!==brew[f])patch[f]=v;});
+  alchemySave("brewing",patch,"alchemyBrewReason","Brewing numbers applied; players pick them up with their next update.");
+ });
+ $("alchemyAdjSave").addEventListener("click",function(){
+  if(!alchemyData)return;
+  var adjs=JSON.parse(JSON.stringify(alchemyData.live.brewing.adjectives)),dirty=false;
+  Object.keys(adjs).forEach(function(id){var v=alchemyNumber("aw_"+id);if(v!==adjs[id].weight){adjs[id].weight=v;dirty=true;}});
+  alchemySave("brewing",dirty?{adjectives:adjs}:{},"alchemyAdjReason","Adjective weights applied.");
+ });
+ $("alchemyJsonSave").addEventListener("click",function(){
+  if(!alchemyData)return;
+  var parts=$("alchemyKey").value.split("."),value;
+  try{value=JSON.parse($("alchemyJson").value);}catch(error){say("err","That is not valid JSON: "+error.message);return;}
+  var patch={};patch[parts[1]]=value;
+  alchemySave(parts[0],patch,"alchemyJsonReason",parts.join(".")+" saved.");
+ });
+ $("alchemyJsonReset").addEventListener("click",function(){
+  if(!alchemyData)return;
+  var parts=$("alchemyKey").value.split(".");
+  if(!window.confirm("Put "+parts.join(".")+" back to the shipped value?"))return;
+  act("alchemy_reset",{scope:parts[0],key:parts[1]},parts.join(".")+" is back to the shipped value.").then(loadAlchemy);
+ });
+ $("alchemyResetChests").addEventListener("click",function(){
+  if(!window.confirm("Put every chest odd and zone list back to what the last content export shipped?"))return;
+  act("alchemy_reset",{scope:"chest_loot"},"Chest odds reset to the shipped values.").then(loadAlchemy);
+ });
+ $("alchemyResetBrewing").addEventListener("click",function(){
+  if(!window.confirm("Put every brewing rule back to what the last content export shipped?"))return;
+  act("alchemy_reset",{scope:"brewing"},"Brewing reset to the shipped values.").then(loadAlchemy);
+ });
+ $("alchemyResetAll").addEventListener("click",function(){
+  if(!window.confirm("Reset ALL alchemy changes, chests and brewing?"))return;
+  act("alchemy_reset",{scope:"all"},"Every alchemy setting reset to the shipped values.").then(loadAlchemy);
+ });
 
  (function resume(){ // A grant kept from a previous visit is proven against the server before the panel is shown.
   var saved=storedGrant();

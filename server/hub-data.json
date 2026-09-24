@@ -192,7 +192,14 @@
         "mystery_potion_14",
         "pacifier",
         "bottle",
-        "arrows"
+        "arrows",
+        "alchemy_kit",
+        "rainwater",
+        "spring_water",
+        "chamomile",
+        "charcoal",
+        "dandelion",
+        "marigold"
       ]
     },
     {
@@ -4064,6 +4071,151 @@
       "childish": 8,
       "shame_delta": -10,
       "rarity": "common"
+    },
+    "alchemy_kit": {
+      "item_id": "alchemy_kit",
+      "category": "quest_item",
+      "name": "Portable Alchemy Kit",
+      "desc": "A folding brass stand, a tiny pot and a lot of optimism. Brew anywhere, but brews made on the road are riskier than at a real cauldron.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 60,
+      "childish": 0,
+      "rarity": "uncommon",
+      "usable_key_item": true,
+      "consume_on_use": false
+    },
+    "rainwater": {
+      "item_id": "rainwater",
+      "category": "ingredient",
+      "name": "Rainwater",
+      "desc": "Plain rainwater caught in a jar. The simplest clear base, and a very clean one.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "liquid",
+        "pigments": {
+          "clear": 3
+        },
+        "traits": {
+          "pure": 1
+        }
+      }
+    },
+    "spring_water": {
+      "item_id": "spring_water",
+      "category": "ingredient",
+      "name": "Spring Water",
+      "desc": "Cold mineral water from a hidden spring. A clean teal base.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "liquid",
+        "pigments": {
+          "teal": 2,
+          "clear": 1
+        },
+        "traits": {}
+      }
+    },
+    "chamomile": {
+      "item_id": "chamomile",
+      "category": "ingredient",
+      "name": "Chamomile",
+      "desc": "Little daisy-like flowers that calm any brew. A stabilizer: makes potions gentler.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "stabilizer",
+        "pigments": {
+          "white": 1,
+          "yellow": 1
+        },
+        "traits": {
+          "gentle": 2
+        }
+      }
+    },
+    "charcoal": {
+      "item_id": "charcoal",
+      "category": "ingredient",
+      "name": "Charcoal",
+      "desc": "A crumbly lump of clean charcoal. It soaks up bad smells, so it keeps a brew from going Stinky.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "stabilizer",
+        "pigments": {
+          "black": 2
+        },
+        "traits": {
+          "stinky": -3
+        }
+      }
+    },
+    "dandelion": {
+      "item_id": "dandelion",
+      "category": "ingredient",
+      "name": "Dandelion",
+      "desc": "A cheerful yellow weed. Old wives call it wet-the-bed, and they are not wrong. Brews yellow and fizzy.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "yellow": 3
+        },
+        "traits": {
+          "fizzy": 1
+        }
+      }
+    },
+    "marigold": {
+      "item_id": "marigold",
+      "category": "ingredient",
+      "name": "Marigold",
+      "desc": "A ruffled orange flower from village window boxes. Brews a warm orange.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "orange": 2,
+          "gold": 1
+        },
+        "traits": {}
+      }
     }
   },
   "equipment": {
@@ -25580,6 +25732,1204 @@
       "value": 300,
       "childish": 4,
       "rarity": "epic"
+    },
+    "emberroot": {
+      "item_id": "emberroot",
+      "category": "ingredient",
+      "name": "Emberroot",
+      "desc": "A knotted desert root that stays warm long after it is dug up. Brews red, and a little too eagerly.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "red": 3,
+          "orange": 1
+        },
+        "traits": {
+          "bursting": 1
+        }
+      }
+    },
+    "blushberry": {
+      "item_id": "blushberry",
+      "category": "ingredient",
+      "name": "Blushberry",
+      "desc": "A soft berry that turns your fingertips pink. Brews a gentle red.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "red": 2,
+          "pink": 1
+        },
+        "traits": {}
+      }
+    },
+    "dragon_pepper": {
+      "item_id": "dragon_pepper",
+      "category": "ingredient",
+      "name": "Dragon Pepper",
+      "desc": "A wrinkled scarlet pepper that makes your eyes water just looking at it. Brews a fierce red that can go off all at once.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 12,
+      "childish": 0,
+      "rarity": "uncommon",
+      "alchemy": {
+        "tier": 3,
+        "role": "herb",
+        "pigments": {
+          "red": 4
+        },
+        "traits": {
+          "bursting": 2
+        }
+      }
+    },
+    "pinkcap_mushroom": {
+      "item_id": "pinkcap_mushroom",
+      "category": "ingredient",
+      "name": "Pinkcap Mushroom",
+      "desc": "A spongy pink toadstool from damp forest floors. Brews pink, but your tummy may have opinions.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "pink": 3,
+          "purple": 1
+        },
+        "traits": {
+          "rumbly": 1
+        }
+      }
+    },
+    "bubblegum_sap": {
+      "item_id": "bubblegum_sap",
+      "category": "ingredient",
+      "name": "Bubblegum Sap",
+      "desc": "Sticky pink sap that smells exactly like a candy shop. Brews pink and a bit bubbly.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "pink": 3
+        },
+        "traits": {
+          "fizzy": 1
+        }
+      }
+    },
+    "cotton_candy_moss": {
+      "item_id": "cotton_candy_moss",
+      "category": "ingredient",
+      "name": "Cotton Candy Moss",
+      "desc": "Fluffy pastel moss that melts on your tongue if you are brave enough to try. Brews a soft pink.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "pink": 2,
+          "white": 1
+        },
+        "traits": {}
+      }
+    },
+    "frostbell": {
+      "item_id": "frostbell",
+      "category": "ingredient",
+      "name": "Frostbell",
+      "desc": "A bell-shaped flower with frost on its petals even in summer. Brews a cool blue.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "blue": 3,
+          "white": 1
+        },
+        "traits": {}
+      }
+    },
+    "glacier_meltwater": {
+      "item_id": "glacier_meltwater",
+      "category": "ingredient",
+      "name": "Glacier Meltwater",
+      "desc": "Achingly cold water chipped from old ice. A clean blue base.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 12,
+      "childish": 0,
+      "rarity": "uncommon",
+      "alchemy": {
+        "tier": 3,
+        "role": "liquid",
+        "pigments": {
+          "blue": 3,
+          "clear": 1
+        },
+        "traits": {
+          "pure": 1
+        }
+      }
+    },
+    "blue_pacifier_lily": {
+      "item_id": "blue_pacifier_lily",
+      "category": "ingredient",
+      "name": "Pacifier Lily",
+      "desc": "A pale blue lily whose bud looks exactly like a little dummy. Brews a soothing blue.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "blue": 2,
+          "indigo": 1
+        },
+        "traits": {
+          "gentle": 1
+        }
+      }
+    },
+    "sunpeel": {
+      "item_id": "sunpeel",
+      "category": "ingredient",
+      "name": "Sunpeel",
+      "desc": "A bright rind from desert citrus, bitter and sunny. Brews orange with a restless kick.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "orange": 3,
+          "gold": 1
+        },
+        "traits": {}
+      }
+    },
+    "marigold": {
+      "item_id": "marigold",
+      "category": "ingredient",
+      "name": "Marigold",
+      "desc": "A ruffled orange flower from village window boxes. Brews a warm orange.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "orange": 2,
+          "gold": 1
+        },
+        "traits": {}
+      }
+    },
+    "rust_filings": {
+      "item_id": "rust_filings",
+      "category": "ingredient",
+      "name": "Rust Filings",
+      "desc": "Flaky orange rust scraped from old hinges and gears. Brews a murky orange.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "orange": 2,
+          "brown": 1
+        },
+        "traits": {}
+      }
+    },
+    "springleaf": {
+      "item_id": "springleaf",
+      "category": "ingredient",
+      "name": "Springleaf",
+      "desc": "A bright young leaf that smells like fresh-cut grass. Brews a lively green.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "green": 3
+        },
+        "traits": {}
+      }
+    },
+    "taiga_pine_needle": {
+      "item_id": "taiga_pine_needle",
+      "category": "ingredient",
+      "name": "Taiga Pine Needle",
+      "desc": "A bundle of resinous needles from the cold forests. Brews a sharp green.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "green": 2,
+          "teal": 1
+        },
+        "traits": {}
+      }
+    },
+    "frog_slime": {
+      "item_id": "frog_slime",
+      "category": "ingredient",
+      "name": "Frog Slime",
+      "desc": "Wobbly green goo collected from a very unimpressed bog frog. Brews green and VERY fizzy.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "green": 3
+        },
+        "traits": {
+          "fizzy": 2
+        }
+      }
+    },
+    "starplum": {
+      "item_id": "starplum",
+      "category": "ingredient",
+      "name": "Starplum",
+      "desc": "A dusky plum with star-shaped freckles on its skin. Brews a deep purple.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "purple": 3
+        },
+        "traits": {}
+      }
+    },
+    "nightshade_lavender": {
+      "item_id": "nightshade_lavender",
+      "category": "ingredient",
+      "name": "Nightshade Lavender",
+      "desc": "A lavender sprig with a darker, sleepier scent. Brews purple and makes eyelids heavy.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "purple": 2,
+          "indigo": 1
+        },
+        "traits": {
+          "drowsy": 1
+        }
+      }
+    },
+    "wizards_lint": {
+      "item_id": "wizards_lint",
+      "category": "ingredient",
+      "name": "Wizard's Lint",
+      "desc": "Glittering fluff found in the pockets of old robes. Brews a faintly sparkly purple.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "purple": 2,
+          "silver": 1
+        },
+        "traits": {}
+      }
+    },
+    "moonmilk": {
+      "item_id": "moonmilk",
+      "category": "ingredient",
+      "name": "Moonmilk",
+      "desc": "A pearly cave deposit that glows a little in the dark. Brews silver and clears the head.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 12,
+      "childish": 0,
+      "rarity": "uncommon",
+      "alchemy": {
+        "tier": 3,
+        "role": "liquid",
+        "pigments": {
+          "silver": 3,
+          "white": 1
+        },
+        "traits": {}
+      }
+    },
+    "clockwork_oil": {
+      "item_id": "clockwork_oil",
+      "category": "ingredient",
+      "name": "Clockwork Oil",
+      "desc": "Slick grey oil drained from city machinery. Brews silver with a smell you will not forget.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "liquid",
+        "pigments": {
+          "silver": 2,
+          "black": 1
+        },
+        "traits": {
+          "stinky": 1
+        }
+      }
+    },
+    "quicksilver_bead": {
+      "item_id": "quicksilver_bead",
+      "category": "ingredient",
+      "name": "Quicksilver Bead",
+      "desc": "A trembling bead of liquid metal that will not sit still. Brews a strong silver that likes to jump.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 25,
+      "childish": 0,
+      "rarity": "rare",
+      "alchemy": {
+        "tier": 4,
+        "role": "herb",
+        "pigments": {
+          "silver": 4
+        },
+        "traits": {
+          "bursting": 1
+        }
+      }
+    },
+    "honeydew_nectar": {
+      "item_id": "honeydew_nectar",
+      "category": "ingredient",
+      "name": "Honeydew Nectar",
+      "desc": "Golden nectar from the Honeydew Village hives. Brews a sweet, lively gold.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "liquid",
+        "pigments": {
+          "gold": 3,
+          "yellow": 1
+        },
+        "traits": {
+          "potent": 1
+        }
+      }
+    },
+    "goldleaf": {
+      "item_id": "goldleaf",
+      "category": "ingredient",
+      "name": "Goldleaf",
+      "desc": "A leaf so thin and shiny it looks like a gold star sticker. Brews a rich gold.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 12,
+      "childish": 0,
+      "rarity": "uncommon",
+      "alchemy": {
+        "tier": 3,
+        "role": "herb",
+        "pigments": {
+          "gold": 3
+        },
+        "traits": {}
+      }
+    },
+    "sunflower_seed": {
+      "item_id": "sunflower_seed",
+      "category": "ingredient",
+      "name": "Sunflower Seed",
+      "desc": "A striped seed from a very tall, very cheerful flower. Brews a light gold.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "gold": 2,
+          "yellow": 1
+        },
+        "traits": {}
+      }
+    },
+    "inkcap": {
+      "item_id": "inkcap",
+      "category": "ingredient",
+      "name": "Inkcap",
+      "desc": "A shaggy mushroom that melts into black ink as it ages. Brews black and a bit pongy.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "black": 3
+        },
+        "traits": {
+          "stinky": 1
+        }
+      }
+    },
+    "tar_beetle": {
+      "item_id": "tar_beetle",
+      "category": "ingredient",
+      "name": "Tar Beetle",
+      "desc": "A glossy black beetle that leaves sticky footprints. Brews black and smells truly awful.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "black": 3,
+          "brown": 1
+        },
+        "traits": {
+          "stinky": 2
+        }
+      }
+    },
+    "charcoal": {
+      "item_id": "charcoal",
+      "category": "ingredient",
+      "name": "Charcoal",
+      "desc": "A crumbly lump of clean charcoal. It soaks up bad smells, so it keeps a brew from going Stinky.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "stabilizer",
+        "pigments": {
+          "black": 2
+        },
+        "traits": {
+          "stinky": -3
+        }
+      }
+    },
+    "lullaby_poppy": {
+      "item_id": "lullaby_poppy",
+      "category": "ingredient",
+      "name": "Lullaby Poppy",
+      "desc": "A dark blue poppy that seems to hum a sleepy tune. Brews indigo, with heavy eyelids to follow.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "indigo": 3
+        },
+        "traits": {
+          "drowsy": 2
+        }
+      }
+    },
+    "dreamweed": {
+      "item_id": "dreamweed",
+      "category": "ingredient",
+      "name": "Dreamweed",
+      "desc": "A feathery weed that sways even when there is no wind. Brews a dreamy indigo.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "indigo": 2,
+          "purple": 1
+        },
+        "traits": {
+          "drowsy": 1
+        }
+      }
+    },
+    "night_dew": {
+      "item_id": "night_dew",
+      "category": "ingredient",
+      "name": "Night Dew",
+      "desc": "Droplets gathered before dawn, still dark with night. A calm indigo base.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "liquid",
+        "pigments": {
+          "indigo": 2,
+          "clear": 1
+        },
+        "traits": {}
+      }
+    },
+    "sea_glass_salt": {
+      "item_id": "sea_glass_salt",
+      "category": "ingredient",
+      "name": "Sea-Glass Salt",
+      "desc": "Blue-green salt crystals from a dried oasis. Brews a steadying teal.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "teal": 3
+        },
+        "traits": {}
+      }
+    },
+    "kelp_ribbon": {
+      "item_id": "kelp_ribbon",
+      "category": "ingredient",
+      "name": "Kelp Ribbon",
+      "desc": "A slippery ribbon of dried kelp. Brews teal with a whiff of low tide.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "teal": 2,
+          "green": 1
+        },
+        "traits": {
+          "stinky": 1
+        }
+      }
+    },
+    "spring_water": {
+      "item_id": "spring_water",
+      "category": "ingredient",
+      "name": "Spring Water",
+      "desc": "Cold mineral water from a hidden spring. A clean teal base.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "liquid",
+        "pigments": {
+          "teal": 2,
+          "clear": 1
+        },
+        "traits": {}
+      }
+    },
+    "rainwater": {
+      "item_id": "rainwater",
+      "category": "ingredient",
+      "name": "Rainwater",
+      "desc": "Plain rainwater caught in a jar. The simplest clear base, and a very clean one.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "liquid",
+        "pigments": {
+          "clear": 3
+        },
+        "traits": {
+          "pure": 1
+        }
+      }
+    },
+    "glass_sugar": {
+      "item_id": "glass_sugar",
+      "category": "ingredient",
+      "name": "Glass Sugar",
+      "desc": "Clear sugar crystals that clink like tiny marbles. Brews a sweet clear.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "clear": 2,
+          "white": 1
+        },
+        "traits": {}
+      }
+    },
+    "bottled_tears": {
+      "item_id": "bottled_tears",
+      "category": "ingredient",
+      "name": "Bottled Tears",
+      "desc": "A little vial of real tears from a very big cry. Oddly, they make the purest clear brews.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 12,
+      "childish": 0,
+      "rarity": "uncommon",
+      "alchemy": {
+        "tier": 3,
+        "role": "liquid",
+        "pigments": {
+          "clear": 3
+        },
+        "traits": {
+          "pure": 2
+        }
+      }
+    },
+    "talc_blossom": {
+      "item_id": "talc_blossom",
+      "category": "ingredient",
+      "name": "Talc Blossom",
+      "desc": "A powdery white flower that smells just like a freshly changed nursery. Keeps brews from going Stinky.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "white": 3
+        },
+        "traits": {
+          "stinky": -2,
+          "fragrant": 1
+        }
+      }
+    },
+    "cloud_cotton": {
+      "item_id": "cloud_cotton",
+      "category": "ingredient",
+      "name": "Cloud Cotton",
+      "desc": "A puff of cotton so soft it might be a piece of cloud. Brews a gentle white.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "white": 2,
+          "silver": 1
+        },
+        "traits": {
+          "gentle": 1
+        }
+      }
+    },
+    "chalk_lily": {
+      "item_id": "chalk_lily",
+      "category": "ingredient",
+      "name": "Chalk Lily",
+      "desc": "A dusty white lily that grows beside chalkboards. Brews a calm white.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "white": 2,
+          "clear": 1
+        },
+        "traits": {}
+      }
+    },
+    "rosewater": {
+      "item_id": "rosewater",
+      "category": "ingredient",
+      "name": "Rosewater",
+      "desc": "Fragrant water steeped with rose petals. A lovely, sweet-smelling rose base.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "liquid",
+        "pigments": {
+          "rose": 3
+        },
+        "traits": {
+          "fragrant": 2
+        }
+      }
+    },
+    "powder_puff_petal": {
+      "item_id": "powder_puff_petal",
+      "category": "ingredient",
+      "name": "Powder Puff Petal",
+      "desc": "A fluffy pink petal dusted in something like baby powder. Brews rose and keeps smells down.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "rose": 2,
+          "white": 1
+        },
+        "traits": {
+          "stinky": -1
+        }
+      }
+    },
+    "dandelion": {
+      "item_id": "dandelion",
+      "category": "ingredient",
+      "name": "Dandelion",
+      "desc": "A cheerful yellow weed. Old wives call it wet-the-bed, and they are not wrong. Brews yellow and fizzy.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "yellow": 3
+        },
+        "traits": {
+          "fizzy": 1
+        }
+      }
+    },
+    "lemon_fizz": {
+      "item_id": "lemon_fizz",
+      "category": "ingredient",
+      "name": "Lemon Fizz",
+      "desc": "A sherbet-sour lemon that crackles when you squeeze it. Brews a very fizzy yellow.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "yellow": 2,
+          "gold": 1
+        },
+        "traits": {
+          "fizzy": 2
+        }
+      }
+    },
+    "coffee_bean": {
+      "item_id": "coffee_bean",
+      "category": "ingredient",
+      "name": "Coffee Bean",
+      "desc": "A glossy roasted bean. It keeps you awake, and it keeps you running to the potty. Brews yellow.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "yellow": 2,
+          "brown": 1
+        },
+        "traits": {
+          "fizzy": 2
+        }
+      }
+    },
+    "asparagus_tip": {
+      "item_id": "asparagus_tip",
+      "category": "ingredient",
+      "name": "Asparagus Tip",
+      "desc": "A tender green spear. Everyone knows what it does afterwards. Brews a smelly yellow.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "yellow": 2,
+          "green": 1
+        },
+        "traits": {
+          "stinky": 2
+        }
+      }
+    },
+    "prune": {
+      "item_id": "prune",
+      "category": "ingredient",
+      "name": "Prune",
+      "desc": "A wrinkly dried plum. Very good for keeping things moving. Brews brown with a rumble.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "brown": 3
+        },
+        "traits": {
+          "rumbly": 2
+        }
+      }
+    },
+    "bran_husk": {
+      "item_id": "bran_husk",
+      "category": "ingredient",
+      "name": "Bran Husk",
+      "desc": "Scratchy husks from breakfast cereal. Brews a wholesome brown.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "brown": 2,
+          "gold": 1
+        },
+        "traits": {
+          "rumbly": 1
+        }
+      }
+    },
+    "swamp_onion": {
+      "item_id": "swamp_onion",
+      "category": "ingredient",
+      "name": "Swamp Onion",
+      "desc": "A soggy onion pulled from the bog. The smell arrives before you do. Brews brown and REALLY stinky.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 6,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 2,
+        "role": "herb",
+        "pigments": {
+          "brown": 2,
+          "green": 1
+        },
+        "traits": {
+          "stinky": 3
+        }
+      }
+    },
+    "bean_pod": {
+      "item_id": "bean_pod",
+      "category": "ingredient",
+      "name": "Bean Pod",
+      "desc": "A fat pod of cafeteria beans. Brews brown, and your tummy will talk about it later.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "herb",
+        "pigments": {
+          "brown": 3
+        },
+        "traits": {
+          "rumbly": 2,
+          "stinky": 1
+        }
+      }
+    },
+    "slime_core": {
+      "item_id": "slime_core",
+      "category": "ingredient",
+      "name": "Slime Core",
+      "desc": "The wobbly heart of a defeated slime. A catalyst: it can unlock a special 'of X' potion.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 12,
+      "childish": 0,
+      "rarity": "uncommon",
+      "alchemy": {
+        "tier": 3,
+        "role": "catalyst",
+        "pigments": {
+          "green": 1
+        },
+        "traits": {}
+      }
+    },
+    "ghost_lace": {
+      "item_id": "ghost_lace",
+      "category": "ingredient",
+      "name": "Ghost Lace",
+      "desc": "A scrap of lace that drifts slightly even in a closed jar. A strong catalyst for special potions.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 25,
+      "childish": 0,
+      "rarity": "rare",
+      "alchemy": {
+        "tier": 4,
+        "role": "catalyst",
+        "pigments": {
+          "white": 1,
+          "silver": 1
+        },
+        "traits": {}
+      }
+    },
+    "star_shard": {
+      "item_id": "star_shard",
+      "category": "ingredient",
+      "name": "Star Shard",
+      "desc": "A splinter of a fallen star, warm to the touch. The rarest catalyst, for the grandest potions.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 60,
+      "childish": 0,
+      "rarity": "epic",
+      "alchemy": {
+        "tier": 5,
+        "role": "catalyst",
+        "pigments": {
+          "gold": 1,
+          "silver": 1
+        },
+        "traits": {
+          "potent": 2
+        }
+      }
+    },
+    "chamomile": {
+      "item_id": "chamomile",
+      "category": "ingredient",
+      "name": "Chamomile",
+      "desc": "Little daisy-like flowers that calm any brew. A stabilizer: makes potions gentler.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "stabilizer",
+        "pigments": {
+          "white": 1,
+          "yellow": 1
+        },
+        "traits": {
+          "gentle": 2
+        }
+      }
+    },
+    "ginger_root": {
+      "item_id": "ginger_root",
+      "category": "ingredient",
+      "name": "Ginger Root",
+      "desc": "A knobbly, spicy root. A stabilizer that settles rumbly tummies.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 3,
+      "childish": 0,
+      "rarity": "common",
+      "alchemy": {
+        "tier": 1,
+        "role": "stabilizer",
+        "pigments": {
+          "orange": 1
+        },
+        "traits": {
+          "rumbly": -2
+        }
+      }
+    },
+    "alchemy_kit": {
+      "item_id": "alchemy_kit",
+      "category": "quest_item",
+      "name": "Portable Alchemy Kit",
+      "desc": "A folding brass stand, a tiny pot and a lot of optimism. Brew anywhere, but brews made on the road are riskier than at a real cauldron.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 60,
+      "childish": 0,
+      "rarity": "uncommon",
+      "usable_key_item": true,
+      "consume_on_use": false
     }
   },
   "market_halls": [
