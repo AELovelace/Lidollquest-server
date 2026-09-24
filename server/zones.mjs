@@ -338,7 +338,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
      if(state.run)fail(409,'Finish or forfeit your arena run before visiting another room.');
      const destination=zone(input.zone);
      if(z.parent){if(destination.id!==z.parent)fail(409,'Return to your originating lobby.');} // The normal Return action works from anywhere outside combat.
-     else {const portal=hubPortals(z.id).find(portal=>portal.target===destination.id);if(!portal||Math.abs(p.x-portal.x)+Math.abs(p.y-portal.y)>1)fail(409,'Stand next to the room entrance.');if(portal.style==='gap'&&!inHubGap(portal,p.x,p.y))fail(409,'Walk through the wall opening.');}
+     else {const portal=hubPortals(z).find(portal=>portal.target===destination.id);if(!portal||Math.abs(p.x-portal.x)+Math.abs(p.y-portal.y)>1)fail(409,'Stand next to the room entrance.');if(portal.style==='gap'&&!inHubGap(portal,p.x,p.y))fail(409,'Walk through the wall opening.');}
      visitHub(i,state,z,destination);
     }else if(input.action==='hub_talk'){
      if(!z.district&&!(z.fixtures??[]).some(f=>f.kind==='npc'))fail(409,'There is nobody to talk to here.'); // Districts, Market Halls (Cursebreaker) and the Honeydew Inn (innkeeper) all have someone to talk to.

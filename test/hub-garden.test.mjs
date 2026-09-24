@@ -23,8 +23,8 @@ test('Rose Court is a walled 20x20 garden with the castle gate on its left wall 
  assert.ok(!hubRooms.some(r=>r.id==='princess-rose-beds'));assert.ok(hubRooms.some(r=>r.id==='honeydew-lantern-beds'));
  assert.deepEqual(dungeonPortals('princess-rose').map(p=>p.target),['dive-quarters','dive-dungeon']); // The hall's east wall is closed.
  assert.deepEqual(wildernessGates('princess-rose').map(g=>g.target),['dive-tundra']);assert.deepEqual(wildernessGates('honeydew-lantern').map(g=>g.target),['dive-tundra','dive-desert']); // Honeydew Village's own walls open west onto the Tundra and east onto the Desert.
- assert.equal(routeHome('princess-rose','dive-tundra'),'princess-rose');assert.equal(routeHome('honeydew-lantern','dive-tundra'),'honeydew-lantern');assert.equal(routeHome('littlebig-clockwork','dive-desert'),'littlebig-clockwork-dives');
- assert.equal(returnSource('princess-rose','dive-tundra'),'dive-tundra');assert.equal(returnSource('honeydew-lantern','dive-tundra'),'dive-tundra');assert.equal(returnSource('littlebig-clockwork','dive-desert'),'littlebig-clockwork-dives');assert.equal(returnSource('honeydew-lantern-dives','dive-taiga'),'dive-taiga');
+ assert.equal(routeHome('princess-rose','dive-tundra'),'princess-rose');assert.equal(routeHome('honeydew-lantern','dive-tundra'),'honeydew-lantern');assert.equal(routeHome('littlebig-clockwork','dive-desert'),'littlebig-clockwork'); // Every hub receives its wilderness routes in its own lobby now.
+ assert.equal(returnSource('princess-rose','dive-tundra'),'dive-tundra');assert.equal(returnSource('honeydew-lantern','dive-tundra'),'dive-tundra');assert.equal(returnSource('littlebig-clockwork','dive-desert'),'dive-desert');assert.equal(returnSource('honeydew-lantern-dives','dive-taiga'),'dive-taiga');
  assert.deepEqual(hubArrival(rose,'dive-tundra'),{x:18,y:6});assert.deepEqual(hubArrival(rose,'princess-rose-garden'),{x:1,y:13});assert.deepEqual(hubArrival(rose,'princess-rose-dives'),{x:9,y:1});
  assert.deepEqual(hubDefinition(rose,0).spawn,{x:10,y:12});
 });

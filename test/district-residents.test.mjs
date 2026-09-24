@@ -18,7 +18,7 @@ test('residents stroll safely without moving scenery, blocking routes or changin
    if(moveDistrictResidents(floor,[floor.spawn],tick*3000,districtData))moves++;
    const residents=floor.fixtures.filter(n=>n.roaming);
    assert.equal(new Set(residents.map(n=>n.x+','+n.y)).size,4);
-   for(const n of residents){assert.equal(n.solid,false);assert.equal(districtBlocked(floor,n.x,n.y),false);assert.ok(Math.abs(n.x-n.home.x)+Math.abs(n.y-n.home.y)<=districtData.roam_radius);assert.ok(!(n.x>=42&&n.y>=22&&n.y<=27));}
+   for(const n of residents){assert.equal(n.solid,false);assert.equal(districtBlocked(floor,n.x,n.y),false);assert.ok(Math.abs(n.x-n.home.x)+Math.abs(n.y-n.home.y)<=districtData.roam_radius);assert.ok(!(n.x>=floor.width-8&&n.y>=Math.floor(floor.height/2)-3&&n.y<=Math.floor(floor.height/2)+2),'wanderers keep out of the east entry strip');}
   }
   assert.ok(moves>25);assert.deepEqual(floor.fixtures.filter(n=>!n.roaming),fixed);
   const npc=floor.fixtures.find(n=>n.roaming),position={x:npc.x,y:npc.y};

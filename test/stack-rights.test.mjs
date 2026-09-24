@@ -34,7 +34,7 @@ test('two purchases become one stack; units sell one at a time; rights follow th
  const refresh=()=>{c=zones.read('token',c.id).character;return c;};
  const bag=()=>c.loadout.inventory;
  try{
-  act('create',{name:'Snacker'});const snapshot=act('enter',{zone:'littlebig-clockwork-shops',loadout:{player_info:{level:50},inventory:[]}});
+  act('create',{name:'Snacker'});const snapshot=act('enter',{zone:'princess-rose-shops',loadout:{player_info:{level:50},inventory:[]}});
   const room=snapshot.zones.find(z=>z.id===snapshot.zone),merchant=room.fixtures.find(f=>f.id==='objNPCMerchant'),snack=merchant.offers.find(o=>o.item.category==='food');
   place(merchant.x,merchant.y+1);
   const buy=()=>{act('shop_buy',{fixture:merchant.id,offer:snack.id});zones.completePurchase(c.pendingPurchase,true);refresh();};

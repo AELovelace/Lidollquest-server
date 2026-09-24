@@ -86,8 +86,8 @@ test('walking the village: doorsteps enter the hall and inn, beds rest, pads div
   const home=act('dive_exit');assert.equal(home.zone,'honeydew-lantern');assert.deepEqual(home.position,{x:1,y:25}); // Escape lands one tile inside the same gate.
   place(48,25);const desert=act('move',{direction:'east',world_step:true});assert.equal(desert.zone,'dive-desert');
   const eastExit=zoneOf(desert).exits.find(e=>e.zone==='littlebig-clockwork');divePlace(eastExit.x-1,eastExit.y);
-  const crossed=act('dive_exit',{zone:'littlebig-clockwork'});assert.equal(crossed.zone,'littlebig-clockwork-dives'); // Eastbound walkers still arrive in Clockwork's hall, which hosts that side's gap.
-  place(1,6);assert.equal(act('move',{direction:'west',world_step:true}).zone,'dive-desert');
+  const crossed=act('dive_exit',{zone:'littlebig-clockwork'});assert.equal(crossed.zone,'littlebig-clockwork');assert.deepEqual(crossed.position,{x:1,y:30}); // Eastbound walkers step into LittleBigCity beside its west gate.
+  place(1,30);assert.equal(act('move',{direction:'west',world_step:true}).zone,'dive-desert');
   const westExit=zoneOf(api.read('',c.id)).exits.find(e=>e.zone==='honeydew-lantern');divePlace(westExit.x+1,westExit.y);
   const village=act('dive_exit',{zone:'honeydew-lantern'});assert.equal(village.zone,'honeydew-lantern');assert.deepEqual(village.position,{x:48,y:25});assert.equal(c.hubVisit,undefined); // Westbound walkers step into the village beside its Desert gate.
   assert.ok(act('start').character.run,'the village is still the arena lobby');act('flee');

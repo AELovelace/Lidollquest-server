@@ -1,5 +1,6 @@
 import {removeCursedGear} from './curse-removal.mjs';
-import {districtData,districtZone,shopFixtures,marketServices} from './hub-districts.mjs';
+import {districtData,districtZone,shopFixtures,marketServices,storeSlug} from './hub-districts.mjs';
+import {districtSize} from './district-layouts.mjs';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {seeded} from './dive-generation.mjs';
@@ -30,41 +31,47 @@ if(c.shop_width!==40||c.shop_height!==24||c.curse_removal_price!==20)throw Error
 const gardenWidth=districtData.width,gardenHeight=districtData.height;
 if(![gardenWidth,gardenHeight].every(n=>Number.isInteger(n)&&n>=20&&n<=80))throw Error('Invalid garden dimensions');
 const roseGarden=roseCourtyard(hubData.courtyards?.find(h=>h.hub==='princess-rose')?.decorations); // Rose Court's lobby is a walled 20x20 garden; the other courts keep their 20x12 halls. Boot fails if the authored props trap anyone.
-const town=districtData.districts.find(d=>d.hub==='honeydew-lantern'); // Honeydew Village: the lobby is the 50x50 monthly town itself (hub-districts.mjs resolves its map onto the catalog entry below).
-if(!town?.lobby?.buildings?.length)throw Error('Honeydew Village must be exported as a lobby town (online_districts.json lobby, export_online_districts.py)');
+const lobbyTown=hub=>{const d=districtData.districts.find(d=>d.hub===hub);if(!d?.lobby)throw Error(hub+' must be exported as a lobby town (online_districts.json lobby, export_online_districts.py)');return d;}; // A hub whose lobby IS its monthly district (hub-districts.mjs resolves the map onto the catalog entry).
+const town=lobbyTown('honeydew-lantern'),city=lobbyTown('littlebig-clockwork'); // Honeydew Village (50x50) and LittleBigCity (60x60).
+export function lobbyGates(def){ // Wilderness gates in a lobby town's own walls: rows cy-1..cy on the west and/or east wall, as authored in lobby.gates.
+ const {width,height}=districtSize(def,districtData),cy=Math.floor(height/2),names={'dive-tundra':'Frostveil Tundra','dive-desert':'Dustbreak Desert'},g=def.lobby.gates??{};
+ return [...(g.west?[{x:0,y:cy-1,w:1,h:2,name:names[g.west]??g.west,target:g.west,style:'gap',side:'left'}]:[]),...(g.east?[{x:width-1,y:cy-1,w:1,h:2,name:names[g.east]??g.east,target:g.east,style:'gap',side:'right'}]:[])];
+}
+export const lobbyPortals=(def,resolved=null)=>[...lobbyGates(def),...(def.lobby.buildings??[]).map(b=>({x:b.door.x,y:b.door.y,name:b.name,target:def.hub+'-'+b.target,style:'door',threshold:true})),...(resolved?.doorsteps??[]).map(d=>({...d}))]; // Gates, the authored plaza doorsteps, and (for LittleBigCity) this month's storefront doorsteps. Stepping onto a doorstep transfers like a wall gap; the client draws a mat, not a doorway.
 const campaignRoom=(key,label)=>{const r=hubData[key];if(!r||r.width!==20||r.height!==20||!Array.isArray(r.walls))throw Error('hub-data.json needs the 20x20 '+label+' export (export_online_hubs.py)');return r;}; // Both village interiors are the campaign rooms, tile for tile.
 const communityHall=campaignRoom('community_hall','Community Hall'),innRoom=campaignRoom('inn','Inn');
-export const TOWN_PORTALS=Object.freeze([ // Honeydew Village's lobby openings: two wilderness gates in the boundary walls plus the doorstep of each civic building.
- {x:0,y:24,w:1,h:2,name:'Frostveil Tundra',target:'dive-tundra',style:'gap',side:'left'},
- {x:49,y:24,w:1,h:2,name:'Dustbreak Desert',target:'dive-desert',style:'gap',side:'right'},
- ...town.lobby.buildings.map(b=>({x:b.door.x,y:b.door.y,name:b.name,target:'honeydew-lantern-'+b.target,style:'door',threshold:true})), // Stepping onto the doorstep transfers, like a wall gap; the client draws a mat rather than a doorway because the facade already shows the door.
-]);
+export const TOWN_PORTALS=Object.freeze(lobbyPortals(town)); // Honeydew Village's fixed openings (tests and docs refer to them by this name).
 const VILLAGE_ROOM_EXIT=Object.freeze({x:10,y:18,style:'door'}); // Where town_subroom_generate() puts the campaign stairs: bottom centre, one tile above the wall. Walking onto it steps back outside.
 const VILLAGE_ROOM_SPAWN=Object.freeze({x:10,y:17}); // Arrivals stand just inside the door.
 export const INN_BEDS=Object.freeze([{x:2,y:3},{x:5,y:3},{x:9,y:3},{x:12,y:3},{x:16,y:3},{x:3,y:15}]); // One or two beds per Inn bedroom, three tiles apart so labels stay readable.
 const villageRoom=(art,fixtures)=>({width:art.width,height:art.height,spawn:{...VILLAGE_ROOM_SPAWN},exit:{...VILLAGE_ROOM_EXIT},walls:art.walls,floors:art.floors,wallTiles:art.wallTiles,decorTiles:art.decorTiles,tilesets:art.tilesets,fixtures,authored:true}); // authored: the client paints these tile grids instead of a generic interior.
 const innFixtures=[...hubData.beds.map((bed,i)=>({...bed,kind:'bed',...INN_BEDS[i],span_w:1,span_h:1,solid:true})),{id:'innkeeper',name:'Innkeeper',kind:'npc',avatar:'objNPCInnkeeper',x:12,y:15,span_w:1,span_h:1,solid:true,line:'Welcome to the Honeydew Inn, sweetheart. Pick any bed you like and rest as long as you need. Nobody here minds a little accident.'}]; // The innkeeper stands where the campaign places her.
 export const villageRooms=Object.freeze({dives:villageRoom(communityHall,[]),beds:villageRoom(innRoom,innFixtures)}); // Community Hall (Dive pads in the old companion room, top-left) and Inn (six beds in its bedrooms).
+export const STORE={width:11,height:9,spawn:{x:5,y:6},exit:{x:5,y:7,style:'door'},counter:{y:4,gap:5},keeper:{x:5,y:2}}; // A LittleBigCity store: one room per merchant, a planter counter with a gap in the middle, the keeper behind it, the door at the bottom back onto the sidewalk.
+const storeRoom=shop=>({width:STORE.width,height:STORE.height,spawn:{...STORE.spawn},exit:{...STORE.exit},store:true,
+ walls:Array.from({length:STORE.height},(_,y)=>Array.from({length:STORE.width},(_,x)=>x===0||y===0||x===STORE.width-1||y===STORE.height-1?1:0)),
+ fixtures:[{id:shop.id,name:shop.name,sprite:shop.sprite,kind:'shop',x:STORE.keeper.x,y:STORE.keeper.y,span_w:1,span_h:1,solid:true},...Array.from({length:STORE.width-2},(_,i)=>i+1).filter(x=>x!==STORE.counter.gap).map(x=>({id:'counter-'+x,kind:'scenery',name:'',sprite:'sprCitySidewalkPlanter',x,y:STORE.counter.y,span_w:1,span_h:1,solid:true}))]}); // Planters make the counter; walk through the gap to stand beside the keeper.
+export const storeRooms=Object.freeze(shopFixtures().map(shop=>({slug:storeSlug(shop),shop,room:storeRoom(shop)}))); // Eight stores, one per merchant, in the order the Market Halls list them.
 export const hubCatalog=Object.freeze([
- {id:'honeydew-lantern',hub:'town',theme:'lantern',prefix:'Lantern',name:town.name,width:50,height:50,spawn:{...town.lobby.spawn},exit:{...town.lobby.stairs,style:'stairs'},town:true}, // Walls, floors, fixtures and the monthly edition are merged in by hub-districts.mjs at request time.
- {id:'littlebig-clockwork',hub:'littlebig_city',theme:'clockwork',prefix:'Clockwork',name:'Clockwork Coliseum'},
+ {id:'honeydew-lantern',hub:'town',theme:'lantern',prefix:'Lantern',name:town.name,...districtSize(town,districtData),spawn:{...town.lobby.spawn},exit:{...town.lobby.stairs,style:'stairs'},town:true}, // Walls, floors, fixtures and the monthly edition are merged in by hub-districts.mjs at request time.
+ {id:'littlebig-clockwork',hub:'littlebig_city',theme:'clockwork',prefix:'Clockwork',name:city.name,...districtSize(city,districtData),spawn:{...city.lobby.spawn},exit:{...city.lobby.stairs,style:'stairs'},town:true}, // LittleBigCity: the 60x60 city itself, storefront doorsteps included once resolved.
  {id:'princess-rose',hub:'princess_quarters',theme:'rose',prefix:'Rose',name:'Rose Court',...roseGarden}, // width/height/spawn/exit/walls/floors/wallTiles/treeTiles/tilesets/fixtures come from the courtyard map.
 ]); // A single catalog supplies lobby identity, annexes and legacy entry validation.
 export function dungeonPortals(parent){
  const quarters={x:6,y:4,name:"Princess' Quarters",target:'dive-quarters',style:'warp'};
  const west={x:0,y:5,w:1,h:2,style:'gap',side:'left'},east={x:19,y:5,w:1,h:2,style:'gap',side:'right'}; // Wall openings matching the lobby's Beds/District gaps.
  const desert={name:'Dustbreak Desert',target:'dive-desert'};
- const existing=parent==='princess-rose'?[quarters]:parent==='littlebig-clockwork'?[{...desert,...west}]:[]; // West-to-east: Rose | Tundra | Honeydew | Desert | LittleBig. Rose and Honeydew reach the wilderness from their own lobby walls (wildernessGates), so their halls have no side gaps; only Clockwork's hall keeps its Desert gap.
+ const existing=parent==='princess-rose'?[quarters]:[]; // West-to-east: Rose | Tundra | Honeydew | Desert | LittleBig. Every hub now reaches the wilderness from its own lobby wall (wildernessGates), so no hall keeps a side gap.
  return [...existing,...campaignDives.filter(d=>d.config.hub===parent).map(({config:c})=>({...c.pad,name:c.name,target:c.zone_id,style:'warp'}))];
 } // Princess' Quarters belongs only to Rose Court; these coordinates also drive client labels and return arrivals.
-export const wildernessGates=parent=>parent==='princess-rose'?GARDEN_PORTALS.filter(p=>p.target.startsWith('dive-')):parent==='honeydew-lantern'?TOWN_PORTALS.filter(p=>p.target.startsWith('dive-')):[]; // Overworld routes that open straight from a lobby's own wall instead of its Dive Hall (Rose: Tundra; Honeydew: Tundra west, Desert east).
+export const wildernessGates=parent=>parent==='princess-rose'?GARDEN_PORTALS.filter(p=>p.target.startsWith('dive-')):parent==='honeydew-lantern'?lobbyGates(town):parent==='littlebig-clockwork'?lobbyGates(city):[]; // Overworld routes that open straight from a lobby's own wall instead of its Dive Hall (Rose: Tundra; Honeydew: Tundra west, Desert east; LittleBigCity: Desert west).
 export const routePortals=room=>room.parent?dungeonPortals(room.parent):[...dungeonPortals(room.id),...wildernessGates(room.id)]; // Every route a Dive Hall or lobby can enter directly; lobbies keep accepting legacy pad entries for their hall's routes.
 export const routeHome=(hub,route,{returnZone='',gate=false}={})=>wildernessGates(hub).some(g=>g.target===route)?hub:(returnZone===''||returnZone.endsWith('-dives')||gate?hub+'-dives':hub); // The room a traveller lands in when a route delivers them to this hub: its garden gate if it has one, its Dive Hall for hall and gate entries, or its lobby for legacy pad entries made from a lobby.
 export const returnSource=(origin,route)=>origin.endsWith('-dives')||wildernessGates(origin).some(g=>g.target===route)?route:origin+'-dives'; // Which doorway hubArrival should stand beside when leaving a route into `origin`.
-const annexKinds=root=>root.id==='princess-rose'?['garden','shops','dives']:root.id==='honeydew-lantern'?['beds','dives']:['garden','beds','shops','dives']; // Rose's beds are in The Castle; Honeydew's town is its own garden and market, so it keeps only the Inn and the Community Hall.
-export const hubRooms=hubCatalog.flatMap(root=>annexKinds(root).map(kind=>({
+const annexKinds=root=>root.id==='princess-rose'?['garden','shops','dives']:['beds','dives']; // Rose's beds are in The Castle; Honeydew and LittleBigCity are their own garden and market, keeping only an Inn and a Dive room (plus, for the city, one store per merchant below).
+export const hubRooms=[...hubCatalog.flatMap(root=>annexKinds(root).map(kind=>({
  id:root.id+'-'+kind,parent:root.id,kind,hub:root.hub,theme:root.theme,
- name:kind==='garden'?districtData.districts.find(d=>d.hub===root.id).name:root.id==='honeydew-lantern'?({beds:'Honeydew Inn',dives:'Community Hall'})[kind]:root.prefix+' '+({garden:'Garden',beds:'Resting Hall',shops:'Market Hall',dives:'Dive Hall'})[kind],
+ name:kind==='garden'?districtData.districts.find(d=>d.hub===root.id).name:root.id==='honeydew-lantern'?({beds:'Honeydew Inn',dives:'Community Hall'})[kind]:root.id==='littlebig-clockwork'?({beds:'LittleBig Inn',dives:'Clockwork Coliseum'})[kind]:root.prefix+' '+({garden:'Garden',beds:'Resting Hall',shops:'Market Hall',dives:'Dive Hall'})[kind],
  width:kind==='garden'?gardenWidth:kind==='shops'?c.shop_width:20,height:kind==='garden'?gardenHeight:kind==='shops'?c.shop_height:12,
  spawn:kind==='garden'?{x:gardenWidth-2,y:Math.floor(gardenHeight/2)}:kind==='beds'?{x:1,y:6}:kind==='shops'?{x:20,y:21}:{x:9,y:10}, // Dive Hall arrivals stand just inside its bottom-wall opening.
  exit:kind==='garden'?{x:gardenWidth-1,y:Math.floor(gardenHeight/2)-1,w:1,h:2,style:'gap',side:'right'}:kind==='beds'?{x:0,y:5,w:1,h:2,style:'gap',side:'left'}:kind==='shops'?{x:20,y:22,style:'stairs'}:{x:9,y:11,w:2,h:1,style:'gap',side:'bottom'}, // Market Halls keep their stairs; the Dive Hall returns through a bottom-wall opening.
@@ -72,12 +79,14 @@ export const hubRooms=hubCatalog.flatMap(root=>annexKinds(root).map(kind=>({
  kind==='shops'?[...shopFixtures().map((shop,i)=>({...shop,x:[6,14,25,33][i%4],y:6+Math.floor(i/4)*9})),...marketServices().map(service=>({...service,...({bank:{x:30,y:20},dumpster:{x:34,y:20},'curse-remover':{x:9,y:20}})[service.id]})),...(hubData.market_halls.find(h=>h.hub===root.id)?.decorations??[])]:
  [], // Monthly districts supply their own persisted scenery and NPC fixtures; Rose Court's beds live inside The Castle district's dormitory instead of a Resting Hall.
  ...(root.id==='honeydew-lantern'?villageRooms[kind]:{}), // The village's Inn and Community Hall replace the generic annex geometry with the campaign rooms (20x20, authored tiles, door exit).
-}))); // Each hub has its own presence/chat scope; fixtures are presentation data, never campaign NPCs.
-export const hubPortals=parent=>parent==='princess-rose'?GARDEN_PORTALS.map(p=>p.target===parent+'-garden'?{...p,name:districtData.districts.find(d=>d.hub===parent)?.name??p.name}:{...p}):parent==='honeydew-lantern'?TOWN_PORTALS.map(p=>({...p})):[{x:0,y:5,w:1,h:2,name:districtData.districts.find(d=>d.hub===parent)?.name??'District',target:parent+'-garden',style:'gap',side:'left'},{x:19,y:5,w:1,h:2,name:'Beds',target:parent+'-beds',style:'gap',side:'right'},{x:15,y:8,name:'Shops',target:parent+'-shops',style:'stairs'},{x:9,y:0,w:2,h:1,name:'Dungeon Dive',target:parent+'-dives',style:'gap',side:'top'}]; // Rose's castle gate (left wall) and Tundra gap (right wall, the old Beds door) replace the old District / Beds openings.
+}))),...storeRooms.map(({slug,shop,room})=>({id:'littlebig-clockwork-store-'+slug,parent:'littlebig-clockwork',kind:'shops',hub:'littlebig_city',theme:'clockwork',name:shop.name+"'s Store",...room}))]; // Each hub has its own presence/chat scope; fixtures are presentation data, never campaign NPCs. LittleBigCity's eight stores are tiny shop rooms entered from their storefront doorsteps.
+export const hubPortals=lobby=>{const parent=typeof lobby==='string'?lobby:lobby.id,resolved=typeof lobby==='string'?null:lobby; // Pass the resolved zone where you can: LittleBigCity's storefront doorsteps live in this month's map.
+ return parent==='princess-rose'?GARDEN_PORTALS.map(p=>p.target===parent+'-garden'?{...p,name:districtData.districts.find(d=>d.hub===parent)?.name??p.name}:{...p}):parent==='honeydew-lantern'?lobbyPortals(town,resolved):parent==='littlebig-clockwork'?lobbyPortals(city,resolved):[{x:0,y:5,w:1,h:2,name:districtData.districts.find(d=>d.hub===parent)?.name??'District',target:parent+'-garden',style:'gap',side:'left'},{x:19,y:5,w:1,h:2,name:'Beds',target:parent+'-beds',style:'gap',side:'right'},{x:15,y:8,name:'Shops',target:parent+'-shops',style:'stairs'},{x:9,y:0,w:2,h:1,name:'Dungeon Dive',target:parent+'-dives',style:'gap',side:'top'}];}; // Rose's castle gate (left wall) and Tundra gap (right wall, the old Beds door) replace the old District / Beds openings; the 20x12 default court no longer exists but stays as the fallback shape.
 export const inHubGap=(gap,x,y)=>x>=gap.x&&x<gap.x+(gap.w??1)&&y>=gap.y&&y<gap.y+(gap.h??1);
 export const contactPortal=p=>p.style==='gap'||p.style==='door'; // Both transfer on contact: a wall opening, or a village building's doorstep (and the door back out of it).
-export const hubGaps=z=>z.parent?[...(z.exit&&contactPortal(z.exit)?[{...z.exit,target:z.parent}]:[]),...(z.kind==='dives'?dungeonPortals(z.parent).filter(contactPortal):[])]:hubPortals(z.id).filter(contactPortal); // Dive Hall side walls open onto the wilderness routes; village doorsteps open into the Inn and Community Hall.
+export const hubGaps=z=>z.parent?[...(z.exit&&contactPortal(z.exit)?[{...z.exit,target:z.parent}]:[]),...(z.kind==='dives'?dungeonPortals(z.parent).filter(contactPortal):[])]:hubPortals(z).filter(contactPortal); // Dive Hall side walls open onto the wilderness routes; village doorsteps open into the Inn and Community Hall.
 for(const [kind,room] of Object.entries(villageRooms))validateCourtyard(room,kind==='dives'?dungeonPortals('honeydew-lantern'):[]); // Boot fails if a bed, a pad, the innkeeper or the door is walled in or unreachable inside the campaign rooms.
+for(const {room} of storeRooms)validateCourtyard(room,[]); // Every store keeps its keeper reachable through the counter gap and its door open.
 export const LOBBY_EXIT=Object.freeze({x:1,y:10,style:'stairs'}); // Bottom-left stairs back to the singleplayer campaign. // Only declared wall openings are traversable; all other perimeter cells remain walls.
 export const hubBlocked=(z,x,y)=>z.fixtures?.some(f=>f.solid!==false&&x>=f.x&&y>=f.y&&x<f.x+(f.span_w??1)&&y<f.y+(f.span_h??1))??false;
 import {stackable,slotsUsed,addToInventory} from './loadout.mjs'; // Stack-aware capacity and purchases.
@@ -95,7 +104,7 @@ export function shopOffers(zone,shop,time,level=1){ // `level`: the shopper's le
   offers.push({id:`${day}-${slot}`,price,item});
  }return offers;
 } // Stock is deterministic and inexhaustible; the same eight items greet everyone that day, scaled to each shopper.
-export function hubDefinition(z,time,level=1){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??LOBBY_EXIT,restTickMs:c.rest_tick_ms,portals:z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z.id),fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:shopOffers(z.id,hubData.shops.find(s=>s.id===f.id),time,level)}:f)};} // `level`: the viewing character's level, so merchants show that shopper's scaled stock.
+export function hubDefinition(z,time,level=1){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??LOBBY_EXIT,restTickMs:c.rest_tick_ms,portals:z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z),fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:shopOffers(z.id,hubData.shops.find(s=>s.id===f.id),time,level)}:f)};} // `level`: the viewing character's level, so merchants show that shopper's scaled stock.
 export function nearbyFixture(z,p,id,kind){const f=z.fixtures?.find(f=>f.id===id&&f.kind===kind);if(!f||Math.abs(f.x-p.x)+Math.abs(f.y-p.y)>1)fail('Stand next to that '+kind+'.');return f;}
 
 export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWager(id,char,state,paid,amount): a duel stake settled through the same durable debit path.

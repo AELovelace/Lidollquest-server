@@ -1,5 +1,5 @@
 {
-  "_comment": "Safe 50x50 monthly host-zone layouts. Version changes replace the active layout on deployment and return visitors to the entrance; old editions remain archived. Export with python/export_online_districts.py. A district may declare dormitory {x,y,w,h,door:{x}}: a fixed room above the entry area holding the six shared beds (Rose Court keeps its beds here instead of a Resting Hall). A district may also declare lobby {spawn:{x,y},stairs:{x,y},buildings:[{id,name,sprite,x,y,target}]}: that hub's lobby IS the 50x50 town (no separate garden or market annex). Each building sprite sits in the village square; the tile in front of its door (the exporter adds door) leads into the hub annex named by target (dives = the Community Hall with the Dive pads, beds = the Inn with the six beds), both reused tile for tile from the campaign rooms. Its west wall (0,24-25) opens onto Frostveil Tundra and its east wall (49,24-25) onto Dustbreak Desert; merchants, bank, dumpster and Cursebreaker are spread around the clearings.",
+  "_comment": "Safe 50x50 monthly host-zone layouts. Version changes replace the active layout on deployment and return visitors to the entrance; old editions remain archived. Export with python/export_online_districts.py. A district may declare dormitory {x,y,w,h,door:{x}}: a fixed room above the entry area holding the six shared beds (Rose Court keeps its beds here instead of a Resting Hall). A district may set width/height (40-80, default 50). A district may also declare lobby {spawn:{x,y},stairs:{x,y},gates:{west?,east?},buildings:[{id,name,sprite,x,y,target}],storefronts?:{sprite}}: that hub's lobby IS the town (no separate garden or market annex). gates name the wilderness route (dive-tundra / dive-desert) behind the west and/or east wall (rows cy-1..cy). Each building sprite sits on the central square; the tile in front of its door (the exporter adds door) leads into the hub annex named by target (dives = the Dive room, beds = the Inn). With storefronts, every merchant instead gets a storefront on a city-block facade whose doorstep enters a store room of their own (the doors move with the monthly street plan); without storefronts the merchants stand in the town. Bank, dumpster and Cursebreaker always stand in the town.",
   "version": 3,
   "width": 50,
   "height": 50,
@@ -163,6 +163,10 @@
         "stairs": {
           "x": 2,
           "y": 22
+        },
+        "gates": {
+          "west": "dive-tundra",
+          "east": "dive-desert"
         },
         "buildings": [
           {
@@ -341,8 +345,10 @@
     },
     {
       "hub": "littlebig-clockwork",
-      "name": "Red Light District",
+      "name": "LittleBigCity",
       "style": "nightlife",
+      "width": 60,
+      "height": 60,
       "tileset": "tileCity",
       "scenery": [
         {
@@ -472,7 +478,55 @@
         "avenue_width": 3,
         "boulevard_width": 5,
         "park_block_count": 2,
-        "village_square_radius": 5
+        "village_square_radius": 7
+      },
+      "lobby": {
+        "spawn": {
+          "x": 30,
+          "y": 32
+        },
+        "stairs": {
+          "x": 2,
+          "y": 27
+        },
+        "gates": {
+          "west": "dive-desert"
+        },
+        "buildings": [
+          {
+            "id": "inn",
+            "name": "LittleBig Inn",
+            "sprite": "sprCityFacadeApartment",
+            "x": 27,
+            "y": 25,
+            "target": "beds",
+            "span_w": 2,
+            "span_h": 3,
+            "door": {
+              "x": 28,
+              "y": 28
+            }
+          },
+          {
+            "id": "coliseum",
+            "name": "Clockwork Coliseum",
+            "sprite": "sprCityFacadeMed1",
+            "x": 32,
+            "y": 26,
+            "target": "dives",
+            "span_w": 2,
+            "span_h": 2,
+            "door": {
+              "x": 33,
+              "y": 28
+            }
+          }
+        ],
+        "storefronts": {
+          "sprite": "sprCityFacadeStorefront",
+          "span_w": 2,
+          "span_h": 2
+        }
       },
       "source_zone": "littlebig_city"
     }

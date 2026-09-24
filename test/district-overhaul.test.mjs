@@ -13,11 +13,11 @@ test('districts express distinct host layouts rather than the old universal open
   if(d.style==='castle')assert.ok(new Set(f.rooms.map(r=>r.w+','+r.h)).size>=3,'castle partitions produce varied room sizes');
   if(d.style==='market'){
    assert.ok(f.rooms.length>=4,'village clearings branch away from the main square');
-   assert.equal(f.floors[25][25],8,'central flagstone square survives road carving');
+   assert.equal(f.floors[Math.floor(f.height/2)][Math.floor(f.width/2)],8,'central flagstone square survives road carving');
   }
   if(d.style==='nightlife'){
    assert.ok(f.blocks.some(b=>b.kind==='city_block'));assert.ok(f.rooms.some(r=>r.kind==='park'));
-   assert.ok(f.axes.x.includes(25)&&f.axes.y.includes(25));
+   assert.ok(f.axes.x.includes(Math.floor(f.width/2))&&f.axes.y.includes(Math.floor(f.height/2))); // The boulevards cross at the centre of whatever size the district is (LittleBigCity is 60x60).
   }
  }
  assert.equal(signatures.size,36,'different months retain different layouts');
