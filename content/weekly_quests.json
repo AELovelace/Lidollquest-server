@@ -436,8 +436,8 @@
       "name": "Twice by the Benches",
       "description": "Ellis checks the lamps nearest the benches twice, because people linger there and a good conversation deserves good light. He would like someone to sit under one while he works, to prove the light is worth checking.",
       "repeat": "weekly",
-      "givers": ["littlebig-clockwork-garden:night-lamplighter"],
-      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork-garden:night-lamplighter"},
+      "givers": ["littlebig-clockwork:night-lamplighter"],
+      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork:night-lamplighter"},
       "failure_text": "The benches stay empty. Ellis checks the lamps anyway.",
       "stages": [
         {
@@ -447,7 +447,7 @@
           "mode": "all",
           "next": "complete",
           "objectives": [
-            {"id": "the_district", "type": "visit", "target": "littlebig-clockwork-garden", "text": "Find the benches in the Red Light District", "count": 1},
+            {"id": "the_district", "type": "visit", "target": "littlebig-clockwork", "text": "Find the benches in the Red Light District", "count": 1},
             {"id": "four_minutes", "type": "timer", "text": "Linger under the lamps for four minutes", "count": 240}
           ],
           "branches": []
@@ -460,8 +460,8 @@
       "name": "Off-Duty Feet",
       "description": "Vesper's next set is a while off and she is giving her feet a walk before asking them to dance. She would like company who understands that some things cannot be pushed through, only waited out.",
       "repeat": "weekly",
-      "givers": ["littlebig-clockwork-garden:night-performer"],
-      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork-garden:night-performer"},
+      "givers": ["littlebig-clockwork:night-performer"],
+      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork:night-performer"},
       "failure_text": "Vesper dances on tired feet. She has done it before.",
       "stages": [
         {
@@ -495,8 +495,8 @@
       "name": "Late Bloomers, All of Us",
       "description": "Nell's flowers open after sunset. She says there is no prize for having your bloom first, and she says it to everyone, but she is looking at you when she does.",
       "repeat": "weekly",
-      "givers": ["littlebig-clockwork-garden:night-florist"],
-      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork-garden:night-florist"},
+      "givers": ["littlebig-clockwork:night-florist"],
+      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork:night-florist"},
       "failure_text": "The flowers open and close without an audience. Nell does not mind.",
       "stages": [
         {
@@ -517,7 +517,7 @@
           "mode": "all",
           "next": "complete",
           "objectives": [
-            {"id": "fetch_rowan", "type": "talk", "target": "littlebig-clockwork-garden:night-poet", "text": "Bring Rowan over for a cup", "count": 1}
+            {"id": "fetch_rowan", "type": "talk", "target": "littlebig-clockwork:night-poet", "text": "Bring Rowan over for a cup", "count": 1}
           ],
           "branches": []
         }
@@ -529,8 +529,8 @@
       "name": "A Rhyme for Lantern",
       "description": "Rowan has almost got a rhyme for lantern and is walking until the next line arrives. At this rate, he says, the line will arrive in another district entirely. He may be right.",
       "repeat": "weekly",
-      "givers": ["littlebig-clockwork-garden:night-poet"],
-      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork-garden:night-poet"},
+      "givers": ["littlebig-clockwork:night-poet"],
+      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork:night-poet"},
       "failure_text": "The rhyme does not arrive. Rowan is unbothered and keeps walking.",
       "stages": [
         {
@@ -551,7 +551,7 @@
           "mode": "all",
           "next": "complete",
           "objectives": [
-            {"id": "back_home", "type": "visit", "target": "littlebig-clockwork-garden", "text": "Return to the Red Light District", "count": 1}
+            {"id": "back_home", "type": "visit", "target": "littlebig-clockwork", "text": "Return to the Red Light District", "count": 1}
           ],
           "branches": []
         }
@@ -563,8 +563,8 @@
       "name": "House Rules",
       "description": "Everyone sets their own pace here, and Ellis would like you to set yours somewhere visible. Wear something that says you are not in a hurry to be taken seriously, and stay out long enough for it to count.",
       "repeat": "weekly",
-      "givers": ["littlebig-clockwork-garden:night-lamplighter"],
-      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork-garden:night-lamplighter"},
+      "givers": ["littlebig-clockwork:night-lamplighter"],
+      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork:night-lamplighter"},
       "failure_text": "The evening passes quietly. Nobody minds, which is rather the point.",
       "stages": [
         {
@@ -586,7 +586,7 @@
           "next": "complete",
           "objectives": [
             {"id": "flushed", "type": "state", "field": "excitement", "op": "gte", "value": 120, "text": "Let your excitement climb past 120", "count": 1},
-            {"id": "out_and_about", "type": "visit", "target": "littlebig-clockwork-garden", "text": "Be seen in the Red Light District", "count": 1}
+            {"id": "out_and_about", "type": "visit", "target": "littlebig-clockwork", "text": "Be seen in the Red Light District", "count": 1}
           ],
           "branches": []
         }
@@ -598,8 +598,8 @@
       "name": "A Quiet Chat",
       "description": "Vesper reckons you can learn a district by talking to four people in it. She has picked the four. None of them will ask you a single difficult question, which she says is the whole reason this neighbourhood is worth living in.",
       "repeat": "weekly",
-      "givers": ["littlebig-clockwork-garden:night-performer"],
-      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork-garden:night-performer"},
+      "givers": ["littlebig-clockwork:night-performer"],
+      "turn_in": {"mode": "npc", "npc": "littlebig-clockwork:night-performer"},
       "failure_text": "The round of introductions goes unmade. The district survives.",
       "stages": [
         {
@@ -609,10 +609,10 @@
           "mode": "all",
           "next": "complete",
           "objectives": [
-            {"id": "meet_ellis", "type": "talk", "target": "littlebig-clockwork-garden:night-lamplighter", "text": "Talk with Ellis the Lamplighter", "count": 1},
-            {"id": "meet_nell", "type": "talk", "target": "littlebig-clockwork-garden:night-florist", "text": "Talk with Nell the Night Florist", "count": 1},
-            {"id": "meet_rowan", "type": "talk", "target": "littlebig-clockwork-garden:night-poet", "text": "Talk with Rowan the Pavement Poet", "count": 1},
-            {"id": "meet_vesper", "type": "talk", "target": "littlebig-clockwork-garden:night-performer", "text": "Talk with Vesper herself", "count": 1}
+            {"id": "meet_ellis", "type": "talk", "target": "littlebig-clockwork:night-lamplighter", "text": "Talk with Ellis the Lamplighter", "count": 1},
+            {"id": "meet_nell", "type": "talk", "target": "littlebig-clockwork:night-florist", "text": "Talk with Nell the Night Florist", "count": 1},
+            {"id": "meet_rowan", "type": "talk", "target": "littlebig-clockwork:night-poet", "text": "Talk with Rowan the Pavement Poet", "count": 1},
+            {"id": "meet_vesper", "type": "talk", "target": "littlebig-clockwork:night-performer", "text": "Talk with Vesper herself", "count": 1}
           ],
           "branches": []
         }

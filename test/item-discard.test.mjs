@@ -13,7 +13,7 @@ function fixture(hub){
  const send=input=>{time+=1000;const result=zones.act('token',input);c=result.character;return result;};
  const act=(action,extra)=>send(body(action,extra));
  act('create',{name:'Disposer'});
- act('enter',{zone:hub==='honeydew-lantern'?hub:hub+'-shops',loadout:{player_info:{equipped_head:'cursed_crown'},inventory:[{item_id:'offline',name:'Old shirt',category:'torso'},{item_id:'quest_key',category:'quest_item'}]}}); // Honeydew's dumpster stands in the village itself; the other hubs keep theirs in the Market Hall.
+ act('enter',{zone:hub==='princess-rose'?hub+'-shops':hub,loadout:{player_info:{equipped_head:'cursed_crown'},inventory:[{item_id:'offline',name:'Old shirt',category:'torso'},{item_id:'quest_key',category:'quest_item'}]}}); // Honeydew's and LittleBigCity's dumpsters stand in the town itself; Rose keeps its Market Hall.
  const place=(x,y)=>db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(x,y,c.id);
  const mutate=fn=>{const state=JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(c.id).state);fn(state);db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),c.id);c=zones.read('token',c.id).character;};
  const discard=(slot=0,extra={})=>act('item_discard',{fixture:'dumpster',slot,item_id:c.loadout.inventory[slot]?.item_id,item_instance:c.loadout.inventory[slot]?.online_item??'',...extra});

@@ -13,10 +13,10 @@ test('both rows of each hub wall gap warp atomically; adjacent walls stay solid 
  const place=(x,y)=>db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(x,y,c.id);
  try{
   act('create',{name:'Alice'});
-  for(const lobby of ['littlebig-clockwork'])for(const [kind,x,direction] of [['garden',0,'west'],['beds',19,'east']])for(const y of [5,6]){ // Clockwork is the last 20x12 court; Honeydew's gates are covered in honeydew-village.test.mjs.
+  for(const lobby of ['princess-rose'])for(const [kind,x,direction] of [['garden',0,'west']])for(const y of [12,13]){ // Rose's castle gate is the last annex wall gap; Honeydew's and LittleBigCity's gates are covered in their own tests.
    const snapshot=act('enter',{zone:lobby,loadout:{player_info:{},inventory:[{item_id:'adult_food'}]}}),definition=snapshot.zones.find(z=>z.id===lobby),sx=x===0?1:18;
-   assert.equal(definition.walls[y][x],0);assert.equal(definition.walls[4][x],1);assert.equal(definition.walls[7][x],1);
-   place(sx,4);assert.throws(()=>act('move',{direction}),/blocked/);
+   assert.equal(definition.walls[y][x],0);assert.equal(definition.walls[11][x],1);assert.equal(definition.walls[14][x],1);
+   place(sx,11);assert.throws(()=>act('move',{direction}),/blocked/);
    place(sx,y);assert.throws(()=>act('hub_visit',{zone:lobby+'-'+kind}),/Walk through|Stand next/);
    const move=command('move',{direction,world_step:true}),entered=send(move);assert.equal(entered.zone,lobby+'-'+kind);assert.equal(entered.character.loadout.inventory.length,1);
    const retry=send(move);assert.equal(retry.zone,entered.zone);assert.deepEqual(retry.position,entered.position);assert.equal(c.worldTurnDue,undefined);

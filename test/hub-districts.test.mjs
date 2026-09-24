@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
 import {districtData,districtZone,monthlyWindow,generateDistrict,reachableDistrict,districtBlocked} from '../server/hub-districts.mjs';
+import {districtSize} from '../server/district-layouts.mjs';
 import {createQuestZones} from '../server/zones.mjs';
 import {hubPortals} from '../server/hubs.mjs';
 
@@ -17,7 +18,9 @@ test('monthly reset uses the first at 04:00 Pacific, including daylight-saving m
 test('300 monthly maps retain connected native scenery, accessible NPCs and safe exits',()=>{
  for(const def of districtData.districts)for(let n=0;n<100;n++){
   const window={edition:'seed-'+n,ends:n},f=generateDistrict(def,window),seen=reachableDistrict(f),occupied=new Set();
-  assert.equal(f.width,50);assert.equal(f.height,50);assert.ok(seen.has('49,25'));assert.equal(districtBlocked(f,48,25),false);
+  const size=districtSize(def,districtData),cy=Math.floor(size.height/2);assert.equal(f.width,size.width);assert.equal(f.height,size.height); // 50x50 by default; LittleBigCity is 60x60.
+  if(!def.lobby||def.lobby.gates?.east){assert.ok(seen.has((size.width-1)+','+cy));assert.equal(districtBlocked(f,size.width-2,cy),false);}else assert.equal(f.walls[cy][size.width-1],1,'a lobby town without an east gate keeps its east wall closed');
+  if(def.lobby?.storefronts){assert.equal(f.doorsteps.length,8,'one storefront per merchant');assert.ok(f.doorsteps.every(d=>seen.has(d.x+','+d.y)),'every doorstep is on reachable street');}
   assert.equal(f.fixtures.filter(p=>p.kind==='npc').length,def.npcs.length+(def.lobby?1:0));assert.ok(f.fixtures.filter(p=>p.kind==='scenery').length>=12); // A lobby town also hosts the Cursebreaker.
   for(const p of f.fixtures){for(let dy=0;dy<p.span_h;dy++)for(let dx=0;dx<p.span_w;dx++){
    const x=p.x+dx,y=p.y+dy,key=x+','+y;assert.equal(f.walls[y][x],0);assert.ok(!occupied.has(key));occupied.add(key);
@@ -40,14 +43,16 @@ test('district travel, monthly persistence, talks, shared chat and safe live rol
    if(!def.lobby){const gate=hubPortals(def.hub).find(p=>p.target===id);place(gate.side==='left'?1:18,gate.y+1);entered=act('move',{direction:gate.side==='left'?'west':'east'});} // Annex districts open from the left wall (Rose's Tundra gate is its right wall); a lobby town is where you already are.
    const map=entered.zones.find(z=>z.id===id);
    assert.equal(entered.zone,id);assert.equal(map.name,def.name);assert.deepEqual(entered.position,map.spawn);assert.ok(Buffer.byteLength(JSON.stringify(entered))<262144);
-   if(def.lobby)assert.ok(act('start').character.run,'the village is still the arena lobby');else assert.throws(()=>act('start'),/arena lobby/);
+   if(def.lobby){now+=60001;db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(now,c.id);assert.ok(act('start').character.run,'a lobby town is still the arena lobby');}else assert.throws(()=>act('start'),/arena lobby/); // One arena entry per minute per character; keep the presence lease fresh across the wait.
    if(def.lobby)act('flee');
    assert.throws(()=>act('hub_talk',{fixture:'npc-0'}),/Stand next/);
    const npc=map.fixtures.find(p=>p.id==='npc-0');place(npc.x,npc.y+1);act('hub_talk',{fixture:npc.id});assert.ok(c.hubNotice.includes(npc.line));
    act('chat',{text:'Meeting in '+def.name});const saved=JSON.stringify(map);
    setup();assert.equal(JSON.stringify(act('enter',{zone:def.hub}).zones.find(z=>z.id===id)),saved,'restart retains the materialized monthly edition');
-   assert.equal(c.loadout.inventory.length,1);place(48,25);
-   if(def.lobby){assert.equal(act('move',{direction:'east',world_step:true}).zone,'dive-desert');assert.deepEqual(act('dive_exit').position,{x:48,y:25});} /* The village's east gap is the Desert gate; leaving Dustbreak lands back beside it. */else assert.equal(act('move',{direction:'east'}).zone,def.hub);
+   assert.equal(c.loadout.inventory.length,1);const size=districtSize(def,districtData),cy=Math.floor(size.height/2);
+   if(def.lobby?.gates?.east){place(size.width-2,cy);assert.equal(act('move',{direction:'east',world_step:true}).zone,def.lobby.gates.east);assert.deepEqual(act('dive_exit').position,{x:size.width-2,y:cy});} /* A lobby town's east gap is a wilderness gate; leaving lands back beside it. */
+   else if(def.lobby?.gates?.west){place(1,cy);assert.equal(act('move',{direction:'west',world_step:true}).zone,def.lobby.gates.west);assert.deepEqual(act('dive_exit').position,{x:1,y:cy});}
+   else {place(size.width-2,cy);assert.equal(act('move',{direction:'east'}).zone,def.hub);}
    act('leave');
   }
   const hub='princess-rose',id=hub+'-garden';act('enter',{zone:hub});place(1,13);const old=act('move',{direction:'west'}).zones.find(z=>z.id===id);

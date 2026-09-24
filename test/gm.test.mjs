@@ -302,7 +302,7 @@ test('the overview reports live presence, rooms and totals',async()=>{
   assert.equal(view.players[0].zoneName,'Honeydew Village');
   assert.equal(view.zones.find(z=>z.id==='honeydew-lantern').players,1);
   assert.equal(view.zones.find(z=>z.id==='dive-desert').warp,false);
-  assert.ok(view.zones.find(z=>z.id==='littlebig-clockwork-shops').warp);
+  assert.ok(view.zones.find(z=>z.id==='princess-rose-shops').warp);
 
   h.advance(31000);
   assert.equal((await h.gm('/gm/overview')).body.totals.online,0);
@@ -396,11 +396,11 @@ test('a gamemaster can move a player between rooms but never into a dive',async(
   assert.equal((await h.act('warp',{owner,zone:'nowhere'})).body.error,'gm_unknown_zone');
   assert.equal((await h.act('warp',{owner,zone:'dive-desert'})).body.error,'gm_zone_not_warpable');
 
-  const moved=await h.act('warp',{owner,zone:'littlebig-clockwork-shops',reason:'stuck'});
-  assert.equal(moved.body.result.to,'Clockwork Market Hall');
+  const moved=await h.act('warp',{owner,zone:'princess-rose-shops',reason:'stuck'});
+  assert.equal(moved.body.result.to,'Rose Market Hall');
   const after=(await h.gm('/gm/overview')).body.players[0];
-  assert.deepEqual({zone:after.zone,x:after.x,y:after.y},{zone:'littlebig-clockwork-shops',x:20,y:21});
-  assert.equal((await h.ok(playerToken,'heartbeat')).zone,'littlebig-clockwork-shops');
+  assert.deepEqual({zone:after.zone,x:after.x,y:after.y},{zone:'princess-rose-shops',x:20,y:21});
+  assert.equal((await h.ok(playerToken,'heartbeat')).zone,'princess-rose-shops');
  }finally{await h.close();}
 });
 

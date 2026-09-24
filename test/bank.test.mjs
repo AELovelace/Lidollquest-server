@@ -14,12 +14,12 @@ test('personal bank: both halls, atomic replay, full storage/inventory, ownershi
  const place=()=>db.prepare('UPDATE quest_presence SET x=29,y=20 WHERE character_id=?').run(c.id);
  try{
   act('create',{name:'Alice'});const id=c.id;
-  act('enter',{zone:'littlebig-clockwork-shops',loadout:{player_info:{equipped_weapon:'iron_dagger'},inventory:[{item_id:'adult_food',name:'Food',custom:{quality:12}}]}});
+  act('enter',{zone:'princess-rose-shops',loadout:{player_info:{equipped_weapon:'iron_dagger'},inventory:[{item_id:'adult_food',name:'Food',custom:{quality:12}}]}});
   assert.throws(()=>act('bank_deposit',{fixture:'bank',slot:0}),/Stand next/);
   place();const deposit=command('bank_deposit',{fixture:'bank',slot:0}),saved=send(deposit);
   assert.equal(saved.bank.count,1);assert.equal(c.loadout.inventory.length,0);assert.equal(c.loadout.player_info.equipped_weapon,'iron_dagger');
   assert.equal(send(deposit).bank.count,1); // Same durable receipt never removes a second item.
-  start();let snapshot=act('enter',{zone:'littlebig-clockwork',loadout:{player_info:{},inventory:[]}});place();
+  start();let snapshot=act('enter',{zone:'princess-rose',loadout:{player_info:{},inventory:[]}});place();
   snapshot=zones.read(owner,id);assert.equal(snapshot.bank.count,1);assert.equal(snapshot.bank.items[0].item.custom.quality,12);
   const stored=snapshot.bank.items[0];const withdraw=command('bank_withdraw',{fixture:'bank',bank_item:stored.id});
   send(withdraw);send(withdraw);assert.equal(c.loadout.inventory.length,1);
@@ -36,14 +36,14 @@ test('personal bank: both halls, atomic replay, full storage/inventory, ownershi
   assert.equal(zones.read(owner,id).bank.count,512);
   act('loadout',{loadout:{player_info:{},inventory:[]}});act('bank_withdraw',{fixture:'bank',bank_item:'stored-0'});
   assert.equal(act('bank_deposit',{fixture:'bank',slot:0}).bank.count,512); // The last available storage slot works.
-  act('hub_visit',{zone:'littlebig-clockwork'});act('leave');
-  act('enter',{zone:'princess-rose-shops'});place();assert.equal(zones.read(owner,id).bank.items.length,16);
+  act('hub_visit',{zone:'princess-rose'});act('leave');
+  act('enter',{zone:'princess-rose-shops'});place(); // Rose's Market Hall is the last bank counter; LittleBigCity's stores have none (its bank stands in the street).place();assert.equal(zones.read(owner,id).bank.items.length,16);
   const last=act('bank_page',{fixture:'bank',page:31});assert.equal(last.bank.count,512);assert.equal(last.bank.items.length,16);
   assert.equal(last.bank.items[0].item.custom,497); // Stable order after removing stored-0 and depositing it again at the end.
   assert.throws(()=>act('bank_page',{fixture:'bank',page:32}),/available bank page/);
-  const alice=c;act('leave');act('create',{name:'Alt'});act('enter',{zone:'littlebig-clockwork-shops',loadout:{player_info:{},inventory:[]}});place();
+  const alice=c;act('leave');act('create',{name:'Alt'});act('enter',{zone:'princess-rose-shops',loadout:{player_info:{},inventory:[]}});place();
   assert.equal(zones.read(owner,c.id).bank.count,0);assert.throws(()=>act('bank_withdraw',{fixture:'bank',bank_item:'stored-1'}),/no longer/);
-  owner='bob';act('create',{name:'Bob'});act('enter',{zone:'littlebig-clockwork-shops',loadout:{player_info:{},inventory:[]}});place();
+  owner='bob';act('create',{name:'Bob'});act('enter',{zone:'princess-rose-shops',loadout:{player_info:{},inventory:[]}});place();
   assert.equal(zones.read(owner,c.id).bank.count,0);assert.throws(()=>zones.read(owner,alice.id),e=>e.status===404);
   assert.throws(()=>act('bank_deposit',{character_id:alice.id,fixture:'bank',slot:0}),e=>e.status===404);
  }finally{db.close();}

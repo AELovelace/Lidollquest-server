@@ -13,14 +13,14 @@ test('Quarters entry belongs only to Rose; retired hub entries resume and return
  const expected={
   'princess-rose':['dive-quarters','dive-dungeon'], // Frostveil opens from the Rose garden wall, so its hall lists no Tundra gap.
   'honeydew-lantern':['dive-nursery','dive-school','dive-forest'], // The village's Tundra and Desert gates are in its own walls, so its Community Hall lists only pads.
-  'littlebig-clockwork':['dive-desert','dive-mansion','dive-hospital'],
+  'littlebig-clockwork':['dive-mansion','dive-hospital'], // LittleBigCity's Desert gate is in its own west wall.
  };
  try{
   act('create',{name:'Alice'});
   for(const hub of ['honeydew-lantern','littlebig-clockwork','princess-rose']){
    act('enter',{zone:hub,loadout:{player_info:{playerHealth:50},inventory:[{item_id:'adult_food'}]}});
    if(hub!=='princess-rose')for(const action of ['enter','dive_enter'])assert.throws(()=>act(action,{zone:'dive-quarters'}),/glowing portal/);
-   place(...(hub==='honeydew-lantern'?[25,25]:[9,0]));const hall=act('hub_visit',{zone:hub+'-dives'}),pads=hall.zones.find(z=>z.id===hall.zone).portals;
+   place(...(hub==='honeydew-lantern'?[25,25]:hub==='littlebig-clockwork'?[33,29]:[9,0]));const hall=act('hub_visit',{zone:hub+'-dives'}),pads=hall.zones.find(z=>z.id===hall.zone).portals;
    assert.deepEqual(pads.map(p=>p.target),expected[hub]);
    place(6,4);
    if(hub==='princess-rose'){
@@ -29,7 +29,7 @@ test('Quarters entry belongs only to Rose; retired hub entries resume and return
    }else{
     for(const action of ['enter','dive_enter'])assert.throws(()=>act(action,{zone:'dive-quarters'}),/glowing portal/);
     assert.throws(()=>act('dive_enter'),/glowing portal/); // Older clients cannot bypass the revised destination list.
-    const desert=pads.find(p=>p.target==='dive-desert');if(hub==='littlebig-clockwork')assert.deepEqual([desert.x,desert.y,desert.side],[0,5,'left']);else assert.equal(desert,undefined); // Desert opens through LittleBig's hall west wall and Honeydew Village's own east wall.
+    assert.equal(pads.find(p=>p.target==='dive-desert'),undefined); // Desert opens through Honeydew Village's east wall and LittleBigCity's west wall, never a hall.
    }
    place(10,9);act('hub_visit',{zone:hub});act('leave');
   }

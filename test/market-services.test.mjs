@@ -10,7 +10,7 @@ import {createQuestService} from '../server/service.mjs';
 import {removeCursedGear} from '../server/curse-removal.mjs';
 
 test('all three enlarged markets have clear stairs and reachable services with valid full scenery footprints',()=>{
- for(const z of hubRooms.filter(z=>z.kind==='shops')){
+ for(const z of hubRooms.filter(z=>z.kind==='shops'&&!z.store)){ // Rose Court's Market Hall; LittleBigCity's stores are covered in littlebig-city.test.mjs.
   assert.deepEqual([z.width,z.height],[40,24]);
   assert.equal(z.fixtures.filter(f=>f.kind==='shop').length,8);
   assert.equal(z.fixtures.filter(f=>f.service==='curse_remove'&&f.price===20).length,1);
@@ -88,7 +88,7 @@ test('20-coin curse debit survives a lost reply and service restart with one rem
  const send=async body=>{const r=await fetch(url+'/zones/action',{method:'POST',headers:{Authorization:'Bearer '+'a'.repeat(43),'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await r.json();assert.equal(r.status,200,JSON.stringify(data));c=data.character;return data;};
  const body=(action,extra={})=>({action,character_id:c?.id,revision:c?.revision,controller:'a',request_id:randomUUID(),...extra});
  await start();try{
-  await send(body('create',{name:'Cursed'}));await send(body('enter',{zone:'littlebig-clockwork-shops',loadout:loadout()}));
+  await send(body('create',{name:'Cursed'}));await send(body('enter',{zone:'princess-rose-shops',loadout:loadout()}));
   service.db.prepare('UPDATE quest_presence SET x=9,y=21 WHERE character_id=?').run(c.id);
   const request=body('curse_remove',{fixture:'curse-remover',slot:'head',item_id:gear.item_id});await send(request);
   assert.equal(balance,20);assert.ok(c.pendingPurchase);assert.equal(c.loadout.player_info.equipped_head,gear.item_id);

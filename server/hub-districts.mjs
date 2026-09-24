@@ -1,5 +1,5 @@
 import {addDistrictResidents,moveDistrictResidents} from './district-residents.mjs';
-import {districtLayout} from './district-layouts.mjs';
+import {districtLayout,districtSize,entryStrip,westStrip} from './district-layouts.mjs';
 import {readFileSync} from 'node:fs';
 import {seeded} from './dive-generation.mjs';
 
@@ -27,24 +27,48 @@ export function reachableDistrict(f){
  for(let n=0;n<queue.length;n++){const p=queue[n],key=p.x+','+p.y;if(seen.has(key)||p.x<0||p.y<0||p.x>=f.width||p.y>=f.height||f.walls[p.y][p.x]||blocked.has(key))continue;seen.add(key);queue.push({x:p.x-1,y:p.y},{x:p.x+1,y:p.y},{x:p.x,y:p.y-1},{x:p.x,y:p.y+1});}
  return seen;
 }
+export const storeSlug=shop=>String(shop.name??shop.id).toLowerCase().replace(/[^a-z0-9]+/g,'-'); // "Mira" -> mira: the tail of a store room id (littlebig-clockwork-store-mira).
 export function generateDistrict(definition,window,data=districtData){
- const {width,height}=data;if(width!==50||height!==50||!Number.isInteger(data.scenery_count)||data.scenery_count<12||data.scenery_count>100)throw Error('Monthly districts require 50x50 maps and 12-100 scenery pieces.');
- const rnd=seeded(`${definition.hub}:${window.edition}:district:${data.version}`),layout=districtLayout(definition,rnd);
+ const {width,height}=districtSize(definition,data);if(![width,height].every(n=>Number.isInteger(n)&&n>=40&&n<=80)||!Number.isInteger(data.scenery_count)||data.scenery_count<12||data.scenery_count>100)throw Error('Monthly districts require 40-80 tile maps and 12-100 scenery pieces.');
+ const cx=Math.floor(width/2),cy=Math.floor(height/2),east=entryStrip(width,height),west=westStrip(height);
+ const rnd=seeded(`${definition.hub}:${window.edition}:district:${data.version}`),layout=districtLayout(definition,rnd,data);
  const {protectedCells,paths,...geometry}=layout;
- const lobby=definition.lobby??null; // Set when this district IS its hub's lobby (Honeydew Village): the town has a west gate, civic buildings and the hub's merchants.
- const f={...geometry,width,height,name:definition.name,spawn:lobby?{...lobby.spawn}:{x:48,y:25},exit:lobby?{...lobby.stairs,style:'stairs'}:{x:49,y:24,w:1,h:2,style:'gap',side:'right'},district:{edition:window.edition,layoutVersion:data.version,layoutKey:`${window.edition}:v${data.version}`,resetsAt:window.ends,style:definition.style,tileset:definition.tileset,source:definition.source_zone,model:{castle:'bsp-rooms',market:'woodland-clearings',nightlife:'city-blocks'}[definition.style],routeCount:paths.length,lobby:!!lobby},fixtures:[]}; // A lobby town's exit is its campaign stairs; an annex district's exit is the east gap back to the lobby.
- const occupied=new Set(),safe=p=>p.x>=42&&p.y>=22&&p.y<=27||(lobby&&p.x<=7&&p.y>=22&&p.y<=27); // Entry strips beside the east gate (and a lobby town's west gate) stay clear.
+ const lobby=definition.lobby??null; // Set when this district IS its hub's lobby (Honeydew Village, LittleBigCity): gates in its own walls, civic buildings, and the hub's merchants in the town or in storefronts.
+ const f={...geometry,width,height,name:definition.name,spawn:lobby?{...lobby.spawn}:{x:width-2,y:cy},exit:lobby?{...lobby.stairs,style:'stairs'}:{x:width-1,y:cy-1,w:1,h:2,style:'gap',side:'right'},district:{edition:window.edition,layoutVersion:data.version,layoutKey:`${window.edition}:v${data.version}`,resetsAt:window.ends,style:definition.style,tileset:definition.tileset,source:definition.source_zone,model:{castle:'bsp-rooms',market:'woodland-clearings',nightlife:'city-blocks'}[definition.style],routeCount:paths.length,lobby:!!lobby},fixtures:[],doorsteps:[]}; // A lobby town's exit is its campaign stairs; an annex district's exit is the east gap back to the lobby. doorsteps: storefront portals generated with the street plan.
+ const inStrip=(p,strip)=>p.x>=strip.x&&p.x<strip.x+strip.w&&p.y>=strip.y&&p.y<strip.y+strip.h;
+ const occupied=new Set(),safe=p=>inStrip(p,{...east,w:width-east.x})||(lobby&&inStrip(p,west)); // Entry strips beside the east gate (and a lobby town's west gate) stay clear.
  if(definition.dormitory){ // Beds are fixed fixtures: the same tiles every month, reachable from the entrance in a few steps.
-  const d=definition.dormitory;if(!(d.w>=9&&d.h>=6&&d.x>=1&&d.y>=1&&d.x+d.w<=48&&d.y+d.h<=21&&d.door.x>=d.x&&d.door.x<d.x+d.w))throw Error('District dormitory must be at least 9x6, sit above the entry area and own its doorway');
+  const d=definition.dormitory;if(!(d.w>=9&&d.h>=6&&d.x>=1&&d.y>=1&&d.x+d.w<=width-2&&d.y+d.h<=east.y-1&&d.door.x>=d.x&&d.door.x<d.x+d.w))throw Error('District dormitory must be at least 9x6, sit above the entry area and own its doorway');
   for(const bed of dormitoryBeds(d)){f.fixtures.push(bed);for(const c of footprint(bed))occupied.add(c.x+','+c.y);}
  }
- for(const b of lobby?.buildings??[]){const facade={id:b.id,kind:'scenery',name:'',sprite:b.sprite,x:b.x,y:b.y,span_w:b.span_w,span_h:b.span_h,solid:true};f.fixtures.push(facade);for(const c of footprint(facade))occupied.add(c.x+','+c.y);} // Community Hall and Inn facades: solid props on the village square whose doorsteps are lobby portals (hubs.mjs TOWN_PORTALS).
+ for(const b of lobby?.buildings??[]){const facade={id:b.id,kind:'scenery',name:'',sprite:b.sprite,x:b.x,y:b.y,span_w:b.span_w,span_h:b.span_h,solid:true};f.fixtures.push(facade);for(const c of footprint(facade))occupied.add(c.x+','+c.y);} // Plaza buildings (Community Hall / Inn, Coliseum / Inn): solid props whose doorsteps are lobby portals (hubs.mjs lobbyPortals).
+ if(lobby?.storefronts){ // LittleBigCity: every merchant gets a storefront on a city-block facade, its doorstep on the sidewalk below (south face) or above (north face). Blocks change monthly, so the doors do too.
+  const sf=lobby.storefronts,stores=shopFixtures(),blocks=f.blocks.filter(b=>b.kind==='city_block').map(b=>({...b,d:Math.hypot(b.cx-cx,b.cy-cy)})).sort((a,b)=>a.d-b.d); // Nearest blocks to the plaza first: the shopping streets ring the centre.
+  const slots=[];
+  for(const b of blocks)for(const face of ['south','north']){ // Two facades per face at most, so the shops spread along several streets.
+   const fy=face==='south'?b.y+b.h-sf.span_h:b.y,dy=face==='south'?b.y+b.h:b.y-1;
+   for(let x=b.x;x+sf.span_w<=b.x+b.w&&slots.filter(s=>s.block===b&&s.face===face).length<2;x+=sf.span_w+1){
+    const cells=[];for(let yy=fy;yy<fy+sf.span_h;yy++)for(let xx=x;xx<x+sf.span_w;xx++)cells.push({x:xx,y:yy});
+    const doorstep={x:x+Math.floor(sf.span_w/2),y:dy},arrival={x:doorstep.x,y:face==='south'?dy+1:dy-1};
+    if(cells.some(c=>c.x<1||c.y<1||c.x>=width-1||c.y>=height-1||!f.walls[c.y][c.x]||occupied.has(c.x+','+c.y)))continue; // The facade replaces solid building mass only.
+    if([doorstep,arrival].some(p=>p.x<1||p.y<1||p.x>=width-1||p.y>=height-1||f.walls[p.y][p.x]||occupied.has(p.x+','+p.y)||safe(p)||f.doorsteps.some(d=>Math.abs(d.x-p.x)+Math.abs(d.y-p.y)<2)))continue; // Doorstep and arrival must already be street.
+    slots.push({block:b,face,x,fy,doorstep,arrival,cells});
+   }
+  }
+  if(slots.length<stores.length)throw Error('Not enough building facades for the '+stores.length+' storefronts in '+definition.name);
+  stores.forEach((shop,i)=>{const slot=slots[i],slug=storeSlug(shop);
+   for(const c of slot.cells){f.walls[c.y][c.x]=0;f.floors[c.y][c.x]=f.floors[slot.arrival.y][slot.arrival.x];f.wallTiles[c.y][c.x]=0;occupied.add(c.x+','+c.y);} // The facade footprint becomes floor covered by the solid storefront sprite, like the plaza buildings.
+   f.fixtures.push({id:'store-'+slug,kind:'scenery',name:'',sprite:sf.sprite,x:slot.x,y:slot.fy,span_w:sf.span_w,span_h:sf.span_h,solid:true});
+   for(const p of [slot.doorstep,slot.arrival]){protectedCells.add(p.x+','+p.y);occupied.add(p.x+','+p.y);} // Nothing may ever stand on a doorstep or its arrival tile.
+   f.doorsteps.push({x:slot.doorstep.x,y:slot.doorstep.y,name:shop.name+"'s Store",target:definition.hub+'-store-'+slug,style:'door',threshold:true,shop:shop.id});
+  });
+ }
  function place(profile,index,kind='scenery'){
   const npc=kind!=='scenery',fixed=kind==='npc'&&index===0&&!profile.id; // The first greeter always stands at the east entry.
   for(let tries=0;tries<500;tries++){
    const region=f.rooms[(index+Math.floor(tries/20))%f.rooms.length];
-   let x=2+rnd(45),y=2+rnd(45);
-   if(fixed){x=44;y=23;}
+   let x=2+rnd(width-5),y=2+rnd(height-5);
+   if(fixed){x=width-6;y=cy-2;}
    else if(tries<300&&(definition.style!=='nightlife'||npc||index%4===0)){
     if(region.r){x=region.cx-region.r+1+rnd(Math.max(1,2*region.r-1));y=region.cy-region.r+1+rnd(Math.max(1,2*region.r-1));}
     else {x=region.x+rnd(Math.max(1,region.w-(profile.span_w??1)+1));y=region.y+rnd(Math.max(1,region.h-(profile.span_h??1)+1));
@@ -53,7 +77,7 @@ export function generateDistrict(definition,window,data=districtData){
    }
    const p={...profile,x,y,id:profile.id??(npc?'npc-':'scenery-')+index,kind,name:profile.name??'',span_w:profile.span_w??1,span_h:profile.span_h??1}; // Merchants and services keep their authored IDs (objNPCMerchant, bank, ...); greeters and scenery are numbered.
    const cells=footprint(p);
-   if(cells.some(c=>c.x<1||c.y<1||c.x>=48||c.y>=48||f.walls[c.y][c.x]||occupied.has(c.x+','+c.y)))continue;
+   if(cells.some(c=>c.x<1||c.y<1||c.x>=width-2||c.y>=height-2||f.walls[c.y][c.x]||occupied.has(c.x+','+c.y)))continue;
    if(!fixed&&cells.some(c=>safe(c)||protectedCells.has(c.x+','+c.y)))continue;
    f.fixtures.push(p);const seen=reachableDistrict(f),count=f.walls.flat().filter(v=>v===0).length-new Set(f.fixtures.filter(p=>p.solid!==false).flatMap(footprint).map(p=>p.x+','+p.y)).size;
    if(seen.size!==count||f.fixtures.some(n=>SERVICE_KINDS.includes(n.kind)&&![[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>seen.has((n.x+dx)+','+(n.y+dy))))){f.fixtures.pop();continue;} // Every person, counter, bank and bin keeps a free tile beside it.
@@ -61,7 +85,7 @@ export function generateDistrict(definition,window,data=districtData){
   }return false;
  }
  definition.npcs.filter(npc=>!npc.roaming).forEach((npc,i)=>{if(!place({...npc,solid:true},i,'npc'))throw Error('No reachable place for district NPC');});
- if(lobby)[...shopFixtures(),...marketServices()].forEach((service,i)=>{if(!place({...service,solid:true},i+1,service.kind))throw Error('No reachable place for '+service.name+' in '+definition.name);}); // The merchants, bank, dumpster and Cursebreaker that other hubs keep in a Market Hall stand around the village instead, one clearing after another.
+ if(lobby)[...(lobby.storefronts?[]:shopFixtures()),...marketServices()].forEach((service,i)=>{if(!place({...service,solid:true},i+1,service.kind))throw Error('No reachable place for '+service.name+' in '+definition.name);}); // The bank, dumpster and Cursebreaker (and, without storefronts, the merchants too) stand in the town, one clearing after another.
  // Building mass now comes from LittleBig City's block topology; freestanding facade sprites must not occupy its streets.
  const profiles=definition.scenery.filter(p=>definition.style!=='nightlife'||!p.sprite.includes('Facade'));
  for(let i=0;i<data.scenery_count;i++)place(profiles[rnd(profiles.length)],i);
