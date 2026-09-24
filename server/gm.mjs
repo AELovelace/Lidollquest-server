@@ -12,7 +12,7 @@ const HUB_SPAWN={x:10,y:9}; // hubDefinition() falls back to this same tile when
 const KINDS=Object.freeze(['mute','suspend']); // The only two sanctions a gamemaster can place on an account.
 const CONTROL=/[\x00-\x1f\x7f]/g; // Stripped from every stored string so no reason or announcement can smuggle in line breaks.
 const SIGNIN_SCOPE='wallet:read'; // The panel needs identity alone: no balance changes, saves, social data or character access.
-const panelPage=readFileSync(new URL('./gm-panel.html',import.meta.url),'utf8').replace('<!-- GM_GUIDE -->',()=>readFileSync(new URL('./gm-guide.html',import.meta.url),'utf8')).replace('/* GM_GUIDE_SCRIPT */',()=>readFileSync(new URL('./gm-guide.js',import.meta.url),'utf8')).replace('/* WORLD_PANEL */',()=>readFileSync(new URL('./gm-world-panel.js',import.meta.url),'utf8').replace('/* MONSTER_EDITOR */',()=>readFileSync(new URL('./gm-monster-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-quest-editor.js',import.meta.url),'utf8'))); // Read once at boot so a moderation click never touches the disk.
+const panelPage=readFileSync(new URL('./gm-panel.html',import.meta.url),'utf8').replace('<!-- GM_GUIDE -->',()=>readFileSync(new URL('./gm-guide.html',import.meta.url),'utf8')).replace('/* GM_GUIDE_SCRIPT */',()=>readFileSync(new URL('./gm-guide.js',import.meta.url),'utf8')).replace('/* WORLD_PANEL */',()=>readFileSync(new URL('./gm-world-panel.js',import.meta.url),'utf8').replace('/* MONSTER_EDITOR */',()=>readFileSync(new URL('./gm-monster-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-quest-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-orb-editor.js',import.meta.url),'utf8'))); // Read once at boot so a moderation click never touches the disk.
 
 export const gmZones=Object.freeze([
  {id:'global:ooc',name:'Global chat (OOC)',kind:'chat',category:null,warp:false}, // Staff can review and remove global messages through the existing chat tools.
@@ -22,6 +22,8 @@ export const gmZones=Object.freeze([
  {id:'dive-desert',category:ZONE_CATEGORY.OVERWORLD,name:'Dustbreak Desert',kind:'dive',warp:false},
  {id:'dive-taiga',category:ZONE_CATEGORY.OVERWORLD,name:'Frostveil Taiga',kind:'dive',warp:false},
  {id:'dive-high-desert',category:ZONE_CATEGORY.OVERWORLD,name:'Dustbreak High Desert',kind:'dive',warp:false},
+ {id:'dive-haunted-woods',category:ZONE_CATEGORY.OVERWORLD,name:'Haunted Woods',kind:'dive',warp:false},
+ {id:'dive-spooky-mansion',category:ZONE_CATEGORY.OVERWORLD,name:'Spooky Mansion',kind:'dive',warp:false},
  {id:'dive-tundra',category:ZONE_CATEGORY.OVERWORLD,name:'Frostveil Tundra',kind:'dive',warp:false},
  ...campaignDives.map(({config})=>({id:config.zone_id,name:config.name,kind:'dive',category:routeCategory(config),warp:false})),
 ].map(Object.freeze)); // Dives are shared weekly floors whose visits the Dive engine owns, so the web panel's `warp` never targets them (in-game GM warps use gmPlace()).
@@ -462,7 +464,7 @@ export function createGameMasterPanel(db,{walletClient,announcements=null,live=n
    if(url.pathname==='/gm/action'&&req.method==='POST'){
     const input=await body(req,1300000);
     if(live&&/^(content_|world_|art_)/.test(input?.action??'')){
-     db.exec('BEGIN IMMEDIATE');try{const result=live.once(input,who,()=>{let result;if(['content_save','content_publish','content_rollback'].includes(input.action))result=live.change(input,who);else if(input.action==='art_upload')result=live.putAsset(input);else if(['art_generate','art_retry','art_cancel','art_approve','art_assign'].includes(input.action))result=artJobs.act(input,who);else if(['world_place','world_remove','world_regenerate','world_cancel','world_place_content','world_remove_content'].includes(input.action))result=world().act(input);else fail(400,'Unknown world action.');record(who,input.action,input.id??input.zone??result.id,{reason:clean(input.reason,240),revision:result.revision??null});return result;});db.exec('COMMIT');return send(200,{ok:true,result});}catch(e){db.exec('ROLLBACK');live.invalidate();throw e;}
+     db.exec('BEGIN IMMEDIATE');try{const result=live.once(input,who,()=>{let result;if(['content_save','content_publish','content_rollback'].includes(input.action))result=live.change(input,who);else if(input.action==='art_upload')result=live.putAsset(input);else if(['art_generate','art_retry','art_cancel','art_approve','art_assign'].includes(input.action))result=artJobs.act(input,who);else if(['world_place','world_remove','world_regenerate','world_cancel','world_place_content','world_remove_content','world_scatter_orbs'].includes(input.action))result=world().act(input);else fail(400,'Unknown world action.');record(who,input.action,input.id??input.zone??result.id,{reason:clean(input.reason,240),revision:result.revision??null});return result;});db.exec('COMMIT');return send(200,{ok:true,result});}catch(e){db.exec('ROLLBACK');live.invalidate();throw e;}
     }
     const handler=Object.hasOwn(actions,String(input?.action??''))?actions[input.action]:null; // Own-property lookup only, so no prototype key can be invoked as an action.
     if(!handler)return send(400,{error:'gm_unknown_action'});

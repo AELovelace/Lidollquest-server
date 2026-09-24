@@ -237,6 +237,7 @@ export function createLootStore(db,{now=Date.now}={}){
   const titles=overrides.legendary_titles??base?.legendary_titles??[];
   delete overrides.legendary_titles;
   const table={tuning:{...(base?.tuning??{}),...overrides},affixes:[...(base?.affixes??[])],legendary_titles:[...titles]};
+  for(const band of ['zone_levels','route_levels','shop_levels'])if(overrides[band]&&base?.tuning?.[band])table.tuning[band]={...base.tuning[band],...overrides[band]}; // Band tables merge row by row: a saved override keeps its edits while newly shipped routes (e.g. haunted-woods) still get their authored band.
   for(const row of affixRows()){
    const i=table.affixes.findIndex(a=>a.id===row.id);
    if(i>=0)table.affixes.splice(i,1); // drop the shipped copy first

@@ -1,7 +1,7 @@
 import {movementDelay} from './crawl.mjs';
 import {createDiveControls} from './world-dive.mjs';
 import {createDiveEncounters} from './dive-encounters.mjs';
-import {generateDesert} from './desert-generation.mjs';
+import {generatorName} from './compute-tasks.mjs'; // Maps a generator function to the name the worker pool understands.
 import {addPinkMist,mistAt} from './dive-mist.mjs';
 import {createDiveLootRoller} from './dive-loot.mjs';
 import {createEnchantmentStore} from './enchantment-store.mjs';
@@ -48,7 +48,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const week=config.static&&newest?newest.slice(0,10):weeklyWindow(now()).edition; // Static routes stay pinned to their newest floor's week instead of the calendar week.
   return controls&&db.prepare('SELECT edition FROM world_routes WHERE route=? AND week=?').get(route,week)?.edition||newest; // A gamemaster regeneration for that week wins over the automatic floor.
  };
- const controls=live?createDiveControls(db,{now,data,live,current,getFloor,saveFloor,saveCharacter,entry,generate,compute,generator:generate===generateDesert?'desert':'rooms',upgradeFloor:floor=>{upgradeFloor(floor);addPinkMist(floor);}}):null;
+ const controls=live?createDiveControls(db,{now,data,live,current,getFloor,saveFloor,saveCharacter,entry,generate,compute,generator:generatorName(generate)??'rooms',upgradeFloor:floor=>{upgradeFloor(floor);addPinkMist(floor);}}):null;
  function saveFloor(record){const content=measure('floor.encode',()=>JSON.stringify(record.floor));measure('floor.write',()=>db.prepare('UPDATE dive_editions SET content=?,updated=? WHERE route=? AND edition=? AND depth=1').run(content,record.updated,route,record.edition));}
  function progress(c,edition){const row=db.prepare('SELECT state FROM dive_progress WHERE character_id=? AND route=? AND edition=? AND depth=1').get(c.id,route,edition);return row?JSON.parse(row.state):{claimed:[],rolls:{},explored:[],completed:false,coinsPaid:0};}
  function saveProgress(c,edition,p){db.prepare('INSERT INTO dive_progress VALUES (?,?,?,1,?) ON CONFLICT(character_id,route,edition,depth) DO UPDATE SET state=excluded.state').run(c.id,route,edition,JSON.stringify(p));}
@@ -77,8 +77,8 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const generationData=clone(data),generationRevision=data.contentRevision;
   const install=floor=>{if(live&&live.published().revision!==generationRevision)return;if(live)for(const foe of floor.enemies)foe.definition=clone(generationData.enemies[foe.type]);if(closed||weeklyWindow(now()).edition!==window.edition)return;upgradeFloor(floor);addPinkMist(floor);live?.mapReady?.(zoneId,window.edition,floor);db.prepare('INSERT OR IGNORE INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(route,window.edition,window.start,window.ends,JSON.stringify(floor),now());log('dive_generation_ready',route,window.edition);};
   const failed=error=>{if(closed)return;retryAt=now()+minutes;log('dive_generation_failed',route,String(error));};
-  if(compute&&(generate===generateFloor||generate===generateDesert)){
-   generationPending=compute.submit('generate',{generator:generate===generateDesert?'desert':'rooms',data:generationData,edition:window.edition}).then(install).catch(failed).finally(()=>{generationPending=null;});return generationPending;
+  if(compute&&generatorName(generate)){ // Named generators (rooms, desert, forest) run on the worker pool.
+   generationPending=compute.submit('generate',{generator:generatorName(generate),data:generationData,edition:window.edition}).then(install).catch(failed).finally(()=>{generationPending=null;});return generationPending;
   }
   try{install(measure('generate.'+zoneId,()=>generate(generationData,window.edition)));}catch(error){failed(error);}
  } // Never replace a valid edition until its successor is fully generated and validated.

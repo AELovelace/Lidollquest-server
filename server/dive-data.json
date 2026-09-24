@@ -20830,6 +20830,14 @@
           "base": 48,
           "per_floor": 3
         },
+        "haunted-woods": {
+          "base": 52,
+          "per_floor": 3
+        },
+        "spooky-mansion": {
+          "base": 56,
+          "per_floor": 3
+        },
         "dive-school": {
           "base": 72,
           "per_floor": 2

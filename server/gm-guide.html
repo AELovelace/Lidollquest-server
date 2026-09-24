@@ -137,12 +137,29 @@
           <li><strong>Interaction object:</strong> enter a target ID, name, and sprite. Use it with an interact objective.</li>
           <li><strong>Location objective:</strong> enter a target ID and name. Use it with a visit objective; the player steps onto its marker.</li>
           <li><strong>Monster:</strong> select a published monster. See Monsters and live encounters for spawn behavior.</li>
+          <li><strong>Story orb:</strong> select a published orb from the Story Orbs tab. It glows in its own colour and plays its pages when a player presses E beside it.</li>
         </ul>
         <p>For tokens and objects, Object / token sprite offers shipped icons and managed artwork; Upload sprite PNG adds your own single-image artwork. The preview is 32×32. Choosing artwork does not change the objective target ID.</p>
         <p><strong>Persistent</strong> placements survive map replacement and relocate to reachable tiles if necessary. <strong>Current map only</strong> placements expire with that map. Use persistent for ordinary quests. If an expiring placement would strand active quests, replacement is blocked until you provide a persistent replacement or explicitly fail the affected quests.</p>
         <p>Walls, entrances, fixtures, occupants, and their protected nearby tiles cannot be used. “The map changed” means refresh the map and choose again. Remove mode removes a clicked placement; required objectives report affected quests and require a replacement or explicit failure decision.</p>
         <p><strong>You do not need to regenerate terrain just to place quest content.</strong> Regenerate Dive replaces the whole Dive and resets its treasure and boss rewards after confirmation. Existing fights and defeat scenes must finish first; use the displayed blockers or cancel regeneration.</p>
         <button type="button" data-gm-tool="world">Open Zones</button>
+      </article>
+      <article data-guide-id="orbs" tabindex="-1" hidden>
+        <h3>Story orbs: writing and scattering stories</h3>
+        <p>Story orbs are the online version of the campaign's glowing story orbs. A player stands on or beside one and presses <strong>E</strong>. The story box opens with your title, colours and pages. Orbs only tell a story. They never give items, change stats or start quests.</p>
+        <h4>1. Write the orb</h4>
+        <p>Open <strong>Story Orbs → New orb</strong>. Set a <strong>Stable ID</strong> (it cannot change after the first save) and a <strong>Title</strong>. Pick the <strong>Orb glow colour</strong> players see in the world and the <strong>Story box background</strong>. Write one or more pages. Each page can show a portrait. The Preview shows the colours and pages the way players will see them. <strong>Save draft</strong> keeps your work private. <strong>Publish</strong> makes it live, and orbs already placed update right away.</p>
+        <table><caption>Orb options</caption><thead><tr><th>Option</th><th>What it does</th></tr></thead><tbody>
+          <tr><td>Repeatable</td><td>Off (like the campaign's once-only orbs): the orb vanishes for that player after they read it. On: it stays lit and can be read again.</td></tr>
+          <tr><td>Must read first</td><td>The orb stays dark until the player has read the chosen orb. Chain several orbs this way to tell a story in order, like the Haunted Forest's ten-orb sequence.</td></tr>
+          <tr><td>Typewriter speed</td><td>How fast the text types out, from 1 (slow) to 10 (fast).</td></tr>
+          <tr><td>Retired</td><td>Hides the orb everywhere without deleting its placements. You cannot retire an orb that another orb waits for.</td></tr>
+        </tbody></table>
+        <h4>2. Put it in the world</h4>
+        <p><strong>One at a time:</strong> in Zones, pick placement kind <strong>Story orb</strong>, choose the orb, and click a free tile. <strong>Orb generator:</strong> at the bottom of Story Orbs, choose a zone and add orbs to the chain. <em>Add a whole "must read first" chain</em> adds every linked orb in reading order. Then click <strong>Scatter on map</strong>. The first orb lands near an entrance and the last one lands deepest in, spaced apart, just like the campaign. Persistent orbs move to the nearest free tile when a weekly map regenerates.</p>
+        <p><strong>Quests:</strong> reading an orb counts as an <code>interact</code> objective whose Target ID is the orb's Stable ID.</p>
+        <button type="button" data-gm-tool="orbs">Open Story Orbs</button>
       </article>
       <article data-guide-id="rewards" tabindex="-1" hidden>
         <h3>Rewards and consequences</h3>

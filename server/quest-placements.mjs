@@ -24,19 +24,36 @@ export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQues
  function act(input){
   const map=view(input.zone);if(input.revision!==map.revision||input.edition!==map.edition)fail('The map changed. Refresh before placing content.');
   if(input.action==='world_place'&&map.placements.some(p=>Math.abs(p.x-input.x)+Math.abs(p.y-input.y)<=1))fail('Choose a tile away from NPCs and quest objectives.');
-  if(!['world_place_content','world_remove_content'].includes(input.action))return base.act({...input,revision:map.baseRevision});
+  if(!['world_place_content','world_remove_content','world_scatter_orbs'].includes(input.action))return base.act({...input,revision:map.baseRevision});
   if(map.job)fail('Wait for regeneration to finish.');
+  if(input.action==='world_scatter_orbs'){ // The orb generator: spread an ordered chain across the map, first orb nearest the entrance and the last deepest in, like the campaign's orb sequences.
+   const list=Array.isArray(input.orbs)?input.orbs:[];if(!list.length||list.length>32||new Set(list).size!==list.length)fail('Choose one to 32 different orbs to scatter.');
+   if(rows(input.zone).length+list.length>128)fail('This zone would exceed 128 managed placements.');
+   const orbs=list.map(key=>{const o=live.published().orbs?.[key];if(!o||o.retired)fail('Publish every orb before scattering it.');return o;});
+   const occupied=[...obstacles(map.floor),...map.placements,...map.players],starts=[map.floor.entrance,...Object.values(map.floor.entries??{})].filter(Boolean);
+   const depth=new Map();{const queue=starts.map(p=>({x:p.x,y:p.y,d:0})),walk=new Set(tiles(map.floor).map(t=>t.x+','+t.y));for(const p of queue)depth.set(p.x+','+p.y,0);for(let i=0;i<queue.length;i++){const p=queue[i];for(const [dx,dy] of [[0,-1],[-1,0],[1,0],[0,1]]){const k=(p.x+dx)+','+(p.y+dy);if(walk.has(k)&&!depth.has(k)){depth.set(k,p.d+1);queue.push({x:p.x+dx,y:p.y+dy,d:p.d+1});}}}} // Walking distance from the nearest entrance.
+   const far=Math.max(1,...depth.values()),spread=Math.max(3,Math.floor(Math.sqrt(depth.size/(list.length+1))/2)),chosen=[];
+   orbs.forEach((o,i)=>{ // Orb i aims for the (i+1)/(n+1) band of walking distance, away from content, crowds and the other orbs.
+    const want=far*(i+1)/(list.length+1),candidates=tiles(map.floor).filter(t=>depth.has(t.x+','+t.y)&&![...occupied,...chosen].some(p=>Math.abs(p.x-t.x)+Math.abs(p.y-t.y)<=1)&&!chosen.some(p=>Math.abs(p.x-t.x)+Math.abs(p.y-t.y)<spread));
+    candidates.sort((a,b)=>Math.abs(depth.get(a.x+','+a.y)-want)-Math.abs(depth.get(b.x+','+b.y)-want)||parseInt(hash([o.id,a.x,a.y]).slice(0,8),16)-parseInt(hash([o.id,b.x,b.y]).slice(0,8),16)); // Nearest band first; a stable hash breaks ties so a retry lands on the same tiles.
+    const spot=candidates[0];if(!spot)fail('No free reachable tile left for '+o.title+'.');chosen.push(spot);
+    const p={id:'place-'+randomUUID(),zone:input.zone,kind:'orb',content:o.id,name:o.title,sprite:'',x:spot.x,y:spot.y,lifetime:input.lifetime==='temporary'?'temporary':'persistent',edition:map.edition,created:now()};
+    db.prepare('INSERT INTO world_placements VALUES (?,?,?)').run(p.id,p.zone,JSON.stringify(p));
+   });
+   return view(input.zone);
+  }
   if(input.action==='world_remove_content'){
    const p=map.placements.find(p=>p.id===input.placement);if(!p)fail('Placement no longer exists.');const blockers=affected(p);if(blockers.length){if(input.resolution!=='fail')fail('Active quests depend on this placement: '+blockers.map(q=>q.definition.name).join(', ')+'. Place a replacement or explicitly fail these quests.');failQuests(blockers);}
    db.prepare('DELETE FROM world_placements WHERE id=?').run(p.id);
   }else{
    if(rows(input.zone).length>=128)fail('This zone already has 128 managed placements.');
-   if(!['npc','interact','location','token'].includes(input.placement_kind))fail('Choose an NPC, object, location or token.');
+   if(!['npc','interact','location','token','orb'].includes(input.placement_kind))fail('Choose an NPC, object, location, token or story orb.');
+   const orb=input.placement_kind==='orb'?live.published().orbs?.[input.content]:null;if(input.placement_kind==='orb'&&(!orb||orb.retired))fail('Choose a published story orb.');
    const npc=input.placement_kind==='npc'?live.published().npcs[input.content]:null;if(input.placement_kind==='npc'&&(!npc||npc.retired))fail('Choose a published NPC.');
    const {x,y}=input;if(!tiles(map.floor).some(t=>t.x===x&&t.y===y)||[...obstacles(map.floor),...map.placements,...map.players].some(p=>Math.abs(p.x-x)+Math.abs(p.y-y)<=1))fail('Choose a reachable tile away from entrances, fixtures and occupants.');
    const key=String(input.content??'');if(!/^[a-z][a-z0-9_-]{1,79}$/.test(key))fail('Use a stable content/objective target ID.');
-   const sprite=npc?.sprite??live.assetRef(input.sprite??''); // Persist validated token/object artwork independently of monster definitions.
-   const p={id:'place-'+randomUUID(),zone:input.zone,kind:input.placement_kind,content:key,name:npc?.name??String(input.name??key).slice(0,100),sprite,x,y,lifetime:input.lifetime==='temporary'?'temporary':'persistent',edition:map.edition,created:now()};
+   const sprite=orb?'':npc?.sprite??live.assetRef(input.sprite??''); // Persist validated token/object artwork independently of monster definitions; orbs draw as glowing lights, not sprites.
+   const p={id:'place-'+randomUUID(),zone:input.zone,kind:input.placement_kind,content:key,name:orb?.title??npc?.name??String(input.name??key).slice(0,100),sprite,x,y,lifetime:input.lifetime==='temporary'?'temporary':'persistent',edition:map.edition,created:now()};
    db.prepare('INSERT INTO world_placements VALUES (?,?,?)').run(p.id,p.zone,JSON.stringify(p));
   }
   return view(input.zone);

@@ -166,7 +166,8 @@
         },
         "gates": {
           "west": "dive-tundra",
-          "east": "dive-desert"
+          "east": "dive-desert",
+          "north": "dive-haunted-woods"
         },
         "buildings": [
           {
