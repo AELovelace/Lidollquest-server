@@ -1,5 +1,5 @@
 import {addDistrictResidents,moveDistrictResidents} from './district-residents.mjs';
-import {districtLayout,districtSize,entryStrip,westStrip} from './district-layouts.mjs';
+import {districtLayout,districtSize,entryStrip,westStrip,northStrip} from './district-layouts.mjs';
 import {readFileSync} from 'node:fs';
 import {seeded} from './dive-generation.mjs';
 
@@ -40,7 +40,7 @@ export function generateDistrict(definition,window,data=districtData){
  const lobby=definition.lobby??null; // Set when this district IS its hub's lobby (Honeydew Village, LittleBigCity): gates in its own walls, civic buildings, and the hub's merchants in the town or in storefronts.
  const f={...geometry,width,height,name:definition.name,spawn:lobby?{...lobby.spawn}:{x:width-2,y:cy},exit:lobby?{...lobby.stairs,style:'stairs'}:{x:width-1,y:cy-1,w:1,h:2,style:'gap',side:'right'},district:{edition:window.edition,layoutVersion:data.version,layoutKey:`${window.edition}:v${data.version}`,resetsAt:window.ends,style:definition.style,tileset:definition.tileset,source:definition.source_zone,model:{castle:'bsp-rooms',market:'woodland-clearings',nightlife:'city-blocks'}[definition.style],routeCount:paths.length,lobby:!!lobby},fixtures:[],doorsteps:[]}; // A lobby town's exit is its campaign stairs; an annex district's exit is the east gap back to the lobby. doorsteps: storefront portals generated with the street plan.
  const inStrip=(p,strip)=>p.x>=strip.x&&p.x<strip.x+strip.w&&p.y>=strip.y&&p.y<strip.y+strip.h;
- const occupied=new Set(),safe=p=>inStrip(p,{...east,w:width-east.x})||(lobby&&inStrip(p,west)); // Entry strips beside the east gate (and a lobby town's west gate) stay clear.
+ const occupied=new Set(),safe=p=>inStrip(p,{...east,w:width-east.x})||(lobby&&inStrip(p,west))||(!!lobby?.gates?.north&&inStrip(p,northStrip(width))); // Entry strips beside the east gate (and a lobby town's west and north gates) stay clear.
  if(definition.dormitory){ // Beds are fixed fixtures: the same tiles every month, reachable from the entrance in a few steps.
   const d=definition.dormitory;if(!(d.w>=9&&d.h>=6&&d.x>=1&&d.y>=1&&d.x+d.w<=width-2&&d.y+d.h<=east.y-1&&d.door.x>=d.x&&d.door.x<d.x+d.w))throw Error('District dormitory must be at least 9x6, sit above the entry area and own its doorway');
   for(const bed of dormitoryBeds(d)){f.fixtures.push(bed);for(const c of footprint(bed))occupied.add(c.x+','+c.y);}

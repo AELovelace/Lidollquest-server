@@ -3,13 +3,13 @@ import {availableParallelism} from 'node:os';
 import {createComputePool,computeWorkerCount} from '../server/compute-pool.mjs';
 import {computeTask} from '../server/compute-tasks.mjs';
 import {diveData} from '../server/dive.mjs';
-import {desertData,tundraData,taigaData,highDesertData} from '../server/zones.mjs';
+import {desertData,tundraData,taigaData,highDesertData,hauntedWoodsData,spookyMansionData} from '../server/zones.mjs';
 import {campaignDives} from '../server/hubs.mjs';
 import {createQuestService} from '../server/service.mjs';
 
 const counts=(process.argv.find(value=>value.startsWith('--workers='))?.slice(10)??'0,1,2,4,6').split(',').map(value=>computeWorkerCount(value));
-const definitions=[diveData,desertData,tundraData,taigaData,highDesertData,...campaignDives];
-const generation=definitions.map(data=>({generator:[desertData,tundraData,taigaData,highDesertData].includes(data)?'desert':'rooms',data,edition:'2026-09-14'}));
+const definitions=[diveData,desertData,tundraData,taigaData,highDesertData,hauntedWoodsData,spookyMansionData,...campaignDives];
+const generation=definitions.map(data=>({generator:data===spookyMansionData?'mansion':data===hauntedWoodsData?'forest':[desertData,tundraData,taigaData,highDesertData].includes(data)?'desert':'rooms',data,edition:'2026-09-14'}));
 const floors=generation.map(input=>computeTask('generate',input));
 const batches=floors.map((floor,index)=>({floor:{width:floor.width,height:floor.height,walls:floor.walls,props:floor.props},starts:floor.enemies.map(e=>({x:e.x,y:e.y})),targets:floor.enemies.slice(0,16).map(e=>({x:e.x,y:e.y})),limit:definitions[index].config.pursuit_steps}));
 const round=value=>Math.round(value*100)/100,p95=values=>values.length?round([...values].sort((a,b)=>a-b)[Math.ceil(values.length*0.95)-1]):null;

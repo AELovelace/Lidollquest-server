@@ -25,7 +25,7 @@ test('every lobby connects to its shared annexes with 50x50 districts, six beds 
     if(portal.target.startsWith('dive-')){ // Rose Court's garden wall opens straight onto the Tundra where its Beds door used to be.
      const step=beside(portal,...size);place(step.x,step.y);const crossed=act('move',{direction:step.direction,world_step:true});
      assert.equal(crossed.zone,portal.target);assert.equal(c.loadout.inventory.length,1);assert.equal(c.dive.returnZone,lobby.id);
-     const home=act('dive_exit');assert.equal(home.zone,lobby.id);assert.deepEqual(home.position,{x:portal.side==='left'?portal.x+1:portal.x-1,y:portal.y+1}); // Back one tile inside the same lobby-wall gate (Rose: right wall; Honeydew: both walls).
+     const home=act('dive_exit');assert.equal(home.zone,lobby.id);assert.deepEqual(home.position,portal.side==='top'?{x:portal.x,y:portal.y+1}:{x:portal.side==='left'?portal.x+1:portal.x-1,y:portal.y+1}); // Back one tile inside the same lobby-wall gate (Rose: right wall; Honeydew: both side walls and the north wall).
      continue;
     }
     assert.throws(()=>act('hub_visit',{zone:portal.target}),/Stand next/);
