@@ -58,3 +58,29 @@ test('respawned enemies on a frozen map keep walking; the zone switch is live an
  }finally{f.close();}
 });
 const loadout={player_info:{class_id:'fighter',playerHealth:500,playerHealthMax:500,str:100,def:8,dex:8,int:20,cha:100,level:30,xp:0,stat_points:0},inventory:[],player_spells:[],player_mp:0,player_mp_max:0};
+
+test('wilderness routes: respawns keep walking, the explicit export trait thaws frozen copies, and a GM trait is followed per kind',()=>{
+ const db=new DatabaseSync(':memory:');let time=Date.parse('2026-09-16T12:00:00Z'),owner='alice';
+ const live=createWorldContent(db,{now:()=>time,spells:combatData.spells,equipment:{...hubData.equipment,...combatData.defeat_items},defeatEquipment:combatData.defeat_equipment});
+ const zones=createQuestZones(db,{now:()=>time,roll:()=>0,live,grant:()=>({owner,id:owner,client:'lidollquest'}),wallet:()=>({coins:0}),adjust:()=>{},diveOptions:{log:()=>{}},desertOptions:{log:()=>{}}});
+ let c;const act=(action,extra={})=>{time+=350;const s=zones.act('',{action,request_id:randomUUID(),controller:'w',character_id:c?.id,revision:c?.revision,...(c?.dive?{edition:c.dive.edition}:{}),...extra});c=s.character;return s;};
+ const record=()=>{const row=db.prepare("SELECT * FROM dive_editions WHERE route='dustbreak-crossing' AND depth=1 ORDER BY starts DESC LIMIT 1").get();return {...row,floor:JSON.parse(row.content)};};
+ const saveFloor=r=>db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=? AND depth=1').run(JSON.stringify(r.floor),r.route,r.edition);
+ const positions=()=>Object.fromEntries(record().floor.enemies.map(e=>[e.id,e.x+','+e.y]));
+ const ticks=n=>{for(let i=0;i<n;i++){time+=1001;db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(time,c.id);zones.tick();}};
+ const moved=(a,b)=>Object.keys(a).filter(id=>b[id]&&b[id]!==a[id]).length;
+ try{
+  live.change({action:'content_publish',kind:'zone',id:'dive-desert',revision:live.entry('zone','dive-desert').revision,entry:{...live.entry('zone','dive-desert').draft}},'dm'); // Published content turns reconcile on, as on the live service.
+  act('create',{name:'Alice'});act('enter',{zone:'honeydew-lantern',loadout:{player_info:{playerHealth:500,playerHealthMax:500,level:30},inventory:[]},combat_version:3,content_version:1,defeat_version:1});
+  db.prepare('UPDATE quest_presence SET x=48,y=25 WHERE character_id=?').run(c.id);act('move',{direction:'east',world_step:true});time+=15000;
+  assert.ok(record().floor.enemies.every(e=>e.roaming===true),'the wilderness generator marks every enemy as roaming');
+  const start=positions();ticks(6);assert.ok(moved(start,positions())>0,'Dustbreak enemies walk');
+  const r=record();for(const foe of r.floor.enemies){foe.dead=true;foe.diedAt=Date.parse('2026-09-16T12:00:00Z');foe.respawnAt=0;}saveFloor(r);time+=2*3600*1000;ticks(2);
+  assert.ok(record().floor.enemies.every(e=>!e.dead&&e.roaming===true),'respawns keep the roaming flag the generator gave them even though the export names no trait');
+  const frozen=record();for(const foe of frozen.floor.enemies)foe.roaming=false;saveFloor(frozen);ticks(2); // Copies frozen by the first repair pass in production.
+  assert.ok(record().floor.enemies.every(e=>e.roaming===true),'the explicit wilderness trait (roaming: true in the export) thaws every frozen enemy');
+  const kind=record().floor.enemies[0].type,draft=live.entry('monster',kind).draft;live.change({action:'content_publish',kind:'monster',id:kind,revision:live.entry('monster',kind).revision,entry:{...draft,roaming:false}},'dm'); // A gamemaster unticks Roams by default for one monster.
+  ticks(2);assert.ok(record().floor.enemies.filter(e=>e.type===kind).every(e=>e.roaming===false)&&record().floor.enemies.filter(e=>e.type!==kind).every(e=>e.roaming===true),'an explicit trait is followed either way, and only for that kind');
+  live.change({action:'content_publish',kind:'monster',id:kind,revision:live.entry('monster',kind).revision,entry:{...draft,roaming:true}},'dm');ticks(2);assert.ok(record().floor.enemies.every(e=>e.roaming===true));
+ }finally{zones.close();db.close();}
+});

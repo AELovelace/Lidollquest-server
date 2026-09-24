@@ -70,7 +70,8 @@
         "fear_pulse"
       ],
       "sprite": "sprDiaperFairyNew",
-      "battle_sprite": "sprFairy"
+      "battle_sprite": "sprFairy",
+      "roaming": true
     },
     "teddy_mimic": {
       "enemy_id": "teddy_mimic",
@@ -85,7 +86,8 @@
         "cage_rattle"
       ],
       "sprite": "sprTeddyMimicNew",
-      "battle_sprite": "sprTeddyMimicNew"
+      "battle_sprite": "sprTeddyMimicNew",
+      "roaming": false
     },
     "dive_iris": {
       "enemy_id": "dive_iris",
@@ -101,7 +103,8 @@
       ],
       "spell_cast_chance": 0.3,
       "sprite": "sprNPCBarmaid",
-      "battle_sprite": "sprNPCBarmaid"
+      "battle_sprite": "sprNPCBarmaid",
+      "roaming": false
     }
   },
   "items": {
