@@ -173,6 +173,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    const z=zone(base.id),definition=hubDefinition(z,now(),shopperLevel(state)); // Merchants roll this character's stock at their level.
    if(state?.diveCombatVersion===3&&p?.zone!==z.id){const {id,name,kind,parent,theme,width,height,spawn,exit,portals}=definition;return {id,name,kind,parent,theme,width,height,spawn,exit,portals,fixtures:[],walls:[]};} // New clients load full room geometry only after arrival, leaving room for large inventories and six-actor encounters.
    if(z.district&&p?.zone!==z.id){const {floors,wallTiles,rooms,blocks,axes,...summary}=definition;return {...summary,fixtures:[],walls:[]};} // Only the visited district sends its full monthly map.
+   if(p?.zone!==z.id)definition.fixtures=definition.fixtures.map(f=>f.offers?{...f,offers:[]}:f); // Wares only matter in the room you stand in: 27 shelves of 16 would overflow the gateway budget.
    return {...definition,walls:z.walls??Array.from({length:z.height??12},(_,y)=>Array.from({length:z.width??20},(_,x)=>blocked({...z,fixtures:[]},x,y)?1:0))};
   }).map(d=>({...d,category:ZONE_CATEGORY.SAFE})); // Courts, their RP rooms and districts are all safe zones.
   if(dungeon.definition)definitions.push(dungeon.definition);
