@@ -113,3 +113,25 @@ test('saved quests that named Market Square residents now point at the village',
   for(const body of [JSON.parse(row.draft),JSON.parse(row.published)]){assert.equal(body.givers[0],'honeydew-lantern:market-taster');assert.equal(body.turn_in.npc,'princess-rose-garden:castle-page');} // Only Honeydew's prefix changes; The Castle keeps its annex ID.
  }finally{db.close();}
 });
+
+test('a month saved before the north gate existed gains it in place: same layout key, nobody moved, road joins the town',async()=>{
+ const {DatabaseSync}=await import('node:sqlite');
+ const {districtData,createHubDistricts,districtBlocked}=await import('../server/hub-districts.mjs');
+ const db=new DatabaseSync(':memory:');const now=Date.parse('2026-09-24T12:00:00Z');
+ db.exec('CREATE TABLE quest_presence(zone TEXT,x INTEGER,y INTEGER,moved INTEGER,seen INTEGER)');
+ try{
+  const old=structuredClone(districtData),town=old.districts.find(d=>d.hub==='honeydew-lantern');delete town.lobby.gates.north; // What September was generated from.
+  const before=structuredClone(createHubDistricts(db,{now:()=>now,data:old}).resolve({id:'honeydew-lantern'}));
+  assert.equal(before.walls[0][24],1);assert.equal(before.walls[0][25],1); // The bug: a solid north wall.
+  db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?)').run('honeydew-lantern',30,30,123,now);
+  const after=createHubDistricts(db,{now:()=>now}).resolve({id:'honeydew-lantern'});
+  assert.equal(after.district.layoutKey,before.district.layoutKey); // Same month; nothing regenerated.
+  assert.equal(after.walls[0][24],0);assert.equal(after.walls[0][25],0);
+  assert.deepEqual({...db.prepare('SELECT x,y,moved FROM quest_presence').get()},{x:30,y:30,moved:123}); // Nobody sent back to the entrance.
+  for(let y=0;y<50;y++)for(let x=0;x<50;x++)if(!before.walls[y][x])assert.equal(after.walls[y][x],0); // Only opens tiles.
+  const seen=new Set(['24,1']),queue=[{x:24,y:1}]; // Walk from inside the gate to the spawn.
+  for(let i=0;i<queue.length;i++)for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const x=queue[i].x+dx,y=queue[i].y+dy;if(!districtBlocked(after,x,y)&&!seen.has(x+','+y)){seen.add(x+','+y);queue.push({x,y});}}
+  assert.ok(seen.has(after.spawn.x+','+after.spawn.y),'the north gate reaches the village spawn');
+  assert.equal(createHubDistricts(db,{now:()=>now}).resolve({id:'honeydew-lantern'}).walls[0][24],0); // Persisted across restarts.
+ }finally{db.close();}
+});

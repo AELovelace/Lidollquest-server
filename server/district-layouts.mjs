@@ -3,6 +3,18 @@ export const districtSize=(def,data)=>({width:def.width??data?.width??50,height:
 export const entryStrip=(width,height)=>({x:width-8,y:Math.floor(height/2)-3,w:7,h:6}); // The protected strip inside the east wall: gate rows are cy-1 and cy.
 export const westStrip=height=>({x:1,y:Math.floor(height/2)-3,w:7,h:6}); // Its mirror inside the west wall (lobby towns only).
 export const northStrip=width=>({x:Math.floor(width/2)-3,y:1,w:6,h:5}); // The protected strip inside a lobby town's north gate (columns cx-1..cx).
+export function carveNorthGate(f,def,data=null){ // Honeydew-style north gate: a clear strip inside columns cx-1..cx of row 0 and a straight 3-wide road down to the first tile already joined to the town. Uses no random numbers, so new months, and saved months upgraded in place, get the same gate without rerolling anything else.
+ const {width:W,height:H}=districtSize(def,data),cx=Math.floor(W/2),cy=Math.floor(H/2),key=(x,y)=>x+','+y,cells=[];
+ const road=def.style==='castle'?2:def.style==='market'?5:1,stripTile=def.style==='castle'?2:def.style==='market'?8:4; // Same road and strip tiles the layout uses for its other entries.
+ const open=(x,y,tile)=>{if(x<=0||y<=0||x>=W-1||y>=H-1)return;f.walls[y][x]=0;f.floors[y][x]=tile;cells.push({x,y});};
+ const joined=new Set(),queue=[{x:W-2,y:cy}]; // Everything already connected to the east entry.
+ for(let i=0;i<queue.length;i++){const {x,y}=queue[i],k=key(x,y);if(x<0||y<0||x>W-1||y>H-1||f.walls[y][x]||joined.has(k))continue;joined.add(k);queue.push({x:x+1,y},{x:x-1,y},{x,y:y+1},{x,y:y-1});}
+ let end=2;while(end<H-2&&![cx-1,cx,cx+1].some(x=>joined.has(key(x,end))))end++; // First row where the road meets the town.
+ const north=northStrip(W);for(let y=north.y;y<north.y+north.h;y++)for(let x=north.x;x<north.x+north.w;x++)open(x,y,stripTile); // Clear strip inside the gate.
+ for(let y=1;y<=end;y++)for(let x=cx-1;x<=cx+1;x++)open(x,y,road); // The road, drawn over the strip like the layout's line().
+ for(const x of [cx-1,cx]){f.walls[0][x]=0;f.floors[0][x]=f.floors[1][x];} // The opening in the wall itself.
+ return cells; // Every tile the gate opened or repaved, so callers can protect it or clear scenery off it.
+}
 export function districtLayout(def,rnd,data=null){
  const {width:W,height:H}=districtSize(def,data),cx=Math.floor(W/2),cy=Math.floor(H/2); // Everything below is expressed from the size, so a 60x60 city and a 50x50 castle share one grammar.
  const grid=value=>Array.from({length:H},()=>Array(W).fill(value));
@@ -103,12 +115,7 @@ export function districtLayout(def,rnd,data=null){
  }
  if(!def.lobby||gates?.east){f.walls[cy-1][W-1]=0;f.walls[cy][W-1]=0;f.floors[cy-1][W-1]=f.floors[cy][W-1]=f.floors[cy][W-2];} // East gap: back to the lobby (annex districts) or the authored east gate (lobby towns).
  if(def.lobby&&gates?.north){ // North gate (cx-1..cx on row 0). Carved without touching the seeded stream, so the rest of this month's layout, scenery and residents keep their rolls.
-  const joined=new Set(),queue=[{x:W-2,y:cy}]; // Everything already connected to the east entry.
-  for(let i=0;i<queue.length;i++){const {x,y}=queue[i],k=key(x,y);if(x<0||y<0||x>W-1||y>H-1||f.walls[y][x]||joined.has(k))continue;joined.add(k);queue.push({x:x+1,y},{x:x-1,y},{x,y:y+1},{x,y:y-1});}
-  let end=2;while(end<H-2&&![cx-1,cx,cx+1].some(x=>joined.has(key(x,end))))end++; // First row where the road meets the town.
-  const north=northStrip(W);rect(north.x,north.y,north.w,north.h,strip);line({cx,cy:1},{cx,cy:end},3,road); // A clear strip inside the gate and a straight 3-wide road down to the town.
-  for(let y=north.y;y<north.y+north.h;y++)for(let x=north.x;x<north.x+north.w;x++)protectedCells.add(key(x,y));
-  for(const x of [cx-1,cx]){f.walls[0][x]=0;f.floors[0][x]=f.floors[1][x];}
+  for(const cell of carveNorthGate(f,def,data))protectedCells.add(key(cell.x,cell.y)); // Scenery never lands on the gate strip or its road.
  }
  // Seal isolated pockets instead of exposing unreachable decorative floor.
  const seen=new Set(),queue=[{x:W-2,y:cy}];

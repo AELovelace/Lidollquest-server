@@ -1,5 +1,5 @@
 import {addDistrictResidents,moveDistrictResidents} from './district-residents.mjs';
-import {districtLayout,districtSize,entryStrip,westStrip,northStrip} from './district-layouts.mjs';
+import {districtLayout,districtSize,entryStrip,westStrip,northStrip,carveNorthGate} from './district-layouts.mjs';
 import {readFileSync} from 'node:fs';
 import {seeded} from './dive-generation.mjs';
 
@@ -115,7 +115,14 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
   }
   return added;
  };
- const upgrade=(id,f,def)=>{const pot=addCauldron(f,def);if(((f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)))||pot)persist(id,f);};
+ const addNorthGate=(f,def)=>{ // Months generated before Honeydew's north gate existed gain it in place: no reroll, nobody sent back to the entrance.
+  if(!def.lobby?.gates?.north)return false;
+  const cx=Math.floor(f.width/2);if(!f.walls[0][cx-1]&&!f.walls[0][cx])return false; // Already open.
+  const cells=new Set(carveNorthGate(f,def,data).map(c=>c.x+','+c.y)),buildings=new Set((def.lobby.buildings??[]).map(b=>b.id));
+  f.fixtures=f.fixtures.filter(x=>x.kind!=='scenery'||buildings.has(x.id)||!Array.from({length:(x.span_w??1)*(x.span_h??1)},(_,i)=>(x.x+i%(x.span_w??1))+','+(x.y+Math.floor(i/(x.span_w??1)))).some(k=>cells.has(k))); // Loose scenery sitting on the new road is cleared; plaza buildings and people stay.
+  return true;
+ };
+ const upgrade=(id,f,def)=>{const gate=addNorthGate(f,def),pot=addCauldron(f,def)||gate;if(((f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)))||pot)persist(id,f);};
  const persist=(id,f)=>db.prepare('UPDATE hub_district_editions SET content=? WHERE zone=? AND edition=?').run(JSON.stringify(f),id,f.district.layoutKey);
  function ensure(def){
   const id=districtZone(def),window=monthlyWindow(now(),data.reset_hour),layoutKey=`${window.edition}:v${data.version}`,cached=cache.get(id);if(cached?.district.layoutKey===layoutKey){upgrade(id,cached,def);return cached;}
