@@ -179,6 +179,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   nextSweep=Math.max(soonest===Infinity?now()+15*seconds:soonest,now()+seconds); // Idle routes back right off; a route holding a live deadline never sweeps faster than the old one-second cadence.
   } // An empty route still sweeps to its own deadline, so a disconnected fight settles and a rolled-over edition returns its player without anybody present.
   if(controls?.draining())return;
+  if(config.roaming===false)return; // World panel "enemies roam" switch for this map: while it is off nobody walks or chases; flipping it back on resumes on the next tick.
   if(now()-active.updated<seconds)return;
   const players=roamingPlayers();
   if(!players.length)return; // Nothing to pursue: skip the random walk and, more importantly, the unconditional whole-floor write below.
