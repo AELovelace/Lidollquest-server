@@ -1,5 +1,5 @@
 import {createEnchanter,describeItem} from './enchantment.mjs';
-import {createLootRoller,describeLoot} from './loot.mjs';
+import {createLootRoller,describeLoot,DEFAULT_TUNING} from './loot.mjs';
 import {BlockList,isIPv4,isIPv6} from 'node:net';
 import {readFileSync} from 'node:fs';
 import {hubCatalog,hubRooms,campaignDives} from './hubs.mjs';
@@ -87,7 +87,8 @@ export function createGameMasterPanel(db,{walletClient,announcements=null,live=n
  const lootBaseTable=()=>(typeof lootBases==='function'?lootBases():lootBases)??null;
  const lootView=()=>{
   const store=lootStore(),liveTable=store.apply(lootBase());
-  return {tuning:liveTable.tuning,legendary_titles:liveTable.legendary_titles,affixes:store.list(lootBase()),revision:store.revision(),
+  return {tuning:{...DEFAULT_TUNING,...liveTable.tuning}, // Defaults fill scalars the shipped table predates (shop prices), so every panel input starts filled and a save is never refused for a blank.
+   legendary_titles:liveTable.legendary_titles,affixes:store.list(lootBase()),revision:store.revision(),
    slots:store.slots,statKeys:store.statKeys,rarityOrder:store.rarityOrder,tuningKeys:store.tuningKeys,scalarBounds:store.scalarBounds,rarityBounds:store.rarityBounds,overcapStats:store.overcapStats,
    items:Object.keys(lootCatalog()).sort(),
    garments:store.listBases(lootBaseTable(),'garment'),styles:store.listBases(lootBaseTable(),'style'),generatedCategories:store.generatedCategories,garmentStatKeys:store.garmentStatKeys,garmentBounds:store.garmentBounds,

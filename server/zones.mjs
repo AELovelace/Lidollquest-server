@@ -3,7 +3,7 @@ import {createHubEncounters} from './world-hubs.mjs';
 import {createDuels,DUEL_ACTIONS,DUEL_FIGHT_ACTIONS} from './duels.mjs';
 import {createTrades,TRADE_ACTIONS} from './trades.mjs';
 import {publicCombatState} from './defeat-scenes.mjs';
-import {movementDelay} from './crawl.mjs';
+import {movementDelay,moveDelays} from './crawl.mjs';
 import {createParties} from './parties.mjs';
 import {publishPlayerActivity} from './player-activity.mjs';
 import {createHubDistricts} from './hub-districts.mjs';
@@ -17,8 +17,8 @@ const CHAT_RADIUS_DEFAULT=Math.max(1,Number(process.env.CHAT_RADIUS)||8); // Til
 const HEARTBEAT_WRITE_INTERVAL=5000; // A heartbeat rewrites quest_presence.seen only when the stored value is at least this old (freshness window is 30 s).
 const CHAT_ECHO_WINDOW=4000; // A repeat of the same line by the same character inside this window is a lag double-send, not new speech.
 const FACING={south:0,north:1,east:2,west:3}; /* Shared with the client's objPlayer.facing encoding (0 S, 1 N, 2 E, 3 W). */
-import {hubArrival,hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog,campaignDives,DAILY_COIN_CAP,configureShopLoot,shopperLevel} from './hubs.mjs';
-import {stackTokens,removeUnit} from './loadout.mjs';
+import {hubArrival,hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog,campaignDives,DAILY_COIN_CAP,configureShopLoot,shopperLevel,shopRoller} from './hubs.mjs';
+import {stackTokens,removeUnit,stackable,slotsUsed,addToInventory} from './loadout.mjs';
 import {createDive,DIVE_ZONE,diveData} from './dive.mjs';
 import {createEnchantmentStore} from './enchantment-store.mjs';
 import {createLootStore} from './loot-store.mjs';
@@ -40,7 +40,9 @@ import {inspectionProjection} from './inspection.mjs';
 import {createRoleplay} from './roleplay.mjs';
 import {createRpp} from './rpp.mjs';
 import {manaCapacity} from './magic-balance.mjs';
-import {companionEquipment} from './companion-equipment.mjs';
+import {companionEquipment,editCompanionLoadout} from './companion-equipment.mjs';
+import {createCompanionShops} from './companion-shops.mjs';
+import {configureGeneratedItems,withGenerated} from './generated-items.mjs';
 import {companionSheet} from './companion.mjs';
 import {managementSchema,appearanceFields} from './character-management.mjs';
 import {createGmTools} from './gm-tools.mjs';
@@ -97,6 +99,8 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  let tuningCache={revision:null,tuning:DEFAULT_TUNING};
  useTuning(()=>{const revision=loot.revision();if(revision!==tuningCache.revision)tuningCache={revision,tuning:{...DEFAULT_TUNING,...(loot.apply(diveData.loot??null).tuning??{})}};return tuningCache.tuning;}); // Combat, Dives and the arena read HP/damage scaling from the same live table the /gm Loot tab edits; re-merged only when an override lands.
  configureShopLoot(loot); // Hub shopkeepers roll their daily stock through the same live table.
+ configureGeneratedItems(loot); // Companion equipping and inspection resolve generated gear (gen_<style>_<garment>) from the same live bases.
+ const shops=createCompanionShops(db,{roller:shopRoller,templates:hubData.equipment,bank,origins,level:shopperLevel});purchaseHooks.companionShop=shops.deliver; // Diaper Atelier and Clothes Emporium rolls, paid like hub stock, delivered to the bank.
  const quarters=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,enchantments,loot,...diveOptions});
  const highTrail=floor=>addNorthTrail(floor,(highDesertOptions.data??highDesertData).config)|openExitGaps(floor); // Dustbreak's north-center gate leads up to the High Desert.
  const desert=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:desertData,generate:generateDesert,upgradeFloor:highTrail,travel,enchantments,loot,...desertOptions});
@@ -161,7 +165,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   const spent=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,Math.floor(now()/86400000))?.coins??0;
   if(view.companion)return {serverTime:now(),characters:db.prepare('SELECT id,name,revision FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner),
    character:c?{id:c.id,name:c.name,revision:c.revision}:null,sheet:c?companionSheet(db,c,p):null,
-   bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null,view),coins:wallet(i.owner).coins,
+   bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null,view),shops:c?shops.view(c,JSON.parse(c.state)):null,coins:wallet(i.owner).coins,
    dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP}; // The private companion needs no dungeon geometry, peer records or duplicate raw loadout.
   const dungeon=dive.snapshot(c,p),definitions=[...questZones,...hubRooms].map(base=>{
    const z=zone(base.id),definition=hubDefinition(z,now(),shopperLevel(state)); // Merchants roll this character's stock at their level.
@@ -173,7 +177,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   const questMap=p&&quests&&(Object.keys(live.published().npcs).length||Object.keys(live.published().quests).length)?quests.placements.view(p.zone):null;
   const edition=state?.dive?.edition;
   const visiblePeers=isDungeon(p?.zone)?peers.filter(peer=>peerStates.get(peer.id).dive?.edition===edition):peers;
-  return {announcement:announcements.active(),zoneCategory:p?zoneCategory(p.zone):null,gamemaster:i.gamemaster===true,questNpcLinks:live?Object.values(live.published().quests).flatMap(q=>[...q.givers,q.turn_in.npc]):[],onlineQuests:quests?quests.snapshot(c,state):null,questVersion:1,worldInstance:questMap?.edition,worldPlacements:questMap?questMap.placements.map(n=>({...n,instance:questMap.edition,...(n.kind==='npc'?{name:live.published().npcs[n.content]?.name??n.name,sprite:live.published().npcs[n.content]?.sprite??n.sprite}:{})})):[],rpp:c?rpp.snapshot(c,state):null,rp:{...rp.snapshot(c,chatArea?.id,restricted),candidates:c&&p?rpCandidates(i,c,p).map(({id,name})=>({id,name})):[]},dungeons:[...engines].map(([id,route])=>({id,category:route.category,enabled:route.available()})),serverTime:now(),loadoutSupport:true,combatVersion:2,diveCombatVersion:3,partySupport:true,globalChatSupport:true,chatRadius:chatReach,combatRules:{rowSwapCostsTurn:Number(currentTuning().row_swap_costs_turn)>=1,stackMax:Math.max(1,Math.floor(Number(currentTuning().stack_max)||512))},partyChatSupport:true,emoteSupport:true,facingSupport:true,levelCap:MAX_LEVEL,statCap:MAX_STAT,partyChat,...partyView,contentRevision:live?.published().revision??0,contentVersion:1,worldMonsters:p&&!isDungeon(p.zone)&&hubEvents?hubEvents.engine(p.zone).monsters():[],duel:c&&state?.duel?duels.snapshot(c,state):null,duelSupport:true,duelAllowed:!!p&&pvpAllowed(p.zone),trade:c&&state?.trade?trades.snapshot(c,state):null,tradeSupport:true,encounter:c?(state?.run?.kind==='duel'?duels.encounterSnapshot(c,state):state?.run?.kind==='hub_event'?hubEvents.engine(p.zone).snapshot(state):engine(p?.zone).encounterSnapshot(state)):null,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,tundra:tundra.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);if(summary.lastResult?.defeatScene){const {content,...scene}=summary.lastResult.defeatScene;summary.lastResult={...summary.lastResult,defeatScene:scene};}return summary;}),character:c?{avatar:'player',id:c.id,name:c.name,revision:c.revision,...publicCombatState(state)}:null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,globalChat,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null,view),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP};
+  return {announcement:announcements.active(),zoneCategory:p?zoneCategory(p.zone):null,gamemaster:i.gamemaster===true,questNpcLinks:live?Object.values(live.published().quests).flatMap(q=>[...q.givers,q.turn_in.npc]):[],onlineQuests:quests?quests.snapshot(c,state):null,questVersion:1,worldInstance:questMap?.edition,worldPlacements:questMap?questMap.placements.map(n=>({...n,instance:questMap.edition,...(n.kind==='npc'?{name:live.published().npcs[n.content]?.name??n.name,sprite:live.published().npcs[n.content]?.sprite??n.sprite}:{})})):[],rpp:c?rpp.snapshot(c,state):null,rp:{...rp.snapshot(c,chatArea?.id,restricted),candidates:c&&p?rpCandidates(i,c,p).map(({id,name})=>({id,name})):[]},dungeons:[...engines].map(([id,route])=>({id,category:route.category,enabled:route.available()})),serverTime:now(),loadoutSupport:true,combatVersion:2,diveCombatVersion:3,partySupport:true,globalChatSupport:true,chatRadius:chatReach,combatRules:{rowSwapCostsTurn:Number(currentTuning().row_swap_costs_turn)>=1,stackMax:Math.max(1,Math.floor(Number(currentTuning().stack_max)||512))},partyChatSupport:true,emoteSupport:true,facingSupport:true,moveDelayMs:moveDelays(currentTuning()).walk,crawlMoveDelayMs:moveDelays(currentTuning()).crawl,levelCap:MAX_LEVEL,statCap:MAX_STAT,partyChat,...partyView,contentRevision:live?.published().revision??0,contentVersion:1,worldMonsters:p&&!isDungeon(p.zone)&&hubEvents?hubEvents.engine(p.zone).monsters():[],duel:c&&state?.duel?duels.snapshot(c,state):null,duelSupport:true,duelAllowed:!!p&&pvpAllowed(p.zone),trade:c&&state?.trade?trades.snapshot(c,state):null,tradeSupport:true,encounter:c?(state?.run?.kind==='duel'?duels.encounterSnapshot(c,state):state?.run?.kind==='hub_event'?hubEvents.engine(p.zone).snapshot(state):engine(p?.zone).encounterSnapshot(state)):null,controllerTakeover:true,dive:dungeon.dive,desert:desert.snapshot(c,null).dive,tundra:tundra.snapshot(c,null).dive,avatars:questAvatars,zones:definitions,characters:db.prepare('SELECT * FROM quest_characters WHERE owner=? ORDER BY created,id').all(i.owner).map(row=>{const {loadout,...summary}=publicCharacter(row);if(summary.lastResult?.defeatScene){const {content,...scene}=summary.lastResult.defeatScene;summary.lastResult={...summary.lastResult,defeatScene:scene};}return summary;}),character:c?{avatar:'player',id:c.id,name:c.name,revision:c.revision,...publicCombatState(state)}:null,zone:p?.zone??null,position:p?{x:p.x,y:p.y}:null,peers:visiblePeers,chat,chatArea,globalChat,bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null,view),coins:wallet(i.owner).coins,dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP};
  } // Snapshots expose only zone avatars and chat, never wallet credentials or account IDs.
  function read(secret,id,view={}){const i=identity(secret);limit(i.owner);districts.refresh();dive.tick();if(view.companion&&!id)id=db.prepare('SELECT character_id FROM quest_presence WHERE owner=? ORDER BY seen DESC LIMIT 1').get(i.owner)?.character_id??db.prepare('SELECT id FROM quest_characters WHERE owner=? ORDER BY created DESC,id LIMIT 1').get(i.owner)?.id;
   return snapshot(i,id?character(i.owner,id):null,view);} // Only this read honours the companion view; every in-play snapshot keeps the beside-a-bank rule.
@@ -206,7 +210,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   districts.refresh(); // Materialize monthly maps before the command transaction, keeping rollback and cached geometry consistent.
   dive.tick(); // Scheduled resets and enemy decisions precede command revision checks.
   if(!input||!identifier(input.request_id)||!identifier(input.controller))fail(400,'Supply a stable request ID and controller.');
-   if(Object.keys(input).some(k=>!['quest_version','quest','quest_revision','conversation','placement','choice','branch','objective','content_version','rpp_cost','partners','rp_id','defeat_version','scene','equipment_version','action','request_id','controller','character_id','revision','name','zone','direction','text','channel','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance','item_id','creation','online_revision','member','invitation','battle','target','cycle','patch','seq','key','value','mode','kind','amount','index','source','loser'].includes(k)))fail(400,'Unsupported zone input.'); // seq: a chat sequence number for gm_chat_delete; key/value: gm_combat_tune.
+   if(Object.keys(input).some(k=>!['quest_version','quest','quest_revision','conversation','placement','choice','branch','objective','content_version','rpp_cost','partners','rp_id','defeat_version','scene','equipment_version','action','request_id','controller','character_id','revision','name','zone','direction','text','channel','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance','item_id','creation','online_revision','member','invitation','battle','target','cycle','patch','seq','key','value','mode','kind','amount','index','source','loser','shop','price'].includes(k)))fail(400,'Unsupported zone input.'); // seq: a chat sequence number for gm_chat_delete; key/value: gm_combat_tune; shop/price: companion_roll.
   if(input.channel!==undefined&&(input.action!=='chat'||!['area','global','party'].includes(input.channel)))fail(400,'Choose Area or OOC (or Party) for this message.'); // A client cannot supply an arbitrary destination or broadcast to several channels at once.
   if(input.takeover!==undefined&&(input.action!=='enter'||typeof input.takeover!=='boolean'))fail(400,'Control can only be transferred by an explicit entry request.'); // Never let movement or a background heartbeat steal control.
   return atomic(()=>{
@@ -262,7 +266,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    else if(quests&&/^(npc_|quest_)/.test(input.action)){presence(i,c,input.controller);quests.act(c,state,input);}
    else if(input.action.startsWith('party_')){presence(i,c,input.controller);parties.act(c,input,i.blockedAccounts??[]);}
    else if(['companion_equip','companion_unequip'].includes(input.action)){
-    companionEquipment(db,c,state,divePresence?.seen>now()-30000?divePresence:null,input,hubData.equipment,hubData.config.inventory_capacity,now());
+    companionEquipment(db,c,state,divePresence?.seen>now()-30000?divePresence:null,input,withGenerated(hubData.equipment),hubData.config.inventory_capacity,now());
    }
    else if(input.action==='bank_sell'){ // Companion sale: account storage needs no zone presence, controller lease or shop fixture, but keeps every economy rule.
     if(state.run)fail(409,'Leave combat before selling.');
@@ -275,6 +279,16 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     adjust(i.owner,'coins',row.price,'sale-'+row.id,'LiDollQuest bank sale'); // Storage removal, one payout entitlement and its receipt commit atomically.
     db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=coins+excluded.coins').run(i.owner,day,row.price);
     state.hubNotice='Sold '+(JSON.parse(row.item).name??item.item_id)+' from your bank for '+row.price+' LiDollCoins.';state.hubNoticeAt=now();
+   }else if(input.action==='companion_roll'){shops.prepare(i,c,state,input);} // Companion Atelier/Emporium: reserve a fixed roll; the debit settles before the reply and delivers it to the bank.
+   else if(input.action==='companion_withdraw'){ // Companion withdrawal: bank to bag from anywhere, into the same loadout the companion equips (online state or latest cloud save).
+    if(state.run)fail(409,'Leave combat before withdrawing.');
+    const {stored,index,item}=bank.locate(c,input.bank_item);
+    editCompanionLoadout(db,c,state,divePresence?.seen>now()-30000?divePresence:null,input,now(),loadout=>{
+     if(!stackable(item)&&slotsUsed(loadout.inventory)>=hubData.config.inventory_capacity)fail(409,'Inventory full. The item stays in your bank.');
+     addToInventory(loadout.inventory,stored.splice(index,1)[0].item);
+     return importLoadout(loadout); // Reject a withdrawal that would exceed reconnect payload/complexity limits.
+    });
+    bank.commit(c,stored);
    }else if(input.action==='world_turn'){
     presence(i,c,input.controller);
     if(!state.worldTurnDue||state.worldTurnDue.id!==input.world_turn_id||state.run)fail(409,'That exploration turn is no longer pending.');
@@ -402,7 +416,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     else if(input.action==='leave'){delete state.hubVisit;if(state.run)fail(409,'Bank your completed rounds or forfeit before leaving.');db.prepare('DELETE FROM quest_presence WHERE owner=?').run(i.owner);}
     else if(input.action==='move'){
      if(state.run?.phase==='fight')fail(409,'Finish this round before moving.');
-     if(now()-p.moved<movementDelay(state.loadout))fail(429,'Movement is too fast.');
+     if(now()-p.moved<movementDelay(state.loadout,currentTuning()))fail(429,'Movement is too fast.'); // move_delay_ms / crawl_move_delay_ms from the live Loot tuning.
      const directions={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]},d=Object.hasOwn(directions,input.direction)?directions[input.direction]:null;if(!d)fail(400,'Choose a movement direction.');
      const x=p.x+d[0],y=p.y+d[1];if(blocked(z,x,y))fail(409,'That tile is blocked.');
      const gap=hubGaps(z).find(g=>inHubGap(g,x,y));

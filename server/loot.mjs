@@ -47,6 +47,8 @@ export const DEFAULT_TUNING=Object.freeze({
  // Battle rows and reach weapons (scaling.mjs rows section, scrBattleInit/scrLootRoll on the client).
  row_swap_costs_turn:0,row_back_damage_taken:0.5,row_back_melee_dealt:0.5,row_front_target_weight:3,reach_damage_mult:0.75,
  stack_max:512, // Consumables and ammo stack this high in one bag entry; stacks never count toward the slot cap.
+ move_delay_ms:150,crawl_move_delay_ms:300, // Online walking: milliseconds the server demands between steps (crawl.mjs movementDelay). The zone snapshot ships them as moveDelayMs / crawlMoveDelayMs so the client paces itself to the same clock.
+ atelier_price:3,emporium_price:3, // LiDollCoins per companion roll (companion-shops.mjs). Odds come from the `atelier`/`emporium` luck profiles and item level from shop_levels.atelier/.emporium, each falling back to the plain rarity weights and the default band.
 });
 
 const num=(value,fallback=0)=>Number.isFinite(Number(value))&&value!==null&&value!==''&&typeof value!=='boolean'?Number(value):fallback;
@@ -256,7 +258,17 @@ export function createBaseGenerator(bases){
   const style=styles.find(s=>s.id===rest.slice(0,rest.length-String(best.id).length-tuning.id_separator.length));
   return style?build(style,best):null;
  }
- return {has:has&&garments.length>0&&styles.length>0,isTemplate,generate,fromId,build,garments,styles,tuning};
+ function pool(isDiaper){ // category -> summed weight of the rollable garments (enabled, with at least one enabled style), exactly what generate() can return.
+  const out=new Map();
+  for(const g of garments)if(g&&g.enabled!==false&&cats.includes(g.category)&&(g.is_diaper===true)===isDiaper&&num(g.weight,1)>0&&styles.some(s=>allows(s,String(g.id))))out.set(g.category,(out.get(g.category)??0)+num(g.weight,1));
+  return out;
+ }
+ function catalog(){ // Every base a style may dress, enabled or not: items already rolled must stay equippable after a gamemaster pauses their style or garment.
+  const out={};
+  for(const g of garments)for(const s of styles)if(g&&s&&(list(s).includes('*')||list(s).includes(String(g.id)))){const item=build(s,g);out[item.item_id]=item;}
+  return out;
+ }
+ return {has:has&&garments.length>0&&styles.length>0,isTemplate,generate,fromId,build,pool,catalog,garments,styles,tuning};
 }
 
 export function describeLoot(item){ // "rare - Item Level 14 (Crinkly / of the Nursery)" for inspection and the /gm preview; "" for plain gear.

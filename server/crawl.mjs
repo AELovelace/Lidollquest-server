@@ -1,4 +1,5 @@
 import {readFileSync} from 'node:fs';
+import {DEFAULT_TUNING} from './loot.mjs'; // Shipped move_delay_ms / crawl_move_delay_ms, used when a tuning key is missing or malformed.
 
 const gear=JSON.parse(readFileSync(new URL('./combat-data.json',import.meta.url),'utf8')).crawl_equipment??{};
 
@@ -25,4 +26,6 @@ export function standBlockReason(loadout){ // Failed recovery never consumes an 
  return loadout?.player_info?.stamina<=0?'Too exhausted to stand. Recover stamina first.':'';
 }
 
-export function movementDelay(loadout){return isCrawling(loadout)?400:200;} // Shared NPC clocks stay unchanged; only the crawler moves at half speed.
+const delayKey=(tuning,key)=>{const n=Number(tuning?.[key]);return Number.isFinite(n)&&n>0?n:DEFAULT_TUNING[key];}; // A missing or malformed key falls back to the shipped default, never to zero.
+export function moveDelays(tuning=null){return {walk:delayKey(tuning,'move_delay_ms'),crawl:delayKey(tuning,'crawl_move_delay_ms')};} // Both live cooldowns at once, for the zone snapshot (moveDelayMs / crawlMoveDelayMs).
+export function movementDelay(loadout,tuning=null){const d=moveDelays(tuning);return isCrawling(loadout)?d.crawl:d.walk;} // Milliseconds the server demands between online steps. Shared NPC clocks stay unchanged; only the crawler is slowed.

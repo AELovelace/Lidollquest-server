@@ -124,10 +124,10 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
     throw error;
    }finally{identity=null;}
    await settlePurchases(verified.owner,token);
-   const receipt=result.receipt;identity=verified;try{result=metrics.measure(req.method==='GET'?'zones.read':'zones.refresh',()=>zones.read(token,result.character?.id,req.method==='GET'?view:{companion:['bank_sell','companion_equip','companion_unequip'].includes(input?.action)}));if(receipt)result.receipt=receipt;}finally{identity=null;} // Build exactly one final view after purchase settlement, including durable replay receipts.
+   const receipt=result.receipt;identity=verified;try{result=metrics.measure(req.method==='GET'?'zones.read':'zones.refresh',()=>zones.read(token,result.character?.id,req.method==='GET'?view:{companion:['bank_sell','companion_equip','companion_unequip','companion_roll','companion_withdraw'].includes(input?.action)}));if(receipt)result.receipt=receipt;}finally{identity=null;} // Build exactly one final view after purchase settlement, including durable replay receipts.
    await flush(verified.owner,token);result.coins=db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(verified.owner).coins;
    result.pendingCoins=db.prepare('SELECT COALESCE(SUM(amount),0) AS n FROM reward_outbox WHERE owner=? AND delivered=0').get(verified.owner).n;
-   result.capabilities={unifiedCreation:true,inspection:true,friends:true,cloudSaves:true,saveManagement:true,characterManagement:true,characterDescriptions:true,companionEquipment:true,companionBank:true,bankSales:true};
+   result.capabilities={unifiedCreation:true,inspection:true,friends:true,cloudSaves:true,saveManagement:true,characterManagement:true,characterDescriptions:true,companionEquipment:true,companionBank:true,bankSales:true,companionShops:true,companionWithdraw:true};
    res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(metrics.measure('response.serialize',()=>JSON.stringify(result)));
   }finally{active--;const count=perToken.get(token)-1;if(count)perToken.set(token,count);else perToken.delete(token);}
  })().catch(error=>{if(res.destroyed)return;if(res.headersSent){res.destroy();return;}res.writeHead(error.status??503,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({error:error.code??'zone_request_failed',error_description:error.status?error.message:'Online zones are temporarily unavailable.'}));});});

@@ -1,12 +1,13 @@
 import {companionSource,equipmentSlot,equipmentLocked,equippedItem} from './companion-equipment.mjs';
 import {readFileSync} from 'node:fs';
 import {inspectionProjection} from './inspection.mjs';
-const items=JSON.parse(readFileSync(new URL('./companion-items.json',import.meta.url),'utf8'));
+import {withGenerated} from './generated-items.mjs';
+const catalog=JSON.parse(readFileSync(new URL('./companion-items.json',import.meta.url),'utf8'));
 const finite=value=>typeof value==='number'&&Number.isFinite(value);
 const label=(value,max=96)=>typeof value==='string'?value.slice(0,max):'';
 const numeric=['playerHealth','playerHealthMax','str','def','dex','int','cha','level','xp','stat_points','stamina','hunger','thirst','wet','tum','shame','excitement','smell','accidents','incontinence','freeze','grossout_chance','panties_bulk','accident_bulk','diaper_wet_absorbed','diaper_tum_absorbed'];
 function itemView(item,index){
- const id=label(item?.item_id,80),base=items[id]??{},out={index,item_id:id,name:label(item?.name)||base.name||id||'Unknown item',category:label(item?.category,32)||base.category||'item'};
+ const items=withGenerated(catalog),id=label(item?.item_id,80),base=items[id]??{},out={index,item_id:id,name:label(item?.name)||base.name||id||'Unknown item',category:label(item?.category,32)||base.category||'item'};
  for(const key of ['atk','def','bulk','bulk_threshold','childish','hp_restore','mp_restore','count','quantity']){
   const value=item?.[key]??base[key];if(finite(value))out[key]=Math.max(-1000000,Math.min(1000000,value));
  }
@@ -16,6 +17,7 @@ function itemView(item,index){
 } // Preserve individual rolled items without exporting arbitrary nested inventory payloads.
 
 export function companionSheet(db,c,p){
+ const items=withGenerated(catalog); // Rolled gear keeps its generated id; resolve it like any catalog item.
  const state=JSON.parse(c.state),selected=companionSource(db,c,p),{loadout,source,updatedAt}=selected;
  const info=loadout?.player_info??{},sheet=inspectionProjection({...c,state:JSON.stringify({...state,loadout:{player_info:info}})});
  sheet.available=Boolean(loadout);sheet.source=source;sheet.updatedAt=updatedAt;sheet.online=Boolean(p);sheet.equipment_version=selected.version;sheet.equipmentEditable=Boolean(loadout)&&!state.run&&!state.worldTurnDue&&!state.pendingPurchase;
