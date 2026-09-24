@@ -24,7 +24,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
    for(const sprite of [raw.sprite,raw.battle_sprite])if(sprite)compiledSprites.add(sprite);
    if(!existing)baselines.monster.set(key,entry);
   }
-  baselines.zone.set(zone,{id:zone,static:!!data.config.static,spawning:true,enemies_per_room:data.config.enemies_per_room,enemy_respawn_seconds:data.config.enemy_respawn_seconds,boss_respawn_seconds:data.config.boss_respawn_seconds,pursuit_steps:data.config.pursuit_steps,roaming:true,boss_enemy_id:data.config.boss_enemy_id??(data.enemies.dive_iris?'dive_iris':null),pool:(data.enemy_types??[{enemy_id:'diaper_fairy',weight:60},{enemy_id:'teddy_mimic',weight:40}]).map(e=>({enemy_id:e.enemy_id,weight:e.weight??e.chance}))});cache=null;
+  baselines.zone.set(zone,{id:zone,static:!!data.config.static,spawning:true,enemies_roam:true,enemies_per_room:data.config.enemies_per_room,enemy_respawn_seconds:data.config.enemy_respawn_seconds,boss_respawn_seconds:data.config.boss_respawn_seconds,pursuit_steps:data.config.pursuit_steps,roaming:true,boss_enemy_id:data.config.boss_enemy_id??(data.enemies.dive_iris?'dive_iris':null),pool:(data.enemy_types??[{enemy_id:'diaper_fairy',weight:60},{enemy_id:'teddy_mimic',weight:40}]).map(e=>({enemy_id:e.enemy_id,weight:e.weight??e.chance}))});cache=null;
  }
  function registerQuestPack(pack){ // Shipped content is validated at boot, so a malformed pack stops the service instead of half-loading.
   for(const quest of pack){
@@ -64,7 +64,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
    return out;
   }
   if(kind!=='zone'||!routes.has(value.id))fail('Unknown Dive.');
-  const out={id:value.id,static:!!value.static,spawning:!!value.spawning,roaming:!!value.roaming,enemies_per_room:integer(value.enemies_per_room,0,6),enemy_respawn_seconds:integer(value.enemy_respawn_seconds,1,604800),boss_respawn_seconds:integer(value.boss_respawn_seconds,1,604800),pursuit_steps:integer(value.pursuit_steps,0,32),boss_enemy_id:value.boss_enemy_id||null};
+  const out={id:value.id,static:!!value.static,spawning:!!value.spawning,enemies_roam:value.enemies_roam!==false,enemies_per_room:integer(value.enemies_per_room,0,6),enemy_respawn_seconds:integer(value.enemy_respawn_seconds,1,604800),boss_respawn_seconds:integer(value.boss_respawn_seconds,1,604800),pursuit_steps:integer(value.pursuit_steps,0,32),boss_enemy_id:value.boss_enemy_id||null};
   if(!Array.isArray(value.pool)||value.pool.length>128)fail('Invalid monster pool.');out.pool=value.pool.map(e=>({enemy_id:e.enemy_id,weight:integer(e.weight,1,1000)}));
   if(out.spawning&&out.enemies_per_room&&!out.pool.length)fail('Choose at least one spawn monster.');
   return out;
@@ -93,7 +93,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
   for(const enemy of Object.values(out.enemies))if(defeatEquipment[enemy.enemy_id])enemy.defeat_equipment=clone(defeatEquipment[enemy.enemy_id]);
   for(const row of rows().filter(r=>r.kind==='monster'&&r.published))out.enemies[row.id]=JSON.parse(row.published);
   for(const key of Object.keys(out.enemies))out.enemies[key]=effective(out.enemies[key]);
-  if(t){Object.assign(out.config,{enemies_per_room:t.spawning?t.enemies_per_room:0,enemy_respawn_seconds:t.enemy_respawn_seconds,boss_respawn_seconds:t.boss_respawn_seconds,pursuit_steps:t.pursuit_steps,spawning:t.spawning,roaming:t.roaming,static:t.static??!!out.config.static});if(t.boss_enemy_id)out.config.boss_enemy_id=t.boss_enemy_id;out.enemy_types=t.pool.map(e=>({...e,chance:e.weight}));}
+  if(t){Object.assign(out.config,{enemies_per_room:t.spawning?t.enemies_per_room:0,enemy_respawn_seconds:t.enemy_respawn_seconds,boss_respawn_seconds:t.boss_respawn_seconds,pursuit_steps:t.pursuit_steps,spawning:t.spawning,roaming:t.enemies_roam!==false,static:t.static??!!out.config.static});if(t.boss_enemy_id)out.config.boss_enemy_id=t.boss_enemy_id;out.enemy_types=t.pool.map(e=>({...e,chance:e.weight}));}
   out.contentRevision=live.revision;return out;
  }
  function putAsset({png,frames=1}){
