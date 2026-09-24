@@ -20851,6 +20851,24 @@
           "base": 5,
           "per_floor": 2
         }
+      },
+      "shop_levels": {
+        "honeydew-lantern": {
+          "min": 1,
+          "max": 25
+        },
+        "princess-rose": {
+          "min": 10,
+          "max": 50
+        },
+        "littlebig-clockwork": {
+          "min": 40,
+          "max": 100
+        },
+        "default": {
+          "min": 1,
+          "max": 100
+        }
       }
     },
     "affixes": [

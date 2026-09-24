@@ -45,7 +45,7 @@ const SCALAR_BOUNDS={
 };
 const RARITY_BOUNDS={weight:[0,1000],affixes:[0,6],budget_mult:[0.5,5],value_mult:[0,50],bless_mult:[0,10],curse_mult:[0,10]};
 const OVERCAP_STATS=['str','def','dex','int','cha'];
-const TUNING_KEYS=Object.freeze([...Object.keys(SCALAR_BOUNDS),'rarity','luck_profiles','overcap','zone_levels','route_levels','legendary_titles']);
+const TUNING_KEYS=Object.freeze([...Object.keys(SCALAR_BOUNDS),'rarity','luck_profiles','overcap','zone_levels','route_levels','shop_levels','legendary_titles']);
 
 function validateRarityRows(rows){
  if(!rows||typeof rows!=='object'||Array.isArray(rows))fail('Rarity rows must be an object keyed by tier.');
@@ -116,6 +116,8 @@ export function validateTuning(patch){
   if(key==='overcap'){out.overcap=validateOvercap(value);continue;}
   if(key==='zone_levels'){out.zone_levels=validateBands(value,'Zone levels',{min:[1,100],max:[1,100]});continue;}
   if(key==='route_levels'){out.route_levels=validateBands(value,'Route levels',{base:[1,100],per_floor:[0,10]});continue;}
+  if(key==='shop_levels'){out.shop_levels=validateBands(value,'Shop levels',{min:[1,100],max:[1,100]});continue;}
+  if(key==='shop_levels'){out.shop_levels=validateBands(value,'Shop levels',{min:[1,100],max:[1,100]});continue;}
   if(key==='legendary_titles'){
    if(!Array.isArray(value))fail('Legendary titles must be a list.');
    const titles=[...new Set(value.map(t=>clean(t,40)).filter(Boolean))].slice(0,200);

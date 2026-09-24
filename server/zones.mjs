@@ -17,7 +17,8 @@ const CHAT_RADIUS_DEFAULT=Math.max(1,Number(process.env.CHAT_RADIUS)||8); // Til
 const HEARTBEAT_WRITE_INTERVAL=5000; // A heartbeat rewrites quest_presence.seen only when the stored value is at least this old (freshness window is 30 s).
 const CHAT_ECHO_WINDOW=4000; // A repeat of the same line by the same character inside this window is a lag double-send, not new speech.
 const FACING={south:0,north:1,east:2,west:3}; /* Shared with the client's objPlayer.facing encoding (0 S, 1 N, 2 E, 3 W). */
-import {hubArrival,hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog,campaignDives,DAILY_COIN_CAP,configureShopLoot} from './hubs.mjs';
+import {hubArrival,hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog,campaignDives,DAILY_COIN_CAP,configureShopLoot,shopperLevel} from './hubs.mjs';
+import {stackTokens,removeUnit} from './loadout.mjs';
 import {createDive,DIVE_ZONE,diveData} from './dive.mjs';
 import {createEnchantmentStore} from './enchantment-store.mjs';
 import {createLootStore} from './loot-store.mjs';
@@ -163,7 +164,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    bank:bank.snapshot(c,p,p&&!isDungeon(p.zone)?zone(p.zone):null,view),coins:wallet(i.owner).coins,
    dailyRemaining:Math.max(0,DAILY_COIN_CAP-spent),dailyCap:DAILY_COIN_CAP}; // The private companion needs no dungeon geometry, peer records or duplicate raw loadout.
   const dungeon=dive.snapshot(c,p),definitions=[...questZones,...hubRooms].map(base=>{
-   const z=zone(base.id),definition=hubDefinition(z,now());
+   const z=zone(base.id),definition=hubDefinition(z,now(),shopperLevel(state)); // Merchants roll this character's stock at their level.
    if(state?.diveCombatVersion===3&&p?.zone!==z.id){const {id,name,kind,parent,theme,width,height,spawn,exit,portals}=definition;return {id,name,kind,parent,theme,width,height,spawn,exit,portals,fixtures:[],walls:[]};} // New clients load full room geometry only after arrival, leaving room for large inventories and six-actor encounters.
    if(z.district&&p?.zone!==z.id){const {floors,wallTiles,rooms,blocks,axes,...summary}=definition;return {...summary,fixtures:[],walls:[]};} // Only the visited district sends its full monthly map.
    return {...definition,walls:z.walls??Array.from({length:z.height??12},(_,y)=>Array.from({length:z.width??20},(_,x)=>blocked({...z,fixtures:[]},x,y)?1:0))};
@@ -265,11 +266,11 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    }
    else if(input.action==='bank_sell'){ // Companion sale: account storage needs no zone presence, controller lease or shop fixture, but keeps every economy rule.
     if(state.run)fail(409,'Leave combat before selling.');
-    const {stored,index,item}=bank.locate(c,input.bank_item),row=origins.sale(c,item);
+    const {stored,index,item}=bank.locate(c,input.bank_item),row=origins.sale(c,item,input.item_instance);
     if(!row||row.id!==input.item_instance)fail(409,'Only tracked online loot and purchases can be sold.');
     const day=Math.floor(now()/86400000),used=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,day)?.coins??0;
     if(row.price>Math.max(0,DAILY_COIN_CAP-used))fail(409,'Daily coin limit reached. Keep this item and sell it after the UTC reset.');
-    stored.splice(index,1);bank.commit(c,stored);
+    if(!removeUnit(item,row.id))stored.splice(index,1);bank.commit(c,stored); // One unit leaves a stored stack; a single item or the last unit leaves the bank.
     db.prepare("UPDATE quest_item_origins SET status='sold' WHERE id=?").run(row.id);
     adjust(i.owner,'coins',row.price,'sale-'+row.id,'LiDollQuest bank sale'); // Storage removal, one payout entitlement and its receipt commit atomically.
     db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=coins+excluded.coins').run(i.owner,day,row.price);
@@ -348,7 +349,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
      if(state.run||!state.loadout)fail(409,'Leave combat before discarding items.');
      nearbyFixture(z,p,input.fixture,'dumpster');
      const inventory=state.loadout.inventory,item=Number.isInteger(input.slot)?inventory[input.slot]:null;
-     if(!item||item.item_id!==input.item_id||(item.online_item??'')!==input.item_instance)fail(409,'That item changed. Choose it again.');
+     if(!item||item.item_id!==input.item_id||!(stackTokens(item).length?stackTokens(item).includes(input.item_instance):(input.item_instance??'')===''))fail(409,'That item changed. Choose it again.'); // A stack is named by any right it carries; an untracked entry by an empty token.
      if(item.category==='quest_item'||item.quest_item)fail(409,'Quest items cannot be thrown away.');
      inventory.splice(input.slot,1); // Equipment and bank storage are never disposal sources; reconciliation marks missing sale rights spent.
      state.hubNotice='Threw away '+(item.name??item.item_id)+'.';state.hubNoticeAt=now();
@@ -356,11 +357,11 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     else if(input.action==='shop_sell'){
      if(state.run||!state.loadout)fail(409,'Leave combat before selling.');
      nearbyFixture(z,p,input.fixture,'shop');
-     const inventory=state.loadout.inventory,item=Number.isInteger(input.slot)?inventory[input.slot]:null,row=origins.sale(c,item);
+     const inventory=state.loadout.inventory,item=Number.isInteger(input.slot)?inventory[input.slot]:null,row=origins.sale(c,item,input.item_instance);
      if(!row||row.id!==input.item_instance)fail(409,'Only tracked online loot and purchases can be sold.');
      const day=Math.floor(now()/86400000),used=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(i.owner,day)?.coins??0;
      if(row.price>Math.max(0,DAILY_COIN_CAP-used))fail(409,'Daily coin limit reached. Keep this item and sell it after the UTC reset.');
-     inventory.splice(input.slot,1);db.prepare("UPDATE quest_item_origins SET status='sold' WHERE id=?").run(row.id);
+     if(!removeUnit(item,row.id))inventory.splice(input.slot,1);db.prepare("UPDATE quest_item_origins SET status='sold' WHERE id=?").run(row.id); // One unit of a stack sells at a time; a single item or the last unit leaves the bag.
      adjust(i.owner,'coins',row.price,'sale-'+row.id,'LiDollQuest item sale'); // Item removal, one payout entitlement and its receipt commit atomically.
      db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=coins+excluded.coins').run(i.owner,day,row.price);
      state.hubNotice='Sold '+(JSON.parse(row.item).name??item.item_id)+' for '+row.price+' LiDollCoins.';state.hubNoticeAt=now();

@@ -1,3 +1,4 @@
+import {stackable,slotsUsed,addToInventory} from './loadout.mjs'; // Reward capacity counts slots the way the bag does: stacks are free.
 import {refreshMana} from './magic-balance.mjs';
 import {randomUUID,createHash} from 'node:crypto';
 import {awardExperience,combatData} from './combat.mjs';
@@ -79,9 +80,9 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
  } // Each durable gameplay event can affect an accepted instance at most once, including after restart.
  function advance(c,s,key,branch){const q=active(c,key);if(!q||q.state.status!=='choice')fail('This quest is not awaiting a choice.');const b=q.definition.stages.find(v=>v.id===q.state.stage).branches.find(b=>b.id===branch);if(!b||!conditions(s,b.conditions))fail('That branch is unavailable.');q.state.branch.push(b.id);transition(q,b.to);save(q);}
  function claim(c,s,key,source){const q=active(c,key);if(!q||q.state.status!=='ready')fail('This quest is not ready to turn in.');if(q.definition.turn_in.mode==='npc'&&source!==q.definition.turn_in.npc)fail('Return to the designated NPC.');if(!s.loadout)fail('Load this character before claiming rewards.');
-  const r=q.definition.rewards,next=clone(s),capacity=hubData.config.inventory_capacity;if(next.loadout.inventory.length+r.items.reduce((n,i)=>n+i.count,0)>capacity)fail('Make room in your inventory; your reward is still waiting.');
+  const r=q.definition.rewards,next=clone(s),capacity=hubData.config.inventory_capacity;if(slotsUsed(next.loadout.inventory)+r.items.reduce((n,i)=>n+(stackable(q.definition.items[i.id])?0:i.count),0)>capacity)fail('Make room in your inventory; your reward is still waiting.'); // Consumable rewards join a stack and never need a slot.
   for(const id of r.equipment)next.loadout=changeEquipment(next.loadout,{action:'defeat_equip',item_id:id},{...hubData.equipment,...combatData.defeat_items,...q.definition.items},capacity);
-  for(const item of r.items)for(let n=0;n<item.count;n++)next.loadout.inventory.push(origins.mint(c.id,clone(q.definition.items[item.id])));
+  for(const item of r.items)for(let n=0;n<item.count;n++)addToInventory(next.loadout.inventory,origins.mint(c.id,clone(q.definition.items[item.id]))); // Each rewarded unit keeps its own resale right inside the stack it joins.
   for(const [key,amount] of Object.entries(r.stats))next.loadout.player_info[key]=Math.max(key==='playerHealthMax'?1:-1000000,(next.loadout.player_info[key]??0)+amount);
   next.loadout.player_info.playerHealth=Math.min(next.loadout.player_info.playerHealth,next.loadout.player_info.playerHealthMax);refreshMana(next.loadout);
   if(r.xp){next.run={enemy:{exp:r.xp},log:[],hp:next.loadout.player_info.playerHealth,maxHp:next.loadout.player_info.playerHealthMax};awardExperience(next,roll);delete next.run;}

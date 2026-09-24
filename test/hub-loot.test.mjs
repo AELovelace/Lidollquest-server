@@ -27,7 +27,7 @@ test('daily stock is deterministic, rolled with shop luck, and priced from the r
   assert.equal(item.loot.rolled,true);
   tiers.add(item.loot.rarity);
   assert.ok(!['epic','legendary'].includes(item.loot.rarity),'shop luck never hands out '+item.loot.rarity);
-  assert.ok(item.loot.ilvl>=7&&item.loot.ilvl<=10,'Rose Court shops sit in the princess-rose band');
+  assert.ok(item.loot.ilvl>=9&&item.loot.ilvl<=12,'a level 1 shopper is lifted to the bottom of the princess-rose band (10, jitter -1/+2)');
  }
  assert.ok(tiers.has('uncommon')||tiers.has('rare'),'some stock carries an adjective');
  const definition=hubDefinition(shopsHub,5*DAY+1);
@@ -46,5 +46,17 @@ test('a gamemaster retune reaches the next day of stock without a restart',()=>{
  assert.notDeepEqual(before,after);
  configureShopLoot(null);
  assert.deepEqual(shopOffers(shopsHub.id,merchant,9*DAY+1),before,'the shipped table is back');
- assert.equal(createLootRoller(loot).routeLevel('littlebig-clockwork',1),60,'city shops sell level 60 gear');
+ assert.equal(createLootRoller(loot).routeLevel('littlebig-clockwork',1),60,'city routes still hand out level 60 gear');
+});
+
+test('stock scales to the shopper inside each hub band: same items, level and price follow the buyer',()=>{
+ configureShopLoot(null);
+ const roller=createLootRoller(loot);
+ assert.deepEqual([roller.shopLevel('honeydew-lantern',1),roller.shopLevel('honeydew-lantern',60),roller.shopLevel('princess-rose',1),roller.shopLevel('princess-rose',30),roller.shopLevel('princess-rose',200),roller.shopLevel('littlebig-clockwork',5),roller.shopLevel('nowhere',7)],[1,25,10,30,50,40,7]);
+ const low=shopOffers('honeydew-lantern',merchant,3*DAY+1,1),high=shopOffers('honeydew-lantern',merchant,3*DAY+1,60);
+ assert.deepEqual(low.map(o=>o.item.item_id),high.map(o=>o.item.item_id),'everyone sees the same eight items that day');
+ for(const [i,offer] of high.entries()){const item=offer.item,cheap=low[i].item;if(!item.loot)continue;
+  assert.ok(item.loot.ilvl>=24&&item.loot.ilvl<=27,'a level 60 shopper is capped at the village band (25)');assert.ok(cheap.loot.ilvl<=3);
+  assert.equal(item.loot.rarity,cheap.loot.rarity,'rarity comes from the shared seed');assert.ok(offer.price>=low[i].price,'higher level stock costs at least as much');}
+ assert.deepEqual(hubDefinition(shopsHub,3*DAY+1,30).fixtures.find(f=>f.id===merchant.id).offers,shopOffers(shopsHub.id,merchant,3*DAY+1,30),'the snapshot carries the viewing shopper scaled stock');
 });
