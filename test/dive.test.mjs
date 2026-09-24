@@ -195,7 +195,7 @@ test('server clock pursues players, starts only one shared fight and respects th
 });
 
 test('defeat preserves chest items, restores quarter HP and respawns the opponent',()=>{
- const f=fixture({roll:n=>n-1});try{const a=f.player(),ch=f.snap(a).dive.chests[0];f.near(a,ch);f.act(a,'dive_claim',{chest:ch.id});const loadout=f.snap(a).character.loadout;loadout.player_info.playerHealth=1;loadout.player_info.str=1;f.act(a,'loadout',{loadout});f.engage(a);let s=f.snap(a);s=f.act(a,'turn_ready',{loadout:s.character.loadout,forfeit:false});s=f.act(a,'attack');assert.equal(s.character.run,null);assert.equal(s.character.lastResult.outcome,'defeat');assert.equal(s.character.loadout.player_info.playerHealth,125);assert.equal(s.character.loadout.inventory.length,1);assert.equal(s.dive.enemies.find(e=>e.id==='iris').engaged,null);
+ const f=fixture({roll:n=>n-1});try{const a=f.player(),ch=f.snap(a).dive.chests[0];f.near(a,ch);f.act(a,'dive_claim',{chest:ch.id});const loadout=f.snap(a).character.loadout;loadout.player_info.playerHealth=1;loadout.player_info.str=1;f.act(a,'loadout',{loadout});f.engage(a);let s=f.snap(a);s=f.act(a,'turn_ready',{loadout:s.character.loadout,forfeit:false});s=f.act(a,'attack');assert.equal(s.character.run,null);assert.equal(s.character.lastResult.outcome,'defeat');assert.equal(s.character.loadout.player_info.playerHealth,125);assert.deepEqual(s.character.loadout.inventory.map(i=>i.item_id),loadout.inventory.map(i=>i.item_id)); /* The chest item plus any seeded alchemy ingredient bundle all survive the defeat. */assert.equal(s.dive.enemies.find(e=>e.id==='iris').engaged,null);
  }finally{f.close();}
 });
 
