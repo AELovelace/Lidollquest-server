@@ -103,6 +103,14 @@ export function generateDistrict(definition,window,data=districtData){
 export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActivate=()=>{}}={}){
  db.exec('CREATE TABLE IF NOT EXISTS hub_district_editions(zone TEXT NOT NULL,edition TEXT NOT NULL,content TEXT NOT NULL,PRIMARY KEY(zone,edition)); CREATE TABLE IF NOT EXISTS hub_district_current(zone TEXT PRIMARY KEY,edition TEXT NOT NULL);');
  const cache=new Map();
+ db.exec('CREATE TABLE IF NOT EXISTS hub_district_controls(zone TEXT PRIMARY KEY,locked INTEGER NOT NULL,pinned TEXT,month TEXT,reroll INTEGER NOT NULL)'); // GM lock / regenerate state per monthly hub map; survives restarts.
+ const control=id=>db.prepare('SELECT * FROM hub_district_controls WHERE zone=?').get(id)??{zone:id,locked:0,pinned:null,month:null,reroll:0};
+ const saveControl=c=>db.prepare('INSERT INTO hub_district_controls VALUES (?,?,?,?,?) ON CONFLICT(zone) DO UPDATE SET locked=excluded.locked,pinned=excluded.pinned,month=excluded.month,reroll=excluded.reroll').run(c.zone,c.locked?1:0,c.pinned,c.month,c.reroll);
+ function windowFor(id){ // Which layout this hub should show right now: a locked hub keeps its pinned layout; a GM reroll this month gets a fresh seed; otherwise the calendar month.
+  const base=monthlyWindow(now(),data.reset_hour),c=control(id);
+  if(c.locked&&c.pinned)return JSON.parse(c.pinned); // Monthly resets skip a locked hub.
+  return c.month===base.edition&&c.reroll>0?{...base,edition:base.edition+'-r'+c.reroll}:base; // A reroll lasts until the next monthly reset.
+ }
  const visitors=id=>db.prepare('SELECT x,y FROM quest_presence WHERE zone=? AND seen>?').all(id,now()-30000);
  const addCauldron=(f,def)=>{ // Editions generated before cauldrons (and Bramble) existed gain them on load, without regenerating the month.
   if(!def.dormitory)return false;
@@ -125,7 +133,7 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
  const upgrade=(id,f,def)=>{const gate=addNorthGate(f,def),pot=addCauldron(f,def)||gate;if(((f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)))||pot)persist(id,f);};
  const persist=(id,f)=>db.prepare('UPDATE hub_district_editions SET content=? WHERE zone=? AND edition=?').run(JSON.stringify(f),id,f.district.layoutKey);
  function ensure(def){
-  const id=districtZone(def),window=monthlyWindow(now(),data.reset_hour),layoutKey=`${window.edition}:v${data.version}`,cached=cache.get(id);if(cached?.district.layoutKey===layoutKey){upgrade(id,cached,def);return cached;}
+  const id=districtZone(def),window=windowFor(id),layoutKey=`${window.edition}:v${data.version}`,cached=cache.get(id);if(cached?.district.layoutKey===layoutKey){upgrade(id,cached,def);return cached;}
   const row=db.prepare('SELECT content FROM hub_district_editions WHERE zone=? AND edition=?').get(id,layoutKey);
   const f=row?JSON.parse(row.content):generateDistrict(def,window,data);
   const prior=db.prepare('SELECT edition FROM hub_district_current WHERE zone=?').get(id);
@@ -142,5 +150,24 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
  function refresh(){for(const d of data.districts)ensure(d);}
  function resolve(base){const def=data.districts.find(d=>base.id===districtZone(d));return def?{...base,...ensure(def)}:base;} // A lobby town resolves onto its hub's own catalog entry.
  function tick(){for(const def of data.districts){const id=districtZone(def),players=visitors(id);if(!players.length)continue;const f=ensure(def);if(moveDistrictResidents(f,players,now(),data))persist(id,f);}}
- return {refresh,resolve,tick};
+ const defFor=id=>data.districts.find(d=>districtZone(d)===id);
+ function status(id){ // What the GM panel shows for a monthly hub map; null for fixed rooms (courtyards, inns, halls).
+  const def=defFor(id);if(!def)return null;
+  const c=control(id),wanted=`${windowFor(id).edition}:v${data.version}`,shown=ensure(def).district.layoutKey;
+  return {locked:!!c.locked,layoutKey:shown,pending:wanted!==shown,resetsAt:c.locked?null:monthlyWindow(now(),data.reset_hour).ends}; // pending: a new layout waits for battles in this hub to end.
+ }
+ function lock(id,locked){ // Pin the layout on screen now, or return to the calendar month.
+  const def=defFor(id);if(!def)throw Object.assign(Error('Only monthly hub maps can be locked.'),{status:400});
+  const c=control(id);
+  if(locked&&!c.locked){const f=ensure(def),current=windowFor(id),shownEdition=f.district.edition;saveControl({...c,locked:true,pinned:JSON.stringify({...current,edition:shownEdition})});} // Pin exactly what visitors see, even while a reroll is still waiting on a battle.
+  else if(!locked&&c.locked)saveControl({...c,locked:false,pinned:null}); // The next read follows the calendar again (or this month's reroll).
+  cache.delete(id);return status(id);
+ }
+ function regenerate(id){ // Roll a brand-new layout for this hub now; a locked hub stays locked on the new layout.
+  const def=defFor(id);if(!def)throw Object.assign(Error('Only monthly hub maps can be regenerated.'),{status:400});
+  const base=monthlyWindow(now(),data.reset_hour),c=control(id),reroll=c.month===base.edition?c.reroll+1:1,next={...base,edition:base.edition+'-r'+reroll};
+  saveControl({...c,month:base.edition,reroll,pinned:c.locked?JSON.stringify(next):null}); // Fresh seed: <month>-r<n>.
+  cache.delete(id);ensure(def);return status(id); // Activates immediately, or waits (pending) while someone in the hub is mid-battle.
+ }
+ return {refresh,resolve,tick,status,lock,regenerate};
 } // Materialized monthly editions survive service restarts and mid-month content deployments.
