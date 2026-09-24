@@ -9,6 +9,7 @@ import {createLootStore} from './loot-store.mjs';
 import {readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {applyDefeatEquipment} from './defeat-equipment.mjs';
+import {applyDefeatDignity} from './defeat-dignity.mjs';
 import {generateFloor,dressFloor,addFood,weeklyWindow,seeded,pathTo,walkable,inside,enemyRoams} from './dive-generation.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation,MAX_STAT,currentTuning} from './combat.mjs';
 import {levelEnemy,encounterLevel,routeLevelFor,defHpDelta,dexStaminaDelta} from './scaling.mjs';
@@ -119,6 +120,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    if(record)relocate(c,state,entry(record.floor,state.dive.origin),defeatPresentation(run,outcome).defeatScene);
   }
   const equipment=applyDefeatEquipment(state,run,outcome);
+  applyDefeatDignity(state,run,outcome); // Lost fights drain dignity like the campaign (-64, -96 in a childish outfit, scaled by Shame); lines land in run.log.
   syncRunHealth(state,run);state.lastResult={outcome,coins:0,rounds:1,zone:zoneId,log:run.log,...defeatPresentation(run,outcome),...(equipment?{defeatEquipment:equipment}:{})};state.run=null;
   if(state.dive)state.dive.safeUntil=now()+10*seconds;
   if(record)saveFloor(record);

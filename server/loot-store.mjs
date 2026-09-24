@@ -44,6 +44,8 @@ const SCALAR_BOUNDS={
  row_swap_costs_turn:[0,1],row_back_damage_taken:[0.1,1],row_back_melee_dealt:[0.1,1],row_front_target_weight:[1,10],reach_damage_mult:[0.1,2],stack_max:[1,9999], // Rows, reach weapons, stacking.
  atelier_price:[1,10000],emporium_price:[1,10000], // LiDollCoins per Diaper Atelier / Clothes Emporium roll in the companion.
  daily_coin_cap:[1,100000],diamond_roll_floor:[0,4], // Account-wide daily LiDollCoin earnings; lowest rarity index a companion diamond roll may land on.
+ defeat_dignity_loss:[0,1024],defeat_dignity_childish_extra:[0,1024],witnessed_wet_dignity:[0,1024],witnessed_tum_dignity:[0,1024],smell_dignity_per_mess:[0,1024],smell_dignity_max:[0,1024], // Online Dignity amounts (dignity.mjs); 0 turns that source off.
+ shame_pts_plug:[0,100],shame_pts_wet:[0,100],shame_pts_mess:[0,100],shame_pts_mouth:[0,100],shame_pts_locked:[0,100],shame_pts_per_cute:[0,10],shame_sensitivity_low:[0,5],shame_sensitivity_high:[0,5],shame_mult_low:[0,5],shame_mult_high:[0,5], // Shame score weights and the Dignity-loss multiplier.
  move_delay_ms:[50,2000],crawl_move_delay_ms:[50,4000], // Online step cooldowns in milliseconds (crawl.mjs movementDelay). Below 50 ms clients would be refused on ordinary clock drift.
 };
 const RARITY_BOUNDS={weight:[0,1000],affixes:[0,6],budget_mult:[0.5,5],value_mult:[0,50],bless_mult:[0,10],curse_mult:[0,10]};

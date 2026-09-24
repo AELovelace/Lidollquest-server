@@ -1,6 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {pinDefeat,publicEnemy} from './defeat-scenes.mjs';
 import {applyDefeatEquipment} from './defeat-equipment.mjs';
+import {applyDefeatDignity} from './defeat-dignity.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,enemyAction,tickEnemyEffects,awardExperience,defeatPresentation,combatData,currentTuning} from './combat.mjs';
 import {levelEnemy,encounterLevel,routeLevelFor,pickTarget,rowSwapCostsTurn} from './scaling.mjs';
 import {isCrawling} from './crawl.mjs';
@@ -92,7 +93,9 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
    if(bossDown){const p=progress(c,record.edition);p.completed=true;saveProgress(c,record.edition,p);}
    const coins=bossDown?pay(c,s,record,true):0,outcome=a.status==='active'?(win?'win':'abandoned'):a.status;
    const equipment=applyDefeatEquipment(s,a.run,outcome); // Only this member's actual defeat opponent supplies their outfit, even when their party wins.
-   s.lastResult={outcome,coins,rounds:1,zone,log:[...e.events.map(v=>v.text),...(equipment?.changes.length?a.run.log.slice(-equipment.changes.length):[])],...defeatPresentation(a.run,outcome),...(equipment?{defeatEquipment:equipment}:{})};s.wins=(s.wins??0)+(win?1:0);s.run=null;
+   const outfitLog=equipment?.changes.length?a.run.log.slice(-equipment.changes.length):[]; // Read the outfit lines before dignity appends its own.
+   const dignity=applyDefeatDignity(s,a.run,outcome); // Only the members who went down lose dignity; survivors of a winning party keep theirs.
+   s.lastResult={outcome,coins,rounds:1,zone,log:[...e.events.map(v=>v.text),...outfitLog,...dignity],...defeatPresentation(a.run,outcome),...(equipment?{defeatEquipment:equipment}:{})};s.wins=(s.wins??0)+(win?1:0);s.run=null;
    if(s.dive||context)relocate(c,s,win&&!s.lastResult.defeatScene?e.origin:entry(record.floor,s.dive?.origin),s.lastResult.defeatScene,a.downedAt); // A defeated member returns to their own gate even when the survivors win.
    if(!['flee','abandoned'].includes(outcome))for(const enemy of e.enemies.filter(v=>v.data.hp<=0))live?.questEvent?.(c,s,{id:'kill:'+e.id+':'+enemy.id,type:'kill',target:enemy.data.enemy_id??enemy.data.id,zone,created:e.created});
    if(force)back(c,s);

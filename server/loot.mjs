@@ -50,6 +50,13 @@ export const DEFAULT_TUNING=Object.freeze({
  daily_coin_cap:9999, // Account-wide LiDollCoins one player may earn per UTC day across arena payouts, Dive bosses, weekly quests and item sales (hubs.mjs dailyCoinCap). Live on the /gm Loot tab and the in-game GM Combat page.
  diamond_roll_floor:2, // Companion diamond rolls (exactly 1 diamond) never land below this rarity index: 0 common, 1 uncommon, 2 rare, 3 epic, 4 legendary (companion-shops.mjs).
  move_delay_ms:150,crawl_move_delay_ms:300, // Online walking: milliseconds the server demands between steps (crawl.mjs movementDelay). The zone snapshot ships them as moveDelayMs / crawlMoveDelayMs so the client paces itself to the same clock.
+ // Online Dignity (stored as player_info.shame, 1024 down to 0) and Shame (0-100 predicament). dignity.mjs; shipped to the client as dignityTuning.
+ defeat_dignity_loss:64,defeat_dignity_childish_extra:32, // Dignity lost per defeat/submit/failed charm, plus extra in a childish (7+) outfit (defeat-dignity.mjs), before the Shame multiplier.
+ witnessed_wet_dignity:12,witnessed_tum_dignity:20, // Dignity lost per wetting/mess while another player is on screen (client online_dignity_witnessed), before the Shame multiplier.
+ smell_dignity_per_mess:32,smell_dignity_max:128, // Temporary Dignity borrowed per mess still worn, capped; returned on changing (client online_smell_dignity_sync). Not multiplied.
+ shame_pts_plug:20,shame_pts_wet:15,shame_pts_mess:25,shame_pts_mouth:15,shame_pts_locked:12,shame_pts_per_cute:3, // Shame points: plug in, wet, messy, paci/gag in, each locked (cursed) childish piece, per point of worn childish (0-10).
+ shame_sensitivity_low:0.4,shame_sensitivity_high:1.6, // Points x this at 0 Dignity .. at 1024 Dignity: proud characters feel Shame faster.
+ shame_mult_low:0.5,shame_mult_high:2, // Dignity loss x this at 0 Shame .. at 100 Shame.
  atelier_price:3,emporium_price:3, // LiDollCoins per companion roll (companion-shops.mjs). Odds come from the `atelier`/`emporium` luck profiles and item level from shop_levels.atelier/.emporium, each falling back to the plain rarity weights and the default band.
 });
 
