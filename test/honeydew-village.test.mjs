@@ -48,7 +48,7 @@ test('the Community Hall and Inn are the campaign rooms: authored tiles, a door 
   assert.equal(room.walls[18][10],0,'the door tile is floor');
  }
  assert.equal(hall.walls[9][4],0);assert.equal(hall.walls[9][9],1); // The companion room's doorway (3-6,9) opens south; its east wall is solid.
- assert.deepEqual(hall.fixtures.map(f=>[f.kind,f.x,f.y]),[['cauldron',14,2]]); // the hall's only fixture is Honeydew's brewing cauldron, in the quiet north-east room
+ assert.deepEqual(hall.fixtures.map(f=>[f.kind,f.x,f.y]),[['cauldron',14,2],['shop',16,2]]); // Honeydew's brewing cauldron and Bramble the reagent seller, in the quiet north-east room
  assert.deepEqual(inn.fixtures.filter(f=>f.kind==='bed').map(b=>[b.id,b.x,b.y]),hubData.beds.map((b,i)=>[b.id,INN_BEDS[i].x,INN_BEDS[i].y]));
  assert.equal(inn.fixtures.find(f=>f.id==='innkeeper').avatar,'objNPCInnkeeper');
  for(const bed of INN_BEDS)assert.equal(inn.walls[bed.y][bed.x],0,'beds stand on floor');

@@ -1,5 +1,5 @@
 import {removeCursedGear} from './curse-removal.mjs';
-import {districtData,districtZone,shopFixtures,marketServices,storeSlug,cauldronFixture} from './hub-districts.mjs';
+import {districtData,districtZone,shopFixtures,marketServices,storeSlug,cauldronFixture,reagentFixture} from './hub-districts.mjs';
 import {districtSize} from './district-layouts.mjs';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -9,6 +9,7 @@ import {currentTuning} from './combat.mjs'; // Live loot tuning (daily_coin_cap)
 import {roseCourtyard,GARDEN_PORTALS,validateCourtyard} from './hub-garden.mjs';
 
 export const hubData=JSON.parse(readFileSync(new URL('./hub-data.json',import.meta.url),'utf8'));
+export const findShop=id=>hubData.shops.find(s=>s.id===id)??(hubData.reagent_shop?.id===id?hubData.reagent_shop:undefined); // the eight merchants, plus Bramble beside the cauldrons
 export const campaignDives=JSON.parse(readFileSync(new URL('./campaign-dives-data.json',import.meta.url),'utf8')).routes;
 const c=hubData.config;
 // Shop stock rolls through the same Adjective + Item + Rarity table as chests (shipped as `loot`
@@ -48,7 +49,7 @@ const VILLAGE_ROOM_SPAWN=Object.freeze({x:10,y:17}); // Arrivals stand just insi
 export const INN_BEDS=Object.freeze([{x:2,y:3},{x:5,y:3},{x:9,y:3},{x:12,y:3},{x:16,y:3},{x:3,y:15}]); // One or two beds per Inn bedroom, three tiles apart so labels stay readable.
 const villageRoom=(art,fixtures)=>({width:art.width,height:art.height,spawn:{...VILLAGE_ROOM_SPAWN},exit:{...VILLAGE_ROOM_EXIT},walls:art.walls,floors:art.floors,wallTiles:art.wallTiles,decorTiles:art.decorTiles,tilesets:art.tilesets,fixtures,authored:true}); // authored: the client paints these tile grids instead of a generic interior.
 const innFixtures=[...hubData.beds.map((bed,i)=>({...bed,kind:'bed',...INN_BEDS[i],span_w:1,span_h:1,solid:true})),{id:'innkeeper',name:'Innkeeper',kind:'npc',avatar:'objNPCInnkeeper',x:12,y:15,span_w:1,span_h:1,solid:true,line:'Welcome to the Honeydew Inn, sweetheart. Pick any bed you like and rest as long as you need. Nobody here minds a little accident.'}]; // The innkeeper stands where the campaign places her.
-export const villageRooms=Object.freeze({dives:villageRoom(communityHall,[cauldronFixture(14,2)]),beds:villageRoom(innRoom,innFixtures)}); // The Community Hall's quiet north-east room holds Honeydew's brewing cauldron. // Community Hall (Dive pads in the old companion room, top-left) and Inn (six beds in its bedrooms).
+export const villageRooms=Object.freeze({dives:villageRoom(communityHall,[cauldronFixture(14,2),reagentFixture(16,2)]),beds:villageRoom(innRoom,innFixtures)}); // The Community Hall's quiet north-east room holds Honeydew's brewing cauldron, with Bramble selling reagents beside it. // Community Hall (Dive pads in the old companion room, top-left) and Inn (six beds in its bedrooms).
 export const STORE={width:11,height:9,spawn:{x:5,y:6},exit:{x:5,y:7,style:'door'},counter:{y:4,gap:5},keeper:{x:5,y:2}}; // A LittleBigCity store: one room per merchant, a planter counter with a gap in the middle, the keeper behind it, the door at the bottom back onto the sidewalk.
 const storeRoom=shop=>({width:STORE.width,height:STORE.height,spawn:{...STORE.spawn},exit:{...STORE.exit},store:true,
  walls:Array.from({length:STORE.height},(_,y)=>Array.from({length:STORE.width},(_,x)=>x===0||y===0||x===STORE.width-1||y===STORE.height-1?1:0)),
@@ -77,7 +78,7 @@ export const hubRooms=[...hubCatalog.flatMap(root=>annexKinds(root).map(kind=>({
  width:kind==='garden'?gardenWidth:kind==='shops'?c.shop_width:20,height:kind==='garden'?gardenHeight:kind==='shops'?c.shop_height:12,
  spawn:kind==='garden'?{x:gardenWidth-2,y:Math.floor(gardenHeight/2)}:kind==='beds'?{x:1,y:6}:kind==='shops'?{x:20,y:21}:{x:9,y:10}, // Dive Hall arrivals stand just inside its bottom-wall opening.
  exit:kind==='garden'?{x:gardenWidth-1,y:Math.floor(gardenHeight/2)-1,w:1,h:2,style:'gap',side:'right'}:kind==='beds'?{x:0,y:5,w:1,h:2,style:'gap',side:'left'}:kind==='shops'?{x:20,y:22,style:'stairs'}:{x:9,y:11,w:2,h:1,style:'gap',side:'bottom'}, // Market Halls keep their stairs; the Dive Hall returns through a bottom-wall opening.
- fixtures:kind==='beds'?[...hubData.beds.map((bed,i)=>({...bed,kind:'bed',x:3+(i%3)*6,y:3+Math.floor(i/3)*4})),...(root.id==='littlebig-clockwork'?[cauldronFixture(18,5)]:[])]: // The LittleBig Inn keeps LittleBigCity's brewing cauldron by its east wall.
+ fixtures:kind==='beds'?[...hubData.beds.map((bed,i)=>({...bed,kind:'bed',x:3+(i%3)*6,y:3+Math.floor(i/3)*4})),...(root.id==='littlebig-clockwork'?[cauldronFixture(18,5),reagentFixture(18,7)]:[])]: // The LittleBig Inn keeps LittleBigCity's brewing cauldron by its east wall, Bramble two tiles below it.
  kind==='shops'?[...shopFixtures().map((shop,i)=>({...shop,x:[6,14,25,33][i%4],y:6+Math.floor(i/4)*9})),...marketServices().map(service=>({...service,...({bank:{x:30,y:20},dumpster:{x:34,y:20},'curse-remover':{x:9,y:20}})[service.id]})),...(hubData.market_halls.find(h=>h.hub===root.id)?.decorations??[])]:
  [], // Monthly districts supply their own persisted scenery and NPC fixtures; Rose Court's beds live inside The Castle district's dormitory instead of a Resting Hall.
  ...(root.id==='honeydew-lantern'?villageRooms[kind]:{}), // The village's Inn and Community Hall replace the generic annex geometry with the campaign rooms (20x20, authored tiles, door exit).
@@ -95,10 +96,11 @@ import {stackable,slotsUsed,addToInventory} from './loadout.mjs'; // Stack-aware
 export const shopperLevel=state=>Math.max(1,Math.floor(Number(state?.loadout?.player_info?.level)||1)); // The level hub stock is rolled at for this character (clamped per hub by shopLevel).
 export function shopOffers(zone,shop,time,level=1){ // `level`: the shopper's level; the item picks are shared per day, only their rolled level differs per shopper.
  const day=Math.floor(time/86400000),rnd=seeded(`${zone}:${shop.id}:${day}`),pool=[...shop.pool],offers=[];
- // Keep a meal available at the general merchant and apothecary every day.
- const food=pool.includes('adult_food')?'adult_food':null;if(food)pool.splice(pool.indexOf(food),1);
- for(let slot=0;slot<c.stock_size&&(pool.length||slot===0&&food);slot++){
-  const id=slot===0&&food?food:pool.splice(rnd(pool.length),1)[0];let item=structuredClone(hubData.items[id]);
+ // Always stocked: a meal at the general merchant and apothecary, arrows wherever arrows are sold (Grog's bows need them).
+ const guaranteed=['adult_food','arrows'].filter(id=>pool.includes(id));for(const id of guaranteed)pool.splice(pool.indexOf(id),1);
+ const shelf=Number.isInteger(shop.stock_size)&&shop.stock_size>=1&&shop.stock_size<=24?shop.stock_size:c.stock_size; // a merchant's own shelf size (Bramble keeps a small rotating one), else the hub's
+ for(let slot=0;slot<shelf&&(slot<guaranteed.length||pool.length);slot++){
+  const id=slot<guaranteed.length?guaranteed[slot]:pool.splice(rnd(pool.length),1)[0];let item=structuredClone(hubData.items[id]);
   if(item.atk_min!==undefined){item.atk=item.atk_min+rnd(item.atk_max-item.atk_min+1);item.desc=item.desc?.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}
   const roller=shopRoller(),hub=hubRooms.find(r=>r.id===zone)?.parent??zone; // Annex shops use their parent hub's level band.
   item=roller.roll(item,`${zone}:${shop.id}:${day}:${slot}`,{level:roller.shopLevel(hub,level),luck:'shop'}); // Rarity, level and affixes with shop luck (no epics) at the shopper's level clamped into the hub's shop_levels band; the rolled name and value are what the player sees and pays for.
@@ -106,7 +108,7 @@ export function shopOffers(zone,shop,time,level=1){ // `level`: the shopper's le
   offers.push({id:`${day}-${slot}`,price,item});
  }return offers;
 } // Stock is deterministic and inexhaustible; the same eight items greet everyone that day, scaled to each shopper.
-export function hubDefinition(z,time,level=1){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??LOBBY_EXIT,restTickMs:c.rest_tick_ms,portals:z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z),fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:shopOffers(z.id,hubData.shops.find(s=>s.id===f.id),time,level)}:f)};} // `level`: the viewing character's level, so merchants show that shopper's scaled stock.
+export function hubDefinition(z,time,level=1){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??LOBBY_EXIT,restTickMs:c.rest_tick_ms,portals:z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z),fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:shopOffers(z.id,findShop(f.id),time,level)}:f)};} // `level`: the viewing character's level, so merchants show that shopper's scaled stock.
 export function nearbyFixture(z,p,id,kind){const f=z.fixtures?.find(f=>f.id===id&&f.kind===kind);if(!f||Math.abs(f.x-p.x)+Math.abs(f.y-p.y)>1)fail('Stand next to that '+kind+'.');return f;}
 
 export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWager(id,char,state,paid,amount): a duel stake settled through the same durable debit path; hooks.companionShop(...,reservation) delivers a companion roll.
@@ -115,7 +117,7 @@ export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWage
  function prepare(i,char,state,z,p,input){
   if(state.run||!state.loadout)fail('Leave combat before shopping.');
   nearbyFixture(z,p,input.fixture,'shop');
-  const shop=hubData.shops.find(s=>s.id===input.fixture),offer=shopOffers(z.id,shop,now(),shopperLevel(state)).find(o=>o.id===input.offer); // Priced and rolled exactly as this shopper saw it.
+  const shop=findShop(input.fixture),offer=shopOffers(z.id,shop,now(),shopperLevel(state)).find(o=>o.id===input.offer); // Priced and rolled exactly as this shopper saw it.
   if(!offer)fail('The stock changed. Reopen the shop.');
   if(!stackable(offer.item)&&slotsUsed(state.loadout.inventory)>=c.inventory_capacity)fail('Inventory full. No coins were charged.'); // Stacks (arrows, snacks) never need a free slot.
   const id=createHash('sha256').update(char.id+':'+input.request_id).digest('hex');

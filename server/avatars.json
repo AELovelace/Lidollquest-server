@@ -84,6 +84,12 @@
     "walk": "sprNPCAdventurerWalk"
   },
   {
+    "id": "objNPCReagentVendor",
+    "name": "Bramble",
+    "sprite": "sprNPCHerbalist",
+    "walk": "sprNPCHerbalistWalk"
+  },
+  {
     "id": "objNPCPaddedWarrior",
     "name": "Brann",
     "sprite": "sprNPCPaddedWarrior",
