@@ -2,6 +2,7 @@ import {isCrawling,syncCrawl,standBlockReason,setCrawling} from './crawl.mjs';
 import {readFileSync} from 'node:fs';
 import {applyRunLoadout,syncRunHealth} from './loadout.mjs';
 import {mageBalance,hasAbility,manaCapacity,refreshMana} from './magic-balance.mjs';
+import {loseDignity} from './dignity.mjs';
 import {resolvedDefeat,pinDefeat} from './defeat-scenes.mjs';
 import {DEFAULT_TUNING} from './loot.mjs';
 import {mitigate,healScale,playerHpDelta,staminaDelta,rowSwapCostsTurn,rowDamageTaken,rowMeleeDealt,weaponProfile,isArrow} from './scaling.mjs';
@@ -52,6 +53,10 @@ function refreshIntMana(loadout){loadout.player_mp_max=manaCapacity(loadout);ref
 function addBuff(r,p,spell,amount){ // Preserve the actual clamped change so a debuff cannot inflate stats when it expires.
  const key=spell.stat_effect,before=num(p[key]);p[key]=spell.enemy_only?Math.max(0,before+amount):before+amount;
  r.buffs.push({spell_id:spell.spell_id,stat_key:key,amount:p[key]-before,turns_left:spell.dot_turns});
+}
+function enemyStat(p,key,amount){ // Enemy spell/combo stat hits. Their "shame" amount is shame inflicted: +N costs N Dignity (stored in `shame`), scaled by the target's Shame.
+ if(key!=='shame')return statEffect(p,key,amount);
+ if(amount>0)loseDignity(p,amount,currentTuning());else p.shame=Math.min(1024,num(p.shame,1024)-amount); // A negative authored amount gives Dignity back, unscaled.
 }
 function statEffect(p,key,amount){
  const cap={wet:100,tum:100,shame:1024,excitement:9999,incontinence:1000,stamina:num(p.stamina_max,100)};
@@ -106,14 +111,14 @@ function charm(state,action,roll){
 function enemySpell(state,s){ // Enemy spell effects share the player's serialized modifier timers.
  const r=state.run,p=state.loadout.player_info,defense=p.def-r.handicaps.filter(h=>h==='Reduced armor').length;r.log.push(r.enemy.name+' casts '+s.name+'.');
  if(s.type==='enemy_stat'&&s.stat_effect==='crawling'){if(s.stat_amount>0){setCrawling(state.loadout,true);r.log.push('Knocked down! Physical damage -25%; Stand Up costs one action.');}}
- else if(s.type==='enemy_stat')statEffect(p,s.stat_effect,s.stat_amount);
+ else if(s.type==='enemy_stat')enemyStat(p,s.stat_effect,s.stat_amount);
  if(s.type==='enemy_damage')r.hp=Math.max(0,r.hp-mitigate(currentTuning(),s.power,defense)); // Player DEF shaves a percentage off enemy spells.
  if(s.type==='enemy_debuff')addBuff(r,p,s,s.stat_amount);
  if(s.type==='enemy_combo')for(const e of s.combo_effects??[]){
   if(e.type==='damage')r.hp=Math.max(0,r.hp-mitigate(currentTuning(),e.power,defense));
   else if(e.type==='debuff')addBuff(r,p,{...s,stat_effect:e.stat,dot_turns:e.turns},e.amount);
   else if(e.type==='crawling'&&e.amount>0){setCrawling(state.loadout,true);r.log.push('Knocked down! Stand Up costs one action.');}
-  else statEffect(p,e.type,e.amount);
+  else enemyStat(p,e.type,e.amount);
  }
 }
 

@@ -327,6 +327,19 @@
           "mage",
           "diplomat"
         ]
+      },
+      {
+        "id": "read_the_room",
+        "kind": "ability",
+        "name": "Read the Room",
+        "description": "Passive: inspecting another player also shows their Dignity and Shame.",
+        "cost": 6,
+        "level": 1,
+        "classes": [
+          "fighter",
+          "mage",
+          "diplomat"
+        ]
       }
     ]
   },
