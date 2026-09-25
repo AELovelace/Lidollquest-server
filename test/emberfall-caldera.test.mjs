@@ -70,7 +70,7 @@ test('links: the Tundra opens a south trail, the Plains a west trail; the band s
  }
  const plains=generateDesert(autumnalPlainsData,'west-1');assert.equal(addSideTrail(plains,{zone_id:CALDERA_ZONE,name:'Emberfall Caldera',side:'left'}),true);assert.ok(validateDesert(plains));
  const tuning=JSON.parse(readFileSync(new URL('../server/dive-data.json',import.meta.url),'utf8')).loot.tuning,band=routeLevelFor(tuning,'emberfall-caldera');
- assert.ok(band>routeLevelFor(tuning,'dustbreak-crossing')&&band<routeLevelFor(tuning,'frostveil-crossing'));
+ assert.ok(band>routeLevelFor(tuning,'dustbreak-crossing')&&band>routeLevelFor(tuning,'frostveil-crossing')+20,'the Caldera is a wall for newbies walking the Tundra road to Honeydew'); // 2026-09-25: Tundra 12 (starter road), Caldera 45.
  for(const id of ['ember_imp','cinder_slime','steam_sprite','obsidian_golem','magma_matron']){
   const e=calderaData.enemies[id];assert.ok(e&&e.enemy_spells.length&&e.dex<=14);
   for(const s of e.enemy_spells)assert.equal(combatData.spells[s]?.enemy_only,true,s);
