@@ -64,7 +64,7 @@ test('Taiga requires the north Tundra trail; transfers, replay, reconnect and lo
   f.place('alice',{x:50,y:1});const command=f.command('alice','move',{direction:'north',world_step:true}); /* Walk into the top-wall gap. */const first=f.raw('alice',command);f.raw('alice',command);
   assert.equal(first.zone,TAIGA_ZONE);assert.deepEqual(first.position,{x:40,y:78});assert.equal(first.character.worldTurnDue,undefined);assert.equal(first.character.dive.hubOrigin,'princess-rose');
   assert.equal(first.dive.claimed,0);const loot=first.dive.chests[0];f.place('alice',loot);f.act('alice','dive_claim',{chest:loot.id});
-  f.restart();const resumed=f.act('alice','enter',{zone:TAIGA_ZONE,combat_version:3});assert.equal(resumed.dive.claimed,1);assert.equal(resumed.character.loadout.inventory.filter(i=>i.category!=='ingredient').length,2);
+  f.restart();const resumed=f.act('alice','enter',{zone:TAIGA_ZONE,combat_version:3});assert.equal(resumed.dive.claimed,1);assert.equal(resumed.character.loadout.inventory.filter(i=>i.category!=='ingredient').reduce((n,i)=>n+(i.quantity??1),0),2,'both chest items arrived'); /* Count units, not bag entries: when both chests roll the same stackable food (seeded by the random character id, ~2.5% of runs) they merge into one stack of 2. */
   const exit=f.floor('alice').exits[0];f.place('alice',{x:exit.x,y:exit.y-1});const back=f.act('alice','move',{direction:'south'});
   assert.equal(back.zone,TUNDRA_ZONE);assert.deepEqual(back.position,{x:50,y:1});assert.equal(back.dive.claimed,1);
   f.cross('alice');assert.equal(f.snap('alice').dive.claimed,1);assert.equal(f.act('alice','dive_exit').zone,TUNDRA_ZONE);assert.equal(f.act('alice','dive_exit').zone,'princess-rose');
