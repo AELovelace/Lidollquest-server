@@ -21,6 +21,7 @@ import {createAlchemyStore} from './alchemy-store.mjs';
 import {diveData} from './dive.mjs';
 import {createPerformanceMonitor} from './performance.mjs';
 import {createComputePool,computeWorkerCount} from './compute-pool.mjs';
+import {createAuthCache,authCacheMs} from './auth-cache.mjs';
 
 export function loadQuestPack(path){ // LIDOLLQUEST_QUEST_PACK names a shipped quest file; unset means no live quests, exactly as before.
  if(!path)return [];
@@ -33,7 +34,7 @@ export function loadQuestPack(path){ // LIDOLLQUEST_QUEST_PACK names a shipped q
  return pack.quests;
 } // Publishing live quest content refuses clients without quest_version:1, so this stays an explicit deployment choice.
 
-export function createQuestService({filename=':memory:',walletClient,spriteProvider,artJobOptions={},now=Date.now,roll,log=console.warn,performanceOptions={},workerCount=0,onlineToken=process.env.MOMMYBOT_ONLINE_TOKEN||'',gmAllow=process.env.LIDOLLQUEST_GM_ALLOW||'',gmEnabled=process.env.LIDOLLQUEST_GM_ENABLED!=='false',gmTrustProxy=process.env.LIDOLLQUEST_GM_TRUST_PROXY||'',gmRequireTls=process.env.LIDOLLQUEST_GM_REQUIRE_TLS==='true',questPack=loadQuestPack(process.env.LIDOLLQUEST_QUEST_PACK||'')}={}){
+export function createQuestService({filename=':memory:',walletClient,spriteProvider,artJobOptions={},now=Date.now,roll,log=console.warn,performanceOptions={},workerCount=0,authTtlMs=authCacheMs(),onlineToken=process.env.MOMMYBOT_ONLINE_TOKEN||'',gmAllow=process.env.LIDOLLQUEST_GM_ALLOW||'',gmEnabled=process.env.LIDOLLQUEST_GM_ENABLED!=='false',gmTrustProxy=process.env.LIDOLLQUEST_GM_TRUST_PROXY||'',gmRequireTls=process.env.LIDOLLQUEST_GM_REQUIRE_TLS==='true',questPack=loadQuestPack(process.env.LIDOLLQUEST_QUEST_PACK||'')}={}){
  const poolSize=computeWorkerCount(workerCount);let compute=null; // Validate configuration before opening persistent resources.
  const db=new DatabaseSync(filename);db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;'); /* NORMAL is SQLite's recommended setting for WAL: every commit survives an application crash, and only an OS crash or power loss can drop the last few milliseconds of commits. It removes the per-commit fsync that FULL paid for every heartbeat, move and chat line. */
  db.exec(`CREATE TABLE IF NOT EXISTS wallet_cache(owner TEXT PRIMARY KEY,coins INTEGER NOT NULL);
@@ -79,6 +80,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
   }})();purchases.set(owner,task);try{await task;}finally{purchases.delete(owner);}
  } // Retry a durable debit ID before accepting any subsequent inventory-changing command.
  let active=0;const perToken=new Map();
+ const auth=createAuthCache(token=>walletClient.authenticate(token),{ttlMs:authTtlMs}); // Gameplay logins are reused for QUEST_AUTH_CACHE_MS (30 s); /gm still authenticates every request.
  const server=createServer((req,res)=>{void (async()=>{
   if(!req.url?.startsWith('/')||req.url.startsWith('//')||req.url.includes('\\'))throw Object.assign(Error('Invalid request target.'),{status:400});
   const url=new URL(req.url,'http://localhost');
@@ -98,7 +100,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
     let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>256*1024)throw Object.assign(Error('Request too large.'),{status:413});chunks.push(chunk);} // Bounded campaign inventory imports fit the existing tracker gateway limit.
     try{input=JSON.parse(Buffer.concat(chunks));}catch{throw Object.assign(Error('Invalid JSON.'),{status:400});}
    }
-   const verified=await metrics.measureAsync('account.authenticate',()=>walletClient.authenticate(token));db.prepare('INSERT INTO wallet_cache VALUES (?,?) ON CONFLICT(owner) DO UPDATE SET coins=excluded.coins').run(verified.owner,verified.coins);
+   const {verified,fresh}=await metrics.measureAsync('account.authenticate',()=>auth.lookup(token));if(fresh)db.prepare('INSERT INTO wallet_cache VALUES (?,?) ON CONFLICT(owner) DO UPDATE SET coins=excluded.coins').run(verified.owner,verified.coins); // Only a fresh tracker answer may set the balance; a remembered login would roll back newer receipt balances.
    if(gm.suspended(verified.owner))throw Object.assign(Error('This account is suspended from online play.'),{status:403,code:'account_suspended'}); // Checked before any command runs, so a suspension cannot be outlasted by a held connection.
    if(String(verified.scope??'').split(' ').includes('stars:write'))await management.recover(verified.owner,token); // Finish an already-authorized debit before accepting gameplay after reconnect.
    if(url.pathname==='/quests/detail'){if(!String(verified.scope??'').split(' ').includes('social:read'))throw Object.assign(Error('Approve social access.'),{status:403});identity=verified;let result;try{result=zones.questRead(token,url.searchParams.get('character_id'),url.searchParams.get('quest'));}finally{identity=null;}res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));return;}
@@ -135,7 +137,8 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
    result.pendingCoins=db.prepare('SELECT COALESCE(SUM(amount),0) AS n FROM reward_outbox WHERE owner=? AND delivered=0').get(verified.owner).n;
    result.capabilities={unifiedCreation:true,inspection:true,friends:true,cloudSaves:true,saveManagement:true,characterManagement:true,characterDescriptions:true,companionEquipment:true,companionBank:true,bankSales:true,companionShops:true,companionWithdraw:true,companionDiamondRolls:true};
    res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(metrics.measure('response.serialize',()=>JSON.stringify(result)));
-  }finally{active--;const count=perToken.get(token)-1;if(count)perToken.set(token,count);else perToken.delete(token);}
+  }catch(error){if(error.status===401)auth.forget(token);throw error;} // A tracker 401 anywhere in the request ends the remembered login at once.
+  finally{active--;const count=perToken.get(token)-1;if(count)perToken.set(token,count);else perToken.delete(token);}
  })().catch(error=>{if(res.destroyed)return;if(res.headersSent){res.destroy();return;}res.writeHead(error.status??503,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({error:error.code??'zone_request_failed',error_description:error.status?error.message:'Online zones are temporarily unavailable.'}));});});
  const diveTimer=setInterval(()=>metrics.measure('world.timer',()=>zones.tick()),1000);diveTimer.unref(); // Weekly resets and roaming continue without browser requests.
  const onlinePrune=setInterval(()=>onlineFeed.prune(),3600000);onlinePrune.unref();server.on('close',()=>clearInterval(onlinePrune));

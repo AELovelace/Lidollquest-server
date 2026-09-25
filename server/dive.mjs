@@ -48,7 +48,8 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  CREATE TABLE IF NOT EXISTS dive_progress(character_id TEXT NOT NULL,route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,state TEXT NOT NULL,PRIMARY KEY(character_id,route,edition,depth));`);
  const dungeonRules=config.full_dungeon_version?createDungeonRules({db,data,now,roll,origins,adjust,progress,saveProgress,saveFloor}):null;
  const encounters=createDiveEncounters(db,{live,now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate});
- let lastTick=-Infinity,nextSweep=-Infinity,retryAt=0,dressingRetryAt=0,generationPending=null,roamingPending=null,closed=false;
+ let lastTick=-Infinity,nextSweep=-Infinity,retryAt=0,dressingRetryAt=0,generationPending=null,roamingPending=null,closed=false,settledKey=null; // settledKey: edition|content revision of the last full maintain pass (idle fast path).
+ const presentQuery=db.prepare('SELECT 1 FROM quest_presence WHERE zone=? AND seen>? LIMIT 1'); // Cheap "is anybody here?" check; same 30 s window as roamingPlayers().
  const floorQuery=db.prepare('SELECT * FROM dive_editions WHERE route=? AND edition=? AND depth=1');
  const existsQuery=db.prepare('SELECT 1 FROM dive_editions WHERE route=? AND edition=? AND depth=1');
  const enabledQuery=db.prepare('SELECT 1 FROM dive_editions WHERE route=? AND depth=1 LIMIT 1');
@@ -161,7 +162,10 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function maintain(){
   if(live&&data.contentRevision!==live.published().revision){const fresh=live.resolve(baseline);Object.assign(config,fresh.config);data.enemies=fresh.enemies;data.enemy_types=fresh.enemy_types;data.contentRevision=fresh.contentRevision;}
   controls?.tick();
-  ensure();let active=current();if(!active)return;
+  ensure();
+  const edition=latest(),idleKey=edition+'|'+(live?.published().revision??'');
+  if(idleKey===settledKey&&!sweepDue()&&!presentQuery.get(zoneId,now()-30000))return; // Idle fast path: an empty route whose floor already passed reconcile/upgrades for this edition and content skips reading and decoding the whole floor every second. Its own sweep deadline (at most 15 s) and any arriving player bring back the full pass.
+  settledKey=null;let active=getFloor(edition);if(!active)return; // Same floor current() returns; only marked settled once the pass below finishes.
   controls?.reconcile(active);
   if(upgradeFloor(active.floor))saveFloor(active); // Add a trail to an existing edition without rerolling rooms or claimed treasure.
   if(addPinkMist(active.floor))saveFloor(active); // Install a layer on existing editions once, preserving every room, enemy lock and personal claim.
@@ -191,6 +195,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   active=current(); // Settlement above may have released locks; never overwrite it with the earlier floor copy.
   nextSweep=Math.max(soonest===Infinity?now()+15*seconds:soonest,now()+seconds); // Idle routes back right off; a route holding a live deadline never sweeps faster than the old one-second cadence.
   } // An empty route still sweeps to its own deadline, so a disconnected fight settles and a rolled-over edition returns its player without anybody present.
+  settledKey=idleKey; // Reconcile, upgrades and the sweep are done for this edition; empty ticks may now skip until something changes.
   if(controls?.draining())return;
   if(config.roaming===false)return; // World panel "enemies roam" switch for this map: while it is off nobody walks or chases; flipping it back on resumes on the next tick.
   if(now()-active.updated<seconds)return;
@@ -234,7 +239,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   }
   active.updated=tickAt;saveFloor(active); // Preserve the scheduled tick boundary; worker delivery latency must not halve the one-second movement cadence.
  }
- function tick(){if(closed||now()-lastTick<seconds)return;lastTick=now();measure('simulation.'+zoneId,()=>{db.exec('BEGIN IMMEDIATE');try{maintain();db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');lastTick=-Infinity;log('dive_tick_failed',error.stack??String(error));}});} // Never await workers while holding a transaction or request identity.
+ function tick(){if(closed||now()-lastTick<seconds)return;lastTick=now();measure('simulation.'+zoneId,()=>{db.exec('BEGIN IMMEDIATE');try{maintain();db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');lastTick=-Infinity;settledKey=null;log('dive_tick_failed',error.stack??String(error));}});} // Never await workers while holding a transaction or request identity.
  function snapshot(c,p){
   const state=c?JSON.parse(c.state):null,record=owns(state?.dive)?getFloor(state.dive.edition):current(),personal=c&&record?progress(c,record.edition):null;
   const summary={enabled:config.enabled&&!!record,version:1,route,zone:zoneId,category,name,boss:bossId,edition:record?.edition??'',static:!!config.static,resetsAt:config.static?0:record?.ends??weeklyWindow(now()).ends,completed:personal?.completed??false,claimed:record?.floor.chests.filter(ch=>personal?.claimed.includes(ch.id)).length??0,total:record?.floor.chests.length??0,pickupsClaimed:(record?.floor.pickups??[]).filter(ch=>personal?.claimed.includes(ch.id)).length,pickupsTotal:record?.floor.pickups?.length??0,claimableCoins:personal?.completed?Math.max(0,config.boss_coins-personal.coinsPaid):0};
