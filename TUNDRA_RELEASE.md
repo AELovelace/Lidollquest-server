@@ -9,7 +9,7 @@ arena. Its hall connects Quarters and Tundra. Lantern gains Tundra at (10,6), wh
 Clockwork retains Quarters and Desert. Legacy lobby dungeon entry validates the
 same adjacency as hall pads; reconnects retain their existing route and inventory.
 
-Frostveil (`dive-tundra`, route `frostveil-crossing`) uses the shared weekly engine,
+Frostveil (`overworld-tundra`, route `frostveil-crossing`) uses the shared weekly engine,
 100x50 connected crossing layout, seven clearings, two beginner enemies per
 clearing, existing personal loot/provenance and separate chat/claims. Its west
 exit reaches Rose Court; its east reaches Lantern Court. No boss coin award.

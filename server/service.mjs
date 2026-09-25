@@ -1,3 +1,4 @@
+import {migrateZoneIds} from './zone-rename.mjs'; // One-time dive-<name> -> overworld-/dungeon-<name> rewrite of saved zone ids.
 import {createWorldContent} from './world-content.mjs';
 import {createWorldJobs} from './world-jobs.mjs';
 import {combatData} from './combat.mjs';
@@ -38,6 +39,7 @@ export function loadQuestPack(path){ // LIDOLLQUEST_QUEST_PACK names a shipped q
 export function createQuestService({filename=':memory:',walletClient,spriteProvider,artJobOptions={},now=Date.now,roll,log=console.warn,performanceOptions={},workerCount=0,authTtlMs=authCacheMs(),onlineToken=process.env.MOMMYBOT_ONLINE_TOKEN||'',gmAllow=process.env.LIDOLLQUEST_GM_ALLOW||'',gmEnabled=process.env.LIDOLLQUEST_GM_ENABLED!=='false',gmTrustProxy=process.env.LIDOLLQUEST_GM_TRUST_PROXY||'',gmRequireTls=process.env.LIDOLLQUEST_GM_REQUIRE_TLS==='true',questPack=loadQuestPack(process.env.LIDOLLQUEST_QUEST_PACK||'')}={}){
  const poolSize=computeWorkerCount(workerCount);let compute=null; // Validate configuration before opening persistent resources.
  const db=new DatabaseSync(filename);db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;'); /* NORMAL is SQLite's recommended setting for WAL: every commit survives an application crash, and only an OS crash or power loss can drop the last few milliseconds of commits. It removes the per-commit fsync that FULL paid for every heartbeat, move and chat line. */
+ migrateZoneIds(db,{log}); // Before any module reads presence, content or maps: saved overworld and full-dungeon ids move to their new names once.
  db.exec(`CREATE TABLE IF NOT EXISTS wallet_cache(owner TEXT PRIMARY KEY,coins INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS reward_outbox(id TEXT PRIMARY KEY,owner TEXT NOT NULL,amount INTEGER NOT NULL,reason TEXT NOT NULL,delivered INTEGER NOT NULL DEFAULT 0);
  CREATE INDEX IF NOT EXISTS reward_delivery ON reward_outbox(owner,delivered);`);

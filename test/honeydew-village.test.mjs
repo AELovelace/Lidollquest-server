@@ -16,8 +16,8 @@ const covers=(p,x,y)=>x>=p.x&&y>=p.y&&x<p.x+(p.span_w??1)&&y<p.y+(p.span_h??1);
 test('Honeydew Village is its own 50x50 lobby: gates in both walls, doorsteps into the hall and inn, merchants spread through the clearings',()=>{
  assert.equal(districtZone(town),'honeydew-lantern');assert.equal(hubCatalog.find(h=>h.id==='honeydew-lantern').name,'Honeydew Village');
  assert.deepEqual(hubRooms.filter(r=>r.parent==='honeydew-lantern').map(r=>[r.id,r.name]),[['honeydew-lantern-beds','Honeydew Inn'],['honeydew-lantern-dives','Community Hall'],['honeydew-lantern-temple',"Orin's Unbound Hearth"]]); // No garden or market annex: the town is both. Orin's temple stands on the square.
- assert.deepEqual(hubPortals('honeydew-lantern').map(p=>[p.target,p.style,p.x,p.y]),[['dive-tundra','gap',0,24],['dive-desert','gap',49,24],['dive-haunted-woods','gap',24,0],['dive-autumnal-plains','gap',24,49],['honeydew-lantern-dives','door',25,24],['honeydew-lantern-beds','door',29,27],['honeydew-lantern-temple','door',22,26]]); // Orin's temple doorstep.
- assert.deepEqual(wildernessGates('honeydew-lantern').map(g=>g.target),['dive-tundra','dive-desert','dive-haunted-woods','dive-autumnal-plains']); // West, east, the north gate into the Haunted Woods and the south gate into the Autumnal Plains.
+ assert.deepEqual(hubPortals('honeydew-lantern').map(p=>[p.target,p.style,p.x,p.y]),[['overworld-tundra','gap',0,24],['overworld-desert','gap',49,24],['overworld-haunted-woods','gap',24,0],['overworld-autumnal-plains','gap',24,49],['honeydew-lantern-dives','door',25,24],['honeydew-lantern-beds','door',29,27],['honeydew-lantern-temple','door',22,26]]); // Orin's temple doorstep.
+ assert.deepEqual(wildernessGates('honeydew-lantern').map(g=>g.target),['overworld-tundra','overworld-desert','overworld-haunted-woods','overworld-autumnal-plains']); // West, east, the north gate into the Haunted Woods and the south gate into the Autumnal Plains.
  assert.deepEqual(dungeonPortals('honeydew-lantern').map(p=>[p.target,p.x,p.y]),[['dive-nursery',2,4],['dive-school',5,4],['dive-forest',8,4]]); // Pads sit in the hall's old companion room (top-left); no side gaps.
  for(let n=0;n<40;n++){
   const f=generateDistrict(town,{edition:'village-'+n,ends:0}),seen=reachableDistrict(f);
@@ -82,12 +82,12 @@ test('walking the village: doorsteps enter the hall and inn, beds rest, pads div
   for(const bed of beds){time+=1000;place(bed.x,bed.y+1);const next=structuredClone(c.loadout);next.player_info.playerHealth=40;act('hub_rest',{fixture:bed.id,loadout:next});assert.equal(c.loadout.player_info.playerHealth,40);}
   place(12,16);act('hub_talk',{fixture:'innkeeper'});assert.match(c.hubNotice,/Honeydew Inn/);
   place(10,17);const fromInn=act('move',{direction:'south',world_step:true});assert.equal(fromInn.zone,'honeydew-lantern');assert.deepEqual(fromInn.position,{x:29,y:28});
-  place(1,25);const tundra=act('move',{direction:'west',world_step:true});assert.equal(tundra.zone,'dive-tundra');assert.equal(c.dive.gate,true);assert.equal(c.dive.returnZone,'honeydew-lantern');
+  place(1,25);const tundra=act('move',{direction:'west',world_step:true});assert.equal(tundra.zone,'overworld-tundra');assert.equal(c.dive.gate,true);assert.equal(c.dive.returnZone,'honeydew-lantern');
   const home=act('dive_exit');assert.equal(home.zone,'honeydew-lantern');assert.deepEqual(home.position,{x:1,y:25}); // Escape lands one tile inside the same gate.
-  place(48,25);const desert=act('move',{direction:'east',world_step:true});assert.equal(desert.zone,'dive-desert');
+  place(48,25);const desert=act('move',{direction:'east',world_step:true});assert.equal(desert.zone,'overworld-desert');
   const eastExit=zoneOf(desert).exits.find(e=>e.zone==='littlebig-clockwork');divePlace(eastExit.x-1,eastExit.y);
   const crossed=act('dive_exit',{zone:'littlebig-clockwork'});assert.equal(crossed.zone,'littlebig-clockwork');assert.deepEqual(crossed.position,{x:1,y:30}); // Eastbound walkers step into LittleBigCity beside its west gate.
-  place(1,30);assert.equal(act('move',{direction:'west',world_step:true}).zone,'dive-desert');
+  place(1,30);assert.equal(act('move',{direction:'west',world_step:true}).zone,'overworld-desert');
   const westExit=zoneOf(api.read('',c.id)).exits.find(e=>e.zone==='honeydew-lantern');divePlace(westExit.x+1,westExit.y);
   const village=act('dive_exit',{zone:'honeydew-lantern'});assert.equal(village.zone,'honeydew-lantern');assert.deepEqual(village.position,{x:48,y:25});assert.equal(c.hubVisit,undefined); // Westbound walkers step into the village beside its Desert gate.
   assert.ok(act('start').character.run,'the village is still the arena lobby');act('flee');

@@ -6,7 +6,7 @@
     "_comment": "Weekly Taiga branch; sole access is the north-center Tundra trail. Export with python/export_online_taiga.py.",
     "enabled": true,
     "route": "frostveil-taiga",
-    "zone_id": "dive-taiga",
+    "zone_id": "overworld-taiga",
     "zone_category": "overworld",
     "name": "Frostveil Taiga",
     "theme": "taiga",
@@ -33,12 +33,12 @@
     "non_diaper_panties_per_floor": 1,
     "endpoints": [
       {
-        "zone": "dive-tundra",
+        "zone": "overworld-tundra",
         "name": "Frostveil Tundra",
         "side": "south"
       }
     ],
-    "parent_zone": "dive-tundra"
+    "parent_zone": "overworld-tundra"
   },
   "structure": {
     "fill_chance": 51,

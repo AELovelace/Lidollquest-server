@@ -20,7 +20,7 @@ const equipment={...hubData.equipment,...combatData.defeat_items}; // Exactly wh
 const assetRef=value=>String(value??''); // Quests carry no artwork of their own; only NPCs do.
 const validate=quest=>validateQuestContent('quest',quest,{assetRef,spells:combatData.spells,equipment});
 
-const zones=new Set([...hubCatalog.map(h=>h.id),...hubRooms.map(z=>z.id),'dive-quarters','dive-desert','dive-tundra']);
+const zones=new Set([...hubCatalog.map(h=>h.id),...hubRooms.map(z=>z.id),'dive-quarters','overworld-desert','overworld-tundra']);
 const residents=new Set(districtData.districts.flatMap(d=>d.npcs.filter(n=>n.roaming&&n.id).map(n=>districtZone(d)+':'+n.id))); // Honeydew's residents live in the lobby town itself. // Only roaming residents keep an authored, stable fixture ID; static greeters are npc-<index>.
 const stocked=new Set(hubData.shops.flatMap(s=>s.pool));
 

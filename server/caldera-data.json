@@ -6,7 +6,7 @@
     "_comment": "Weekly Emberfall Caldera overworld: a lava lake in the middle, obsidian crags, steam vents, hot springs. North trailhead: Frostveil Tundra's south wall. East: the Autumnal Plains' west trail (added to live editions by upgradeFloor). Band route_levels.emberfall-caldera. Export with python/export_online_caldera.py.",
     "enabled": true,
     "route": "emberfall-caldera",
-    "zone_id": "dive-emberfall-caldera",
+    "zone_id": "overworld-emberfall-caldera",
     "zone_category": "overworld",
     "static": false,
     "name": "Emberfall Caldera",
@@ -56,8 +56,8 @@
       }
     },
     "landmark": {
-      "_comment": "The Obsidian Spa, carved into the mountainside near the middle of the map. Its door is a warp pad into dive-obsidian-spa.",
-      "zone": "dive-obsidian-spa",
+      "_comment": "The Obsidian Spa, carved into the mountainside near the middle of the map. Its door is a warp pad into overworld-obsidian-spa.",
+      "zone": "overworld-obsidian-spa",
       "name": "Obsidian Spa",
       "sprite": "sprCalderaSpa",
       "span_w": 4,
@@ -67,7 +67,7 @@
     },
     "endpoints": [
       {
-        "zone": "dive-tundra",
+        "zone": "overworld-tundra",
         "name": "Frostveil Tundra",
         "side": "north"
       }

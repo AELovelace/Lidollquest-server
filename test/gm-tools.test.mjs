@@ -170,13 +170,13 @@ test('branch Dives are entered along the trail from their parent',async()=>{
  try{
   await h.join(staffToken,'Staff','princess-rose');
   const listed=(await h.ok(staffToken,'gm_catalog')).receipt.gm.zones.map(z=>z.id);
-  assert.ok(listed.includes('dive-high-desert')); // Its weekly floor is generated at startup like every other route.
-  const high=await h.ok(staffToken,'gm_warp_zone',{zone:'dive-high-desert'});
-  assert.equal(high.zone,'dive-high-desert');
-  assert.equal(high.character.dive.origin,'dive-desert');
-  assert.equal(high.character.dive.hubEntryZone,'dive-desert');
+  assert.ok(listed.includes('overworld-high-desert')); // Its weekly floor is generated at startup like every other route.
+  const high=await h.ok(staffToken,'gm_warp_zone',{zone:'overworld-high-desert'});
+  assert.equal(high.zone,'overworld-high-desert');
+  assert.equal(high.character.dive.origin,'overworld-desert');
+  assert.equal(high.character.dive.hubEntryZone,'overworld-desert');
   assert.ok(['honeydew-lantern','littlebig-clockwork'].includes(high.character.dive.hubOrigin)); // The client uses this to pick the campaign hub to return to.
-  const taiga=await h.ok(staffToken,'gm_warp_zone',{zone:'dive-taiga'}); // The Taiga has its own hub gate now: Utopia's south wall.
+  const taiga=await h.ok(staffToken,'gm_warp_zone',{zone:'overworld-taiga'}); // The Taiga has its own hub gate now: Utopia's south wall.
   assert.equal(taiga.character.dive.origin,'utopia-arcanum');assert.equal(taiga.character.dive.gate,true);
  }finally{await h.close();}
 });
@@ -186,7 +186,7 @@ test('GM warps reach Caldera and Spa through their declared connections, join pl
  try{
   await h.join(staffToken,'Staff','princess-rose');await h.join(helperToken,'Helper','princess-rose');
   const listed=(await h.ok(staffToken,'gm_catalog')).receipt.gm.zones.map(z=>z.id);
-  for(const [zone,parent] of [['dive-emberfall-caldera','dive-tundra'],['dive-obsidian-spa','dive-emberfall-caldera']]){
+  for(const [zone,parent] of [['overworld-emberfall-caldera','overworld-tundra'],['overworld-obsidian-spa','overworld-emberfall-caldera']]){
    assert.ok(listed.includes(zone));
    const inside=await h.ok(staffToken,'gm_warp_zone',{zone}),visit=inside.character.dive,floor=inside.zones.find(z=>z.id===zone);
    assert.equal(inside.zone,zone);assert.equal(visit.origin,parent);assert.equal(visit.hubOrigin,'princess-rose');

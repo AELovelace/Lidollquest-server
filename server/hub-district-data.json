@@ -1,5 +1,5 @@
 {
-  "_comment": "Safe 50x50 monthly host-zone layouts. Version changes replace the active layout on deployment and return visitors to the entrance; old editions remain archived. Export with python/export_online_districts.py. A district may declare dormitory {x,y,w,h,door:{x}}: a fixed room above the entry area holding the six shared beds (Rose Court keeps its beds here instead of a Resting Hall). A district may set width/height (40-80, default 50). A district may also declare lobby {spawn:{x,y},stairs:{x,y},gates:{west?,east?},buildings:[{id,name,sprite,x,y,target}],storefronts?:{sprite}}: that hub's lobby IS the town (no separate garden or market annex). gates name the wilderness route (dive-tundra / dive-desert) behind the west and/or east wall (rows cy-1..cy). Each building sprite sits on the central square; the tile in front of its door (the exporter adds door) leads into the hub annex named by target (dives = the Dive room, beds = the Inn). With storefronts, every merchant instead gets a storefront on a city-block facade whose doorstep enters a store room of their own (the doors move with the monthly street plan); without storefronts the merchants stand in the town. Bank, dumpster and Cursebreaker always stand in the town.",
+  "_comment": "Safe 50x50 monthly host-zone layouts. Version changes replace the active layout on deployment and return visitors to the entrance; old editions remain archived. Export with python/export_online_districts.py. A district may declare dormitory {x,y,w,h,door:{x}}: a fixed room above the entry area holding the six shared beds (Rose Court keeps its beds here instead of a Resting Hall). A district may set width/height (40-80, default 50). A district may also declare lobby {spawn:{x,y},stairs:{x,y},gates:{west?,east?},buildings:[{id,name,sprite,x,y,target}],storefronts?:{sprite}}: that hub's lobby IS the town (no separate garden or market annex). gates name the wilderness route (overworld-tundra / overworld-desert) behind the west and/or east wall (rows cy-1..cy). Each building sprite sits on the central square; the tile in front of its door (the exporter adds door) leads into the hub annex named by target (dives = the Dive room, beds = the Inn). With storefronts, every merchant instead gets a storefront on a city-block facade whose doorstep enters a store room of their own (the doors move with the monthly street plan); without storefronts the merchants stand in the town. Bank, dumpster and Cursebreaker always stand in the town.",
   "version": 3,
   "width": 50,
   "height": 50,
@@ -174,10 +174,10 @@
           "y": 22
         },
         "gates": {
-          "west": "dive-tundra",
-          "east": "dive-desert",
-          "north": "dive-haunted-woods",
-          "south": "dive-autumnal-plains"
+          "west": "overworld-tundra",
+          "east": "overworld-desert",
+          "north": "overworld-haunted-woods",
+          "south": "overworld-autumnal-plains"
         },
         "outhouses": 3,
         "buildings": [
@@ -516,8 +516,8 @@
           "y": 27
         },
         "gates": {
-          "west": "dive-desert",
-          "south": "dive-seafoam-coast"
+          "west": "overworld-desert",
+          "south": "overworld-seafoam-coast"
         },
         "buildings": [
           {
@@ -692,7 +692,7 @@
           "y": 27
         },
         "gates": {
-          "south": "dive-taiga"
+          "south": "overworld-taiga"
         },
         "changers": 5,
         "buildings": [
@@ -896,7 +896,7 @@
           "y": 27
         },
         "gates": {
-          "north": "dive-autumnal-plains"
+          "north": "overworld-autumnal-plains"
         },
         "buildings": [
           {

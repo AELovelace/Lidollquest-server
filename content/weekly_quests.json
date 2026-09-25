@@ -413,7 +413,7 @@
           "next": "out_the_other_side",
           "objectives": [
             {"id": "dive_hall", "type": "visit", "target": "honeydew-lantern-dives", "text": "Enter the Lantern Dive Hall", "count": 1},
-            {"id": "the_desert", "type": "visit", "target": "dive-desert", "text": "Step onto the Dustbreak Desert crossing", "count": 1}
+            {"id": "the_desert", "type": "visit", "target": "overworld-desert", "text": "Step onto the Dustbreak Desert crossing", "count": 1}
           ],
           "branches": []
         },

@@ -24,10 +24,10 @@ function fixture(){
 test('Castle stairs traverse the full Dungeon to Arcadia; opposite entrances and Escape keep their destinations',()=>{
  const f=fixture();try{
   f.create('a','princess-rose');f.place('a',f.map().portals.find(p=>p.target==='princess-rose-garden'));f.act('a','hub_visit',{zone:'princess-rose-garden'});
-  const portal=f.map().portals.find(p=>p.target==='dive-castle-dungeon');assert.ok(portal);f.place('a',portal);f.act('a','dive_enter',{zone:portal.target});assert.equal(f.snap().zone,'dive-castle-dungeon');
+  const portal=f.map().portals.find(p=>p.target==='dungeon-castle-dungeon');assert.ok(portal);f.place('a',portal);f.act('a','dive_enter',{zone:portal.target});assert.equal(f.snap().zone,'dungeon-castle-dungeon');
   assert.notDeepEqual(f.snap().position,f.map().exits[0]);
   const arcadia=f.map().exits.find(e=>e.zone==='arcadia-foundry');f.place('a',{x:arcadia.x,y:arcadia.y+1});f.act('a','move',{direction:'north'});assert.equal(f.snap().zone,'arcadia-foundry');
-  const returnPortal=f.map().portals.find(p=>p.target==='dive-castle-dungeon');assert.ok(returnPortal);f.place('a',returnPortal);f.act('a','dive_enter',{zone:returnPortal.target});assert.equal(f.snap().dive.origin,'arcadia-foundry');
+  const returnPortal=f.map().portals.find(p=>p.target==='dungeon-castle-dungeon');assert.ok(returnPortal);f.place('a',returnPortal);f.act('a','dive_enter',{zone:returnPortal.target});assert.equal(f.snap().dive.origin,'arcadia-foundry');
   f.act('a','dive_exit');assert.equal(f.snap().zone,'arcadia-foundry');f.place('a',returnPortal);f.act('a','dive_enter',{zone:returnPortal.target});const castle=f.map().exits.find(e=>e.zone==='princess-rose-garden');f.place('a',{x:castle.x,y:castle.y+1});f.act('a','dive_exit',{zone:castle.zone});assert.equal(f.snap().zone,'princess-rose-garden');
  }finally{f.close();}
 });
@@ -35,7 +35,7 @@ test('Castle stairs traverse the full Dungeon to Arcadia; opposite entrances and
 test('live Dungeon upgrades repair Testicles and misplaced Hypnotists, preserve progress, and leave ordinary enemies attackable',()=>{
  const f=fixture();try{
   f.create('a','princess-rose');f.place('a',f.map().portals.find(p=>p.target==='princess-rose-garden'));f.act('a','hub_visit',{zone:'princess-rose-garden'});
-  f.place('a',f.map().portals.find(p=>p.target==='dive-castle-dungeon'));f.act('a','dive_enter',{zone:'dive-castle-dungeon'});
+  f.place('a',f.map().portals.find(p=>p.target==='dungeon-castle-dungeon'));f.act('a','dive_enter',{zone:'dungeon-castle-dungeon'});
   const visit=f.snap().character.dive,query=f.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=? AND depth=1'),read=()=>JSON.parse(query.get(visit.route,visit.edition).content);
   const floor=read(),enemy=floor.enemies.find(e=>e.id.startsWith('enemy-'));
   assert.ok(floor.enemies.every(e=>!e.type.startsWith('hypnotist')),'live generation stays in the campaign pool');
@@ -82,7 +82,7 @@ test('named Utopia and LittleBig entrances require the new capability and return
 
 test('two players see serialized blocks, stale resets fail, rewards stay personal, and scenes survive restart',()=>{
  const f=fixture();try{
-  for(const who of ['a','b']){f.create(who,'utopia-arcanum');const portal=f.map(who).portals.find(p=>p.target==='dive-auto-nursery');f.place(who,portal);f.act(who,'dive_enter',{zone:portal.target});}
+  for(const who of ['a','b']){f.create(who,'utopia-arcanum');const portal=f.map(who).portals.find(p=>p.target==='dungeon-auto-nursery');f.place(who,portal);f.act(who,'dive_enter',{zone:portal.target});}
   const q=f.map().puzzles[0],moves=solveDungeonPuzzle(f.map(),q);assert.ok(moves.length);f.place('a',moves[0].from);f.place('b',f.map().entrance);
   const push=f.command('a','dungeon_push',{puzzle:q.id,block:moves[0].block,mechanism_revision:0});f.send('a',push);f.send('a',push);assert.equal(f.map().mechanismRevision,1);assert.equal(f.map('b').mechanismRevision,1);
   assert.throws(()=>f.act('b','dungeon_reset',{puzzle:q.id,mechanism_revision:0}),/puzzle changed/);
@@ -98,14 +98,14 @@ test('two players see serialized blocks, stale resets fail, rewards stay persona
 test('party entry checks every client capability and transfers the whole group through the same door',()=>{
  const f=fixture();try{
   f.create('a','utopia-arcanum');f.create('b','utopia-arcanum',0);f.act('a','party_invite',{member:f.ids.b});const invitation=f.db.prepare('SELECT id FROM quest_party_invites').get().id;f.act('b','party_accept',{invitation});
-  const p=f.map().portals.find(p=>p.target==='dive-auto-nursery');f.place('a',p);assert.throws(()=>f.act('a','dive_enter',{zone:p.target}),/needs to update/);assert.equal(f.snap().zone,'utopia-arcanum');assert.equal(f.snap('b').zone,'utopia-arcanum');
+  const p=f.map().portals.find(p=>p.target==='dungeon-auto-nursery');f.place('a',p);assert.throws(()=>f.act('a','dive_enter',{zone:p.target}),/needs to update/);assert.equal(f.snap().zone,'utopia-arcanum');assert.equal(f.snap('b').zone,'utopia-arcanum');
   f.act('b','enter',{zone:'utopia-arcanum',full_dungeon_version:1,content_version:1,quest_version:1,combat_version:3});f.act('a','dive_enter',{zone:p.target});assert.equal(f.snap('b').zone,p.target);assert.equal(f.snap('b').dive.origin,'utopia-arcanum');f.act('a','dive_exit');assert.equal(f.snap('b').zone,'utopia-arcanum');
  }finally{f.close();}
 });
 
 test('weekly expiry and monthly refresh retain old claims and character flags while installing fresh entrances',()=>{
  const f=fixture();try{
-  f.create('a','utopia-arcanum');const portal=f.map().portals.find(p=>p.target==='dive-auto-nursery');f.place('a',portal);f.act('a','dive_enter',{zone:portal.target});
+  f.create('a','utopia-arcanum');const portal=f.map().portals.find(p=>p.target==='dungeon-auto-nursery');f.place('a',portal);f.act('a','dive_enter',{zone:portal.target});
   const old=f.snap().dive.edition,state=JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(f.ids.a).state);state.fullDungeon={flags:{test_visit:true},counters:{visits:1},once:{test_gift:true}};f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),f.ids.a);
   f.act('a','dive_exit');f.advance(10*86400000);f.restart();f.act('a','enter',{zone:'utopia-arcanum',full_dungeon_version:1,content_version:1,quest_version:1,combat_version:3});
   assert.equal(f.map().district.edition,'2026-10');const next=f.map().portals.find(p=>p.target===portal.target);assert.ok(next);f.place('a',next);f.act('a','dive_enter',{zone:next.target});assert.notEqual(f.snap().dive.edition,old);
@@ -117,7 +117,7 @@ test('weekly expiry and monthly refresh retain old claims and character flags wh
 
 test('Basil and Nell retain the authored letter quest, personal inventory, completion prose and one reward claim',()=>{
  const f=fixture();try{
-  f.create('a','utopia-arcanum');const portal=f.map().portals.find(p=>p.target==='dive-auto-nursery');f.place('a',portal);f.act('a','dive_enter',{zone:portal.target});
+  f.create('a','utopia-arcanum');const portal=f.map().portals.find(p=>p.target==='dungeon-auto-nursery');f.place('a',portal);f.act('a','dive_enter',{zone:portal.target});
   const talk=name=>{const floor=f.map(),npc=floor.fixtures.find(n=>n.name===name&&n.kind==='npc');const p=[[1,0],[-1,0],[0,1],[0,-1]].map(([dx,dy])=>({x:npc.x+dx,y:npc.y+dy})).find(p=>floor.walls[p.y][p.x]===0&&!floor.props[p.y][p.x]);f.place('a',p);f.act('a','npc_talk',{placement:npc.id});};
   const choose=label=>{const t=f.snap().onlineQuests.conversation,choice=t.choices.find(c=>c.label.includes(label));assert.ok(choice,'Missing '+label+' on '+t.page);return f.act('a','npc_choice',{conversation:t.id,page:t.page,choice:choice.index});};
   talk('Basil');choose('Ask about quests');choose('Letter');choose('Accept quest');talk('Basil');choose('Collect the letter');assert.equal(f.snap().character.loadout.inventory.filter(i=>i.item_id==='basils_letter').length,1);

@@ -120,12 +120,12 @@ test('party versus party: leaders challenge, everyone fights, rows work, coins s
 test('duels happen in hubs and the open overworld but never inside a dungeon Dive',()=>{
  const f=fixture();try{
   f.player('alice',100,100);f.player('bob',60,10);
-  f.dive('alice','dive-tundra');f.dive('bob','dive-tundra');
+  f.dive('alice','overworld-tundra');f.dive('bob','overworld-tundra');
   assert.equal(f.snap('alice').duelAllowed,true,'the Tundra is a story overworld');
   f.act('alice','duel_challenge',{target:f.ids.bob});f.act('bob','duel_accept');f.act('alice','duel_ready');f.act('bob','duel_ready');
   assert.equal(f.snap('bob').character.run.kind,'duel');
   const done=f.fightUntil('alice','bob');assert.equal(done.character.lastResult.outcome,'win');assert.equal(f.snap('bob').character.lastResult.outcome,'defeat');
-  assert.equal(f.snap('alice').character.dive.zone,'dive-tundra','everyone stays on the floor afterwards');
+  assert.equal(f.snap('alice').character.dive.zone,'overworld-tundra','everyone stays on the floor afterwards');
   for(const n of ['alice','bob']){f.act(n,'dive_exit');f.act(n,'enter',{zone:'princess-rose',combat_version:3});f.db.prepare('UPDATE quest_presence SET x=5,y=5 WHERE character_id=?').run(f.ids[n]);}
   f.dive('alice','dive-quarters');f.dive('bob','dive-quarters');
   assert.equal(f.snap('alice').duelAllowed,false,'the Quarters are a dungeon Dive');

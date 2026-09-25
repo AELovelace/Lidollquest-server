@@ -6,7 +6,7 @@
     "_comment": "The Farmstead: the small safe farmhouse behind the barn in the middle of the Autumnal Plains (landmark in online_autumn_plains.json). Its only way in and out is the barn's warp pad. Fixed 24x16 layout (server/farmstead-generation.mjs); only the pantry restocks weekly. features.rest: what a nap on a hay bed does (dive_rest). Export with python/export_online_farmstead.py.",
     "enabled": true,
     "route": "farmstead",
-    "zone_id": "dive-farmstead",
+    "zone_id": "overworld-farmstead",
     "zone_category": "overworld",
     "static": false,
     "name": "Farmstead",
@@ -38,12 +38,12 @@
     },
     "endpoints": [
       {
-        "zone": "dive-autumnal-plains",
+        "zone": "overworld-autumnal-plains",
         "name": "Autumnal Plains",
         "side": "foyer"
       }
     ],
-    "parent_zone": "dive-autumnal-plains"
+    "parent_zone": "overworld-autumnal-plains"
   },
   "structure": {},
   "enemy_types": [],

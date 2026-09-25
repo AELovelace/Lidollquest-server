@@ -6,7 +6,7 @@
     "_comment": "Weekly Autumnal Plains overworld south of Honeydew Village: the gentle starter wilderness (route_levels autumnal-plains). Entered only through Honeydew's south gate, which lands on the north trailhead. Future crossings: west to the Volcano, east to the Coast, south to Arcadia (the fourth hub); they are added to live editions by an upgradeFloor trail once those zones exist. Export with python/export_online_autumn_plains.py.",
     "enabled": true,
     "route": "autumnal-plains",
-    "zone_id": "dive-autumnal-plains",
+    "zone_id": "overworld-autumnal-plains",
     "zone_category": "overworld",
     "static": false,
     "name": "Autumnal Plains",
@@ -52,8 +52,8 @@
       }
     },
     "landmark": {
-      "_comment": "The red barn near the middle of the fields. Its door is a warp pad into the Farmstead interior (dive-farmstead). sprite comes from python/make_autumn_plains_sprites.py; span_w/span_h are its tile footprint and door_x is the pad's column inside it.",
-      "zone": "dive-farmstead",
+      "_comment": "The red barn near the middle of the fields. Its door is a warp pad into the Farmstead interior (overworld-farmstead). sprite comes from python/make_autumn_plains_sprites.py; span_w/span_h are its tile footprint and door_x is the pad's column inside it.",
+      "zone": "overworld-farmstead",
       "name": "Farmstead",
       "sprite": "sprPlainsBarn",
       "span_w": 4,

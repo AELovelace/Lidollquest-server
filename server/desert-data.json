@@ -6,7 +6,7 @@
     "_comment": "Shared weekly route between the online hubs; export with python/export_online_desert.py. Layout and content pools come from desert_dungeon.json. No campaign story fixtures or gold rewards.",
     "enabled": true,
     "route": "dustbreak-crossing",
-    "zone_id": "dive-desert",
+    "zone_id": "overworld-desert",
     "zone_category": "overworld",
     "name": "Dustbreak Desert",
     "theme": "desert_dungeon",

@@ -62,8 +62,8 @@ test('alchemy bundles: seeded per chest, about chance% of chests, zone plus ever
  }
  const allowed=new Set([...table.zones.desert,...table.everywhere]);let hits=0;
  for(let n=0;n<4000;n++){
-  const key='dustbreak-crossing:ed:1:alice:chest-'+n,bundle=rollIngredient(alchemy,'dive-desert',key);
-  assert.deepEqual(rollIngredient(alchemy,'dive-desert',key),bundle,'the same chest always holds the same bundle');
+  const key='dustbreak-crossing:ed:1:alice:chest-'+n,bundle=rollIngredient(alchemy,'overworld-desert',key);
+  assert.deepEqual(rollIngredient(alchemy,'overworld-desert',key),bundle,'the same chest always holds the same bundle');
   if(!bundle)continue;hits++;
   assert.ok(allowed.has(bundle.item_id),bundle.item_id+' belongs in desert chests');assert.equal(bundle.category,'ingredient');
   assert.ok(bundle.quantity>=table.qty_min&&bundle.quantity<=table.qty_max);
@@ -71,7 +71,7 @@ test('alchemy bundles: seeded per chest, about chance% of chests, zone plus ever
  }
  assert.ok(Math.abs(hits/4000-table.chance/100)<0.03,`about ${table.chance}% of chests (${hits}/4000)`);
  const stray=rollIngredient(alchemy,'no-such-route','x:1');if(stray)assert.ok(table.everywhere.includes(stray.item_id),'unknown routes only get everywhere ingredients');
- assert.equal(rollIngredient(null,'dive-desert','k'),null,'no table shipped means no bundles');
+ assert.equal(rollIngredient(null,'overworld-desert','k'),null,'no table shipped means no bundles');
  const roll=createDiveLootRoller(routes[1],{lootTable:routes[0].loot,alchemy});assert.equal(typeof roll.ingredient,'function');
  const chest={id:'chest-3'};assert.deepEqual(roll.ingredient('ed','alice',chest),rollIngredient(alchemy,routes[1].config.zone_id,`${routes[1].config.route}:ed:1:alice:chest-3`));
 });

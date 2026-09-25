@@ -23,7 +23,7 @@ import {stackable,slotsUsed,addToInventory,setStackTokens} from './loadout.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
 import {manaCapacity} from './magic-balance.mjs';
 import {hubArrival,routePortals,routeHome,returnSource,wildernessGates,hubRooms,hubCatalog,inHubGap,dailyCoinCap} from './hubs.mjs';
-import {routeCategory} from './zone-categories.mjs';
+import {routeCategory,isRouteZoneId} from './zone-categories.mjs';
 import {inExit,nearExit} from './wilderness-links.mjs';
 import {createDungeonRules,recordDungeonVictories} from './full-dungeon-rules.mjs';
 import {repairFullDungeonContent} from './full-dungeon-generation.mjs';
@@ -411,6 +411,6 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(zoneId,position.x,position.y,now(),c.id);
   reveal(c,state,f,position.x,position.y); // Personal fog and claims for this edition are reused, never reset.
  }
- const parentZone=config.parent_zone??config.endpoints?.find(e=>e.zone.startsWith('dive-'))?.zone??null; // GM visits may follow a declared wilderness endpoint (Caldera -> Tundra) when no parent override exists; normal Escape still uses config.parent_zone.
+ const parentZone=config.parent_zone??config.endpoints?.find(e=>isRouteZoneId(e.zone))?.zone??null; // GM visits may follow a declared wilderness endpoint (Caldera -> Tundra) when no parent override exists; normal Escape still uses config.parent_zone.
  return {category,tick,snapshot,handles,act,chatArea,arrive,gmPlace,parentZone,controls,floor:()=>current()?.floor??null,prepare:ensure,close(){closed=true;controls?.close();},available:()=>Boolean(config.enabled&&enabledQuery.get(route)),encounterSnapshot:state=>encounters.snapshot(state)};
 } // All mutations run inside the zone command transaction; scheduled simulation owns its own transaction.

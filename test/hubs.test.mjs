@@ -23,7 +23,7 @@ test('every lobby connects to its shared annexes with 50x50 districts, six beds 
    const size=[lobby.width??20,lobby.height??12];
    for(const portal of initial.zones.find(z=>z.id===lobby.id).portals){
     if(portal.fullDungeon){place(portal.x,portal.y+1);assert.throws(()=>act('dive_enter',{zone:portal.target}),/Update the game/);continue;} // This legacy-client regression keeps its old routes; full-dungeon travel has dedicated capability-aware coverage.
-    if(portal.target.startsWith('dive-')){ // Rose Court's garden wall opens straight onto the Tundra where its Beds door used to be.
+    if(/^(dive|overworld)-/.test(portal.target)){ // Rose Court's garden wall opens straight onto the Tundra where its Beds door used to be.
      const step=beside(portal,...size);place(step.x,step.y);const crossed=act('move',{direction:step.direction,world_step:true});
      assert.equal(crossed.zone,portal.target);assert.equal(c.loadout.inventory.length,1);assert.equal(c.dive.returnZone,lobby.id);
      const home=act('dive_exit');assert.equal(home.zone,lobby.id);assert.deepEqual(home.position,portal.side==='top'?{x:portal.x,y:portal.y+1}:portal.side==='bottom'?{x:portal.x,y:portal.y-1}:{x:portal.side==='left'?portal.x+1:portal.x-1,y:portal.y+1}); // Back one tile inside the same lobby-wall gate (Rose: right wall; Honeydew: both side walls, the north wall and the south wall).

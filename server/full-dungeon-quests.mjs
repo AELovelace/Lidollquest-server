@@ -2,7 +2,7 @@ import {fullDungeons,fullDungeonContent} from './full-dungeons.mjs';
 import {campaignDialogue} from './full-dungeon-rules.mjs';
 import {inside} from './dive-generation.mjs';
 
-const zones={dungeon:'dive-castle-dungeon',auto_nursery:'dive-auto-nursery',auto_school:'dive-regression-school',regression_hospital:'dive-regression-hospital',haunted_forest:'dive-haunted-woods'};
+const zones={dungeon:'dungeon-castle-dungeon',auto_nursery:'dungeon-auto-nursery',auto_school:'dungeon-regression-school',regression_hospital:'dungeon-regression-hospital',haunted_forest:'overworld-haunted-woods'};
 export const dungeonDataFor=zone=>fullDungeons.find(d=>d.config.zone_id===zone);
 const npcKey=name=>{for(const d of fullDungeons)for(const [id,npc] of Object.entries(d.npcs))if(npc.name===name)return d.config.zone_id+':npc-'+id;throw Error('Missing online quest NPC '+name);};
 
@@ -13,7 +13,7 @@ export function fullDungeonQuestPack(){
   const objective=(type,target,count=1,extra={})=>({id:'objective_'+objectives.length,type,target,count,text:q.description,sharing:'personal',...extra});
   if(q.type==='kill')objectives.push(objective('kill',q.target_enemy,q.goal,{zone:zones[q.target_zone]}));
   else if(q.type==='explore')objectives.push(objective('visit',q.target_zone==='dungeon_deep'?'full-room:deep_nursery':zones[q.target_zone]));
-  else if(q.type==='explore_all')for(const target of q.target_zones)objectives.push(objective('visit','full-room:'+target.replace(/^nursery_/,''),1,{zone:'dive-auto-nursery'}));
+  else if(q.type==='explore_all')for(const target of q.target_zones)objectives.push(objective('visit','full-room:'+target.replace(/^nursery_/,''),1,{zone:'dungeon-auto-nursery'}));
   else if(q.type==='fetch')objectives.push(objective('collect',q.target_item,q.goal,{token:!!q.key_item_spawn,zone:zones[q.key_item_spawn?.zone]}));
   else if(q.type==='delivery'){
    stages.push({id:'collect',name:'Collect the letter',objectives:[objective('collect',q.delivery_item)],next:'deliver'});

@@ -23,7 +23,7 @@ export function addFullDungeonEntrances(f,zone,visitors=[]){
    if(link.style==='door'){
     const cells=[];for(let dy=-3;dy<0;dy++)for(let dx=-1;dx<=1;dx++)cells.push({x:p.x+dx,y:p.y+dy});
     if(cells.some(v=>!reachable.has(v.x+','+v.y)||occupied(v.x,v.y)))continue;
-    const building={id:'entrance-'+link.target,kind:'scenery',name:link.name,x:p.x-1,y:p.y-3,span_w:3,span_h:3,solid:true,sprite:zone==='utopia-arcanum'?(link.target==='dive-auto-nursery'?'sprUtopiaNapPods':'sprUtopiaTower'):'sprCityFacadeApartment'};
+    const building={id:'entrance-'+link.target,kind:'scenery',name:link.name,x:p.x-1,y:p.y-3,span_w:3,span_h:3,solid:true,sprite:zone==='utopia-arcanum'?(link.target==='dungeon-auto-nursery'?'sprUtopiaNapPods':'sprUtopiaTower'):'sprCityFacadeApartment'};
     f.fixtures.push(building);const next=flood();
     if(next.size!==reachable.size-9||f.fixtures.some(v=>v.kind!=='scenery'&&![[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>next.has((v.x+dx)+','+(v.y+dy))))){f.fixtures.pop();continue;}
    }

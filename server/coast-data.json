@@ -6,7 +6,7 @@
     "_comment": "Weekly Seafoam Coast overworld: open sea along the east, sandy beaches and rock outcrops. North trailhead: LittleBigCity's south gate. The Autumnal Plains' east trail enters its left wall (added to live editions by upgradeFloor). Band route_levels.seafoam-coast. Export with python/export_online_coast.py.",
     "enabled": true,
     "route": "seafoam-coast",
-    "zone_id": "dive-seafoam-coast",
+    "zone_id": "overworld-seafoam-coast",
     "zone_category": "overworld",
     "static": false,
     "name": "Seafoam Coast",
