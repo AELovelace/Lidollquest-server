@@ -59,15 +59,22 @@ export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQues
   return view(input.zone);
  }
  function visible(zone,edition,f){return realize(zone,edition,f).map(p=>{const n=live.published().npcs[p.content];return {...p,...(p.kind==='npc'&&n?{name:n.name,sprite:n.sprite,retired:n.retired}:{})};});}
+ let lastStep=null;const freeTiles=new Map(); // lastStep: the 2 s walking slot already fully handled. freeTiles: zone -> {key, free} walkable-tile set, rebuilt only when the map's edition or placement signature changes.
  function tick(){ // NPC walking is deterministic, bounded, and pauses while a conversation holds its placement.
-  const known=new Set(base.catalog().map(z=>z.id)); // Rooms retired by a deployment (Rose Court's old Resting Hall) keep their saved placements but must never be ticked or mapped.
-  for(const {zone} of db.prepare('SELECT DISTINCT zone FROM world_placement_maps').all()){
+  const step=Math.floor(now()/2000);if(step===lastStep)return; // Each NPC moves at most once per 2 s slot, so later ticks in a finished slot have nothing to do.
+  const npcs=live.published().npcs,wanderers=new Set(Object.keys(npcs).filter(k=>npcs[k]?.wander_radius)); // Only NPCs with a wander radius ever move.
+  const zones=wanderers.size?new Set(db.prepare('SELECT zone,body FROM world_placements').all().filter(r=>{const p=JSON.parse(r.body);return p.kind==='npc'&&wanderers.has(p.content);}).map(r=>r.zone)):new Set(); // Realized maps come only from these rows, so a zone without a wandering NPC can skip map building entirely.
+  const known=zones.size?new Set(base.catalog().map(z=>z.id)):null;let held=false; // Rooms retired by a deployment (Rose Court's old Resting Hall) keep their saved placements but must never be ticked or mapped. held: a conversation paused someone this slot.
+  for(const zone of zones){
    if(!known.has(zone))continue;
-   const map=base.map(zone),row=db.prepare('SELECT * FROM world_placement_maps WHERE zone=? AND edition=?').get(zone,map.edition);if(!row||!map.floor)continue;const placements=JSON.parse(row.body),free=new Set(tiles(map.floor).map(p=>p.x+','+p.y));let changed=false;
-   for(const p of placements){const n=live.published().npcs[p.content];if(p.kind!=='npc'||!n?.wander_radius||Math.floor(now()/2000)===(p.step??0))continue;if(db.prepare("SELECT 1 FROM online_conversations WHERE placement=? AND expires>?").get(p.id,now()))continue;p.step=Math.floor(now()/2000);const direction=parseInt(hash([p.id,p.step]).slice(0,2),16)%4,[dx,dy]=[[0,-1],[-1,0],[1,0],[0,1]][direction],x=p.x+dx,y=p.y+dy;
-    if(Math.abs(x-p.home.x)+Math.abs(y-p.home.y)<=n.wander_radius&&free.has(x+','+y)&&![...obstacles(map.floor),...placements.filter(v=>v.id!==p.id),...map.players].some(v=>v.x===x&&v.y===y)){p.x=x;p.y=y;}changed=true;
+   const map=base.map(zone),row=db.prepare('SELECT * FROM world_placement_maps WHERE zone=? AND edition=?').get(zone,map.edition);if(!row||!map.floor)continue;const placements=JSON.parse(row.body);let changed=false;
+   const key=row.edition+'|'+row.signature;let cached=freeTiles.get(zone);if(cached?.key!==key){cached={key,free:new Set(tiles(map.floor).map(p=>p.x+','+p.y))};freeTiles.set(zone,cached);} // The flood fill is the costly part; the signature already hashes geometry and placements.
+   const free=cached.free,fixed=[...obstacles(map.floor),...map.players]; // Terrain obstacles and players, built once per zone instead of once per NPC.
+   for(const p of placements){const n=npcs[p.content];if(p.kind!=='npc'||!n?.wander_radius||step===(p.step??0))continue;if(db.prepare("SELECT 1 FROM online_conversations WHERE placement=? AND expires>?").get(p.id,now())){held=true;continue;}p.step=step;const direction=parseInt(hash([p.id,p.step]).slice(0,2),16)%4,[dx,dy]=[[0,-1],[-1,0],[1,0],[0,1]][direction],x=p.x+dx,y=p.y+dy;
+    if(Math.abs(x-p.home.x)+Math.abs(y-p.home.y)<=n.wander_radius&&free.has(x+','+y)&&![...fixed,...placements.filter(v=>v.id!==p.id)].some(v=>v.x===x&&v.y===y)){p.x=x;p.y=y;}changed=true;
    }if(changed)db.prepare('UPDATE world_placement_maps SET body=? WHERE zone=? AND edition=?').run(JSON.stringify(placements),row.zone,row.edition);
   }
+  if(!held)lastStep=step; // An NPC paused by a conversation gets retried on the next tick of this slot, exactly as before.
  }
  return {rows,realize,view,act,visible,tick,positions(zone,edition){const row=db.prepare('SELECT body FROM world_placement_maps WHERE zone=? AND edition=?').get(zone,edition);return row?JSON.parse(row.body).filter(p=>p.kind==='npc').map(({x,y})=>({x,y})):[];},catalog:base.catalog};
 } // Logical placements and their per-instance positions are persisted separately from terrain.

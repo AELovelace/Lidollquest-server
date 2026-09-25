@@ -7,12 +7,14 @@ function mondayUTC(date){
  for(let i=0;i<3;i++){const p=parts(result);result+=wanted-Date.UTC(+p.year,+p.month-1,+p.day,+p.hour);}
  return result;
 }
+let lastWindow=null; // The most recent weekly window; windows tile time, so any instant inside it has this same answer.
 export function weeklyWindow(now){
+ if(lastWindow&&now>=lastWindow.start&&now<lastWindow.ends)return {...lastWindow}; // Skip the slow time-zone formatter: every route asks this several times a second.
  const p=parts(now),day=new Date(Date.UTC(+p.year,+p.month-1,+p.day));
  day.setUTCDate(day.getUTCDate()-(day.getUTCDay()+6)%7);
  if(mondayUTC(day)>now)day.setUTCDate(day.getUTCDate()-7);
  const start=mondayUTC(day),edition=day.toISOString().slice(0,10);day.setUTCDate(day.getUTCDate()+7);
- return {edition,start,ends:mondayUTC(day)};
+ lastWindow={edition,start,ends:mondayUTC(day)};return {...lastWindow}; // Callers get a copy, so nothing can edit the memo.
 } // Weekly boundaries remain 04:00 local across DST and server downtime.
 export function seeded(seed){let s=createHash('sha256').update(seed).digest().readUInt32LE(0);return n=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return Math.floor(s/4294967296*n);};}
 const dirs=[[1,0],[-1,0],[0,1],[0,-1]];

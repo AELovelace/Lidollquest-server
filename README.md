@@ -1110,6 +1110,25 @@ coins; suspensions are still checked per request; failed logins and any tracker
 always arrives as a new token. `account.authenticate` in `/gm` now mostly shows
 cache hits. Covered by `test/auth-cache.test.mjs`.
 
+Snapshot diet (`server/snapshot-cache.mjs`): a client that sends `?known=` (a
+comma list of 16-hex cache keys, forwarded by the tracker on GET and POST) gets
+each `zones[]` entry it already holds as `{id,cacheKey,cached:true}` and the
+sections in `CACHED_SECTIONS` omitted, with `cacheKeys` naming every section's key.
+Keys are SHA-1 content hashes, so any change resends that piece in full. Without
+`known` the response is unchanged. Snapshots advertise
+`capabilities.snapshotCache`, and the game opts in only after seeing it. A Honeydew
+snapshot goes from ~139 KB to ~6 KB. `response.cache` times the hashing. Covered
+by `test/snapshot-cache.test.mjs`.
+
+`world.timer` has one row per ticker: `simulation.<route>` for each Dive
+route, plus `tick.parties`, `tick.districts`, `tick.hub_encounters`,
+`tick.quests` (includes NPC wandering) and `tick.duels_trades`. NPC wandering
+does work only once per 2 s slot and only in zones holding an NPC with a wander
+radius, and caches each map's walkable tiles until its edition or placement
+signature changes. `weeklyWindow()` remembers the current week instead of
+running the time-zone formatter several times per route per tick, and
+`activeJob()` uses the `world_regeneration_active` index.
+
 Snapshots roll merchant stock only for the room the player stands in.
 `hubDefinition(z,time,level,{offers:false})` skips shelf rolls for callers that
 need only walls, portals, spawns or NPCs (snapshots of other rooms, hub
