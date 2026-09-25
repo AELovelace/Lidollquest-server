@@ -1380,6 +1380,255 @@
       "dot_damage": 0,
       "stat_effect": "str",
       "stat_amount": -7
+    },
+    "puddle_splash": {
+      "spell_id": "puddle_splash",
+      "name": "Puddle Splash",
+      "description": "An ice-cold sheet of puddle water slaps across your lap. The chill goes straight to your bladder.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "water",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "wet",
+          "amount": 20
+        },
+        {
+          "type": "damage",
+          "power": 6
+        }
+      ]
+    },
+    "diuretic_pollen": {
+      "spell_id": "diuretic_pollen",
+      "name": "Diuretic Pollen",
+      "description": "A fluffy cloud of dandelion seeds bursts in your face. You sneeze, and suddenly you really, really need to go.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "nature",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "wet",
+          "amount": 25
+        },
+        {
+          "type": "excitement",
+          "amount": 10
+        }
+      ]
+    },
+    "fussy_tuck": {
+      "spell_id": "fussy_tuck",
+      "name": "Fussy Tuck",
+      "description": "It buzzes in close, tugs at your waistband and pats your padding, loudly announcing that someone needs checking.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "shame",
+          "amount": 20
+        },
+        {
+          "type": "debuff",
+          "stat": "dex",
+          "amount": -3,
+          "turns": 3
+        }
+      ]
+    },
+    "sitter_bottle": {
+      "spell_id": "sitter_bottle",
+      "name": "Sitter's Bottle",
+      "description": "Straw arms tip a warm bottle of cider-milk past your lips. You feel sleepy, and very full.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "wet",
+          "amount": 15
+        },
+        {
+          "type": "stamina",
+          "amount": -20
+        }
+      ]
+    },
+    "harvest_feast": {
+      "spell_id": "harvest_feast",
+      "name": "Harvest Feast",
+      "description": "A ladle of hot spiced pumpkin mash, then another, then a mug of sweet cider. Your belly groans under the weight of it.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "tum",
+          "amount": 25
+        },
+        {
+          "type": "wet",
+          "amount": 15
+        },
+        {
+          "type": "damage",
+          "power": 8
+        }
+      ]
+    },
+    "hot_foot": {
+      "spell_id": "hot_foot",
+      "name": "Hot Foot",
+      "description": "Sparks skitter under your feet and you hop from rock to rock, squirming. All that jiggling does your bladder no favours.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "fire",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "wet",
+          "amount": 20
+        },
+        {
+          "type": "excitement",
+          "amount": 15
+        },
+        {
+          "type": "damage",
+          "power": 6
+        }
+      ]
+    },
+    "sticky_heat": {
+      "spell_id": "sticky_heat",
+      "name": "Sticky Heat",
+      "description": "Warm slime oozes over your legs. You are soaked in sweat and something else, and you honestly cannot tell which.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "fire",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "debuff",
+          "stat": "dex",
+          "amount": -4,
+          "turns": 3
+        },
+        {
+          "type": "wet",
+          "amount": 10
+        },
+        {
+          "type": "damage",
+          "power": 5
+        }
+      ]
+    },
+    "scald_mist": {
+      "spell_id": "scald_mist",
+      "name": "Scald Mist",
+      "description": "A scalding cloud of steam leaves your mouth parched. You would drink anything right now. Anything at all.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "fire",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "stamina",
+          "amount": -25
+        },
+        {
+          "type": "wet",
+          "amount": 20
+        }
+      ]
+    },
+    "molten_lullaby": {
+      "spell_id": "molten_lullaby",
+      "name": "Molten Lullaby",
+      "description": "She hums, and the heat rolls over you like a heavy blanket. Everything warm, everything loose, everything so very sleepy.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "fire",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "tum",
+          "amount": 20
+        },
+        {
+          "type": "wet",
+          "amount": 20
+        },
+        {
+          "type": "stamina",
+          "amount": -30
+        },
+        {
+          "type": "damage",
+          "power": 10
+        }
+      ]
     }
   },
   "charms": {
@@ -1654,9 +1903,133 @@
     "rime_sprite": {
       "cute_preference": "neutral",
       "sexy_preference": "neutral"
+    },
+    "puddle_toad": {
+      "cute_preference": "neutral",
+      "sexy_preference": "neutral"
+    },
+    "dandelion_sprite": {
+      "cute_preference": "high",
+      "sexy_preference": "low"
+    },
+    "bumble_nanny": {
+      "cute_preference": "high",
+      "sexy_preference": "low"
+    },
+    "scarecrow_sitter": {
+      "cute_preference": "high",
+      "sexy_preference": "low"
+    },
+    "harvest_matron": {
+      "cute_preference": "high",
+      "sexy_preference": "low"
+    },
+    "ember_imp": {
+      "cute_preference": "high",
+      "sexy_preference": "neutral"
+    },
+    "cinder_slime": {
+      "cute_preference": "neutral",
+      "sexy_preference": "neutral"
+    },
+    "steam_sprite": {
+      "cute_preference": "high",
+      "sexy_preference": "low"
+    },
+    "obsidian_golem": {
+      "cute_preference": "low",
+      "sexy_preference": "low"
+    },
+    "magma_matron": {
+      "cute_preference": "high",
+      "sexy_preference": "low"
     }
   },
   "defeat_equipment": {
+    "ember_imp": {
+      "first": [
+        "training_pants"
+      ],
+      "repeat": [
+        "training_pants"
+      ]
+    },
+    "cinder_slime": {
+      "first": [
+        "diaper"
+      ],
+      "repeat": [
+        "diaper"
+      ]
+    },
+    "steam_sprite": {
+      "first": [
+        "hair_bow"
+      ],
+      "repeat": [
+        "hair_bow"
+      ]
+    },
+    "obsidian_golem": {
+      "first": [
+        "printed_diaper"
+      ],
+      "repeat": [
+        "printed_diaper"
+      ]
+    },
+    "magma_matron": {
+      "first": [
+        "diaper",
+        "pacifier",
+        "hair_bow"
+      ],
+      "repeat": [
+        "diaper",
+        "pacifier",
+        "hair_bow"
+      ]
+    },
+    "dandelion_sprite": {
+      "first": [
+        "hair_bow"
+      ],
+      "repeat": [
+        "hair_bow"
+      ]
+    },
+    "bumble_nanny": {
+      "first": [
+        "printed_diaper",
+        "hair_bow"
+      ],
+      "repeat": [
+        "printed_diaper",
+        "hair_bow"
+      ]
+    },
+    "scarecrow_sitter": {
+      "first": [
+        "hair_bow",
+        "pacifier"
+      ],
+      "repeat": [
+        "hair_bow",
+        "pacifier"
+      ]
+    },
+    "harvest_matron": {
+      "first": [
+        "pumpkin_bib_1",
+        "pumpkin_paci_1",
+        "diaper"
+      ],
+      "repeat": [
+        "pumpkin_bib_1",
+        "pumpkin_paci_1",
+        "diaper"
+      ]
+    },
     "goblin": {
       "first": [
         "goblin_rattle",
@@ -2288,7 +2661,8 @@
       "childish": 5,
       "conceals_panties": true,
       "bulk_threshold": 3,
-      "rarity": "common"
+      "rarity": "common",
+      "pool_template": true
     },
     "cursed_paci": {
       "item_id": "cursed_paci",
@@ -2433,6 +2807,25 @@
       ],
       "blessed": true,
       "rarity": "common"
+    },
+    "diaper": {
+      "item_id": "diaper",
+      "category": "panties",
+      "name": "Fluffy Diaper",
+      "desc": "Extra padding. Protects against accidents. Hard to move in. ATK -1, DEX -2.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -3,
+      "atk_mod": -1,
+      "def_mod": 0,
+      "dex_mod": -2,
+      "value": 8,
+      "childish": 10,
+      "bulk": 3,
+      "is_diaper": true,
+      "rarity": "rare"
     },
     "diaper_hugger_diaper": {
       "item_id": "diaper_hugger_diaper",
@@ -2919,6 +3312,31 @@
       "is_diaper": true,
       "rarity": "uncommon"
     },
+    "pumpkin_bib_1": {
+      "item_id": "pumpkin_bib_1",
+      "category": "accessory",
+      "name": "Pumpkin Bib (Orange)",
+      "desc": "A festive pumpkin-themed bib in bright orange. Perfect for Halloween — or year-round humiliation.",
+      "atk": 0,
+      "def": 0,
+      "value": 6,
+      "childish": 8,
+      "shame_delta": -10,
+      "rarity": "common"
+    },
+    "pumpkin_paci_1": {
+      "item_id": "pumpkin_paci_1",
+      "category": "mouth",
+      "name": "Pumpkin Pacifier",
+      "desc": "A pacifier shaped like a tiny pumpkin. Seasonal shame. HP regen +1. Childish +10.",
+      "atk": 0,
+      "def": 0,
+      "hp_regen": 1,
+      "value": 10,
+      "childish": 10,
+      "shame_delta": -10,
+      "rarity": "uncommon"
+    },
     "ruffle_socks": {
       "item_id": "ruffle_socks",
       "category": "socks",
@@ -2976,6 +3394,24 @@
       "def_mod": 0,
       "dex_mod": -2,
       "rarity": "uncommon"
+    },
+    "training_pants": {
+      "item_id": "training_pants",
+      "category": "panties",
+      "name": "Training Pants",
+      "desc": "Thick padded cotton pants for... practice. Slightly restricts movement. DEX -1.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -1,
+      "atk_mod": 0,
+      "def_mod": 0,
+      "dex_mod": -1,
+      "value": 5,
+      "childish": 7,
+      "bulk": 1,
+      "rarity": "common"
     },
     "wet_moss_boots": {
       "item_id": "wet_moss_boots",

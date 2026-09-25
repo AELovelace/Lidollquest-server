@@ -103,8 +103,7 @@
       ],
       "spell_cast_chance": 0.3,
       "sprite": "sprNPCBarmaid",
-      "battle_sprite": "sprNPCBarmaid",
-      "roaming": false
+      "battle_sprite": "sprNPCBarmaid"
     }
   },
   "items": {
@@ -349,7 +348,7 @@
       "wet_resist": 0,
       "value": 1,
       "childish": 10,
-      "shame_delta": 48,
+      "shame_delta": -48,
       "hunger_restore": 125,
       "tum_instant": 1,
       "pressure_turns": 3,
@@ -1020,7 +1019,7 @@
       "childish": 8,
       "grossout_reset": true,
       "inco_gain": 1,
-      "shame_delta": -32,
+      "shame_delta": 32,
       "rarity": "common"
     },
     "baby_food": {
@@ -20612,6 +20611,48 @@
       "row_front_target_weight": 3,
       "reach_damage_mult": 0.75,
       "stack_max": 512,
+      "move_delay_ms": 150,
+      "crawl_move_delay_ms": 300,
+      "daily_coin_cap": 9999,
+      "diamond_roll_floor": 2,
+      "defeat_dignity_loss": 64,
+      "defeat_dignity_childish_extra": 32,
+      "witnessed_wet_dignity": 12,
+      "witnessed_tum_dignity": 20,
+      "exposed_wet_dignity": 8,
+      "exposed_tum_dignity": 14,
+      "exposed_witness_percent": 150,
+      "cover_witness_percent": 50,
+      "rain_dignity_percent": 50,
+      "unnoticed_continence_below": 30,
+      "unnoticed_chance_percent": 50,
+      "unnoticed_turns_min": 25,
+      "unnoticed_turns_max": 50,
+      "unnoticed_wet_dignity": 20,
+      "unnoticed_tum_dignity": 32,
+      "unnoticed_per_turn_dignity": 1,
+      "smell_dignity_per_mess": 32,
+      "smell_dignity_max": 128,
+      "arcadia_scrutiny_percent": 150,
+      "arcadia_visible_padding_pts": 20,
+      "arcadia_childish_shame_percent": 150,
+      "arcadia_little_childish": 5,
+      "arcadia_little_tax_percent": 50,
+      "arcadia_toilet_price": 5,
+      "utopia_pod_dignity": 8,
+      "utopia_padding_shame_pts": 15,
+      "utopia_adult_clothes_shame_pts": 8,
+      "utopia_smell_percent": 50,
+      "shame_pts_plug": 20,
+      "shame_pts_wet": 15,
+      "shame_pts_mess": 25,
+      "shame_pts_mouth": 15,
+      "shame_pts_locked": 12,
+      "shame_pts_per_cute": 3,
+      "shame_sensitivity_low": 0.4,
+      "shame_sensitivity_high": 1.6,
+      "shame_mult_low": 0.5,
+      "shame_mult_high": 2,
       "enemy_drop_chance": 35,
       "boss_drop_chance": 100,
       "elite_chance": 8,
@@ -20683,6 +20724,18 @@
         "legendary"
       ],
       "luck_profiles": {
+        "atelier_diamond": {
+          "uncommon": 1,
+          "rare": 1,
+          "epic": 1,
+          "legendary": 1
+        },
+        "emporium_diamond": {
+          "uncommon": 1,
+          "rare": 1,
+          "epic": 1,
+          "legendary": 1
+        },
         "mob": {
           "uncommon": 1,
           "rare": 1,
@@ -20834,6 +20887,26 @@
           "base": 52,
           "per_floor": 3
         },
+        "autumnal-plains": {
+          "base": 10,
+          "per_floor": 2
+        },
+        "farmstead": {
+          "base": 10,
+          "per_floor": 0
+        },
+        "seafoam-coast": {
+          "base": 18,
+          "per_floor": 2
+        },
+        "emberfall-caldera": {
+          "base": 30,
+          "per_floor": 3
+        },
+        "obsidian-spa": {
+          "base": 30,
+          "per_floor": 0
+        },
         "spooky-mansion": {
           "base": 56,
           "per_floor": 3
@@ -20858,6 +20931,14 @@
           "base": 60,
           "per_floor": 0
         },
+        "utopia-arcanum": {
+          "base": 45,
+          "per_floor": 0
+        },
+        "arcadia-foundry": {
+          "base": 20,
+          "per_floor": 0
+        },
         "default": {
           "base": 5,
           "per_floor": 2
@@ -20875,6 +20956,14 @@
         "littlebig-clockwork": {
           "min": 40,
           "max": 100
+        },
+        "utopia-arcanum": {
+          "min": 30,
+          "max": 80
+        },
+        "arcadia-foundry": {
+          "min": 10,
+          "max": 50
         },
         "default": {
           "min": 1,
@@ -22435,6 +22524,35 @@
           "sunflower_seed",
           "tar_beetle"
         ],
+        "autumn_plains": [
+          "marigold",
+          "dandelion",
+          "goldleaf",
+          "bran_husk",
+          "bean_pod",
+          "prune",
+          "blushberry",
+          "chamomile",
+          "rainwater"
+        ],
+        "coast": [
+          "kelp_ribbon",
+          "sea_glass_salt",
+          "lemon_fizz",
+          "rainwater",
+          "starplum",
+          "sunpeel",
+          "frog_slime"
+        ],
+        "caldera": [
+          "emberroot",
+          "dragon_pepper",
+          "charcoal",
+          "star_shard",
+          "sunpeel",
+          "glass_sugar",
+          "quicksilver_bead"
+        ],
         "safe_room": [
           "rosewater",
           "talc_blossom",
@@ -22457,7 +22575,12 @@
         "dive-desert": "desert",
         "dive-high-desert": "high_desert",
         "dive-tundra": "tundra",
-        "dive-taiga": "taiga"
+        "dive-taiga": "taiga",
+        "dive-autumnal-plains": "autumn_plains",
+        "dive-farmstead": "autumn_plains",
+        "dive-seafoam-coast": "coast",
+        "dive-emberfall-caldera": "caldera",
+        "dive-obsidian-spa": "caldera"
       }
     },
     "brewing": {

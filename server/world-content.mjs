@@ -2,6 +2,7 @@ import {validateQuestContent,checkQuestReferences,objectiveTypes,stateFields,que
 import {validateWorldPng} from './world-png.mjs';
 import {createHash} from 'node:crypto';
 import {defaultScenes,compiledArtwork,defaultSceneRefs,registerDefaultScenes,pinDefeat} from './defeat-scenes.mjs';
+import {AFTERMATH_EFFECTS} from './defeat-aftermath.mjs';
 const clone=structuredClone;
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{status,code:'world_content_invalid'});};
 const id=value=>typeof value==='string'&&/^[a-z][a-z0-9_-]{1,79}$/.test(value)&&!['__proto__','constructor','prototype'].includes(value);
@@ -44,10 +45,15 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  }
  function entry(kind,key){const row=db.prepare('SELECT * FROM world_content WHERE kind=? AND id=?').get(kind,key),base=baselines[kind]?.get(key);if(!row&&!base)fail('Content not found.',404);const draft=row?JSON.parse(row.draft):clone(base);return {kind,id:key,revision:row?.revision??0,draft,published:row?.published?JSON.parse(row.published):clone(base??null),...(kind==='monster'?{effective_defeat:pinDefeat(effective(draft)).defeat??null,default_defeat:clone(defaultScenes[draft.enemy_id??key]??null),defeat_source:draft.defeat?'Admin override':'Game default'}:{}),history:db.prepare('SELECT revision,actor,created FROM world_content_history WHERE kind=? AND id=? ORDER BY revision DESC').all(kind,key)};}
  function assetRef(value){if(value===null||value==='')return '';if(typeof value!=='string'||value.length>100)fail('Choose an artwork asset.');if(value.startsWith('managed-')){if(!db.prepare('SELECT 1 FROM world_assets WHERE id=?').get(value))fail('Artwork is unavailable.');}else if(!compiledSprites.has(value)||!/^[A-Za-z][A-Za-z0-9_]*$/.test(value))fail('Choose a compiled sprite or uploaded artwork.');return value;}
+ function sceneEffects(value){ // Aftermath beat effects (defeat-aftermath.mjs): known numeric keys only, clamped to their authored ranges.
+  if(!value||typeof value!=='object'||Array.isArray(value))fail('Scene effects must be an object.');
+  const out={};for(const [key,v] of Object.entries(value)){const range=AFTERMATH_EFFECTS[key];if(!range)fail('Unknown scene effect: '+key+'.');if(!Number.isFinite(v))fail('Scene effect '+key+' must be a number.');out[key]=Math.max(range[0],Math.min(range[1],Math.round(v)));}
+  return out;
+ }
  function beats(value){
   if(!Array.isArray(value)||value.length>64||value.some(v=>!v||typeof v!=='object'||Array.isArray(v)))fail('Use up to 64 scene pages.');const names=new Set(value.map((v,i)=>v.id??String(i)));if(names.size!==value.length)fail('Scene page IDs must be unique.');
   const next=v=>Number.isInteger(v)?(v>=0&&v<value.length?(value[v].id??String(v)):fail('Scene choice points to an unknown page.')):v==null||v==='close'||names.has(v)?v:fail('Scene choice points to an unknown page.');
-  return value.map((v,i)=>({id:text(v.id??String(i),80),text:text(v.text??''),next:next(v.next),...(v.sprite?{sprite:assetRef(v.sprite)}:{}),...(v.sprite_side?{sprite_side:text(v.sprite_side,20)}:{}),...(v.sprite_index!=null?{sprite_index:integer(v.sprite_index,0,10000)}:{}),...(v.title_override?{title_override:text(v.title_override,100)}:{}),...(v.actions?{actions:(Array.isArray(v.actions)&&v.actions.length<=8?v.actions:fail('Use up to eight choices per page.')).map(a=>({label:text(a.label,160),next:next(a.next)}))}:{})}));
+  return value.map((v,i)=>({id:text(v.id??String(i),80),text:text(v.text??''),next:next(v.next),...(v.sprite?{sprite:assetRef(v.sprite)}:{}),...(v.sprite_side?{sprite_side:text(v.sprite_side,20)}:{}),...(v.sprite_index!=null?{sprite_index:integer(v.sprite_index,0,10000)}:{}),...(v.title_override?{title_override:text(v.title_override,100)}:{}),...(v.effects!=null?{effects:sceneEffects(v.effects)}:{}),...(v.actions?{actions:(Array.isArray(v.actions)&&v.actions.length<=8?v.actions:fail('Use up to eight choices per page.')).map(a=>({label:text(a.label,160),next:next(a.next)}))}:{})}));
  }
  function validate(kind,value){
   if(!value||!id(value.id))fail('Choose a stable lowercase content ID.');

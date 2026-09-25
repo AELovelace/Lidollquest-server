@@ -10,6 +10,12 @@ import {readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {applyDefeatEquipment} from './defeat-equipment.mjs';
 import {applyDefeatDignity} from './defeat-dignity.mjs';
+import {applyDefeatAftermath} from './defeat-aftermath.mjs';
+import {weatherAt,drinkFromWell} from './plains-features.mjs';
+import {restInHay} from './farmstead-generation.mjs';
+import {tideAt} from './coast-features.mjs';
+import {eruptionAt,soakInSpring} from './caldera-features.mjs';
+import {coolInBath} from './spa-generation.mjs';
 import {generateFloor,dressFloor,addFood,weeklyWindow,seeded,pathTo,walkable,inside,enemyRoams} from './dive-generation.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation,MAX_STAT,currentTuning} from './combat.mjs';
 import {levelEnemy,encounterLevel,routeLevelFor,defHpDelta,dexStaminaDelta} from './scaling.mjs';
@@ -19,6 +25,8 @@ import {manaCapacity} from './magic-balance.mjs';
 import {hubArrival,routePortals,routeHome,returnSource,wildernessGates,hubRooms,hubCatalog,inHubGap,dailyCoinCap} from './hubs.mjs';
 import {routeCategory} from './zone-categories.mjs';
 import {inExit,nearExit} from './wilderness-links.mjs';
+import {createDungeonRules,recordDungeonVictories} from './full-dungeon-rules.mjs';
+import {findShop,shopOffers,shopperLevel} from './hubs.mjs';
 
 export const diveData=JSON.parse(readFileSync(new URL('./dive-data.json',import.meta.url),'utf8'));
 export const DIVE_ZONE='dive-quarters';
@@ -26,7 +34,7 @@ const fail=(message,code='dive_conflict')=>{throw Object.assign(Error(message),{
 const clone=structuredClone;
 const seconds=1000,minutes=60000;
 
-export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,measure=(_name,work)=>work(),upgradeFloor=()=>false,travel=()=>false,enchantments=null,loot=null,alchemyStore=null,compute=null,live=null}){
+export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,measure=(_name,work)=>work(),upgradeFloor=()=>false,travel=()=>false,enchantments=null,loot=null,alchemyStore=null,compute=null,live=null,resolveHub=z=>z,purchases=null}){
  const baseline=structuredClone(data);if(live){live.register(baseline);data=live.resolve(baseline);} // Each engine keeps mutable configuration isolated from shipped exports.
  const config=data.config,route=config.route,zoneId=config.zone_id??DIVE_ZONE,theme=config.theme??'princess_quarters',name=config.name??"Princess' Quarters - Dungeon Dive",bossId=(config.boss_id??'iris')||'world_boss';
  const category=routeCategory(config); // 'dive' for instanced boss routes, 'overworld' for open wilderness; fails fast on bad authored data.
@@ -38,6 +46,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  const entry=(floor,origin)=>floor.entries?.[origin]??floor.entrance;
  db.exec(`CREATE TABLE IF NOT EXISTS dive_editions(route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,starts INTEGER NOT NULL,ends INTEGER NOT NULL,content TEXT NOT NULL,updated INTEGER NOT NULL,PRIMARY KEY(route,edition,depth));
  CREATE TABLE IF NOT EXISTS dive_progress(character_id TEXT NOT NULL,route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,state TEXT NOT NULL,PRIMARY KEY(character_id,route,edition,depth));`);
+ const dungeonRules=config.full_dungeon_version?createDungeonRules({db,data,now,roll,origins,adjust,progress,saveProgress,saveFloor}):null;
  const encounters=createDiveEncounters(db,{live,now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate});
  let lastTick=-Infinity,nextSweep=-Infinity,retryAt=0,dressingRetryAt=0,generationPending=null,roamingPending=null,closed=false;
  const floorQuery=db.prepare('SELECT * FROM dive_editions WHERE route=? AND edition=? AND depth=1');
@@ -100,7 +109,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(state.pendingDefeat){state.pendingDefeat.returnToHub=true;return;} // Weekly reset may retire the floor, but never interrupts its unread defeat scene.
   if(destination&&travel(c,state,zoneId,destination))return; // Linked wilderness travel preserves the loadout and personal progress inside the same transaction.
   const origin=destination?routeHome(destination,zoneId,{returnZone:state.dive?.returnZone??'',gate:state.dive?.gate===true}):(state.dive?.returnZone??state.dive?.origin??'honeydew-lantern'); // Crossing to another hub lands in whichever of its rooms hosts this route's opening (Rose: the garden itself; Lantern: its Dive Hall); legacy lobby pad entries still return to lobbies.
-  const destinationRoom=[...hubRooms,...hubCatalog].find(z=>z.id===origin);
+  const destinationRoom=resolveHub([...hubRooms,...hubCatalog].find(z=>z.id===origin)); // Full dungeon entrances live in the resolved monthly map.
   const arrival=hubArrival(destinationRoom,returnSource(origin,state.dive?.hubEntryZone??zoneId)); // A retired branch returns beside its original Tundra opening; legacy lobby entries stand beside the Dive Hall doorway.
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(origin,arrival.x,arrival.y,now(),c.id);
   if(origin.endsWith('-dives'))state.hubVisit=origin;else delete state.hubVisit; // Reconnect after a warp restores the destination hall rather than the previous hub.
@@ -111,6 +120,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const foe=record?.floor.enemies.find(e=>e.id===run.encounter);
   clearEffects(state);
   if(outcome==='win'){
+   recordDungeonVictories(data,c,state,record,[run.encounter],progress,saveProgress);
    awardExperience(state,roll);state.wins++;
    if(foe){foe.dead=true;foe.diedAt=now();foe.engaged=null;foe.respawnAt=now()+(foe.id===bossId?config.boss_respawn_seconds:config.enemy_respawn_seconds)*seconds;foe.x=foe.spawn.x;foe.y=foe.spawn.y;}
    if(run.encounter===bossId){const p=progress(c,run.edition);p.completed=true;saveProgress(c,run.edition,p);}
@@ -121,6 +131,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   }
   const equipment=applyDefeatEquipment(state,run,outcome);
   applyDefeatDignity(state,run,outcome); // Lost fights drain dignity like the campaign (-64, -96 in a childish outfit, scaled by Shame); lines land in run.log.
+  applyDefeatAftermath(state,run,outcome); // The loss blurb's own effects (bladder/tummy fill, Dignity, needs) settle once; its accident beats play on the client.
   syncRunHealth(state,run);state.lastResult={outcome,coins:0,rounds:1,zone:zoneId,log:run.log,...defeatPresentation(run,outcome),...(equipment?{defeatEquipment:equipment}:{})};state.run=null;
   if(state.dive)state.dive.safeUntil=now()+10*seconds;
   if(record)saveFloor(record);
@@ -212,7 +223,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const rnd=seeded(active.edition+':'+Math.floor(tickAt/seconds));
   for(const foe of f.enemies){
    if(foe.engaged||foe.respawnAt>now()||!enemyRoams(data,foe))continue;
-   const targets=players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return v.pendingDefeat||v.dive?.route!==route||v.dive?.edition!==active.edition||(!v.run&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0);});return ready&&(!live?.published().enabled||s.contentVersion===1)&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.worldTurnDue&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);}); // Storing points cannot grant immunity from roaming enemies or block party encounters.
+   const targets=players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return v.pendingDefeat||v.dive?.route!==route||v.dive?.edition!==active.edition||(!v.run&&!v.dungeonScene&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0);});return ready&&(!live?.published().enabled||s.contentVersion===1)&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.dungeonScene&&!s.worldTurnDue&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);}); // Storing points cannot grant immunity from roaming enemies or block party encounters.
    let target=null,best=null;
    for(const p of targets){const path=plans?plans.get(foe.id)?.get(p.character_id):measure('pathfinding.'+zoneId,()=>pathTo(f,foe,p,config.pursuit_steps));if(path&&(!best||path.length<best.length)){target=p;best=path;}} // Worker paths are consumed only against revalidated coordinates; combat remains on the coordinator.
    if(best?.length===0||best?.length===1){const c={id:target.character_id,owner:target.owner,revision:target.revision},s=JSON.parse(target.state);if(s.loadout?.player_info.playerHealth>0){start(c,s,active,foe);saveCharacter(c,s);target.state=c.state;target.revision=c.revision;}continue;}
@@ -229,10 +240,11 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const summary={enabled:config.enabled&&!!record,version:1,route,zone:zoneId,category,name,boss:bossId,edition:record?.edition??'',static:!!config.static,resetsAt:config.static?0:record?.ends??weeklyWindow(now()).ends,completed:personal?.completed??false,claimed:record?.floor.chests.filter(ch=>personal?.claimed.includes(ch.id)).length??0,total:record?.floor.chests.length??0,pickupsClaimed:(record?.floor.pickups??[]).filter(ch=>personal?.claimed.includes(ch.id)).length,pickupsTotal:record?.floor.pickups?.length??0,claimableCoins:personal?.completed?Math.max(0,config.boss_coins-personal.coinsPaid):0};
   if(!record||p?.zone!==zoneId||!owns(state?.dive))return {dive:summary};
   const f=record.floor;
-  return {dive:{...summary,depth:1,origin:state.dive.origin,explored:personal.explored,enemies:f.enemies.filter(e=>!(e.manual&&!e.respawning&&e.dead)).map(e=>({...e,definition:undefined,name:(e.definition??data.enemies[e.type]).name,sprite:(e.definition??data.enemies[e.type]).sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",category,exits:f.exits??[],theme,mist:f.mist,walls:f.walls,props:f.props,geometryVersion:f.geometryVersion??0,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,decorations:f.decorations}};
+  return {dive:{...summary,depth:1,origin:state.dive.origin,explored:personal.explored,...(dungeonRules?{scene:dungeonRules.scene(state),mechanismRevision:f.mechanismRevision,puzzles:f.puzzles}:{}),...(config.features?.rain?{weather:weatherAt(route,config.features.rain,now())}:{}),...(config.features?.tide?{tide:{...tideAt(route,config.features.tide,now()),reach:config.features.tide.reach??3,wade_wet:config.features.tide.wade_wet??2}}:{}),...(config.features?.eruption?{eruption:{...eruptionAt(route,config.features.eruption,now()),radius:config.features.eruption.radius??3,startle_wet:config.features.eruption.startle_wet??35}}:{}),enemies:f.enemies.filter(e=>!(e.manual&&!e.respawning&&e.dead)).map(e=>({...e,definition:undefined,name:(e.definition??data.enemies[e.type]).name,sprite:(e.definition??data.enemies[e.type]).sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",category,exits:f.exits??[],theme,...(dungeonRules?{fullDungeonVersion:1,fixtures:f.fixtures.map(v=>v.kind==='shop'?{...v,offers:shopOffers(zoneId,findShop(v.id),now(),shopperLevel(state))}:v),puzzles:f.puzzles,mechanismRevision:f.mechanismRevision}:{}),mist:f.mist,walls:f.walls,props:f.props,geometryVersion:f.geometryVersion??0,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,decorations:f.decorations,...(f.cover?{cover:f.cover,exposed:!!f.exposed}:{}),...(f.shore?{shore:f.shore}:{}),...(f.crater?{crater:f.crater}:{}),...(f.heat?{heat:{...f.heat,thirst_per_step:config.features?.heat?.thirst_per_step??3,sweat_percent:config.features?.heat?.sweat_percent??50}}:{})}}; // crater/heat: Emberfall Caldera's lava lake and the overheated ring round it. // shore: the Seafoam Coast's shoreline column per row (sea to its east, tide flats just west of it). // cover/exposed: the Autumnal Plains' tall grass and open fields (plains-features.mjs).
  } // Snapshots expose claim status but never another character's inventory or chest rolls.
  function claim(c,state,record,chest,automatic=false){
-  const personal=progress(c,record.edition);if(personal.claimed.includes(chest.id)){if(automatic)return;fail('You already claimed this treasure this week.');}
+  if(chest.puzzle&&!record.floor.puzzles.find(p=>p.id===chest.puzzle)?.solved)fail('Push the blocks to open this chest first.');
+  const personal=progress(c,record.edition);if(chest.requires_encounter&&!personal.defeated?.includes(chest.requires_encounter)){if(automatic)return;fail('Defeat the guarding boss before claiming this treasure.');}if(personal.claimed.includes(chest.id)){if(automatic)return;fail('You already claimed this treasure this week.');}
   if(!stackable(personal.rolls[chest.id])&&slotsUsed(state.loadout.inventory)>=config.inventory_capacity){if(automatic){state.dive.lootNotice='Inventory full. Treasure remains here.';state.dive.lootNoticeAt=now();return;}fail('Inventory full. This treasure remains unclaimed.');}
   if(!personal.rolls[chest.id])personal.rolls[chest.id]=rollLoot(record.edition,c.id,chest,personal.rolls); // Capacity was checked first; only successful claims consume the allowance.
   const item=clone(personal.rolls[chest.id]);if(origins)origins.mint(c.id,item);addToInventory(state.loadout.inventory,item);personal.claimed.push(chest.id);saveProgress(c,record.edition,personal);
@@ -241,12 +253,14 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    if(origins){const tokens=[],prices=new Map();for(let n=0;n<bundle.quantity;n++){const unit=clone(bundle);delete unit.quantity;origins.mint(c.id,unit);if(unit.online_item){tokens.push(unit.online_item);prices.set(unit.online_item,unit.online_sell_price);}}setStackTokens(bundle,tokens,prices);} // one resale right per unit, like bought stacks
    addToInventory(state.loadout.inventory,bundle);
   }
+  if(chest.trapped)dungeonRules?.trap(c,state,record,chest.id); // A personal trap shares the committed chest receipt.
   state.dive.lootNotice='Found '+(item.name??item.item_id)+(bundle?' and '+bundle.name+(bundle.quantity>1?' x'+bundle.quantity:''):'')+'.';state.dive.lootNoticeAt=now();
  } // Inventory, deterministic item roll and personal claim commit together inside the zone transaction.
  function handles(input,p){return input.action==='dive_enter'&&(input.zone??DIVE_ZONE)===zoneId||input.action==='enter'&&input.zone===zoneId||p?.zone===zoneId;}
  function act(i,c,state,input,p){
   const action=input.action;
   if(action==='dive_enter'||action==='enter'){
+   if(config.full_dungeon_version&&(state.fullDungeonVersion!==1||state.questVersion!==1))fail('Update the game to enter full campaign dungeons.','client_update_required');
    if(controls?.draining()&&!state.dive)fail('This Dive is being regenerated.');
    if(state.dive&&input.zone&&input.zone!==zoneId)fail('Leave your current dungeon before changing routes.'); // Re-entry cannot change a live visit's route or imported inventory.
    if(!config.enabled)fail('Dungeon Dive is not enabled.');
@@ -258,12 +272,12 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    } // A browser suspended across reset resumes in its lobby instead of retrying a retired floor forever.
    if(state.run&&state.run.kind!=='dive')fail('Finish your arena run before diving.');
    if(state.dive&&!owns(state.dive))fail('Leave your current dungeon before entering another route.');
-   if(!state.dive){const hall=hubRooms.find(r=>r.id===p?.zone&&r.kind==='dives');if(!p||!hall&&!hubCatalog.some(h=>h.id===p.zone)||p.seen<=now()-30000||p.controller!==input.controller||p.grant_id!==i.id)fail('Enter from an online dive hall.');
-    const portal=routePortals(hall??hubCatalog.find(h=>h.id===p.zone)).find(v=>v.target===zoneId); // Halls list their pads and side gaps; a lobby lists its hall's routes (legacy entry) plus its own wall gates.
+   if(!state.dive){const hall=hubRooms.find(r=>r.id===p?.zone&&(r.kind==='dives'||config.full_dungeon_version)),host=hall??hubCatalog.find(h=>h.id===p?.zone);if(!p||!host||p.seen<=now()-30000||p.controller!==input.controller||p.grant_id!==i.id)fail('Enter from an online dungeon entrance.');
+    const portal=routePortals(resolveHub(host)).find(v=>v.target===zoneId); // The Castle is an annex; towns have their own full dungeon doorsteps.
     const beside=portal?.style==='gap'?inHubGap({x:portal.x-1,y:portal.y-1,w:(portal.w??1)+2,h:(portal.h??1)+2},p.x,p.y):portal&&Math.abs(p.x-portal.x)+Math.abs(p.y-portal.y)<=1; // Wall openings span two tiles; pads are one.
-    if(!portal||hall&&!beside)fail(portal?.style==='gap'?'Walk through the wall opening.':'Stand on or beside that glowing portal.'); // Legacy lobby entry remains accepted only for routes connected to that hub.
+    if(!portal||(hall||config.full_dungeon_version)&&!beside)fail(portal?.style==='gap'?'Walk through the wall opening.':config.full_dungeon_version?'Stand on or beside that dungeon entrance portal.':'Stand on or beside that glowing portal.');
     if(input.loadout)state.loadout=importLoadout(input.loadout);if(!state.loadout)fail('Import your character first.');
-    const record=current(),origin=hall?.parent??p.zone;if(!record)fail('The weekly floor is not ready.');state.dive={route,zone:zoneId,edition:record.edition,depth:1,origin,returnZone:p.zone,gate:!hall&&input.gate===true&&wildernessGates(p.zone).some(g=>g.target===zoneId),position:{...entry(record.floor,origin)},safeUntil:now()+10*seconds};state.diveReturned=null;delete state.diveReturnedPosition;delete state.hubVisit; // `gate`: entered by walking through a lobby's own wall opening (Rose garden -> Tundra).
+    const record=current(),origin=config.full_dungeon_version?p.zone:(hall?.parent??p.zone);if(!record)fail('The weekly floor is not ready.');state.dive={route,zone:zoneId,edition:record.edition,depth:1,origin,returnZone:p.zone,gate:!hall&&input.gate===true&&wildernessGates(p.zone).some(g=>g.target===zoneId),position:{...entry(record.floor,origin)},safeUntil:now()+10*seconds};state.diveReturned=null;delete state.diveReturnedPosition;delete state.hubVisit; // `gate`: entered by walking through a lobby's own wall opening (Rose garden -> Tundra).
    }
    const record=getFloor(state.dive.edition),position=state.dive.position;
    if(!record)fail('The weekly floor is unavailable.');
@@ -275,6 +289,9 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(!owns(state.dive))fail('Re-enter the dungeon from its lobby.');
   const record=getFloor(state.dive.edition),f=record.floor;
   if(input.edition!==record.edition)fail('The dungeon edition changed. Refresh before acting.');
+  if(dungeonRules&&record.edition!==latest()&&!['dive_exit','leave','defeat_complete','appearance','allocate'].includes(action))fail('This weekly dungeon has ended.'); // Old floors retain receipts but reject new fixture and mechanism mutations.
+  if(dungeonRules?.act(c,state,record,input,p))return;
+  if(dungeonRules&&action==='shop_buy'){purchases.prepare(i,c,state,{id:zoneId,fixtures:f.fixtures},p,input);return;}
   if(action==='defeat_complete'){
    const pending=state.pendingDefeat;
    if(!pending||input.scene!==pending.id)fail('That defeat scene is no longer pending.');
@@ -283,12 +300,27 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   }
   if(action==='dive_exit'||action==='leave'){if(state.run)fail('Finish or flee from the current fight first.');
    if(input.zone){const exit=f.exits?.find(e=>e.zone===input.zone);if(!exit||!nearExit(exit,p.x,p.y))fail('Stand beside that hub exit.');}
-   back(c,state,input.zone??config.parent_zone);return;} // Branch regions retreat to their parent; crossings retain their original hub return.
+   back(c,state,input.zone??(state.dive?.gate===true?undefined:config.parent_zone));return;} // Branch regions retreat to their parent, unless you walked in through a hub's own gate (Utopia's south wall onto the Taiga): then escape takes you home to that gate. Crossings retain their original hub return.
   // Chat is handled by the zone gateway before dungeon dispatch, sharing mute, block and rate-limit rules with every other area.
   if(action==='appearance'){state.avatar=input.avatar;return;} // The zone adapter validates the cosmetic allowlist before dispatch.
   if(action==='allocate'){if(state.run||!['str','def','dex','int','cha'].includes(input.stat)||!(state.loadout.player_info.stat_points>0))fail('Choose an available stat point outside combat.');if(state.loadout.player_info[input.stat]>=MAX_STAT)fail('That stat is already at its maximum of '+MAX_STAT+'.');state.loadout.player_info[input.stat]++;state.loadout.player_info.stat_points--;if(input.stat==='int')state.loadout.player_mp_max=manaCapacity(state.loadout);if(input.stat==='def'){const p=state.loadout.player_info,gain=defHpDelta(currentTuning(),p.level,p.def-1,p.def);p.playerHealthMax+=gain;p.playerHealth=Math.min(p.playerHealthMax,p.playerHealth+gain);}if(input.stat==='dex'){const p=state.loadout.player_info,gain=dexStaminaDelta(currentTuning(),p.level,p.dex-1,p.dex);p.stamina_max=(Number(p.stamina_max)||100)+gain;p.stamina=Math.min(p.stamina_max,(Number(p.stamina)||0)+gain);}return;} // DEF carries a share of max HP (hp_def_share); DEX a share of max stamina.
   if(record.edition!==latest()&&!state.run)fail('This weekly dungeon has ended.');
   if(action==='dive_claim_reward'){if(state.run)fail('Finish the current fight first.');const amount=pay(c,state,record);state.lastResult={outcome:'reward_claimed',coins:amount,zone:zoneId,log:[]};return;}
+  if(action==='dive_well'){ // Drink from a Plains well: thirst and stamina up, and it goes straight to the bladder. One drink per well per cooldown.
+   if(state.run)fail('Finish the current fight first.');
+   const lines=drinkFromWell(f,p,state.loadout,config.features,now(),state.dive.wellDrinks??={});
+   state.dive.lootNotice=lines.join(' ');state.dive.lootNoticeAt=now();return;
+  }
+  if(action==='dive_rest'){ // Nap on a Farmstead hay bed: stamina back, and you wake needing the outhouse. One nap per bed per cooldown.
+   if(state.run)fail('Finish the current fight first.');
+   const lines=restInHay(f,p,state.loadout,config.features,now(),state.dive.hayNaps??={});
+   state.dive.lootNotice=lines.join(' ');state.dive.lootNoticeAt=now();return;
+  }
+  if(action==='dive_soak'||action==='dive_cool'){ // Caldera hot springs (full stamina, then everything loosens for a while) and Obsidian Spa cooling baths.
+   if(state.run)fail('Finish the current fight first.');
+   const lines=action==='dive_soak'?soakInSpring(f,p,state.loadout,config.features,now(),state.dive.springSoaks??={}):coolInBath(f,p,state.loadout,config.features,now(),state.dive.bathDips??={});
+   state.dive.lootNotice=lines.join(' ');state.dive.lootNoticeAt=now();return;
+  }
   if(action==='dive_claim'){
    if(state.run)fail('Finish the current fight first.');const chest=[...f.chests,...(f.pickups??[])].find(ch=>ch.id===input.chest);if(!chest||Math.abs(chest.x-p.x)+Math.abs(chest.y-p.y)>1)fail('Stand next to that treasure.');
    claim(c,state,record,chest);return;
@@ -303,7 +335,8 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    const entranceReturn=!(f.exits?.length)&&x===f.entrance.x&&y===f.entrance.y;
    if(exit||entranceReturn){back(c,state,exit?.zone);return;} // Stepping onto any return portal commits the transfer; spawning/reconnecting on it never triggers a bounce.
    db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(x,y,now(),c.id);reveal(c,state,f,x,y);
-   if(input.world_step===true)state.worldTurnDue={id:randomUUID(),mist:mistAt(f,x,y)}; // Loot commits first; the needs tick resumes from that inventory rather than overwriting the grant.
+   dungeonRules?.step(c,state,record,x,y); // Room timers and traps count committed moves only.
+   if(input.world_step===true)state.worldTurnDue={id:randomUUID(),mist:mistAt(f,x,y),lullaby:!!state.dungeonLullaby}; // Loot commits first; the needs tick resumes from that inventory rather than overwriting the grant.
    const pickup=[...f.chests,...(f.pickups??[])].find(ch=>ch.x===x&&ch.y===y);if(pickup)claim(c,state,record,pickup,true);return; // Walking onto either a room chest or a loose pickup commits the same personal claim as Interact.
   }
   const z={id:zoneId,theme,recovery:0};let result;
@@ -359,5 +392,5 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(zoneId,position.x,position.y,now(),c.id);
   reveal(c,state,f,position.x,position.y); // Personal fog and claims for this edition are reused, never reset.
  }
- return {category,tick,snapshot,handles,act,chatArea,arrive,gmPlace,parentZone:config.parent_zone??null,controls,prepare:ensure,close(){closed=true;controls?.close();},available:()=>Boolean(config.enabled&&enabledQuery.get(route)),encounterSnapshot:state=>encounters.snapshot(state)};
+ return {category,tick,snapshot,handles,act,chatArea,arrive,gmPlace,parentZone:config.parent_zone??null,controls,floor:()=>current()?.floor??null,prepare:ensure,close(){closed=true;controls?.close();},available:()=>Boolean(config.enabled&&enabledQuery.get(route)),encounterSnapshot:state=>encounters.snapshot(state)};
 } // All mutations run inside the zone command transaction; scheduled simulation owns its own transaction.

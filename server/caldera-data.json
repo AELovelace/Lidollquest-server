@@ -1,0 +1,720 @@
+{
+  "version": 1,
+  "dressing_version": 1,
+  "food_version": 1,
+  "config": {
+    "_comment": "Weekly Emberfall Caldera overworld: a lava lake in the middle, obsidian crags, steam vents, hot springs. North trailhead: Frostveil Tundra's south wall. East: the Autumnal Plains' west trail (added to live editions by upgradeFloor). Band route_levels.emberfall-caldera. Export with python/export_online_caldera.py.",
+    "enabled": true,
+    "route": "emberfall-caldera",
+    "zone_id": "dive-emberfall-caldera",
+    "zone_category": "overworld",
+    "static": false,
+    "name": "Emberfall Caldera",
+    "theme": "caldera",
+    "width": 80,
+    "height": 80,
+    "enemies_per_room": 2,
+    "potions_per_room": 1,
+    "food_per_room": 1,
+    "beverage_pool": [
+      "water_bottle",
+      "bottle",
+      "sippy_juice",
+      "nanny_juice_box"
+    ],
+    "treasures_per_room": 1,
+    "enemy_respawn_seconds": 600,
+    "boss_respawn_seconds": 600,
+    "pursuit_steps": 6,
+    "boss_id": "",
+    "boss_coins": 0,
+    "inventory_capacity": 99,
+    "non_diaper_panties_per_floor": 1,
+    "features": {
+      "_comment": "server/caldera-features.mjs. vents round the rim (rim tiles beyond the lava). springs: hot springs out of the worst heat (dive_soak: full stamina, then incontinence +spring.incontinence for spring.relax_turns turns). heat_reach: tiles beyond the lava that count as overheated; heat.thirst_per_step drains thirst there, heat.sweat_percent scales accident Dignity loss while overheated. eruption: every period_minutes the vents rumble for rumble_seconds then erupt for erupt_seconds; standing within radius of a vent while it erupts startles you (startle_wet bladder, once per eruption).",
+      "vents": 8,
+      "rim": 4,
+      "springs": 3,
+      "spring": {
+        "sprite": "sprCalderaHotSpring",
+        "span": 2,
+        "incontinence": 250,
+        "relax_turns": 30,
+        "cooldown_seconds": 90
+      },
+      "heat_reach": 14,
+      "heat": {
+        "thirst_per_step": 3,
+        "sweat_percent": 50
+      },
+      "eruption": {
+        "period_minutes": 8,
+        "rumble_seconds": 40,
+        "erupt_seconds": 30,
+        "radius": 3,
+        "startle_wet": 35
+      }
+    },
+    "landmark": {
+      "_comment": "The Obsidian Spa, carved into the mountainside near the middle of the map. Its door is a warp pad into dive-obsidian-spa.",
+      "zone": "dive-obsidian-spa",
+      "name": "Obsidian Spa",
+      "sprite": "sprCalderaSpa",
+      "span_w": 4,
+      "span_h": 4,
+      "door_x": 2,
+      "radius": 8
+    },
+    "endpoints": [
+      {
+        "zone": "dive-tundra",
+        "name": "Frostveil Tundra",
+        "side": "north"
+      }
+    ]
+  },
+  "structure": {
+    "fill_chance": 46,
+    "smooth_passes": 4,
+    "birth_limit": 5,
+    "death_limit": 3,
+    "basin_count": 9,
+    "min_basin_w": 10,
+    "max_basin_w": 15,
+    "min_basin_h": 8,
+    "max_basin_h": 13,
+    "main_path_width_min": 5,
+    "main_path_width_max": 8,
+    "side_path_width_min": 4,
+    "side_path_width_max": 6,
+    "side_path_count": 8,
+    "drunk_bias": 76,
+    "prop_count_min": 28,
+    "prop_count_max": 38,
+    "crater": {
+      "radius": 9,
+      "ring": 3
+    }
+  },
+  "enemy_types": [
+    {
+      "enemy_id": "ember_imp",
+      "chance": 20
+    },
+    {
+      "enemy_id": "cinder_slime",
+      "chance": 18
+    },
+    {
+      "enemy_id": "steam_sprite",
+      "chance": 16
+    },
+    {
+      "enemy_id": "obsidian_golem",
+      "chance": 10
+    },
+    {
+      "enemy_id": "sand_stinger",
+      "chance": 10
+    },
+    {
+      "enemy_id": "goblin_brute",
+      "chance": 8
+    },
+    {
+      "enemy_id": "glowroach",
+      "chance": 8
+    },
+    {
+      "enemy_id": "magma_matron",
+      "chance": 3
+    }
+  ],
+  "enemies": {
+    "ember_imp": {
+      "enemy_id": "ember_imp",
+      "name": "Ember Imp",
+      "hp": 55,
+      "str": 9,
+      "def": 3,
+      "dex": 14,
+      "exp": 26,
+      "enemy_spells": [
+        "hot_foot"
+      ],
+      "spell_cast_chance": 0.4,
+      "sprite": "sprEmberImp",
+      "battle_sprite": "sprBattleEmberImp",
+      "roaming": true
+    },
+    "cinder_slime": {
+      "enemy_id": "cinder_slime",
+      "name": "Cinder Slime",
+      "hp": 70,
+      "str": 9,
+      "def": 5,
+      "dex": 5,
+      "exp": 30,
+      "enemy_spells": [
+        "sticky_heat"
+      ],
+      "spell_cast_chance": 0.35,
+      "sprite": "sprCinderSlime",
+      "battle_sprite": "sprBattleCinderSlime",
+      "roaming": true
+    },
+    "steam_sprite": {
+      "enemy_id": "steam_sprite",
+      "name": "Steam Sprite",
+      "hp": 45,
+      "str": 7,
+      "def": 2,
+      "dex": 14,
+      "exp": 24,
+      "enemy_spells": [
+        "scald_mist"
+      ],
+      "spell_cast_chance": 0.4,
+      "sprite": "sprSteamSprite",
+      "battle_sprite": "sprBattleSteamSprite",
+      "roaming": true
+    },
+    "obsidian_golem": {
+      "enemy_id": "obsidian_golem",
+      "name": "Obsidian Golem",
+      "hp": 120,
+      "str": 14,
+      "def": 9,
+      "dex": 3,
+      "exp": 45,
+      "enemy_spells": [
+        "sweeping_trip",
+        "restraint_hold"
+      ],
+      "spell_cast_chance": 0.3,
+      "sprite": "sprObsidianGolem",
+      "battle_sprite": "sprBattleObsidianGolem",
+      "roaming": true
+    },
+    "sand_stinger": {
+      "enemy_id": "sand_stinger",
+      "name": "Sand Stinger",
+      "hp": 44,
+      "str": 10,
+      "def": 2,
+      "dex": 12,
+      "exp": 26,
+      "enemy_spells": [
+        "venom_sting"
+      ],
+      "spell_cast_chance": 0.35,
+      "sprite": "sprSandStinger",
+      "battle_sprite": "sprSandStinger",
+      "roaming": true
+    },
+    "goblin_brute": {
+      "enemy_id": "goblin_brute",
+      "name": "Goblin Brute",
+      "hp": 50,
+      "str": 8,
+      "def": 3,
+      "dex": 3,
+      "exp": 25,
+      "enemy_spells": [
+        "sweeping_trip"
+      ],
+      "spell_cast_chance": 0.2,
+      "sprite": "sprGoblinBruteNew",
+      "battle_sprite": "sprGoblinBrute",
+      "roaming": true
+    },
+    "glowroach": {
+      "enemy_id": "glowroach",
+      "name": "Glowroach",
+      "hp": 32,
+      "str": 5,
+      "def": 1,
+      "dex": 13,
+      "exp": 15,
+      "enemy_spells": [
+        "light_pulse"
+      ],
+      "spell_cast_chance": 0.3,
+      "sprite": "sprGlowroach",
+      "battle_sprite": "sprGlowroach",
+      "roaming": true
+    },
+    "magma_matron": {
+      "enemy_id": "magma_matron",
+      "name": "Magma Matron",
+      "hp": 170,
+      "str": 18,
+      "def": 8,
+      "dex": 8,
+      "exp": 110,
+      "enemy_spells": [
+        "molten_lullaby",
+        "sweeping_trip"
+      ],
+      "spell_cast_chance": 0.4,
+      "sprite": "sprMagmaMatron",
+      "battle_sprite": "sprBattleMagmaMatron",
+      "roaming": true
+    }
+  },
+  "items": {
+    "adult_food": {
+      "item_id": "adult_food",
+      "category": "food",
+      "name": "Adult Food",
+      "desc": "A proper grown-up meal. Restores more health than baby food, and the tummy effects are milder and shorter-lived.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 25,
+      "value": 10,
+      "childish": 1,
+      "stamina_restore": 8,
+      "hunger_restore": 167,
+      "tum_instant": 4,
+      "pressure_turns": 4,
+      "tum_per_turn": 5,
+      "tum_target_gain": 20,
+      "rarity": "common"
+    },
+    "baby_food": {
+      "item_id": "baby_food",
+      "category": "food",
+      "name": "Baby Food",
+      "desc": "Mushy, sweet purée in a little jar. Restores some health, but sits extremely heavy in your tummy for a long time.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 15,
+      "value": 8,
+      "childish": 9,
+      "stamina_restore": 15,
+      "hunger_restore": 167,
+      "tum_instant": 4,
+      "pressure_turns": 6,
+      "tum_per_turn": 4,
+      "tum_target_gain": 20,
+      "rarity": "common"
+    },
+    "bikini_2": {
+      "item_id": "bikini_2",
+      "category": "bra",
+      "name": "Bikini #2",
+      "desc": "A bikini #2. Supports your chest.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 8,
+      "childish": 2,
+      "rarity": "common",
+      "pool_template": true
+    },
+    "boots": {
+      "item_id": "boots",
+      "category": "shoes",
+      "name": "Sturdy Boots",
+      "desc": "Heavy-duty boots that mean business. +2 DEF.",
+      "atk": 0,
+      "def": 2,
+      "hp_restore": 0,
+      "value": 18,
+      "childish": 0,
+      "rarity": "uncommon"
+    },
+    "bottle": {
+      "item_id": "bottle",
+      "category": "food",
+      "is_drink": true,
+      "name": "Milk Bottle",
+      "desc": "A warm bottle of milk. Restores 15 HP.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 15,
+      "value": 12,
+      "childish": 7,
+      "hunger_restore": 20,
+      "thirst_restore": 167,
+      "wet_instant": 3,
+      "tum_instant": 2,
+      "pressure_turns": 4,
+      "wet_per_turn": 5,
+      "tum_per_turn": 1,
+      "wet_target_gain": 20,
+      "tum_target_gain": 4,
+      "rarity": "common"
+    },
+    "cotton_panties": {
+      "item_id": "cotton_panties",
+      "category": "panties",
+      "name": "Cotton Panties",
+      "desc": "Plain cotton underwear. Comfortable and practical.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": 1,
+      "value": 3,
+      "childish": 1,
+      "bulk": 0,
+      "rarity": "common"
+    },
+    "desert_electrolyte": {
+      "item_id": "desert_electrolyte",
+      "category": "drink",
+      "name": "Desert Electrolyte Flask",
+      "desc": "A chilled citrus drink mixed for Dustbreak heat. It restores a large amount of thirst and stamina.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 5,
+      "stamina_restore": 10,
+      "value": 16,
+      "childish": 1,
+      "thirst_restore": 167,
+      "wet_instant": 5,
+      "pressure_turns": 5,
+      "wet_per_turn": 4,
+      "wet_target_gain": 20,
+      "rarity": "common"
+    },
+    "diaper": {
+      "item_id": "diaper",
+      "category": "panties",
+      "name": "Fluffy Diaper",
+      "desc": "Extra padding. Protects against accidents. Hard to move in. ATK -1, DEX -2.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -3,
+      "atk_mod": -1,
+      "def_mod": 0,
+      "dex_mod": -2,
+      "value": 8,
+      "childish": 10,
+      "bulk": 3,
+      "is_diaper": true,
+      "rarity": "rare"
+    },
+    "dried_apple": {
+      "item_id": "dried_apple",
+      "category": "food",
+      "is_snack": true,
+      "name": "Dried Apple Slices",
+      "desc": "A paper pouch of tart apple slices. Light, portable, and easy on the tummy.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 3,
+      "value": 6,
+      "childish": 2,
+      "hunger_restore": 125,
+      "tum_instant": 1,
+      "pressure_turns": 3,
+      "tum_per_turn": 4,
+      "tum_target_gain": 12,
+      "rarity": "common"
+    },
+    "nanny_juice_box": {
+      "item_id": "nanny_juice_box",
+      "category": "food",
+      "is_drink": true,
+      "name": "Nanny's Juice Box",
+      "desc": "A tiny juice box with a foil straw. Extremely sugary. Restores 12 HP and Tum +25 from all the sugar. You shouldn't have had three.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 12,
+      "value": 6,
+      "childish": 9,
+      "tum_bonus": 25,
+      "thirst_restore": 167,
+      "wet_instant": 3,
+      "tum_instant": 5,
+      "pressure_turns": 5,
+      "wet_per_turn": 4,
+      "tum_per_turn": 4,
+      "wet_target_gain": 20,
+      "tum_target_gain": 20,
+      "rarity": "common"
+    },
+    "permanent_continence_potion": {
+      "item_id": "permanent_continence_potion",
+      "name": "Permanent Continence Potion",
+      "category": "food",
+      "is_drink": true,
+      "desc": "Increases continence by 20 percentage points permanently, within the 0–100% range.",
+      "value": 250,
+      "hp_restore": 0,
+      "mp_restore": 0,
+      "continence_delta": -200,
+      "continence_turns": 0,
+      "rarity": "rare"
+    },
+    "permanent_incontinence_potion": {
+      "item_id": "permanent_incontinence_potion",
+      "name": "Permanent Incontinence Potion",
+      "category": "food",
+      "is_drink": true,
+      "desc": "Increases incontinence by 20 percentage points permanently, within the 0–100% range.",
+      "value": 250,
+      "hp_restore": 0,
+      "mp_restore": 0,
+      "continence_delta": 200,
+      "continence_turns": 0,
+      "rarity": "rare"
+    },
+    "printed_diaper": {
+      "item_id": "printed_diaper",
+      "category": "panties",
+      "name": "Printed Diaper",
+      "desc": "A thick diaper printed with colorful stars. Very obvious. Very babyish. ATK -1, DEX -2.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -3,
+      "atk_mod": -1,
+      "def_mod": 0,
+      "dex_mod": -2,
+      "value": 7,
+      "childish": 10,
+      "bulk": 3,
+      "is_diaper": true,
+      "rarity": "rare"
+    },
+    "shoes_sandals_2": {
+      "item_id": "shoes_sandals_2",
+      "category": "shoes",
+      "name": "Shoes Sandals #2",
+      "desc": "A pair of shoes sandals #2. Protects your feet.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "value": 10,
+      "childish": 2,
+      "rarity": "common",
+      "pool_template": true
+    },
+    "sippy_juice": {
+      "item_id": "sippy_juice",
+      "category": "food",
+      "is_drink": true,
+      "name": "Sippy Cup of Juice",
+      "desc": "A bright, overfull sippy cup of fruit juice. Restores some health, but it goes right through you.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 8,
+      "value": 7,
+      "childish": 10,
+      "stamina_restore": 5,
+      "thirst_restore": 167,
+      "wet_instant": 4,
+      "pressure_turns": 6,
+      "wet_per_turn": 4,
+      "wet_target_gain": 20,
+      "rarity": "common"
+    },
+    "stamina_potion": {
+      "item_id": "stamina_potion",
+      "category": "drink",
+      "name": "Stamina Potion",
+      "desc": "A fizzing sky-blue vial. Your legs feel solid the moment you pop the cork. Restores your stamina fully.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "stamina_restore": -1,
+      "value": 18,
+      "childish": 3,
+      "thirst_restore": 125,
+      "wet_instant": 2,
+      "pressure_turns": 3,
+      "wet_per_turn": 4,
+      "wet_target_gain": 12,
+      "rarity": "common"
+    },
+    "stockings_rubber_red": {
+      "item_id": "stockings_rubber_red",
+      "category": "socks",
+      "name": "Stockings Rubber Red",
+      "desc": "A pair of stockings rubber red. Keeps your feet cozy.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 5,
+      "childish": 3,
+      "rarity": "common",
+      "pool_template": true
+    },
+    "temporary_continence_potion": {
+      "item_id": "temporary_continence_potion",
+      "name": "Temporary Continence Potion",
+      "category": "food",
+      "is_drink": true,
+      "desc": "Sets continence to 100% for 250 turns. Replaces any temporary incontinence potion; another dose refreshes the duration.",
+      "value": 75,
+      "hp_restore": 0,
+      "mp_restore": 0,
+      "continence_set": 0,
+      "continence_turns": 250,
+      "rarity": "rare"
+    },
+    "temporary_incontinence_potion": {
+      "item_id": "temporary_incontinence_potion",
+      "name": "Temporary Incontinence Potion",
+      "category": "food",
+      "is_drink": true,
+      "desc": "Sets incontinence to 100% (0% continence) for 250 turns. Replaces any temporary continence potion; another dose refreshes the duration.",
+      "value": 75,
+      "hp_restore": 0,
+      "mp_restore": 0,
+      "continence_set": 1000,
+      "continence_turns": 250,
+      "rarity": "rare"
+    },
+    "trail_rations": {
+      "item_id": "trail_rations",
+      "category": "food",
+      "name": "Trail Rations",
+      "desc": "A sturdy packet of crackers, nuts, and dried fruit. Filling enough for a long dungeon walk.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 5,
+      "stamina_restore": 5,
+      "value": 10,
+      "childish": 1,
+      "hunger_restore": 167,
+      "tum_instant": 3,
+      "pressure_turns": 5,
+      "tum_per_turn": 4,
+      "tum_target_gain": 20,
+      "rarity": "common"
+    },
+    "training_pants": {
+      "item_id": "training_pants",
+      "category": "panties",
+      "name": "Training Pants",
+      "desc": "Thick padded cotton pants for... practice. Slightly restricts movement. DEX -1.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -1,
+      "atk_mod": 0,
+      "def_mod": 0,
+      "dex_mod": -1,
+      "value": 5,
+      "childish": 7,
+      "bulk": 1,
+      "rarity": "common"
+    },
+    "turtle_swimsuit_1": {
+      "item_id": "turtle_swimsuit_1",
+      "category": "dress",
+      "name": "Turtle Swimsuit #1",
+      "desc": "A stylish turtle swimsuit #1. Fills both torso and pants slots.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "value": 15,
+      "childish": 5,
+      "conceals_panties": true,
+      "bulk_threshold": 3,
+      "rarity": "common",
+      "pool_template": true
+    },
+    "water_bottle": {
+      "item_id": "water_bottle",
+      "category": "food",
+      "is_drink": true,
+      "name": "Water Bottle",
+      "desc": "A plain plastic water bottle. Restores some health. All that water has somewhere to go.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 8,
+      "value": 5,
+      "childish": 0,
+      "stamina_restore": 5,
+      "thirst_restore": 167,
+      "wet_instant": 3,
+      "pressure_turns": 4,
+      "wet_per_turn": 5,
+      "wet_target_gain": 20,
+      "rarity": "common"
+    }
+  },
+  "item_pool": [
+    "temporary_continence_potion",
+    "permanent_continence_potion",
+    "temporary_incontinence_potion",
+    "permanent_incontinence_potion",
+    "adult_food",
+    "baby_food",
+    "water_bottle",
+    "trail_rations",
+    "dried_apple",
+    "stamina_potion",
+    "desert_electrolyte",
+    "boots",
+    "cotton_panties",
+    "training_pants",
+    "diaper",
+    "printed_diaper",
+    "bikini_2",
+    "turtle_swimsuit_1",
+    "shoes_sandals_2",
+    "stockings_rubber_red",
+    "bottle",
+    "sippy_juice",
+    "nanny_juice_box"
+  ],
+  "food_pool": [
+    "adult_food",
+    "baby_food",
+    "trail_rations",
+    "dried_apple",
+    "water_bottle",
+    "bottle",
+    "sippy_juice",
+    "nanny_juice_box"
+  ],
+  "potion_pool": [
+    "temporary_continence_potion",
+    "permanent_continence_potion",
+    "temporary_incontinence_potion",
+    "permanent_incontinence_potion",
+    "stamina_potion"
+  ],
+  "detail_profiles": [
+    {
+      "sprite": "sprCalderaEnvSpike",
+      "span_w": 1,
+      "span_h": 2,
+      "solid": true
+    },
+    {
+      "sprite": "sprCalderaEnvCharredTree",
+      "span_w": 1,
+      "span_h": 2,
+      "solid": true
+    },
+    {
+      "sprite": "sprCalderaEnvSulphurPool",
+      "span_w": 2,
+      "span_h": 1,
+      "solid": true
+    },
+    {
+      "sprite": "sprCalderaEnvCairn",
+      "span_w": 1,
+      "span_h": 1,
+      "solid": true
+    },
+    {
+      "sprite": "sprCalderaEnvAshMound",
+      "span_w": 1,
+      "span_h": 1,
+      "solid": true
+    }
+  ]
+}

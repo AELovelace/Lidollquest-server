@@ -1,3 +1,6 @@
+import {tickFaith,combatFaith,prayText,breakFree,dedicate,GODS as GODS_BY_ID} from './faith.mjs'; // The gods: piety ticks on each commit; the blessing rides on the loadout.
+import {removeCursedGear} from './curse-removal.mjs'; // Orin's faith_break_free reuses the Cursebreaker's removal rules.
+import {inArcadia,arcadiaLook,littleTax,taxedPrice} from './arcadia-rules.mjs'; // Arcadia's little tax on displayed shop prices.
 import {createOnlineQuests} from './online-quests.mjs';
 import {createOrbs} from './orbs.mjs';
 import {createHubEncounters} from './world-hubs.mjs';
@@ -25,23 +28,42 @@ import {createEnchantmentStore} from './enchantment-store.mjs';
 import {createLootStore} from './loot-store.mjs';
 import {createAlchemyStore} from './alchemy-store.mjs';
 import {generateDesert} from './desert-generation.mjs';
-import {addNorthTrail,addSideTrail,addLandmark,openExitGaps} from './wilderness-links.mjs';
+import {addNorthTrail,addSouthTrail,addSideTrail,addLandmark,openExitGaps} from './wilderness-links.mjs';
 import {generateForest} from './forest-generation.mjs';
 import {generateMansion} from './mansion-generation.mjs';
+import {fullDungeons,fullDungeonQuestIds} from './full-dungeons.mjs';
+import {GENERATORS} from './compute-tasks.mjs';
+import {addPlainsFeatures} from './plains-features.mjs';
+import {generateFarmstead} from './farmstead-generation.mjs';
+import {addCoastFeatures} from './coast-features.mjs';
+import {addCalderaFeatures} from './caldera-features.mjs';
+import {generateSpa} from './spa-generation.mjs';
 import {createZoneCategories,ZONE_CATEGORY} from './zone-categories.mjs';
 export const DESERT_ZONE='dive-desert';
 export const desertData=JSON.parse(readFileSync(new URL('./desert-data.json',import.meta.url),'utf8'));
 export const TUNDRA_ZONE='dive-tundra';
 export const tundraData=JSON.parse(readFileSync(new URL('./tundra-data.json',import.meta.url),'utf8'));
 export const TAIGA_ZONE='dive-taiga';
+export const UTOPIA_ZONE='utopia-arcanum'; // The magitek city of littles above the Taiga's north wall (hubs.mjs lobby town).
+export const ARCADIA_ZONE='arcadia-foundry'; // The steampunk city of bigs below the Plains' south wall (hubs.mjs lobby town).
 export const taigaData=JSON.parse(readFileSync(new URL('./taiga-data.json',import.meta.url),'utf8'));
 export const HIGH_DESERT_ZONE='dive-high-desert';
 export const highDesertData=JSON.parse(readFileSync(new URL('./high-desert-data.json',import.meta.url),'utf8')); // Juniper plateau branch north of Dustbreak Desert.
 export const HAUNTED_WOODS_ZONE='dive-haunted-woods';
 export const hauntedWoodsData=JSON.parse(readFileSync(new URL('./haunted-woods-data.json',import.meta.url),'utf8')); // Singleplayer Haunted Forest layout north of Honeydew, between the Taiga and the High Desert.
+export const AUTUMNAL_PLAINS_ZONE='dive-autumnal-plains';
+export const autumnalPlainsData=JSON.parse(readFileSync(new URL('./autumn-plains-data.json',import.meta.url),'utf8')); // Gentle starter wilderness south of Honeydew: Honeydew's south gate at the top, the Caldera west, the Coast east and Arcadia's north gate below (trails added by upgradeFloor).
+export const COAST_ZONE='dive-seafoam-coast';
+export const coastData=JSON.parse(readFileSync(new URL('./coast-data.json',import.meta.url),'utf8')); // Seafoam Coast: sea to the east, the Plains through its left wall, LittleBigCity's south gate at its top.
+export const CALDERA_ZONE='dive-emberfall-caldera';
+export const calderaData=JSON.parse(readFileSync(new URL('./caldera-data.json',import.meta.url),'utf8')); // Emberfall Caldera: lava lake in the middle, the Tundra to the north, the Plains to the east.
+export const SPA_ZONE='dive-obsidian-spa';
+export const spaData=JSON.parse(readFileSync(new URL('./spa-data.json',import.meta.url),'utf8')); // The Obsidian Spa behind the caldera's landmark door.
+export const FARMSTEAD_ZONE='dive-farmstead';
+export const farmsteadData=JSON.parse(readFileSync(new URL('./farmstead-data.json',import.meta.url),'utf8')); // The safe farmhouse behind the barn in the middle of the Autumnal Plains.
 export const SPOOKY_MANSION_ZONE='dive-spooky-mansion';
 export const spookyMansionData=JSON.parse(readFileSync(new URL('./spooky-mansion-data.json',import.meta.url),'utf8')); // Campaign-sized singleplayer mansion, entered only through the haunted house in the middle of the Woods.
-export const WILDERNESS_LINKS=Object.freeze([[TUNDRA_ZONE,TAIGA_ZONE],[DESERT_ZONE,HIGH_DESERT_ZONE],[HAUNTED_WOODS_ZONE,TAIGA_ZONE],[HAUNTED_WOODS_ZONE,HIGH_DESERT_ZONE],[HAUNTED_WOODS_ZONE,SPOOKY_MANSION_ZONE]]); // Each [parent,branch] pair is one reciprocal link: the two north trails, the Woods' west (Taiga) and east (High Desert) crossings, and the haunted house's warp pad.
+export const WILDERNESS_LINKS=Object.freeze([[TUNDRA_ZONE,TAIGA_ZONE],[DESERT_ZONE,HIGH_DESERT_ZONE],[HAUNTED_WOODS_ZONE,TAIGA_ZONE],[HAUNTED_WOODS_ZONE,HIGH_DESERT_ZONE],[HAUNTED_WOODS_ZONE,SPOOKY_MANSION_ZONE],[AUTUMNAL_PLAINS_ZONE,FARMSTEAD_ZONE],[AUTUMNAL_PLAINS_ZONE,COAST_ZONE],[AUTUMNAL_PLAINS_ZONE,CALDERA_ZONE],[TUNDRA_ZONE,CALDERA_ZONE],[CALDERA_ZONE,SPA_ZONE]]); // Each [parent,branch] pair is one reciprocal link: the two north trails, the Woods' west (Taiga) and east (High Desert) crossings, and the haunted house's warp pad.
 import {createBank} from './bank.mjs';
 import {createItemOrigins} from './item-origins.mjs';
 import {inspectionProjection} from './inspection.mjs';
@@ -77,7 +99,7 @@ function canonical(value,depth=0){ // Nested loadout property order may change w
  return value;
 }
 
-export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},highDesertOptions={},hauntedWoodsOptions={},spookyMansionOptions={},onPresence=()=>{},compute=null,live=null,audit=()=>{},chatRadius=CHAT_RADIUS_DEFAULT}={}) {
+export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},highDesertOptions={},hauntedWoodsOptions={},spookyMansionOptions={},autumnalPlainsOptions={},farmsteadOptions={},coastOptions={},calderaOptions={},spaOptions={},onPresence=()=>{},compute=null,live=null,audit=()=>{},chatRadius=CHAT_RADIUS_DEFAULT}={}) {
  const chatReach=Math.max(1,Number(chatRadius)||CHAT_RADIUS_DEFAULT),chatReach2=chatReach*chatReach; // Squared once so the per-row distance test below never takes a square root.
  let privateSprites=null;
  const chooseAvatar=(value,owner,cid='')=>typeof value==='string'&&value.startsWith('private-')?(privateSprites?.authorize(owner,cid,value)??fail(403,'Private sprites are unavailable.')):avatar(value);
@@ -115,27 +137,42 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  const quarters=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,enchantments,loot,alchemyStore,...diveOptions});
  const highTrail=floor=>addNorthTrail(floor,(highDesertOptions.data??highDesertData).config)|openExitGaps(floor); // Dustbreak's north-center gate leads up to the High Desert.
  const desert=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:desertData,generate:generateDesert,upgradeFloor:highTrail,travel,enchantments,loot,alchemyStore,...desertOptions});
- const trail=floor=>addNorthTrail(floor,(taigaOptions.data??taigaData).config)|openExitGaps(floor); // Non-short-circuit OR: add the trail, then open every exit as a wall gap.
+ const trail=floor=>addNorthTrail(floor,(taigaOptions.data??taigaData).config)|addSouthTrail(floor,{zone_id:CALDERA_ZONE,name:(calderaOptions.data??calderaData).config.name})|openExitGaps(floor); // South wall: the way down to Emberfall Caldera. // Non-short-circuit OR: add the trail, then open every exit as a wall gap.
  const tundra=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:tundraData,generate:generateDesert,upgradeFloor:trail,travel,enchantments,loot,alchemyStore,...tundraOptions});
  const woodsName=(hauntedWoodsOptions.data??hauntedWoodsData).config.name; // Taiga and High Desert label their new crossing with the Woods' authored name.
- const taiga=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:taigaData,generate:generateDesert,upgradeFloor:floor=>addSideTrail(floor,{zone_id:HAUNTED_WOODS_ZONE,name:woodsName,side:'right'})|openExitGaps(floor),travel,enchantments,loot,alchemyStore,...taigaOptions});
+ const taiga=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:taigaData,generate:generateDesert,upgradeFloor:floor=>addSideTrail(floor,{zone_id:HAUNTED_WOODS_ZONE,name:woodsName,side:'right'})|addNorthTrail(floor,{zone_id:UTOPIA_ZONE,name:'Utopia'})|openExitGaps(floor),travel,enchantments,loot,alchemyStore,...taigaOptions}); // North wall: the trail up to Utopia (a hub, so back() routes it home through Utopia's south gate).
  const highDesert=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:highDesertData,generate:generateDesert,upgradeFloor:floor=>addSideTrail(floor,{zone_id:HAUNTED_WOODS_ZONE,name:woodsName,side:'left'})|openExitGaps(floor),travel,enchantments,loot,alchemyStore,...highDesertOptions}); // Shares the wilderness generator; south returns to Dustbreak, the west-wall trail enters the Haunted Woods.
  const hauntedWoods=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:hauntedWoodsData,generate:generateForest,upgradeFloor:floor=>addLandmark(floor,(hauntedWoodsOptions.data??hauntedWoodsData).config.landmark??{})|openExitGaps(floor),travel,enchantments,loot,alchemyStore,...hauntedWoodsOptions}); // South: Honeydew's north gate. West: Taiga. East: High Desert. Centre: the haunted house's warp pad (added to live editions too).
  const spookyMansion=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:spookyMansionData,generate:generateMansion,upgradeFloor:()=>false,travel,enchantments,loot,alchemyStore,...spookyMansionOptions}); // Its only exit is the foyer warp pad back to the Woods; nothing is converted to wall gaps.
- const engines=new Map([[DIVE_ZONE,quarters],[DESERT_ZONE,desert],[TUNDRA_ZONE,tundra],[TAIGA_ZONE,taiga],[HIGH_DESERT_ZONE,highDesert],[HAUNTED_WOODS_ZONE,hauntedWoods],[SPOOKY_MANSION_ZONE,spookyMansion]]);
+ const autumnalPlains=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:autumnalPlainsData,generate:generateDesert,upgradeFloor:floor=>{const c=(autumnalPlainsOptions.data??autumnalPlainsData).config;return addLandmark(floor,c.landmark??{})|addSideTrail(floor,{zone_id:COAST_ZONE,name:(coastOptions.data??coastData).config.name,side:'right'})|addSideTrail(floor,{zone_id:CALDERA_ZONE,name:(calderaOptions.data??calderaData).config.name,side:'left'})|addSouthTrail(floor,{zone_id:ARCADIA_ZONE,name:'Arcadia'})|addPlainsFeatures(floor,c.features)|openExitGaps(floor);},travel,enchantments,loot,alchemyStore,...autumnalPlainsOptions}); // North: Honeydew's south gate. West wall: Emberfall Caldera. East wall: the Seafoam Coast. South wall: the road down to Arcadia (a hub, so back() routes it home through Arcadia's north gate).
+ const coast=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:coastData,generate:generateDesert,upgradeFloor:floor=>{const c=(coastOptions.data??coastData).config;return addSideTrail(floor,{zone_id:AUTUMNAL_PLAINS_ZONE,name:(autumnalPlainsOptions.data??autumnalPlainsData).config.name,side:'left'})|addCoastFeatures(floor,c.features)|openExitGaps(floor);},travel,enchantments,loot,alchemyStore,...coastOptions}); // North: LittleBigCity's south gate. West: the Autumnal Plains. East: the open sea.
+ const caldera=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:calderaData,generate:generateDesert,upgradeFloor:floor=>{const c=(calderaOptions.data??calderaData).config;return addSideTrail(floor,{zone_id:AUTUMNAL_PLAINS_ZONE,name:(autumnalPlainsOptions.data??autumnalPlainsData).config.name,side:'right'})|addLandmark(floor,{...(c.landmark??{}),center_dy:-((calderaOptions.data??calderaData).structure.crater?.radius??9)-12})|addCalderaFeatures(floor,c.features)|openExitGaps(floor);},travel,enchantments,loot,alchemyStore,...calderaOptions}); // North: the Tundra. East: the Plains. The Obsidian Spa stands north of the lava lake.
+ const spa=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:spaData,generate:generateSpa,upgradeFloor:()=>false,travel,enchantments,loot,alchemyStore,...spaOptions}); // Its only exit is the hall's warp pad back to the spa door.
+ const farmstead=createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data:farmsteadData,generate:generateFarmstead,upgradeFloor:()=>false,travel,enchantments,loot,alchemyStore,...farmsteadOptions}); // Its only exit is the hall's warp pad back out to the barn door; nothing is converted to wall gaps.
+ const engines=new Map([[DIVE_ZONE,quarters],[DESERT_ZONE,desert],[TUNDRA_ZONE,tundra],[TAIGA_ZONE,taiga],[HIGH_DESERT_ZONE,highDesert],[HAUNTED_WOODS_ZONE,hauntedWoods],[SPOOKY_MANSION_ZONE,spookyMansion],[AUTUMNAL_PLAINS_ZONE,autumnalPlains],[FARMSTEAD_ZONE,farmstead],[COAST_ZONE,coast],[CALDERA_ZONE,caldera],[SPA_ZONE,spa]]);
  function travel(c,state,source,destination){
   if(!WILDERNESS_LINKS.some(([parent,branch])=>(source===parent&&destination===branch)||(source===branch&&destination===parent)))return false;
   engines.get(destination).arrive(c,state,source);return true; // Only authored reciprocal trails connect dungeons; hub portals cannot enter a branch.
  }
  for(const data of campaignDives)engines.set(data.config.zone_id,createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data,enchantments,loot,alchemyStore})); // Each destination keeps its own editions, loot receipts and encounter locks.
+ for(const data of fullDungeons)engines.set(data.config.zone_id,createDive(db,{now,roll,adjust,origins,parties,measure,compute,live,data,generate:GENERATORS[data.config.generator],enchantments,loot,alchemyStore,resolveHub:base=>zone(base.id),purchases})); // Independent editions preserve every legacy Dive.
  const zoneCategory=createZoneCategories(engines); // zone id -> 'dive' | 'overworld' | 'safe'; built after every route is registered.
  const hubEvents=live?createHubEncounters(db,{now,roll,parties,live,ids:[...hubCatalog,...hubRooms].map(z=>z.id),definition:id=>{const z=zone(id),d=hubDefinition(z,now());return {...d,width:z.width??20,height:z.height??12,walls:Array.from({length:z.height??12},(_,y)=>Array.from({length:z.width??20},(_,x)=>blocked(z,x,y)?1:0))};}}):null;
- const baseWorld=live?{catalog:()=>[...[...engines].map(([id])=>({id,name:live.entry('zone',id).draft.id,kind:'dive',category:zoneCategory(id)})),...[...hubCatalog,...hubRooms].map(z=>({id:z.id,name:z.name,kind:'hub',category:ZONE_CATEGORY.SAFE}))],map:id=>engines.has(id)?engines.get(id).controls.view():{...hubEvents.engine(id).view(),district:districts.status(id)},act:input=>{if(input.action==='world_hub_lock'||input.action==='world_hub_regenerate'){if(!districts.status(input.zone))fail(400,'Only the monthly hub maps (castle district, Honeydew Village, LittleBigCity) can be locked or regenerated.');if(input.action==='world_hub_lock')districts.lock(input.zone,input.locked===true);else{if(input.confirm_reset!==true)fail(400,'Confirm that visitors return to the hub spawn and scenery rerolls.');districts.regenerate(input.zone);}return {...hubEvents.engine(input.zone).view(),district:districts.status(input.zone)};}const controls=engines.has(input.zone)?engines.get(input.zone).controls:hubEvents.engine(input.zone);if(input.action==='world_regenerate'){if(!controls.regenerate)fail(400,'Only whole Dives can be regenerated.');return controls.regenerate(input);}if(input.action==='world_cancel')return controls.cancel(input);return controls.place(input);}}:null;
+ const baseWorld=live?{catalog:()=>[...[...engines].map(([id])=>({id,name:live.entry('zone',id).draft.id,kind:'dive',category:zoneCategory(id)})),...[...hubCatalog,...hubRooms].map(z=>({id:z.id,name:z.name,kind:'hub',category:ZONE_CATEGORY.SAFE}))],map:id=>engines.has(id)?engines.get(id).controls.view():{...hubEvents.engine(id).view(),district:districts.status(id)},act:input=>{if(input.action==='world_hub_lock'||input.action==='world_hub_regenerate'){if(!districts.status(input.zone))fail(400,'Only the monthly hub maps (castle district, Honeydew Village, LittleBigCity, Utopia, Arcadia) can be locked or regenerated.');if(input.action==='world_hub_lock')districts.lock(input.zone,input.locked===true);else{if(input.confirm_reset!==true)fail(400,'Confirm that visitors return to the hub spawn and scenery rerolls.');districts.regenerate(input.zone);}return {...hubEvents.engine(input.zone).view(),district:districts.status(input.zone)};}const controls=engines.has(input.zone)?engines.get(input.zone).controls:hubEvents.engine(input.zone);if(input.action==='world_regenerate'){if(!controls.regenerate)fail(400,'Only whole Dives can be regenerated.');return controls.regenerate(input);}if(input.action==='world_cancel')return controls.cancel(input);return controls.place(input);}}:null;
  const quests=live?createOnlineQuests(db,{live,now,world:baseWorld,origins,adjust,roll,parties}):null;
  const orbs=quests?createOrbs(db,{live,now,placements:quests.placements,world:baseWorld,event:quests.event}):null; // GM story orbs ride on the same world placements.
  const world=quests?{npcCatalog:()=>[...hubCatalog,...hubRooms].flatMap(base=>(hubDefinition(zone(base.id),now()).fixtures??[]).filter(f=>f.kind==='npc').map(f=>({id:base.id+':'+f.id,name:f.name,zone:base.id}))),catalog:baseWorld.catalog,map:quests.placements.view,act:quests.placements.act}:baseWorld;
  if(live){live.mapReady=(zone,edition,floor,options)=>quests.placements.realize(zone,edition,floor,options);live.questEvent=quests.event;live.placementPositions=quests.placements.positions;}
  const isDungeon=id=>engines.has(id);
+ function changingRoomAt(p){ // Sable's changing rooms: any Inn, bedroom or temple, or beside a toilet, outhouse, changer, hut or stall (hub fixtures and wilderness decorations alike).
+  if(!p)return false;
+  const near=f=>{const dx=p.x<f.x?f.x-p.x:Math.max(0,p.x-(f.x+(f.span_w??1)-1)),dy=p.y<f.y?f.y-p.y:Math.max(0,p.y-(f.y+(f.span_h??1)-1));return dx+dy<=1;}; // Beside any tile of the footprint.
+  if(isDungeon(p.zone))return (engines.get(p.zone).floor?.()?.decorations??[]).some(d=>d.toilet&&near(d));
+  const z=zone(p.zone);if(!z)return false;
+  if(['beds','temple'].includes(z.kind))return true;
+  if((z.rooms??[]).some(r=>['temple','dormitory'].includes(r.kind)&&r.w&&p.x>=r.x&&p.y>=r.y&&p.x<r.x+r.w&&p.y<r.y+r.h))return true; // The Castle's dormitory and Sable's own sanctum.
+  return (z.fixtures??[]).some(f=>['toilet','changer'].includes(f.kind)&&near(f));
+ }
  {const known=new Set([...questZones,...hubRooms].map(z=>z.id)); // A deployment can retire a room (Rose Court's old Resting Hall): characters parked there resume at their lobby's spawn instead of failing every request.
   for(const row of db.prepare('SELECT owner,zone FROM quest_presence').all()){if(known.has(row.zone)||row.zone.startsWith('dive-'))continue;const lobby=hubCatalog.find(h=>row.zone.startsWith(h.id+'-'))?.id??hubCatalog[0].id,spawn=hubDefinition(zone(lobby),now()).spawn;db.prepare('UPDATE quest_presence SET zone=?,x=?,y=? WHERE owner=?').run(lobby,spawn.x,spawn.y,row.owner);}}
  const announcements=createAnnouncements(db,{now}); // Server-wide gamemaster banner; the web panel and in-game GM tools share it.
@@ -187,6 +224,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    if(state?.diveCombatVersion===3&&p?.zone!==z.id){const {id,name,kind,parent,theme,width,height,spawn,exit,portals}=definition;return {id,name,kind,parent,theme,width,height,spawn,exit,portals,fixtures:[],walls:[]};} // New clients load full room geometry only after arrival, leaving room for large inventories and six-actor encounters.
    if(z.district&&p?.zone!==z.id){const {floors,wallTiles,rooms,blocks,axes,...summary}=definition;return {...summary,fixtures:[],walls:[]};} // Only the visited district sends its full monthly map.
    if(p?.zone!==z.id)definition.fixtures=definition.fixtures.map(f=>f.offers?{...f,offers:[]}:f); // Wares only matter in the room you stand in: 27 shelves of 16 would overflow the gateway budget.
+   else if(inArcadia(z.id)&&state?.loadout){const tax=littleTax(arcadiaLook(state.loadout,withGenerated(hubData.equipment)),currentTuning());definition.fixtures=definition.fixtures.map(f=>f.offers?{...f,offers:f.offers.map(o=>({...o,price:taxedPrice(o.price,tax)})),little_tax:tax}:f);} // Arcadia's merchants show this shopper the price they will actually charge (little tax), and whether they will serve them at all.
    return {...definition,walls:z.walls??Array.from({length:z.height??12},(_,y)=>Array.from({length:z.width??20},(_,x)=>blocked({...z,fixtures:[]},x,y)?1:0))};
   }).map(d=>({...d,category:ZONE_CATEGORY.SAFE})); // Courts, their RP rooms and districts are all safe zones.
   if(dungeon.definition)definitions.push(dungeon.definition);
@@ -226,7 +264,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   districts.refresh(); // Materialize monthly maps before the command transaction, keeping rollback and cached geometry consistent.
   dive.tick(); // Scheduled resets and enemy decisions precede command revision checks.
   if(!input||!identifier(input.request_id)||!identifier(input.controller))fail(400,'Supply a stable request ID and controller.');
-   if(Object.keys(input).some(k=>!['quest_version','quest','quest_revision','conversation','placement','choice','branch','objective','content_version','rpp_cost','partners','rp_id','defeat_version','scene','equipment_version','action','request_id','controller','character_id','revision','name','zone','direction','text','channel','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance','item_id','creation','online_revision','member','invitation','battle','target','cycle','patch','seq','key','value','mode','kind','amount','index','source','loser','shop','price'].includes(k)))fail(400,'Unsupported zone input.'); // seq: a chat sequence number for gm_chat_delete; key/value: gm_combat_tune; shop/price: companion_roll.
+   if(Object.keys(input).some(k=>!['full_dungeon_version','puzzle','block','mechanism_revision','quest_version','quest','quest_revision','conversation','placement','choice','branch','objective','content_version','rpp_cost','partners','rp_id','defeat_version','scene','equipment_version','action','request_id','controller','character_id','revision','name','zone','direction','text','channel','avatar','loadout','combat_version','spell','forfeit','stat','edition','encounter','chest','takeover','fixture','offer','slot','bank_item','page','world_step','world_turn_id','item_instance','item_id','creation','online_revision','member','invitation','battle','target','cycle','patch','seq','key','value','mode','kind','amount','index','source','loser','shop','price'].includes(k)))fail(400,'Unsupported zone input.'); // seq: a chat sequence number for gm_chat_delete; key/value: gm_combat_tune; shop/price: companion_roll.
   if(input.channel!==undefined&&(input.action!=='chat'||!['area','global','party'].includes(input.channel)))fail(400,'Choose Area or OOC (or Party) for this message.'); // A client cannot supply an arbitrary destination or broadcast to several channels at once.
   if(input.takeover!==undefined&&(input.action!=='enter'||typeof input.takeover!=='boolean'))fail(400,'Control can only be transferred by an explicit entry request.'); // Never let movement or a background heartbeat steal control.
   return atomic(()=>{
@@ -241,7 +279,9 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     if(c&&(JSON.parse(c.state).creationAvatar??'player')!==appearance)fail(409,'This creation request already has another appearance.');
     const creation=input.creation??null;if(creation!==null&&(typeof creation!=='object'||Array.isArray(creation)||Buffer.byteLength(JSON.stringify(creation))>8192))fail(400,'Invalid creation choices.');
     if(c&&JSON.stringify(JSON.parse(c.state).creation??null)!==JSON.stringify(creation))fail(409,'This creation request already has different choices.');
-    if(!c){if(db.prepare('SELECT COUNT(*) AS n FROM quest_characters WHERE owner=?').get(i.owner).n>=5)fail(409,'This account already has five online characters.');const id=randomUUID();db.prepare('INSERT INTO quest_characters VALUES (?,?,?,?,0,?,?)').run(id,i.owner,name,now(),JSON.stringify({avatar:appearance,creationAvatar:appearance,creationName:name,creation,wins:0,run:null,lastStart:0,lastResult:null}),input.request_id);c=character(i.owner,id);privateSprites?.claimDraft(i.owner,c.id);}
+    if(creation?.start_hub!==undefined&&!hubCatalog.some(h=>h.id===creation.start_hub))fail(400,'Choose one of the five hubs to start in.'); // Starting hubs: Rose Court, Honeydew Village, LittleBigCity, Utopia or Arcadia.
+    if(creation?.patron!==undefined&&creation.patron!==''&&!GODS_BY_ID[creation.patron])fail(400,'Choose one of the five gods, or none.');
+    if(!c){if(db.prepare('SELECT COUNT(*) AS n FROM quest_characters WHERE owner=?').get(i.owner).n>=5)fail(409,'This account already has five online characters.');const id=randomUUID(),initial={avatar:appearance,creationAvatar:appearance,creationName:name,creation,wins:0,run:null,lastStart:0,lastResult:null,homeHub:creation?.start_hub??'princess-rose'};if(creation?.patron)dedicate(initial,creation.patron,now()); /* A patron chosen at creation is the character's one free vow. */db.prepare('INSERT INTO quest_characters VALUES (?,?,?,?,0,?,?)').run(id,i.owner,name,now(),JSON.stringify(initial),input.request_id);c=character(i.owner,id);privateSprites?.claimDraft(i.owner,c.id);}
     return response(i,c);
    }
    const c=character(i.owner,input.character_id),fingerprint=createHash('sha256').update(JSON.stringify(Object.keys(input).sort().map(k=>[k,canonical(input[k])]))).digest('hex'); // Preserve legacy flat command fingerprints while stabilizing nested loadout data.
@@ -255,8 +295,8 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    }
    if((!JSON.parse(c.state).run?.sharedEncounter||!['turn_ready','attack','cast','charm','allure','use_item','flee','submit','stand','row'].includes(input.action))&&(!Number.isSafeInteger(input.revision)||input.revision!==c.revision))fail(409,'Character changed; refresh before choosing another action.');
    const state=JSON.parse(c.state);let p,rpId;
-   if(input.action==='enter'){state.contentVersion=input.content_version===1?1:0;state.questVersion=input.quest_version===1?1:0;}
-   if(quests&&(Object.keys(live.published().quests).length||Object.keys(live.published().npcs).length)&&state.questVersion!==1)fail(409,'Update the game for online NPCs and quests.','client_update_required');
+   if(input.action==='enter'){state.contentVersion=input.content_version===1?1:0;state.questVersion=input.quest_version===1?1:0;state.fullDungeonVersion=input.full_dungeon_version===1?1:0;}
+   if(quests&&(Object.keys(live.published().quests).some(id=>!fullDungeonQuestIds.has(id))||Object.keys(live.published().npcs).length)&&state.questVersion!==1)fail(409,'Update the game for online NPCs and quests.','client_update_required'); // Full-route baseline quests must not close legacy routes to older clients; entry to the new routes has its own capability gate.
    if(live?.published().enabled&&state.contentVersion!==1&&['enter','dive_enter','dive_engage','hub_encounter'].includes(input.action))fail(409,'Update the game to use published world content.','client_update_required');
    if(state.loadout)rpp.attach(c,state.loadout);if(input.loadout)input={...input,loadout:rpp.attach(c,structuredClone(input.loadout))}; // Bind imported abilities and purchased spells to committed entitlements before any combat action.
    if(state.pendingDefeat&&!['enter','chat','defeat_complete'].includes(input.action))fail(409,'Finish the defeat dialogue before continuing.');
@@ -277,8 +317,16 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    if(state.worldTurnDue&&!['world_turn','enter','chat'].includes(input.action))fail(409,'Finish your pending exploration turn first.');
    const divePresence=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
    if(quests&&input.action==='move'&&divePresence){const step={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];if(step&&quests.placements.rows(divePresence.zone).length&&quests.placements.view(divePresence.zone).placements.some(p=>p.kind==='npc'&&p.x===divePresence.x+step[0]&&p.y===divePresence.y+step[1]))fail(409,'An NPC is standing there. Speak to them or walk around.');}
-   if(input.action==='move'&&divePresence&&!state.dive){const room=hubRooms.find(r=>r.id===divePresence.zone&&r.kind==='dives')??hubCatalog.find(h=>h.id===divePresence.zone),step={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];const gap=room&&step?hubGaps(room).find(g=>g.target.startsWith('dive-')&&inHubGap(g,divePresence.x+step[0],divePresence.y+step[1])):null;if(gap){if(live?.published().enabled&&state.contentVersion!==1)fail(409,'Update the game to use published world content.','client_update_required');input={...input,action:'dive_enter',zone:gap.target,gate:!room.parent};}} // Walking into a Dive Hall side opening, or Rose Court's garden-wall Tundra gap, enters that wilderness route the way an annex gap enters its room; `gate` marks a lobby-wall entry so crossings know it was not a legacy pad entry.
-   if(input.action.startsWith('gm_')){p=presence(i,c,input.controller);gmTools.act(i,c,state,input,p);} // Staff tools refuse ordinary accounts before touching any state.
+   if(input.action==='move'&&divePresence&&!state.dive){const room=zone(divePresence.zone),step={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];const gap=room&&step?hubGaps(room).find(g=>g.target.startsWith('dive-')&&inHubGap(g,divePresence.x+step[0],divePresence.y+step[1])):null;if(gap){if(live?.published().enabled&&state.contentVersion!==1)fail(409,'Update the game to use published world content.','client_update_required');input={...input,action:'dive_enter',zone:gap.target,gate:!room.parent};}} // Resolve monthly Castle/town connectors before dispatching contact travel.
+   if(input.action==='faith_break_free'){ // Orin's devout tear free of one cursed piece, anywhere, a few times a day.
+    presence(i,c,input.controller);if(state.run||!state.loadout)fail(409,'Finish the fight first.');
+    if(!GODS_BY_ID[state.faith?.god]?.blessing.free_breaks_per_day)fail(409,"Only Orin's followers can break free of cursed gear.");
+    const result=removeCursedGear(state.loadout,input.slot,input.item_id,hubData.equipment,hubData.config.inventory_capacity??99);
+    const spent=breakFree(state,now());if(!spent.ok)fail(409,spent.allowed?'You have broken free as often as Orin allows today. Try again after the UTC reset.':'Orin does not trust you enough yet. Raise your piety.');
+    state.loadout=result.loadout;
+    state.faithNotice=`With a roar of defiance you tear free of the ${result.item.name}!${result.dispose?' The used diaper is thrown away.':' It is in your bag, still cursed.'} (${spent.left} left today)`;state.faithNoticeAt=now();
+   }
+   else if(input.action.startsWith('gm_')){p=presence(i,c,input.controller);gmTools.act(i,c,state,input,p);} // Staff tools refuse ordinary accounts before touching any state.
    else if(quests&&/^(npc_|quest_)/.test(input.action)){presence(i,c,input.controller);quests.act(c,state,input);}
    else if(orbs&&/^orb_/.test(input.action)){presence(i,c,input.controller);orbs.act(c,state,input);} // Read a story orb (or acknowledge its scene).
    else if(input.action.startsWith('party_')){presence(i,c,input.controller);parties.act(c,input,i.blockedAccounts??[]);}
@@ -376,6 +424,9 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
      const npc=nearbyFixture(z,p,input.fixture,'npc');state.hubNotice=npc.name+': '+npc.line;state.hubNoticeAt=now();
     }else if(input.action==='curse_remove'){purchases.prepareCurse(i,c,state,z,p,input);}
     else if(input.action==='shop_buy'){purchases.prepare(i,c,state,z,p,input);}
+    else if(input.action==='faith_dedicate'){purchases.prepareDedication(i,c,state,z,p,input);} // Swear to a temple's god (temple-rooms.mjs priest): free the first time, a tribute after.
+    else if(input.action==='faith_pray'){const altar=nearbyFixture(z,p,input.fixture,'altar');state.faithNotice=prayText(state,altar.god,state.loadout,withGenerated(hubData.equipment));state.faithNoticeAt=now();} // Your standing, or what a stranger god asks.
+    else if(input.action==='pay_toilet'){purchases.preparePayToilet(i,c,state,z,p,input);} // Arcadia's coin turnstiles (arcadia-rooms.mjs payToiletFixture).
     else if(input.action==='item_discard'){ // Carried items only: commit removal and retire provenance inside the durable command transaction.
      if(state.run||!state.loadout)fail(409,'Leave combat before discarding items.');
      nearbyFixture(z,p,input.fixture,'dumpster');
@@ -483,6 +534,14 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    if(state.run)syncRunHealth(state,state.run);
    rpp.settleLevels(c,state); // Level-ups earned by this command (or by a shared fight since the last one) mint their RPP now.
    origins.reconcile(c,state,JSON.parse(c.state)); // Strip forged/duplicate item markers on every imported loadout and persist equipment/bank transitions.
+   if(state.faith&&state.loadout){ // Piety: each committed step or rest tests the god's uniform; an equipment change only re-reads it (and Sable's changing rooms).
+    const prior=JSON.parse(c.state).loadout,turn=['world_turn','hub_rest'].includes(input.action);
+    if(turn||(['loadout','use_item'].includes(input.action)&&JSON.stringify({...prior,faith:null})!==JSON.stringify({...state.loadout,faith:null}))){
+     const lines=tickFaith(state,prior,state.loadout,{items:withGenerated(hubData.equipment),turn,changingRoom:changingRoomAt(afterPresence)});
+     if(lines.length){state.faithNotice=lines.join(' ');state.faithNoticeAt=now();} // The client logs each new faith notice once.
+    }
+   }
+   if(state.loadout)state.loadout.faith=combatFaith(state); // Stamp the blessing onto the loadout for combat and movement (a client-sent faith is never imported).
    if(input.loadout&&state.loadout?.player_info?.name&&!state.nameLocked){const name=clean(state.loadout.player_info.name,24);if(name){c.name=name;state.nameLocked=true;db.prepare('UPDATE quest_characters SET name=? WHERE id=?').run(name,c.id);}} // Reconcile legacy campaign names once; subsequent renames use the paid management action.
    if(state.loadout?.player_info){
     if(!state.profileAppearance){const initial={gender:'Female',hair_style:1,hair_color:'Brown',has_breasts:false,nipple_style:0,penis_style:0,pubes_style:0};for(const key of appearanceFields)if(state.loadout.player_info[key]!==undefined)initial[key]=state.loadout.player_info[key];state.profileAppearance=initial;}

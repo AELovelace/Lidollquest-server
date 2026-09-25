@@ -44,7 +44,7 @@ test('resident-only upgrades preserve live maps and visitors; movement persists 
   for(const [id,fixtures] of saved)assert.deepEqual(live.resolve({id}).fixtures,fixtures);
   db.prepare('UPDATE quest_presence SET seen=?').run(now);live.tick();
   for(const [id,fixtures] of saved)for(const npc of live.resolve({id}).fixtures.filter(n=>n.roaming)){const before=fixtures.find(n=>n.id===npc.id);assert.ok(Math.abs(npc.x-before.x)+Math.abs(npc.y-before.y)<=1);}
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM hub_district_editions').get().n,3);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM hub_district_editions').get().n,districtData.districts.length);
  }finally{db.close();}
 });
 

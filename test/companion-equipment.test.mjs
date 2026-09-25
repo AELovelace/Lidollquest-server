@@ -41,9 +41,9 @@ test('all lobby doors, annex exits and dungeon pads arrive on an adjacent interi
   }
   const hall=hubRooms.find(r=>r.parent===root.id&&r.kind==='dives');
   for(const pad of hubDefinition(hall,0).portals){const arrival=hubArrival(hall,pad.target);assert.equal(Math.abs(arrival.x-pad.x)+Math.min(...Array.from({length:pad.h??1},(_,i)=>Math.abs(arrival.y-pad.y-i))),1);} // Two-tile wall openings arrive beside either tile.
-  assert.deepEqual(lobby.exit,{'princess-rose':{x:2,y:17,style:'stairs'},'honeydew-lantern':{x:2,y:22,style:'stairs'},'littlebig-clockwork':{x:2,y:27,style:'stairs'}}[root.id]); // Campaign stairs: bottom-left of Rose's garden, inside the towns' west entry strips.
-  assert.deepEqual(hubArrival(root,root.id+'-dives'),{'honeydew-lantern':{x:25,y:25},'littlebig-clockwork':{x:33,y:29},'princess-rose':{x:9,y:1}}[root.id]); // Below the Dive room's doorstep, or inside Rose's top-wall gap.
-  if(root.id==='princess-rose')assert.deepEqual(hubArrival(root,root.id+'-shops'),{x:15,y:17});else assert.deepEqual(hubArrival(root,root.id+'-beds'),{'honeydew-lantern':{x:29,y:28},'littlebig-clockwork':{x:28,y:29}}[root.id]); // Only Rose keeps a Market Hall; the towns' Inn doorsteps are on their squares.
+  assert.deepEqual(lobby.exit,{'princess-rose':{x:2,y:17,style:'stairs'},'honeydew-lantern':{x:2,y:22,style:'stairs'},'littlebig-clockwork':{x:2,y:27,style:'stairs'},'utopia-arcanum':{x:2,y:27,style:'stairs'},'arcadia-foundry':{x:2,y:27,style:'stairs'}}[root.id]); // Campaign stairs: bottom-left of Rose's garden, inside the towns' west entry strips.
+  assert.deepEqual(hubArrival(root,root.id+'-dives'),{'honeydew-lantern':{x:25,y:25},'littlebig-clockwork':{x:33,y:29},'utopia-arcanum':{x:26,y:32},'arcadia-foundry':{x:26,y:32},'princess-rose':{x:9,y:1}}[root.id]); // Below the Dive room's doorstep, or inside Rose's top-wall gap.
+  if(root.id==='princess-rose')assert.deepEqual(hubArrival(root,root.id+'-shops'),{x:15,y:17});else assert.deepEqual(hubArrival(root,root.id+'-beds'),{'honeydew-lantern':{x:29,y:28},'littlebig-clockwork':{x:28,y:29},'utopia-arcanum':{x:34,y:32},'arcadia-foundry':{x:34,y:32}}[root.id]); // Only Rose keeps a Market Hall; the towns' Inn doorsteps are on their squares.
  }
 });
 test('companion edits use revision receipts, keep the game lease, block combat, and publish cloud equipment safely',()=>{
@@ -86,7 +86,7 @@ test('every live hall route returns to its own pad, including crossing exits and
   act('create',{name:'Alice'});
   for(const root of hubCatalog){
    act('enter',{zone:root.id,loadout:{player_info:{str:10,stamina:100},inventory:[]}});
-   const hall=hubRooms.find(r=>r.parent===root.id&&r.kind==='dives'),hallDoor=root.id==='honeydew-lantern'?[25,25]:root.id==='littlebig-clockwork'?[33,29]:[9,0];place(...hallDoor);act('hub_visit',{zone:hall.id}); // Plaza doorsteps for the two towns; Rose's top-wall gap.
+   const hall=hubRooms.find(r=>r.parent===root.id&&r.kind==='dives'),hallDoor=root.id==='honeydew-lantern'?[25,25]:root.id==='littlebig-clockwork'?[33,29]:root.id==='utopia-arcanum'||root.id==='arcadia-foundry'?[26,31]:[9,0];place(...hallDoor);act('hub_visit',{zone:hall.id}); // Plaza doorsteps for the two towns; Rose's top-wall gap.
    for(const pad of hubDefinition(hall,0).portals){
     place(pad.x,pad.y+1);const entered=act('dive_enter',{zone:pad.target});
     const exits=entered.zones.find(z=>z.id===pad.target).exits??[];
@@ -100,7 +100,7 @@ test('every live hall route returns to its own pad, including crossing exits and
      if(target.parent)act('hub_visit',{zone:target.parent});act('leave');act('enter',{zone:root.id});place(...hallDoor);act('hub_visit',{zone:hall.id});
     }
    }
-   const returned=act('hub_visit',{zone:root.id});assert.deepEqual(returned.position,{'honeydew-lantern':{x:25,y:25},'littlebig-clockwork':{x:33,y:29},'princess-rose':{x:9,y:1}}[root.id]); // Below the Dive room's doorstep, or inside Rose's top-wall gap.
+   const returned=act('hub_visit',{zone:root.id});assert.deepEqual(returned.position,{'honeydew-lantern':{x:25,y:25},'littlebig-clockwork':{x:33,y:29},'utopia-arcanum':{x:26,y:32},'arcadia-foundry':{x:26,y:32},'princess-rose':{x:9,y:1}}[root.id]); // Below the Dive room's doorstep, or inside Rose's top-wall gap.
    assert.deepEqual(act('enter',{zone:root.id}).position,returned.position);act('leave');
   }
  }finally{db.close();}

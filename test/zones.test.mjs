@@ -119,7 +119,7 @@ test('NPC appearances persist, synchronize, reject arbitrary assets and preserve
 });
 test('exactly one distinct zone per hub; character ownership, input and single-window control are enforced',()=>{
  const f=fixture();try{
-  assert.equal(questZones.length,3);assert.equal(new Set(questZones.map(z=>z.hub)).size,3);
+  assert.equal(questZones.length,5);assert.equal(new Set(questZones.map(z=>z.hub)).size,5); // Rose Court, Honeydew Village, LittleBigCity, Utopia and Arcadia.
   const c=f.act('create',null,{name:'Alice'}).character;
   assert.throws(()=>f.act('enter',c,{zone:'honeydew-bramble'}),e=>e.status===400);
   let a=f.act('enter',c,{zone:questZones[0].id});assert.equal(a.position.x,questZones[0].spawn?.x??10); // Honeydew Village spawns on its square (25,26); the 20x12 courts at x=10.

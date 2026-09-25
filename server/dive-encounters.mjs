@@ -1,7 +1,9 @@
 import {randomUUID} from 'node:crypto';
+import {recordDungeonVictories} from './full-dungeon-rules.mjs';
 import {pinDefeat,publicEnemy} from './defeat-scenes.mjs';
 import {applyDefeatEquipment} from './defeat-equipment.mjs';
 import {applyDefeatDignity} from './defeat-dignity.mjs';
+import {applyDefeatAftermath} from './defeat-aftermath.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,enemyAction,tickEnemyEffects,awardExperience,defeatPresentation,combatData,currentTuning} from './combat.mjs';
 import {levelEnemy,encounterLevel,routeLevelFor,pickTarget,rowSwapCostsTurn} from './scaling.mjs';
 import {isCrawling} from './crawl.mjs';
@@ -69,7 +71,7 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
   const rows=people.map(other=>({c:other,s:other.id===c.id?state:JSON.parse(other.state)})).filter(({s,c:other})=>!s.pendingDefeat&&eligible(s,other)); // Downed or elsewhere members retain membership but do not enter this encounter.
   if(!rows.some(row=>row.c.id===c.id))fail('Finish recovering before entering combat.');
   for(const {c:other,s} of rows){
-   if(s.run||s.worldTurnDue||s.pendingPurchase||!s.loadout||s.loadout.player_info.playerHealth<=0||!eligible(s,other))fail(other.name+' must finish preparing before the party can fight.'); // Banked stat points do not block this player or their party.
+   if(s.run||s.dungeonScene||s.worldTurnDue||s.pendingPurchase||!s.loadout||s.loadout.player_info.playerHealth<=0||!eligible(s,other))fail(other.name+' must finish preparing before the party can fight.'); // A durable dungeon scene must finish before this member enters combat.
   }
   const e={id:randomUUID(),edition:record.edition,zone,route,origin:{x:foe.x,y:foe.y},created:now(),sequence:0,events:[],players:[],enemies:[]};
   const tuning=currentTuning(),fightLevel=encounterLevel(tuning,routeLevelFor(tuning,route,record.depth),rows.map(row=>row.s.loadout.player_info.level)); // Floor band, raised toward the strongest party member (party_level_slack); hub events use the default band.
@@ -91,10 +93,11 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
   for(const {a,c,s} of rows){s.run=a.run;clearEffects(s);if(['defeat','charm_backfire'].includes(a.status))a.run.hp=Math.max(1,Math.ceil(a.run.maxHp/4));
    const enemy=a.defeatEnemy??e.enemies[0].data;a.run.enemy={...enemy,exp:xp};if(xp)awardExperience(s,roll);syncRunHealth(s,a.run);
    if(bossDown){const p=progress(c,record.edition);p.completed=true;saveProgress(c,record.edition,p);}
+   if(!['flee','abandoned'].includes(a.status))recordDungeonVictories(data,c,s,record,e.enemies.filter(v=>v.data.hp<=0).map(v=>v.id),progress,saveProgress);
    const coins=bossDown?pay(c,s,record,true):0,outcome=a.status==='active'?(win?'win':'abandoned'):a.status;
    const equipment=applyDefeatEquipment(s,a.run,outcome); // Only this member's actual defeat opponent supplies their outfit, even when their party wins.
    const outfitLog=equipment?.changes.length?a.run.log.slice(-equipment.changes.length):[]; // Read the outfit lines before dignity appends its own.
-   const dignity=applyDefeatDignity(s,a.run,outcome); // Only the members who went down lose dignity; survivors of a winning party keep theirs.
+   const dignity=[...applyDefeatDignity(s,a.run,outcome),...applyDefeatAftermath(s,a.run,outcome)]; // Only the members who went down lose dignity and take their loss blurb's effects; survivors of a winning party keep theirs.
    s.lastResult={outcome,coins,rounds:1,zone,log:[...e.events.map(v=>v.text),...outfitLog,...dignity],...defeatPresentation(a.run,outcome),...(equipment?{defeatEquipment:equipment}:{})};s.wins=(s.wins??0)+(win?1:0);s.run=null;
    if(s.dive||context)relocate(c,s,win&&!s.lastResult.defeatScene?e.origin:entry(record.floor,s.dive?.origin),s.lastResult.defeatScene,a.downedAt); // A defeated member returns to their own gate even when the survivors win.
    if(!['flee','abandoned'].includes(outcome))for(const enemy of e.enemies.filter(v=>v.data.hp<=0))live?.questEvent?.(c,s,{id:'kill:'+e.id+':'+enemy.id,type:'kill',target:enemy.data.enemy_id??enemy.data.id,zone,created:e.created});

@@ -6,7 +6,7 @@
 // Every number lives in the loot tuning (live on the /gm Loot tab) and ships to the client as `dignityTuning`.
 import {DEFAULT_TUNING} from './loot.mjs';
 
-export const DIGNITY_TUNING_KEYS=Object.freeze(['defeat_dignity_loss','defeat_dignity_childish_extra','witnessed_wet_dignity','witnessed_tum_dignity','smell_dignity_per_mess','smell_dignity_max',
+export const DIGNITY_TUNING_KEYS=Object.freeze(['defeat_dignity_loss','defeat_dignity_childish_extra','witnessed_wet_dignity','witnessed_tum_dignity','smell_dignity_per_mess','smell_dignity_max','arcadia_scrutiny_percent','arcadia_visible_padding_pts','arcadia_childish_shame_percent','arcadia_little_childish','arcadia_little_tax_percent','arcadia_toilet_price','utopia_pod_dignity','utopia_padding_shame_pts','utopia_adult_clothes_shame_pts','utopia_smell_percent',
  'shame_pts_plug','shame_pts_wet','shame_pts_mess','shame_pts_mouth','shame_pts_locked','shame_pts_per_cute','shame_sensitivity_low','shame_sensitivity_high','shame_mult_low','shame_mult_high']);
 export const READ_DIGNITY_ABILITY='read_the_room'; // RPP passive that lets an inspection show the other player's Dignity and Shame.
 
@@ -14,8 +14,10 @@ const count=value=>typeof value==='boolean'?Number(value):Number.isFinite(Number
 
 export function dignityTuning(tuning=null){ // Every amount, each falling back to the shipped default when a key is missing or malformed.
  const read=(key,max=1024)=>{const v=Number(tuning?.[key]);return Number.isFinite(v)&&v>=0?Math.min(max,v):DEFAULT_TUNING[key];};
- return {defeatLoss:read('defeat_dignity_loss'),defeatChildishExtra:read('defeat_dignity_childish_extra'),witnessedWet:read('witnessed_wet_dignity'),witnessedTum:read('witnessed_tum_dignity'),
+ return {defeatLoss:read('defeat_dignity_loss'),defeatChildishExtra:read('defeat_dignity_childish_extra'),witnessedWet:read('witnessed_wet_dignity'),witnessedTum:read('witnessed_tum_dignity'),exposedWet:read('exposed_wet_dignity'),exposedTum:read('exposed_tum_dignity'),exposedWitnessPct:read('exposed_witness_percent',1000),coverWitnessPct:read('cover_witness_percent',1000),rainPct:read('rain_dignity_percent',1000),unnoticedBelow:read('unnoticed_continence_below',100),unnoticedChance:read('unnoticed_chance_percent',100),unnoticedMin:read('unnoticed_turns_min',500),unnoticedMax:read('unnoticed_turns_max',500),unnoticedWet:read('unnoticed_wet_dignity',1024),unnoticedTum:read('unnoticed_tum_dignity',1024),unnoticedPerTurn:read('unnoticed_per_turn_dignity',100),
   smellPerMess:read('smell_dignity_per_mess'),smellMax:read('smell_dignity_max'),
+  arcadiaScrutinyPct:read('arcadia_scrutiny_percent',1000),arcadiaPaddingPts:read('arcadia_visible_padding_pts',100),arcadiaChildishPct:read('arcadia_childish_shame_percent',1000),arcadiaLittleChildish:read('arcadia_little_childish',10),arcadiaLittleTaxPct:read('arcadia_little_tax_percent',1000),arcadiaToiletPrice:read('arcadia_toilet_price',1000), // Arcadia's Big Rules.
+  utopiaPodDignity:read('utopia_pod_dignity'),utopiaPaddingPts:read('utopia_padding_shame_pts',100),utopiaAdultPts:read('utopia_adult_clothes_shame_pts',100),utopiaSmellPct:read('utopia_smell_percent',1000), // Utopia's Padded Pride rules.
   ptsPlug:read('shame_pts_plug',100),ptsWet:read('shame_pts_wet',100),ptsMess:read('shame_pts_mess',100),ptsMouth:read('shame_pts_mouth',100),ptsLocked:read('shame_pts_locked',100),ptsPerCute:read('shame_pts_per_cute',10),
   sensitivityLow:read('shame_sensitivity_low',5),sensitivityHigh:read('shame_sensitivity_high',5),multLow:read('shame_mult_low',5),multHigh:read('shame_mult_high',5)};
 } // Same shape the client reads from the snapshot.

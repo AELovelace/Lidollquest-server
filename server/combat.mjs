@@ -2,6 +2,7 @@ import {isCrawling,syncCrawl,standBlockReason,setCrawling} from './crawl.mjs';
 import {readFileSync} from 'node:fs';
 import {applyRunLoadout,syncRunHealth} from './loadout.mjs';
 import {mageBalance,hasAbility,manaCapacity,refreshMana} from './magic-balance.mjs';
+import {loadoutBlessing,loadoutCrawlFree,blessedDef} from './faith-blessing.mjs'; // Piety blessings (zones.mjs stamps loadout.faith).
 import {loseDignity} from './dignity.mjs';
 import {resolvedDefeat,pinDefeat} from './defeat-scenes.mjs';
 import {DEFAULT_TUNING} from './loot.mjs';
@@ -29,7 +30,8 @@ export function mageScaling(loadout){ // Match scrSpellSystem's childish/shame a
  const p=loadout.player_info,mage=classId(loadout)==='mage';
  const affinity=mage?0.3*clamp(num(loadout.childish)/10,0,1)+0.3*clamp(1-num(p.shame,1024)/1024,0,1):0;
  const practice=hasAbility(loadout,'arcane_practice')?1.1:1,magicBase=mage?mageBalance.magic:1;
- return {magic:magicBase*(1+affinity)*practice,physical:(mage?mageBalance.physical*Math.max(0.4,1-affinity):1)*(hasAbility(loadout,'sure_strike')?1.1:1),flat:mage?Math.floor((Math.max(0,num(p.diaper_wet_absorbed))+Math.max(0,num(p.diaper_tum_absorbed)))*magicBase*practice):0}; // The base magic boost also multiplies absorbed fullness; affinity keeps its existing shape.
+ const piousMagic=1+loadoutBlessing(loadout,'magic_pct')/100,piousPhysical=1+(loadoutBlessing(loadout,'melee_pct')+loadoutBlessing(loadout,'physical_pct'))/100; // Sula's magic; Orthain's melee and Nyx's physical strikes.
+ return {magic:magicBase*(1+affinity)*practice*piousMagic,physical:(mage?mageBalance.physical*Math.max(0.4,1-affinity):1)*(hasAbility(loadout,'sure_strike')?1.1:1)*piousPhysical,flat:mage?Math.floor((Math.max(0,num(p.diaper_wet_absorbed))+Math.max(0,num(p.diaper_tum_absorbed)))*magicBase*practice):0}; // The base magic boost also multiplies absorbed fullness; affinity keeps its existing shape.
 }
 
 export function beginRound(state,z,roll,authoredEnemy=null){ // Arena rounds and authored dungeon encounters share turn/effect initialization.
@@ -109,7 +111,7 @@ function charm(state,action,roll){
 }
 
 function enemySpell(state,s){ // Enemy spell effects share the player's serialized modifier timers.
- const r=state.run,p=state.loadout.player_info,defense=p.def-r.handicaps.filter(h=>h==='Reduced armor').length;r.log.push(r.enemy.name+' casts '+s.name+'.');
+ const r=state.run,p=state.loadout.player_info,defense=blessedDef(state.loadout)-r.handicaps.filter(h=>h==='Reduced armor').length;r.log.push(r.enemy.name+' casts '+s.name+'.');
  if(s.type==='enemy_stat'&&s.stat_effect==='crawling'){if(s.stat_amount>0){setCrawling(state.loadout,true);r.log.push('Knocked down! Physical damage -25%; Stand Up costs one action.');}}
  else if(s.type==='enemy_stat')enemyStat(p,s.stat_effect,s.stat_amount);
  if(s.type==='enemy_damage')r.hp=Math.max(0,r.hp-mitigate(currentTuning(),s.power,defense)); // Player DEF shaves a percentage off enemy spells.
@@ -127,7 +129,7 @@ export function enemyAction(state,z,roll){ // One enemy acts independently in sh
  const r=state.run;r.enemy.turn++;
  const spells=(r.enemy.enemy_spells??[]).filter(id=>combatData.spells[id]?.enemy_only);
  if(spells.length&&roll(10000)<r.enemy.spell_cast_chance*10000)enemySpell(state,combatData.spells[spells[roll(spells.length)]]);
- else{let hit=Math.max(1,r.enemy.str-1);if(z.theme==='clockwork'&&r.enemy.turn%3===0)hit+=5;hit=mitigate(currentTuning(),hit,r.defense??state.loadout.player_info.def);hit=Math.max(1,Math.floor(hit*rowDamageTaken(currentTuning(),r.row,r.rowAlone===true)));r.hp=Math.max(0,r.hp-hit);/* Back row takes half of a physical hit while someone holds the front. */r.log.push(r.enemy.name+' dealt '+hit+' damage.');} // Basic enemy hits are mitigated by the player's DEF (run.defense carries arena armor handicaps).
+ else{let hit=Math.max(1,r.enemy.str-1);if(z.theme==='clockwork'&&r.enemy.turn%3===0)hit+=5;hit=mitigate(currentTuning(),hit,r.defense??blessedDef(state.loadout));hit=Math.max(1,Math.floor(hit*rowDamageTaken(currentTuning(),r.row,r.rowAlone===true)));r.hp=Math.max(0,r.hp-hit);/* Back row takes half of a physical hit while someone holds the front. */r.log.push(r.enemy.name+' dealt '+hit+' damage.');} // Basic enemy hits are mitigated by the player's DEF (run.defense carries arena armor handicaps).
  syncRunHealth(state,r);
  return r.hp<=0?'defeat':'continue';
 }
@@ -165,7 +167,7 @@ export function combatAction(state,input,z,roll,supportTarget=state){
    raw=Math.floor(raw*rowMeleeDealt(t,r.row,reach)); // Back-row melee is halved; reach is not.
   }
   const base=Math.max(1,mitigate(t,raw,r.enemy.def)-weakened); // Enemy DEF as a percentage (def_mitigation_k).
-  const damage=isCrawling(state.loadout)?Math.max(1,Math.floor(base*0.75)):base; // Match campaign rounding and preserve minimum damage.
+  const damage=isCrawling(state.loadout)&&!loadoutCrawlFree(state.loadout)?Math.max(1,Math.floor(base*0.75)):base; // Match campaign rounding and preserve minimum damage. Sula's devout crawl without penalty.
   r.enemy.hp=Math.max(0,r.enemy.hp-damage);r.log.push('You '+verb+' '+r.enemy.name+' for '+damage+' damage.');
  }else if(input.action==='row'){ // Party rows: a free change once per turn by default, or a turn-spending one when row_swap_costs_turn is set.
   if(!r.rowPartner)fail('No one is here to hold the line; alone you always fight in front.');

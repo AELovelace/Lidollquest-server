@@ -1,4 +1,5 @@
 import {randomUUID} from 'node:crypto';
+import {fullDungeons} from './full-dungeons.mjs';
 
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'party_conflict'});};
 export function createParties(db,{now}) {
@@ -72,6 +73,7 @@ export function createParties(db,{now}) {
   if(!before||!after||before.zone===after.zone)return;
   const roster=members(c.id).filter(other=>!JSON.parse(other.state).pendingDefeat&&(other.id===c.id||presence(other.id)?.zone===before.zone)); // Survivors can travel while a downed member remains at the defeat location.
   if(roster.length<2)return;
+  if(fullDungeons.some(d=>d.config.zone_id===after.zone))for(const other of roster){const s=other.id===c.id?state:JSON.parse(other.state);if(s.fullDungeonVersion!==1||s.questVersion!==1)fail(other.name+' needs to update the game before entering this dungeon.');} // Group travel cannot bypass the capability required for direct entry.
   for(const other of roster){available(other);const pos=other.id===c.id?before:presence(other.id);if(!pos||pos.zone!==before.zone)fail(other.name+' is no longer in the same area.');}
   const ids=roster.map(m=>m.id),occupied=db.prepare('SELECT character_id FROM quest_presence WHERE zone=? AND seen>?').all(after.zone,now()-30000).filter(p=>!ids.includes(p.character_id)).length;
   if(occupied+roster.length>64)fail('The destination has no room for the whole party.');

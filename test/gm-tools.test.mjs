@@ -170,12 +170,14 @@ test('branch Dives are entered along the trail from their parent',async()=>{
  try{
   await h.join(staffToken,'Staff','princess-rose');
   const listed=(await h.ok(staffToken,'gm_catalog')).receipt.gm.zones.map(z=>z.id);
-  assert.ok(listed.includes('dive-taiga')); // Its weekly floor is generated at startup like every other route.
-  const taiga=await h.ok(staffToken,'gm_warp_zone',{zone:'dive-taiga'});
-  assert.equal(taiga.zone,'dive-taiga');
-  assert.equal(taiga.character.dive.origin,'dive-tundra');
-  assert.equal(taiga.character.dive.hubEntryZone,'dive-tundra');
-  assert.equal(taiga.character.dive.hubOrigin,'princess-rose'); // The client uses this to pick the campaign hub to return to.
+  assert.ok(listed.includes('dive-high-desert')); // Its weekly floor is generated at startup like every other route.
+  const high=await h.ok(staffToken,'gm_warp_zone',{zone:'dive-high-desert'});
+  assert.equal(high.zone,'dive-high-desert');
+  assert.equal(high.character.dive.origin,'dive-desert');
+  assert.equal(high.character.dive.hubEntryZone,'dive-desert');
+  assert.ok(['honeydew-lantern','littlebig-clockwork'].includes(high.character.dive.hubOrigin)); // The client uses this to pick the campaign hub to return to.
+  const taiga=await h.ok(staffToken,'gm_warp_zone',{zone:'dive-taiga'}); // The Taiga has its own hub gate now: Utopia's south wall.
+  assert.equal(taiga.character.dive.origin,'utopia-arcanum');assert.equal(taiga.character.dive.gate,true);
  }finally{await h.close();}
 });
 

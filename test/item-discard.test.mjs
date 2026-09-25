@@ -23,8 +23,9 @@ for(const hub of ['princess-rose','honeydew-lantern','littlebig-clockwork'])test
  const f=fixture(hub);try{
   const snapshot=f.zones.read('token',f.c.id),room=snapshot.zones.find(z=>z.id===snapshot.zone),bin=room.fixtures.find(f=>f.kind==='dumpster');
   const seen=new Set(),queue=[room.spawn];while(queue.length){const p=queue.shift(),key=p.x+','+p.y;if(seen.has(key)||p.x<1||p.y<1||p.x>=room.width-1||p.y>=room.height-1||room.walls?.[p.y]?.[p.x]||hubBlocked(room,p.x,p.y))continue;seen.add(key);for(const [x,y] of [[1,0],[-1,0],[0,1],[0,-1]])queue.push({x:p.x+x,y:p.y+y});}
-  assert.ok(seen.has(bin.x+','+(bin.y+1)),'entrance reaches the dumpster approach');
-  assert.throws(()=>f.discard(),/Stand next/);f.place(bin.x,bin.y+1);
+  const side=[[0,1],[1,0],[-1,0],[0,-1]].map(([dx,dy])=>({x:bin.x+dx,y:bin.y+dy})).find(p=>seen.has(p.x+','+p.y)); // Placement guarantees one free side, not always the south one (nearbyFixture accepts any).
+  assert.ok(side,'entrance reaches the dumpster approach');
+  assert.throws(()=>f.discard(),/Stand next/);f.place(side.x,side.y);
   assert.throws(()=>f.discard(1),/Quest items/);
   assert.throws(()=>f.discard(0,{item_id:'different'}),/item changed/);
   const command=f.body('item_discard',{fixture:'dumpster',slot:0,item_id:'offline',item_instance:''});

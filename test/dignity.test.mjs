@@ -47,3 +47,8 @@ test('peers and inspections show smell to everyone; Dignity and Shame only to a 
   assert.equal(api.inspect('bob',chars.bob.id,chars.alice.id,'bob').dignity_reading,undefined,'the ability belongs to the viewer, not the viewed');
  }finally{db.close();}
 });
+
+test('unnoticed-accident amounts ship in the live Dignity tuning',()=>{
+ const t=dignityTuning(DEFAULT_TUNING);
+ assert.deepEqual([t.unnoticedBelow,t.unnoticedChance,t.unnoticedMin,t.unnoticedMax,t.unnoticedWet,t.unnoticedTum,t.unnoticedPerTurn],[30,50,25,50,20,32,1]); // Below 30% continence, 50% chance, 25-50 turns, then 20/32 Dignity per accident + 1 per turn unaware.
+});

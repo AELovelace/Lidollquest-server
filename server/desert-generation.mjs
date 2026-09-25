@@ -42,29 +42,41 @@ export function generateDesert(data,edition,depth=1){
   }
  }
  const endpoints=c.endpoints??[{zone:'honeydew-lantern',name:'Honeydew Village'},{zone:'littlebig-clockwork',name:'LittleBig City'}];
- const southern=endpoints.length===1&&endpoints[0].side==='south',middle=Math.floor(f.width/2);
- if((!southern&&endpoints.length!==2)||new Set(endpoints.map(p=>p.zone)).size!==endpoints.length||endpoints.some(p=>!p.zone||!p.name))throw Error('Invalid crossing endpoints');
- f.safeRooms=southern?[{x:middle-3,y:f.height-8,w:7,h:7}]:[{x:1,y:Math.floor(f.height/2)-3,w:7,h:7},{x:f.width-8,y:Math.floor(f.height/2)-3,w:7,h:7}];
- f.exits=endpoints.map((p,i)=>({x:southern?middle:i===0?4:f.width-5,y:southern?f.height-2:Math.floor(f.height/2),zone:p.zone,name:p.name})); // Preserve the original crossing coordinates and random sequence.
- f.entries=Object.fromEntries(f.exits.map((p,i)=>[p.zone,{x:p.x+(southern?0:i===0?1:-1),y:p.y-(southern?1:0)}]));
+ const southern=endpoints.length===1&&endpoints[0].side==='south',northern=endpoints.length===1&&endpoints[0].side==='north',single=southern||northern,middle=Math.floor(f.width/2); // A single trailhead sits mid-wall: south (High Desert, reached from Dustbreak) or north (Autumnal Plains, reached from Honeydew).
+ if((!single&&endpoints.length!==2)||new Set(endpoints.map(p=>p.zone)).size!==endpoints.length||endpoints.some(p=>!p.zone||!p.name))throw Error('Invalid crossing endpoints');
+ f.safeRooms=southern?[{x:middle-3,y:f.height-8,w:7,h:7}]:northern?[{x:middle-3,y:1,w:7,h:7}]:[{x:1,y:Math.floor(f.height/2)-3,w:7,h:7},{x:f.width-8,y:Math.floor(f.height/2)-3,w:7,h:7}];
+ f.exits=endpoints.map((p,i)=>({x:single?middle:i===0?4:f.width-5,y:southern?f.height-2:northern?1:Math.floor(f.height/2),zone:p.zone,name:p.name})); // Preserve the original crossing coordinates and random sequence.
+ f.entries=Object.fromEntries(f.exits.map((p,i)=>[p.zone,{x:p.x+(single?0:i===0?1:-1),y:p.y+(northern?1:southern?-1:0)}])); // Arrive one tile inside the trailhead.
  f.entrance={...f.entries[endpoints[0].zone]};
  const safeCount=f.safeRooms.length;
- f.rooms.push(...f.safeRooms);path(f.exits[0],southern?{x:middle,y:Math.floor(f.height/2)}:f.exits[1],range(s.main_path_width_min,s.main_path_width_max));
- if(southern)path({x:10,y:Math.floor(f.height/2)},{x:f.width-11,y:Math.floor(f.height/2)},range(s.main_path_width_min,s.main_path_width_max)); // A central east/west trail connects the clearings to the sole southern trailhead.
+ f.rooms.push(...f.safeRooms);path(f.exits[0],single?{x:middle,y:Math.floor(f.height/2)}:f.exits[1],range(s.main_path_width_min,s.main_path_width_max));
+ const land=f.width-(s.sea_width??0); // Coast: the east band is sea, so trails and basins stay on land. 0 for every inland route (unchanged rolls).
+ if(single)path({x:10,y:Math.floor(f.height/2)},{x:land-11,y:Math.floor(f.height/2)},range(s.main_path_width_min,s.main_path_width_max)); // A central east/west trail connects the clearings to the sole southern trailhead.
  for(let i=0;i<s.basin_count;i++){
-  const w=range(s.min_basin_w,s.max_basin_w),h=range(s.min_basin_h,s.max_basin_h),x=Math.max(9,Math.min(f.width-w-9,Math.round(10+i*(f.width-30)/(s.basin_count-1))+range(-4,4))),y=range(3,f.height-h-3);
+  const w=range(s.min_basin_w,s.max_basin_w),h=range(s.min_basin_h,s.max_basin_h),x=Math.max(9,Math.min(land-w-9,Math.round(10+i*(land-30)/(s.basin_count-1))+range(-4,4))),y=range(3,f.height-h-3);
   const r={x,y,w,h};f.rooms.push(r);rect(r);path({x:x+Math.floor(w/2),y:y+Math.floor(h/2)},{x:x+Math.floor(w/2),y:Math.floor(f.height/2)},range(s.side_path_width_min,s.side_path_width_max));
  }
  for(let i=0;i<s.side_path_count;i++){const a=f.rooms[safeCount+rnd(s.basin_count)],b=f.rooms[safeCount+rnd(s.basin_count)];path({x:a.x+Math.floor(a.w/2),y:a.y+Math.floor(a.h/2)},{x:b.x+Math.floor(b.w/2),y:b.y+Math.floor(b.h/2)},range(s.side_path_width_min,s.side_path_width_max));}
  for(const r of f.safeRooms)rect(r);
+ if(s.sea_width){ // Flood the east band with a wavy shoreline (no random numbers), then let the pocket cleanup below drop anything the sea cut off.
+  f.shore=Array.from({length:f.height},(_,y)=>Math.max(land-4,Math.min(f.width-2,land+Math.round(3*Math.sin(y*0.15)+2*Math.sin(y*0.37+1)))));
+  for(let y=1;y<f.height-1;y++)for(let x=f.shore[y];x<f.width-1;x++)f.walls[y][x]=1;
+ }
+ if(s.crater){ // Emberfall Caldera: a lava lake in the middle (seed-free wobble) ringed by a 3-wide rim road that rejoins every trail it cut.
+  const cx=Math.floor(f.width/2),cy=Math.floor(f.height/2),r=s.crater.radius??9,ring=s.crater.ring??3;
+  const edge=(x,y)=>r+1.2*Math.sin(Math.atan2(y-cy,x-cx)*3)+0.8*Math.sin(Math.atan2(y-cy,x-cx)*5+1); // Lava shoreline radius at this bearing.
+  for(let y=1;y<f.height-1;y++)for(let x=1;x<f.width-1;x++){const d=Math.hypot(x-cx,y-cy),e=edge(x,y);if(d<=e)f.walls[y][x]=1;else if(d<=e+ring)f.walls[y][x]=0;}
+  f.crater={x:cx,y:cy,r}; // The client paints walls inside the lava shoreline as lava, the rest as obsidian.
+ }
  // Remove isolated CA pockets; all active content is placed only in the entrance's connected component.
  const connected=reachable(f);for(let y=1;y<f.height-1;y++)for(let x=1;x<f.width-1;x++)if(!connected.has(x+','+y))f.walls[y][x]=1;
+ if(s.crater)f.rooms=f.rooms.filter((r,i)=>{if(i<safeCount)return true;let n=0;for(let y=r.y;y<r.y+r.h;y++)for(let x=r.x;x<r.x+r.w;x++)if(walkable(f,x,y))n++;return n>=6;}); // Basins the lava swallowed hold no content.
  const occupied=new Set(f.exits.map(key)),safe=p=>f.safeRooms.some(r=>inside(r,p.x,p.y));
  function free(r){const cells=[];for(let y=r.y;y<r.y+r.h;y++)for(let x=r.x;x<r.x+r.w;x++){const p={x,y};if(walkable(f,x,y)&&!occupied.has(key(p))&&!safe(p))cells.push(p);}if(!cells.length)throw Error('No Desert content space');const p=cells[rnd(cells.length)];occupied.add(key(p));return p;}
  const weights=data.enemy_types.flatMap(e=>Array(e.chance).fill(e.enemy_id));
  for(let i=safeCount;i<f.rooms.length;i++){
   const r=f.rooms[i];f.chests.push({id:`chest-${i}`,...free(r)});
-  for(let n=0;n<c.enemies_per_room;n++){const p=free(r);f.enemies.push({id:`enemy-${i}-${n}`,type:weights[rnd(weights.length)],...p,spawn:{...p},roaming:true,engaged:null,respawnAt:0});}
+  for(let n=0;n<c.enemies_per_room;n++){const p=free(r);const type=weights[rnd(weights.length)];f.enemies.push({id:`enemy-${i}-${n}`,type,...p,spawn:{...p},roaming:data.enemies?.[type]?.roaming!==false,engaged:null,respawnAt:0});} // An authored stationary monster (the Plains' Scarecrow Sitter) keeps its post; every other wilderness foe roams as before.
   for(const [kind,count] of [['food',c.food_per_room],['potion',c.potions_per_room],['treasure',c.treasures_per_room]])for(let n=0;n<count;n++)f.pickups.push({id:`${kind}-${i}-${n}`,kind,...free(r),sprite:'sprItem'});
  }
  const count=range(s.prop_count_min,s.prop_count_max);

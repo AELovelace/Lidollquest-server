@@ -108,7 +108,7 @@ test('cauldrons stand in the Community Hall, the LittleBig Inn and the Castle do
  const blocked=new Set(inn.fixtures.map(f=>f.x+','+f.y)),seen=new Set(),queue=[inn.spawn];
  for(let n=0;n<queue.length;n++){const p=queue[n],key=p.x+','+p.y;if(seen.has(key)||p.x<1||p.y<1||p.x>=inn.width-1||p.y>=inn.height-1||blocked.has(key))continue;seen.add(key);queue.push({x:p.x+1,y:p.y},{x:p.x-1,y:p.y},{x:p.x,y:p.y+1},{x:p.x,y:p.y-1});}
  assert.ok([[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>seen.has((pot.x+dx)+','+(pot.y+dy))),'someone can stand beside the Inn cauldron');
- assert.equal(hubRooms.filter(z=>z.fixtures?.some(f=>f.kind==='cauldron')).length,2,'only the Community Hall and LittleBig Inn annexes (Rose keeps hers in the Castle)');
+ assert.deepEqual(hubRooms.filter(z=>z.fixtures?.some(f=>f.kind==='cauldron')).map(z=>z.id),['honeydew-lantern-dives','littlebig-clockwork-beds','utopia-arcanum-tower','arcadia-foundry-tower'],'the Community Hall, LittleBig Inn, Arcanum Tower and Clockmakers Guildhall annexes (Rose keeps hers in the Castle)');
  const castle=districtData.districts.find(d=>d.hub==='princess-rose');
  for(const edition of ['2026-09','2026-12']){
   const f=generateDistrict(castle,{edition,ends:0}),c=f.fixtures.find(x=>x.kind==='cauldron'),reach=reachableDistrict(f);

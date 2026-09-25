@@ -1251,3 +1251,31 @@ after 10 minutes or when a trader leaves. Run `node --test test/trades.test.mjs`
 Every level gained online owes one RPP (`state.rppOwed`); `rpp.settleLevels` mints it on the next
 committed command with a `level` ledger row per level number, replay-safe. Mage free spell
 choices arrive at levels divisible by three. Run `node --test test/rpp.test.mjs test/combat.test.mjs`.
+
+### Full multiplayer dungeons (2026-09-24)
+
+The four additive weekly `overworld` routes are `castle-dungeon`, `auto-nursery`,
+`regression-school`, and `regression-hospital` (zone IDs have a `dive-` prefix).
+They retain campaign dimensions and use registered compute-worker generators.
+Existing Dives, the forest Mansion, and their edition/progress keys stay separate.
+Castle Dungeon stairs connect The Castle to Arcadia; the Nursery and Hospital
+have separate Utopia entrances, and the School opens from LittleBig City.
+Saved monthly layouts receive reachable entrances without rerolling their content.
+
+Ship all server modules plus `full-dungeons-data.json` and
+`full-dungeons-coverage.json` before the rebuilt client. Entry requires
+`full_dungeon_version: 1` and `quest_version: 1` for every travelling party member.
+No database replacement or existing edition regeneration is required. The Nursery
+control door and campaign story orbs/locks are omitted; bosses have no new coin bonus.
+
+The client checkout's `python/export_online_full_dungeons.py` validates and exports
+campaign data with `online_full_dungeons.json` adaptations. Unknown gameplay effects
+fail export. The editor's Full Dungeons tab edits this catalog independently of Dives.
+`dungeon_interact`, `dungeon_push`, `dungeon_reset`, and `dungeon_scene_choice` use
+existing request receipts and edition validation. Mechanism revisions serialize
+shared blocks, while quests, claims, timers and dialogue outcomes remain personal.
+
+Run `node --test --test-concurrency=4 test/full-dungeon-*.test.mjs` and the full
+`node --test --test-concurrency=4 test/*.test.mjs` suite. The client guide
+`ONLINE_FULL_DUNGEONS_GUIDE.md` describes authoring, controls, browser validation
+and rollout. Preserve the previous server/client packages for rollback.
