@@ -181,6 +181,31 @@ test('branch Dives are entered along the trail from their parent',async()=>{
  }finally{await h.close();}
 });
 
+test('GM warps reach Caldera and Spa through their declared connections, join players and leave through physical exits',async()=>{
+ const h=harness();await h.started;
+ try{
+  await h.join(staffToken,'Staff','princess-rose');await h.join(helperToken,'Helper','princess-rose');
+  const listed=(await h.ok(staffToken,'gm_catalog')).receipt.gm.zones.map(z=>z.id);
+  for(const [zone,parent] of [['dive-emberfall-caldera','dive-tundra'],['dive-obsidian-spa','dive-emberfall-caldera']]){
+   assert.ok(listed.includes(zone));
+   const inside=await h.ok(staffToken,'gm_warp_zone',{zone}),visit=inside.character.dive,floor=inside.zones.find(z=>z.id===zone);
+   assert.equal(inside.zone,zone);assert.equal(visit.origin,parent);assert.equal(visit.hubOrigin,'princess-rose');
+   assert.ok(!floor.walls[inside.position.y][inside.position.x]);
+   assert.ok(floor.exits.every(e=>e.x!==inside.position.x||e.y!==inside.position.y),'arrival avoids every exit trigger');
+   assert.equal((await h.ok(staffToken,'heartbeat')).zone,zone,'the committed visit survives refresh');
+   const joined=await h.ok(helperToken,'gm_warp_player',{target:h.held[staffToken].id});
+   assert.equal(joined.zone,zone);assert.equal(joined.dive.edition,inside.dive.edition);assert.equal(joined.character.dive.returnZone,visit.returnZone);
+   const exit=floor.exits.find(e=>e.zone===parent);assert.ok(exit);
+   const position=[[1,0],[-1,0],[0,1],[0,-1]].map(([dx,dy])=>({x:exit.x+dx,y:exit.y+dy})).find(p=>floor.walls[p.y]?.[p.x]===0&&!floor.props?.[p.y]?.[p.x]);assert.ok(position);
+   const id=h.held[staffToken].id,state=JSON.parse(h.service.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(id).state);state.dive.position=position;
+   h.service.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),id);
+   h.service.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(position.x,position.y,id); // Move the test visitor beside the real exit; dispatch normal travel through the authenticated gateway.
+   assert.equal((await h.ok(staffToken,'dive_exit',{zone:parent,edition:visit.edition})).zone,parent);
+  }
+  assert.equal(h.audit('gm_warp_zone').length,2);assert.equal(h.audit('gm_warp_player').length,2);
+ }finally{await h.close();}
+});
+
 test('in-game chat moderation lists the area, removes one line or clears everything, and is audited',async()=>{
  const h=harness();await h.started;
  try{

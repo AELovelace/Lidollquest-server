@@ -1305,3 +1305,18 @@ Run `node --test --test-concurrency=4 test/full-dungeon-*.test.mjs` and the full
 `node --test --test-concurrency=4 test/*.test.mjs` suite. The client guide
 `ONLINE_FULL_DUNGEONS_GUIDE.md` describes authoring, controls, browser validation
 and rollout. Preserve the previous server/client packages for rollback.
+
+The September 25 full-dungeon content repair resolves campaign NPC art and native
+Dungeon spawn weights. Maintenance updates existing NPC sprites and replaces
+misplaced automatic Dungeon monsters without regenerating terrain or resetting
+claims/quests. Engaged enemies finish first; manual GM placements remain intact.
+Full layouts retain their authored room populations and per-placement roaming
+after live publication and respawn. Ship the updated modules and both exported
+JSON files together; this repair does not require a client rebuild. Regressions
+are in `test/full-dungeon-content.test.mjs` and `test/full-dungeon-travel.test.mjs`.
+
+GM warps to Emberfall Caldera and Obsidian Spa resolve the Caldera's declared
+Tundra endpoint when no explicit parent is configured. This restores the GM's
+hub-return chain without changing ordinary Escape behavior or regenerating maps.
+The correction is server-only; authenticated entry, joining, refresh and physical
+exit regressions are in `test/gm-tools.test.mjs`.

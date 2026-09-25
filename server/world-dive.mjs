@@ -50,13 +50,13 @@ export function createDiveControls(db,{now,data,live,current,getFloor,saveFloor,
    if(foe.dead&&foe.respawnAt<=now()){
     if(foe.manual&&(!foe.respawning||live.published().monsters[foe.type]?.retired)){foe.remove=true;changed=true;continue;}
     if(!foe.manual&&!t.spawning)continue;
-    if(!foe.manual)foe.type=foe.id===f.bossId?(t.boss_enemy_id??foe.type):pick()??foe.type;
-    foe.definition=structuredClone(data.enemies[foe.type]);foe.dead=false;foe.roaming=foe.manual?foe.roaming:foe.id===f.bossId?false:(authored(foe.type)??foe.roaming??enemyRoams(data,{id:foe.id,type:foe.type}));changed=true; // A respawn walks the way its monster is authored; a silent monster keeps the flag the generator gave this enemy (wilderness routes ship no trait and roam).
+    if(!foe.manual&&!data.config.full_dungeon_version)foe.type=foe.id===f.bossId?(t.boss_enemy_id??foe.type):pick()??foe.type; // Full layouts retain their authored room enemies and named bosses on respawn.
+    foe.definition=structuredClone(data.enemies[foe.type]);foe.dead=false;foe.roaming=foe.manual||data.config.full_dungeon_version?foe.roaming:foe.id===f.bossId?false:(authored(foe.type)??foe.roaming??enemyRoams(data,{id:foe.id,type:foe.type}));changed=true; // Full layouts keep per-spawn behavior, including their stationary bosses and roaming Head Nurse.
    }
-   const want=foe.manual||foe.dead?null:foe.id===f.bossId?false:authored(foe.type);if(want!==null&&foe.roaming!==want){foe.roaming=want;changed=true;} // Repair only against an explicit authored trait; the map-wide switch (config.roaming, dive.mjs) is applied at movement time.
+   const want=foe.manual||foe.dead||data.config.full_dungeon_version?null:foe.id===f.bossId?false:authored(foe.type);if(want!==null&&foe.roaming!==want){foe.roaming=want;changed=true;} // Full generators author each placement; other routes follow the monster trait. The map-wide roaming switch still applies at movement time.
    if(!foe.definition){foe.definition=structuredClone(data.enemies[foe.type]);changed=true;}
   }
-  if(f.populationRevision!==live.published().revision){
+  if(f.populationRevision!==live.published().revision&&!data.config.full_dungeon_version){ // Full generators own their room population; global publishes must not apply generic top-ups or replace authored bosses.
    if(!t.spawning)for(const e of f.enemies)if(!e.manual&&!e.engaged)e.remove=true;
    if(t.spawning&&t.boss_enemy_id&&!f.enemies.some(e=>e.id===(f.bossId??'world_boss')&&!e.remove)){
     const room=f.rooms.at(-1);let spot=null;
