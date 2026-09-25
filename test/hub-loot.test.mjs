@@ -60,3 +60,12 @@ test('stock scales to the shopper inside each hub band: same items, level and pr
   assert.equal(item.loot.rarity,cheap.loot.rarity,'rarity comes from the shared seed');assert.ok(offer.price>=low[i].price,'higher level stock costs at least as much');}
  assert.deepEqual(hubDefinition(shopsHub,3*DAY+1,30).fixtures.find(f=>f.id===merchant.id).offers,shopOffers(shopsHub.id,merchant,3*DAY+1,30),'the snapshot carries the viewing shopper scaled stock');
 });
+
+test('geometry-only callers skip rolling shelves without changing anything else',()=>{
+ const shop=hubRooms.find(r=>r.fixtures?.some(f=>f.kind==='shop')),time=2*86400000+1; // Any room with a merchant will do.
+ const full=hubDefinition(shop,time,12),bare=hubDefinition(shop,time,12,{offers:false}); // Same room, with and without rolled stock.
+ assert.ok(full.fixtures.some(f=>f.kind==='shop'&&f.offers.length>0),'the default still rolls stock for snapshots and purchases');
+ assert.ok(bare.fixtures.filter(f=>f.kind==='shop').every(f=>Array.isArray(f.offers)&&f.offers.length===0),'offers:false leaves every shelf empty');
+ const strip=d=>({...d,fixtures:d.fixtures.map(f=>f.kind==='shop'?{...f,offers:[]}:f)}); // Compare everything except the shelves.
+ assert.deepEqual(strip(bare),strip(full),'walls, portals, spawn and fixtures are otherwise identical');
+});

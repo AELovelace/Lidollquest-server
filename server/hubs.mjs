@@ -122,19 +122,19 @@ import {stackable,slotsUsed,addToInventory} from './loadout.mjs'; // Stack-aware
 export const shopperLevel=state=>Math.max(1,Math.floor(Number(state?.loadout?.player_info?.level)||1)); // The level hub stock is rolled at for this character (clamped per hub by shopLevel).
 export function shopOffers(zone,shop,time,level=1){ // `level`: the shopper's level; the item picks are shared per day, only their rolled level differs per shopper.
  const day=Math.floor(time/86400000),rnd=seeded(`${zone}:${shop.id}:${day}`),pool=[...shop.pool],offers=[];
+ const roller=shopRoller(),hub=hubRooms.find(r=>r.id===zone)?.parent??zone; // Once per shelf, not per slot: shopRoller() asks SQLite for the loot revision (3 queries) every call. Annex shops use their parent hub's level band.
  // Always stocked: a meal at the general merchant and apothecary, arrows wherever arrows are sold (Grog's bows need them).
  const guaranteed=['adult_food','arrows'].filter(id=>pool.includes(id));for(const id of guaranteed)pool.splice(pool.indexOf(id),1);
  const shelf=Number.isInteger(shop.stock_size)&&shop.stock_size>=1&&shop.stock_size<=24?shop.stock_size:c.stock_size; // a merchant's own shelf size (Bramble keeps a small rotating one), else the hub's
  for(let slot=0;slot<shelf&&(slot<guaranteed.length||pool.length);slot++){
   const id=slot<guaranteed.length?guaranteed[slot]:pool.splice(rnd(pool.length),1)[0];let item=structuredClone(hubData.items[id]);
   if(item.atk_min!==undefined){item.atk=item.atk_min+rnd(item.atk_max-item.atk_min+1);item.desc=item.desc?.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}
-  const roller=shopRoller(),hub=hubRooms.find(r=>r.id===zone)?.parent??zone; // Annex shops use their parent hub's level band.
   item=roller.roll(item,`${zone}:${shop.id}:${day}:${slot}`,{level:roller.shopLevel(hub,level),luck:'shop'}); // Rarity, level and affixes with shop luck (no epics) at the shopper's level clamped into the hub's shop_levels band; the rolled name and value are what the player sees and pays for.
   const price=Math.max(1,Math.ceil(item.value*c.coin_price_multiplier));
   offers.push({id:`${day}-${slot}`,price,item});
  }return offers;
 } // Stock is deterministic and inexhaustible; the same eight items greet everyone that day, scaled to each shopper.
-export function hubDefinition(z,time,level=1){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??LOBBY_EXIT,restTickMs:c.rest_tick_ms,portals:[...(z.fullDungeonPortals??[]),...(z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z))],fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:shopOffers(z.id,findShop(f.id),time,level)}:f)};} // Monthly full-dungeon connectors coexist with every existing hall and wilderness route.
+export function hubDefinition(z,time,level=1,{offers=true}={}){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??LOBBY_EXIT,restTickMs:c.rest_tick_ms,portals:[...(z.fullDungeonPortals??[]),...(z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z))],fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:offers?shopOffers(z.id,findShop(f.id),time,level):[]}:f)};} // offers:false skips rolling every shelf for callers that only need walls, portals, spawns or NPCs (rolling a whole town's stock cost most of a snapshot). // Monthly full-dungeon connectors coexist with every existing hall and wilderness route.
 export const besideFixture=(f,p)=>{const dx=p.x<f.x?f.x-p.x:Math.max(0,p.x-(f.x+(f.span_w??1)-1)),dy=p.y<f.y?f.y-p.y:Math.max(0,p.y-(f.y+(f.span_h??1)-1));return dx+dy<=1;}; // Beside any tile of a fixture's footprint (a 2-wide altar, a 1x2 cubicle).
 export function nearbyFixture(z,p,id,kind){const f=z.fixtures?.find(f=>f.id===id&&f.kind===kind);if(!f||!besideFixture(f,p))fail('Stand next to that '+kind+'.');return f;}
 
@@ -217,7 +217,7 @@ export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWage
 }
 
 export function hubArrival(destination, source) {
- const z=hubDefinition(destination,0),portal=z.portals.find(p=>p.target===source)??(z.parent===source?z.exit:null);
+ const z=hubDefinition(destination,0,1,{offers:false}),portal=z.portals.find(p=>p.target===source)??(z.parent===source?z.exit:null);
  if(!portal)return {...z.spawn}; // First entry has no prior doorway to match.
  const x=portal.x,y=portal.y+(portal.h??1)-1;
  const offsets=portal.side==='left'?[[1,0]]:portal.side==='right'?[[-1,0]]:portal.side==='top'?[[0,1]]:portal.side==='bottom'?[[0,-1]]:portal===z.exit?[[0,-1],[1,0],[-1,0],[0,1]]:[[0,1],[1,0],[-1,0],[0,-1]];

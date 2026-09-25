@@ -45,7 +45,8 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  const safe=(floor,x,y)=>(floor.safeRooms??[floor.rooms[0]]).some(r=>inside(r,x,y));
  const entry=(floor,origin)=>floor.entries?.[origin]??floor.entrance;
  db.exec(`CREATE TABLE IF NOT EXISTS dive_editions(route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,starts INTEGER NOT NULL,ends INTEGER NOT NULL,content TEXT NOT NULL,updated INTEGER NOT NULL,PRIMARY KEY(route,edition,depth));
- CREATE TABLE IF NOT EXISTS dive_progress(character_id TEXT NOT NULL,route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,state TEXT NOT NULL,PRIMARY KEY(character_id,route,edition,depth));`);
+ CREATE TABLE IF NOT EXISTS dive_progress(character_id TEXT NOT NULL,route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,state TEXT NOT NULL,PRIMARY KEY(character_id,route,edition,depth));
+ CREATE INDEX IF NOT EXISTS dive_editions_latest ON dive_editions(route,starts,updated,edition);`); // Covering index for latest(): without it every tick read each retained edition's row, including walking past its large floor JSON to reach `updated`, then sorted them.
  const dungeonRules=config.full_dungeon_version?createDungeonRules({db,data,now,roll,origins,adjust,progress,saveProgress,saveFloor}):null;
  const encounters=createDiveEncounters(db,{live,now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate});
  let lastTick=-Infinity,nextSweep=-Infinity,retryAt=0,dressingRetryAt=0,generationPending=null,roamingPending=null,closed=false,settledKey=null; // settledKey: edition|content revision of the last full maintain pass (idle fast path).
@@ -53,9 +54,10 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  const floorQuery=db.prepare('SELECT * FROM dive_editions WHERE route=? AND edition=? AND depth=1');
  const existsQuery=db.prepare('SELECT 1 FROM dive_editions WHERE route=? AND edition=? AND depth=1');
  const enabledQuery=db.prepare('SELECT 1 FROM dive_editions WHERE route=? AND depth=1 LIMIT 1');
+ const newestQuery=db.prepare('SELECT edition FROM dive_editions WHERE route=? ORDER BY starts DESC,updated DESC LIMIT 1'); // Answered from dive_editions_latest alone.
  const getFloor=edition=>{const row=measure('floor.read',()=>floorQuery.get(route,edition??null));if(!row)return null;const floor=measure('floor.decode',()=>JSON.parse(row.content));if(live)for(const foe of floor.enemies)foe.definition??=clone(baseline.enemies[foe.type]??data.enemies[foe.type]);floor.managedOccupancy=live?.placementPositions?.(zoneId,row.edition)??[];return {...row,floor};}; // Keep decoded mutable floors local to their operation so rollback cannot leak cached mutations.
  const latest=()=>{
-  const newest=db.prepare('SELECT edition FROM dive_editions WHERE route=? ORDER BY starts DESC,updated DESC LIMIT 1').get(route)?.edition; // Most recently installed floor, whatever week it came from.
+  const newest=newestQuery.get(route)?.edition; // Most recently installed floor, whatever week it came from.
   const week=config.static&&newest?newest.slice(0,10):weeklyWindow(now()).edition; // Static routes stay pinned to their newest floor's week instead of the calendar week.
   return controls&&db.prepare('SELECT edition FROM world_routes WHERE route=? AND week=?').get(route,week)?.edition||newest; // A gamemaster regeneration for that week wins over the automatic floor.
  };

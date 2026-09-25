@@ -1110,6 +1110,16 @@ coins; suspensions are still checked per request; failed logins and any tracker
 always arrives as a new token. `account.authenticate` in `/gm` now mostly shows
 cache hits. Covered by `test/auth-cache.test.mjs`.
 
+Snapshots roll merchant stock only for the room the player stands in.
+`hubDefinition(z,time,level,{offers:false})` skips shelf rolls for callers that
+need only walls, portals, spawns or NPCs (snapshots of other rooms, hub
+encounters, the NPC catalog, arrival lookups, GM tools). Rolling every town's
+shelves on every snapshot used to be ~90% of `snapshot.build` (~380 ms live);
+`shopOffers` also asks `shopRoller()` for the loot revision once per shelf, not
+per slot. The `dive_editions_latest` covering index lets each route find its
+newest edition without reading retained floors; the first boot after this
+change builds it once.
+
 Empty routes idle cheaply: once a route has finished a full pass (reconcile,
 floor upgrades, sweep) for its current edition and published content, later
 ticks with nobody present skip reading and decoding the floor until its own
