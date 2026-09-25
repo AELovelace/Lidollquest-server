@@ -1,5 +1,9 @@
 # LiDollQuest server
 
+For tonight's move of gallery, tracker, auth and Quest from `10.1.1.23` to Fedora
+`10.1.1.24`, see [the migration runbook](MIGRATION_10.1.1.24.md). The Bash entry point
+is `deploy/migrate-lidoll-services.sh`; its default mode only inventories the source.
+
 The `/gm` panel is organized into Players, Chat, RP Journal, RPP, Curses & Blessings, Loot, Moderation, and Performance tabs. The Loot tab edits the live Adjective + Item + Rarity table (rarity weights, level curve, luck profiles, over-cap bonuses, route levels, legendary titles and the affix pool) with a seeded preview; it layers over the `loot` block exported into `server/dive-data.json` from the campaign's `datafiles/generation/loot_affixes.json`. The sticky header keeps refresh, automatic refresh, and sign-out available. Switching tabs preserves drafts and filters; arrow keys, Home, and End navigate the tab bar, which scrolls horizontally on phones. This is a quest-server panel update only: redeploy the service and reload `/gm`; no game or tracker rebuild is needed.
 
 ## Public character descriptions

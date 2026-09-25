@@ -20876,8 +20876,8 @@
           "per_floor": 3
         },
         "frostveil-crossing": {
-          "base": 40,
-          "per_floor": 3
+          "base": 12,
+          "per_floor": 2
         },
         "frostveil-taiga": {
           "base": 48,
@@ -20900,11 +20900,11 @@
           "per_floor": 2
         },
         "emberfall-caldera": {
-          "base": 30,
+          "base": 45,
           "per_floor": 3
         },
         "obsidian-spa": {
-          "base": 30,
+          "base": 45,
           "per_floor": 0
         },
         "spooky-mansion": {
