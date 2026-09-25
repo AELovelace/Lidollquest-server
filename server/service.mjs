@@ -22,6 +22,7 @@ import {diveData} from './dive.mjs';
 import {createPerformanceMonitor} from './performance.mjs';
 import {createComputePool,computeWorkerCount} from './compute-pool.mjs';
 import {createAuthCache,authCacheMs} from './auth-cache.mjs';
+import {parseKnown,elide} from './snapshot-cache.mjs';
 
 export function loadQuestPack(path){ // LIDOLLQUEST_QUEST_PACK names a shipped quest file; unset means no live quests, exactly as before.
  if(!path)return [];
@@ -135,7 +136,8 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
    const receipt=result.receipt;identity=verified;try{result=metrics.measure(req.method==='GET'?'zones.read':'zones.refresh',()=>zones.read(token,result.character?.id,req.method==='GET'?view:{companion:['bank_sell','companion_equip','companion_unequip','companion_roll','companion_withdraw'].includes(input?.action)}));if(receipt)result.receipt=receipt;}finally{identity=null;} // Build exactly one final view after purchase settlement, including durable replay receipts.
    await flush(verified.owner,token);result.coins=db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(verified.owner).coins;
    result.pendingCoins=db.prepare('SELECT COALESCE(SUM(amount),0) AS n FROM reward_outbox WHERE owner=? AND delivered=0').get(verified.owner).n;
-   result.capabilities={unifiedCreation:true,inspection:true,friends:true,cloudSaves:true,saveManagement:true,characterManagement:true,characterDescriptions:true,companionEquipment:true,companionBank:true,bankSales:true,companionShops:true,companionWithdraw:true,companionDiamondRolls:true};
+   result.capabilities={unifiedCreation:true,inspection:true,friends:true,cloudSaves:true,saveManagement:true,characterManagement:true,characterDescriptions:true,companionEquipment:true,companionBank:true,bankSales:true,companionShops:true,companionWithdraw:true,companionDiamondRolls:true,snapshotCache:true};
+   const known=parseKnown(url.searchParams.get('known'));if(known)metrics.measure('response.cache',()=>elide(result,known)); // Opted-in clients get stubs for pieces they already hold (snapshot-cache.mjs); others get the classic response.
    res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(metrics.measure('response.serialize',()=>JSON.stringify(result)));
   }catch(error){if(error.status===401)auth.forget(token);throw error;} // A tracker 401 anywhere in the request ends the remembered login at once.
   finally{active--;const count=perToken.get(token)-1;if(count)perToken.set(token,count);else perToken.delete(token);}

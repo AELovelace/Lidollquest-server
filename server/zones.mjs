@@ -184,7 +184,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  const trades=createTrades(db,{now,adjust,saveCharacter:saveOther,origins,capacity:hubData.config.inventory_capacity??99}); // Player-to-player trades: items and coins, escrowed like shop debits.
  purchaseHooks.tradeEscrow=(id,char,state,paid,amount)=>trades.fund(id,char,state,paid,amount); // In-game staff commands; the role check lives inside every entry point.
  const engine=id=>engines.get(id)??quarters; // No active visit still exposes the legacy Quarters summary.
- const dive={tick(){atomic(()=>parties.tick());for(const route of engines.values())route.tick();},
+ const dive={tick(){measure('tick.parties',()=>atomic(()=>parties.tick()));for(const route of engines.values())route.tick();},
   snapshot(c,p){return engine(p?.zone??(c?JSON.parse(c.state).dive?.zone:null)).snapshot(c,p);},
   chatArea(c,p){return engine(p.zone).chatArea(c,p);},
   handles(input,p){return [...engines.values()].some(route=>route.handles(input,p));},
@@ -586,5 +586,5 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
   if(hasAbility(JSON.parse(c.state).loadout,READ_DIGNITY_ABILITY))view.dignity_reading=dignityReading(JSON.parse(other.state).loadout?.player_info); // Read the Room (RPP) reveals the other player's Dignity and Shame; nobody else ever receives them.
   return view;
  }
- return {read,act,inspect,enchantments,loot,alchemyStore,world,quests,announcements,questRead(secret,id,quest){const i=identity(secret),c=character(i.owner,id);return quests.detail(c,JSON.parse(c.state),quest);},setPrivateSprites(value){privateSprites=value;},tick(){districts.tick();dive.tick();if(hubEvents)atomic(()=>hubEvents.tick());if(quests)atomic(()=>quests.tick());atomic(()=>duels.tick());atomic(()=>trades.tick());},prepare:()=>Promise.all([...engines.values()].map(route=>route.prepare())),close(){for(const route of engines.values())route.close();},completePurchase:purchases.complete}; // One coordinator owns simulation and commits; workers only calculate candidate results.
+ return {read,act,inspect,enchantments,loot,alchemyStore,world,quests,announcements,questRead(secret,id,quest){const i=identity(secret),c=character(i.owner,id);return quests.detail(c,JSON.parse(c.state),quest);},setPrivateSprites(value){privateSprites=value;},tick(){measure('tick.districts',()=>districts.tick());dive.tick();if(hubEvents)measure('tick.hub_encounters',()=>atomic(()=>hubEvents.tick()));if(quests)measure('tick.quests',()=>atomic(()=>quests.tick()));measure('tick.duels_trades',()=>{atomic(()=>duels.tick());atomic(()=>trades.tick());});} /* One /gm timing row per ticker, so world.timer time outside the simulation.<route> rows has a name. */,prepare:()=>Promise.all([...engines.values()].map(route=>route.prepare())),close(){for(const route of engines.values())route.close();},completePurchase:purchases.complete}; // One coordinator owns simulation and commits; workers only calculate candidate results.
 } // Campaign stats and inventory are client-trusted; arena outcomes and shared-currency awards still belong to this simulation.

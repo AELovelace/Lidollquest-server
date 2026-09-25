@@ -125,3 +125,22 @@ test('giver menus paginate without replacing original dialogue and enforce accep
 test('legacy abandoned journal quests can resume at a newly assigned giver without changing accepted rewards',()=>{const f=fixture();try{
  f.publish('quest',quest({stages:[{id:'wait',objectives:[{id:'wait',type:'timer',count:60}],next:'complete'}]}));acceptQuest(f,{quest:'first_quest'});f.act('quest_abandon',{quest:'first_quest'});const row=f.db.prepare('SELECT * FROM online_quests').get(),definition=JSON.parse(row.definition);definition.givers=[];definition.npcs={};f.db.prepare('UPDATE online_quests SET definition=? WHERE id=?').run(JSON.stringify(definition),row.id);f.publish('quest',quest({rewards:{coins:99}}));acceptQuest(f,{quest:'first_quest'});const resumed=f.api.read('',f.c.id).onlineQuests.instances[0];assert.equal(resumed.rewards.coins,10);assert.equal(resumed.status,'active');assert.equal(resumed.stage,'wait');
  }finally{f.close();}});
+
+test('wandering NPCs step once per 2 s slot, stay inside their radius, and pause for conversations',()=>{const f=fixture();try{
+ f.publish('npc',{...npc,wander_radius:2});const map=place(f,'npc',npc.id),home=map.placements[0].home; // A guide that may roam two tiles from home.
+ const where=()=>{const row=f.db.prepare('SELECT body FROM world_placement_maps WHERE zone=? AND edition=?').get(map.id,map.edition);return JSON.parse(row.body)[0];}; // Stored, authoritative NPC position.
+ let moved=0,last=where();
+ for(let slot=0;slot<30;slot++){
+  f.advance(2000);f.api.tick();const once=where();f.advance(1);f.api.tick();const twice=where(); // Two ticks inside one slot (1 ms apart).
+  assert.deepEqual(twice,once,'a second tick in the same slot never takes another step');
+  assert.ok(Math.abs(once.x-home.x)+Math.abs(once.y-home.y)<=2,'never leaves the wander radius');
+  if(once.x!==last.x||once.y!==last.y)moved++;last=once;
+ }
+ assert.ok(moved>0,'the NPC actually wanders');
+ const talking=where(),insert=f.db.prepare('INSERT INTO online_conversations VALUES (?,?,?,?,?,?,?,?)'); // A player holds the guide in conversation.
+ insert.run('talker','conv-1',talking.id,map.id,map.edition,'{}','hello',Date.now()+1e12);
+ for(let slot=0;slot<5;slot++){f.advance(2000);f.api.tick();}
+ const paused=where();assert.deepEqual({x:paused.x,y:paused.y,step:paused.step},{x:talking.x,y:talking.y,step:talking.step},'a held NPC neither moves nor spends its slot');
+ f.db.prepare('DELETE FROM online_conversations').run();f.advance(100);f.api.tick(); // Conversation ends inside the same 2 s slot.
+ assert.notEqual(where().step,paused.step,'the paused NPC is retried in the same slot once released');
+}finally{f.close();}});
