@@ -97,3 +97,25 @@ test('Sable\'s sanctum counts as a changing room; wouldBreakUniform spots anathe
  assert.equal(wouldBreakUniform('orin',vest,items.diaper,items),false,'Orin has no uniform to break');
  assert.ok(hubCatalog.length===5);
 });
+
+test('characters from before the update choose a home hub and a free patron once; new characters already chose',()=>{
+ const w=world();try{
+  w.act('create',{name:'Alice'});assert.equal(w.c.startChoiceDone,true,'the creation screen was their choice');
+  assert.throws(()=>{w.act('enter',{zone:'honeydew-lantern',loadout:{player_info:{level:5},inventory:[]}});w.act('choose_start',{zone:'utopia-arcanum',key:'sula'});},/already made this choice/);
+  w.edit(s=>{delete s.startChoiceDone;delete s.homeHub;}); // A character saved before the religion update.
+  assert.throws(()=>w.act('choose_start',{zone:'atlantis',key:''}),/five hubs/);
+  assert.throws(()=>w.act('choose_start',{zone:'',key:'zeus'}),/five gods/);
+  const moved=w.act('choose_start',{zone:'utopia-arcanum',key:'sula'});
+  assert.equal(w.c.homeHub,'utopia-arcanum');assert.equal(moved.zone,'utopia-arcanum','solo and idle: off to the new home at once');
+  assert.equal(w.c.faith.god,'sula');assert.equal(w.c.faithSworn,1);assert.equal(w.c.startChoiceDone,true);assert.match(w.c.faithNotice,/Utopia is your home now.*Sula.*first vow is free/);
+  assert.throws(()=>w.act('choose_start',{zone:'',key:''}),/already made this choice/);
+ }finally{w.close();}
+ const k=world();try{ // Keeping things as they are.
+  k.act('create',{name:'Bob'});k.act('enter',{zone:'honeydew-lantern',loadout:{player_info:{level:5},inventory:[]}});k.edit(s=>{delete s.startChoiceDone;});
+  const kept=k.act('choose_start',{zone:'',key:''});assert.equal(kept.zone,'honeydew-lantern');assert.equal(k.c.faith,undefined);assert.equal(k.c.startChoiceDone,true);assert.match(k.c.faithNotice,/keep things as they are/);
+ }finally{k.close();}
+ const s=world();try{ // Already sworn at a temple before seeing the picker: the patron is not a second free vow.
+  s.act('create',{name:'Cleo'});s.act('enter',{zone:'honeydew-lantern',loadout:{player_info:{level:5},inventory:[]}});s.act('gm_faith_set',{key:'orin',amount:30});s.edit(st=>{delete st.startChoiceDone;});
+  s.act('choose_start',{zone:'',key:'nyx'});assert.equal(s.c.faith.god,'orin');assert.equal(s.c.faith.piety,30);assert.match(s.c.faithNotice,/already follow Orin/);
+ }finally{s.close();}
+});
