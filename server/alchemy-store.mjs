@@ -171,10 +171,11 @@ export function validateChestLoot(c,{ingredients}){
 
 export function createAlchemyStore(db,{now=Date.now}={}){
  db.exec(`CREATE TABLE IF NOT EXISTS gm_alchemy_overrides(section TEXT NOT NULL,key TEXT NOT NULL,payload TEXT NOT NULL,updated INTEGER NOT NULL,actor TEXT NOT NULL DEFAULT '',PRIMARY KEY(section,key));`);
- const revision=()=>{const r=db.prepare('SELECT COUNT(*) AS n,COALESCE(MAX(updated),0) AS at FROM gm_alchemy_overrides').get();return `${r.n}:${r.at}`;}; // Changes whenever any override does.
+ const revisionQuery=db.prepare('SELECT COUNT(*) AS n,COALESCE(MAX(updated),0) AS at FROM gm_alchemy_overrides'),overridesQuery=db.prepare('SELECT section,key,payload FROM gm_alchemy_overrides'); // Prepared once: clientView rides in every snapshot.
+ const revision=()=>{const r=revisionQuery.get();return `${r.n}:${r.at}`;}; // Changes whenever any override does.
  const overrides=()=>{
   const out={brewing:{},chest_loot:{}};
-  for(const row of db.prepare('SELECT section,key,payload FROM gm_alchemy_overrides').all())if(out[row.section])out[row.section][row.key]=JSON.parse(row.payload);
+  for(const row of overridesQuery.all())if(out[row.section])out[row.section][row.key]=JSON.parse(row.payload);
   return out;
  };
  const context=base=>({ // What a merged table is checked against: the shipped colours, ingredient ids and lean traits.

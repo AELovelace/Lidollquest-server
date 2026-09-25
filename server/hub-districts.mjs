@@ -20,11 +20,14 @@ export const dormitoryReagents=d=>reagentFixture(d.x+d.w-1,d.y+Math.floor(d.h/2)
 export const dormitoryBeds=(d,beds=hubBeds)=>beds.map((bed,i)=>({...bed,kind:'bed',x:d.x+1+(i%3)*3,y:d.y+1+Math.floor(i/3)*3,span_w:1,span_h:1,solid:true})); // Two rows of three beds, three tiles apart so their name labels never overlap, with a free aisle between and around them.
 const clock=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'});
 const parts=time=>Object.fromEntries(clock.formatToParts(time).map(p=>[p.type,p.value]));
+const monthMemo=new Map(); // reset hour -> last month window: {edition,starts,ends}.
 export function monthlyWindow(time,hour=4){
+ const memo=monthMemo.get(hour);if(memo&&time>=memo.starts&&time<memo.ends)return {...memo}; // Skip seven slow time-zone formats: every snapshot, read and tick asks for each town's month.
  function boundary(year,month){const target=Date.UTC(year,month,1,hour);let value=target+8*3600000;for(let i=0;i<3;i++){const p=parts(value);value+=target-Date.UTC(+p.year,+p.month-1,+p.day,+p.hour);}return value;}
  const p=parts(time);let year=+p.year,month=+p.month-1;
  if(time<boundary(year,month)){month--;if(month<0){month=11;year--;}}
- return {edition:`${year}-${String(month+1).padStart(2,'0')}`,starts:boundary(year,month),ends:boundary(year,month+1)};
+ const window={edition:`${year}-${String(month+1).padStart(2,'0')}`,starts:boundary(year,month),ends:boundary(year,month+1)};
+ monthMemo.set(hour,window);return {...window}; // Callers get a copy, so nothing can edit the memo.
 } // Month boundaries stay at 04:00 Pacific across daylight-saving changes and downtime.
 const footprint=f=>Array.from({length:f.span_h??1},(_,dy)=>Array.from({length:f.span_w??1},(_,dx)=>({x:f.x+dx,y:f.y+dy}))).flat();
 export const districtBlocked=(f,x,y)=>x<0||y<0||x>=f.width||y>=f.height||f.walls[y][x]===1||f.fixtures.some(p=>p.solid!==false&&x>=p.x&&y>=p.y&&x<p.x+(p.span_w??1)&&y<p.y+(p.span_h??1));
@@ -164,14 +167,15 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
  db.exec('CREATE TABLE IF NOT EXISTS hub_district_editions(zone TEXT NOT NULL,edition TEXT NOT NULL,content TEXT NOT NULL,PRIMARY KEY(zone,edition)); CREATE TABLE IF NOT EXISTS hub_district_current(zone TEXT PRIMARY KEY,edition TEXT NOT NULL);');
  const cache=new Map();
  db.exec('CREATE TABLE IF NOT EXISTS hub_district_controls(zone TEXT PRIMARY KEY,locked INTEGER NOT NULL,pinned TEXT,month TEXT,reroll INTEGER NOT NULL)'); // GM lock / regenerate state per monthly hub map; survives restarts.
- const control=id=>db.prepare('SELECT * FROM hub_district_controls WHERE zone=?').get(id)??{zone:id,locked:0,pinned:null,month:null,reroll:0};
+ const controlQuery=db.prepare('SELECT * FROM hub_district_controls WHERE zone=?');let visitorsQuery=null; // Prepared once: windowFor runs for every town on every snapshot and tick. visitorsQuery waits for first use (standalone district tests have no presence table).
+ const control=id=>controlQuery.get(id)??{zone:id,locked:0,pinned:null,month:null,reroll:0};
  const saveControl=c=>db.prepare('INSERT INTO hub_district_controls VALUES (?,?,?,?,?) ON CONFLICT(zone) DO UPDATE SET locked=excluded.locked,pinned=excluded.pinned,month=excluded.month,reroll=excluded.reroll').run(c.zone,c.locked?1:0,c.pinned,c.month,c.reroll);
  function windowFor(id){ // Which layout this hub should show right now: a locked hub keeps its pinned layout; a GM reroll this month gets a fresh seed; otherwise the calendar month.
   const base=monthlyWindow(now(),data.reset_hour),c=control(id);
   if(c.locked&&c.pinned)return JSON.parse(c.pinned); // Monthly resets skip a locked hub.
   return c.month===base.edition&&c.reroll>0?{...base,edition:base.edition+'-r'+c.reroll}:base; // A reroll lasts until the next monthly reset.
  }
- const visitors=id=>db.prepare('SELECT x,y FROM quest_presence WHERE zone=? AND seen>?').all(id,now()-30000);
+ const visitors=id=>(visitorsQuery??=db.prepare('SELECT x,y FROM quest_presence WHERE zone=? AND seen>?')).all(id,now()-30000);
  const addCauldron=(f,def)=>{ // Editions generated before cauldrons (and Bramble) existed gain them on load, without regenerating the month.
   if(!def.dormitory)return false;
   let added=false;

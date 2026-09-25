@@ -63,7 +63,17 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   return controls&&db.prepare('SELECT edition FROM world_routes WHERE route=? AND week=?').get(route,week)?.edition||newest; // A gamemaster regeneration for that week wins over the automatic floor.
  };
  const controls=live?createDiveControls(db,{now,data,live,current,getFloor,saveFloor,saveCharacter,entry,generate,compute,generator:generatorName(generate)??'rooms',upgradeFloor:floor=>{upgradeFloor(floor);addPinkMist(floor);}}):null;
- function saveFloor(record){const content=measure('floor.encode',()=>JSON.stringify(record.floor));measure('floor.write',()=>db.prepare('UPDATE dive_editions SET content=?,updated=? WHERE route=? AND edition=? AND depth=1').run(content,record.updated,route,record.edition));}
+ let routeCharactersQuery=null;const routeCharacters={all:id=>(routeCharactersQuery??=db.prepare("SELECT * FROM quest_characters WHERE json_extract(state,'$.dive.route')=?")).all(id)}; // Same rows owns() accepts; prepared on first sweep, after zones.mjs has made the table and its index.
+ const summaryQuery=db.prepare('SELECT edition,ends,updated,length(content) AS size FROM dive_editions WHERE route=? AND edition=? AND depth=1'),summaries=new Map(); // summaries: edition -> {key,edition,ends,floor:{chests,pickups}} with only the ids a lobby summary counts.
+ function summaryRecord(){ // What current() would give a snapshot that only counts chests and pickups, without decoding (and cloning monsters into) the whole floor.
+  const edition=latest(),meta=summaryQuery.get(route,edition??null);if(!meta)return null;
+  const key=meta.updated+'|'+meta.size,known=summaries.get(meta.edition);if(known?.key===key)return known; // Any rewrite through saveFloor forgets the edition; updated+size also catches direct SQL edits.
+  const record=getFloor(meta.edition);if(!record)return null;
+  const light={key,edition:record.edition,ends:record.ends,floor:{chests:record.floor.chests.map(ch=>({id:ch.id})),pickups:record.floor.pickups?.map(ch=>({id:ch.id}))}};
+  if(!db.isTransaction)summaries.set(meta.edition,light); // Never remember a floor read inside a transaction that might still roll back.
+  return light;
+ }
+ function saveFloor(record){summaries.delete(record.edition);const content=measure('floor.encode',()=>JSON.stringify(record.floor));measure('floor.write',()=>db.prepare('UPDATE dive_editions SET content=?,updated=? WHERE route=? AND edition=? AND depth=1').run(content,record.updated,route,record.edition));}
  function progress(c,edition){const row=db.prepare('SELECT state FROM dive_progress WHERE character_id=? AND route=? AND edition=? AND depth=1').get(c.id,route,edition);return row?JSON.parse(row.state):{claimed:[],rolls:{},explored:[],completed:false,coinsPaid:0};}
  function saveProgress(c,edition,p){db.prepare('INSERT INTO dive_progress VALUES (?,?,?,1,?) ON CONFLICT(character_id,route,edition,depth) DO UPDATE SET state=excluded.state').run(c.id,route,edition,JSON.stringify(p));}
  function saveCharacter(c,state){
@@ -175,14 +185,14 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(addPinkMist(active.floor))saveFloor(active); // Install a layer on existing editions once, preserving every room, enemy lock and personal claim.
   if(zoneId===DIVE_ZONE&&((active.floor.dressingVersion??0)<(data.dressing_version??2)||(active.floor.foodVersion??0)<(data.food_version??0))&&now()>=dressingRetryAt){
    try{
-    const visitors=db.prepare('SELECT state FROM quest_characters WHERE state LIKE ?').all('%"dive":{%').map(c=>JSON.parse(c.state).dive).filter(d=>owns(d)&&d.edition===active.edition).map(d=>d.position);
+    const visitors=routeCharacters.all(route).map(c=>JSON.parse(c.state).dive).filter(d=>owns(d)&&d.edition===active.edition).map(d=>d.position);
     const upgraded=clone(active);dressFloor(data,upgraded.floor,visitors);addFood(data,upgraded.floor,visitors);saveFloor(upgraded);active=upgraded;log('dive_dressing_upgraded',active.edition);
    }catch(error){dressingRetryAt=now()+minutes;log('dive_dressing_failed',String(error));}
   } // Existing weekly chest claims and ongoing fights survive the additive scenery/pickup upgrade.
   const occupied=roamingPlayers().length>0;
   if(occupied||sweepDue()){
   let soonest=Infinity;const due=at=>{if(Number.isFinite(at)&&at<soonest)soonest=at;};
-  for(const c of db.prepare('SELECT * FROM quest_characters WHERE state LIKE ?').all('%"dive":{%')){
+  for(const c of routeCharacters.all(route)){ // Only this route's divers, straight from the quest_character_dive_route index.
    const state=JSON.parse(c.state);if(!owns(state.dive))continue;
    const old=state.dive.edition!==active.edition,record=getFloor(state.dive.edition),run=state.run,p=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
    if(state.pendingDefeat&&record&&recover(c,state,record)){saveCharacter(c,state);continue;} // Tick the durable wall-clock timer even when no gameplay command is submitted.
@@ -245,7 +255,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  }
  function tick(){if(closed||now()-lastTick<seconds)return;lastTick=now();measure('simulation.'+zoneId,()=>{db.exec('BEGIN IMMEDIATE');try{maintain();db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');lastTick=-Infinity;settledKey=null;log('dive_tick_failed',error.stack??String(error));}});} // Never await workers while holding a transaction or request identity.
  function snapshot(c,p){
-  const state=c?JSON.parse(c.state):null,record=owns(state?.dive)?getFloor(state.dive.edition):current(),personal=c&&record?progress(c,record.edition):null;
+  const state=c?JSON.parse(c.state):null,record=owns(state?.dive)?getFloor(state.dive.edition):summaryRecord(),personal=c&&record?progress(c,record.edition):null;
   const summary={enabled:config.enabled&&!!record,version:1,route,zone:zoneId,category,name,boss:bossId,edition:record?.edition??'',static:!!config.static,resetsAt:config.static?0:record?.ends??weeklyWindow(now()).ends,completed:personal?.completed??false,claimed:record?.floor.chests.filter(ch=>personal?.claimed.includes(ch.id)).length??0,total:record?.floor.chests.length??0,pickupsClaimed:(record?.floor.pickups??[]).filter(ch=>personal?.claimed.includes(ch.id)).length,pickupsTotal:record?.floor.pickups?.length??0,claimableCoins:personal?.completed?Math.max(0,config.boss_coins-personal.coinsPaid):0};
   if(!record||p?.zone!==zoneId||!owns(state?.dive))return {dive:summary};
   const f=record.floor;

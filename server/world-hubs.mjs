@@ -39,16 +39,22 @@ export function createHubEncounters(db,{now,roll,parties,live,definition,ids}){
   }
   function tick(){data.enemies=live.published().monsters;encounters.tick(()=>record());const r=record();let changed=false;
    for(const c of players()){const s=JSON.parse(c.state);if(recover(c,s))saveCharacter(c,s);}
+   const present=players(); // Once per tick, after recoveries moved anyone; engagements below update these same rows in place.
    for(const foe of r.floor.enemies){if(foe.engaged)continue;if(foe.dead){if(!foe.respawning||data.enemies[foe.type]?.retired){foe.remove=true;changed=true;continue;}if(foe.respawnAt>now())continue;foe.dead=false;foe.definition=structuredClone(data.enemies[foe.type]??foe.definition);changed=true;}
     if(!foe.roaming)continue;
-    for(const c of players().filter(c=>c.seen>now()-30000)){const s=JSON.parse(c.state);if(s.run||s.pendingDefeat||s.worldTurnDue||s.pendingPurchase||s.contentVersion!==1||s.hubSafeUntil>now()||s.loadout?.player_info.playerHealth<=0)continue;
+    for(const c of present.filter(c=>c.seen>now()-30000)){const s=JSON.parse(c.state);if(s.run||s.pendingDefeat||s.worldTurnDue||s.pendingPurchase||s.contentVersion!==1||s.hubSafeUntil>now()||s.loadout?.player_info.playerHealth<=0)continue;
      const path=pathTo(r.floor,foe,c,6);if(!path)continue;
      if(path.length<=1){try{encounters.start(c,s,r,foe);saveCharacter(c,s);}catch(e){if(!e.status)throw e;}break;}
-     const step=path[0];if(![...r.floor.enemies,...players(),...r.floor.fixtures].some(p=>p.x===step.x&&p.y===step.y)){Object.assign(foe,step);changed=true;}break;
+     const step=path[0];if(![...r.floor.enemies,...present,...r.floor.fixtures].some(p=>p.x===step.x&&p.y===step.y)){Object.assign(foe,step);changed=true;}break;
     }
    }r.floor.enemies=r.floor.enemies.filter(e=>!e.remove);if(changed)saveFloor(r);
   }
   const api={view,place,act,tick,snapshot:s=>encounters.snapshot(s),monsters:()=>record().floor.enemies.filter(e=>!e.dead).map(e=>({...e,definition:undefined,name:e.definition.name,sprite:e.definition.sprite}))};engines.set(zone,api);return api;
  }
- return {engine,tick(){for(const row of db.prepare('SELECT zone FROM world_hub_maps').all())if(ids.includes(row.zone))engine(row.zone).tick();}}; // Skip maps saved for rooms a later deployment retired, so boot never crash-loops on old DM monsters.
+ const idleUntil=new Map(); // zone -> when an empty hub gets its next catch-up tick.
+ return {engine,tick(){for(const row of db.prepare('SELECT zone FROM world_hub_maps').all()){if(!ids.includes(row.zone))continue; // Skip maps saved for rooms a later deployment retired, so boot never crash-loops on old DM monsters.
+  const occupied=!!db.prepare('SELECT 1 FROM quest_presence WHERE zone=? AND seen>? LIMIT 1').get(row.zone,now()-30000);
+  if(!occupied&&now()<(idleUntil.get(row.zone)??0))continue; // Nobody online here: rebuilding the room and its monsters every second changes nothing anyone can see.
+  if(!occupied)idleUntil.set(row.zone,now()+15000); // Empty hubs still tick every 15 s, so respawns, retired monsters and offline defeat recoveries catch up.
+  engine(row.zone).tick();}}};
 }
