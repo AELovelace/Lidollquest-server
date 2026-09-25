@@ -3,6 +3,32 @@
 import {seeded,walkable,inside} from './dive-generation.mjs';
 
 const directions=[[1,0],[-1,0],[0,1],[0,-1]],key=p=>`${p.x},${p.y}`;
+export function fullDungeonAmbientPool(data){
+ const pool=[];
+ for(const e of data.campaign.enemy_types??[]){
+  if(!e.enemy_id||!data.enemies[e.enemy_id])throw Error('Unresolved campaign enemy: '+e.name);
+  if(!Number.isSafeInteger(e.chance??1)||(e.chance??1)<0)throw Error('Invalid campaign enemy weight: '+e.name);
+  for(let n=0;n<(e.chance??1);n++)pool.push(e.enemy_id);
+ }
+ if(data.config.theme==='dungeon'&&!pool.length)throw Error('Dungeon requires an authored ambient enemy pool');
+ return pool;
+} // A missing mapping fails generation instead of selecting from the global monster catalogue.
+
+export function repairFullDungeonContent(f,data){
+ let changed=false;
+ for(const fixture of f.fixtures??[]){const npc=fixture.kind==='npc'?data.npcs[fixture.content]:null;if(npc&&fixture.sprite!==npc.sprite){fixture.sprite=npc.sprite;changed=true;}}
+ if(data.config.theme==='dungeon'){
+  const pool=fullDungeonAmbientPool(data),allowed=new Set(pool);
+  for(const foe of f.enemies){
+   if(foe.manual||foe.engaged||!(/^(enemy-|spawn-)/.test(foe.id))||allowed.has(foe.type))continue;
+   const rnd=seeded(f.route+':'+f.edition+':repair:'+foe.id);foe.type=pool[rnd(pool.length)];
+   foe.definition=structuredClone(data.enemies[foe.type]);foe.roaming=foe.definition.roaming!==false;changed=true;
+  } // Keep encounter IDs, positions, timers and claims; active fights finish before their misplaced monster is repaired.
+ }
+ if(changed)f.geometryVersion=(f.geometryVersion??0)+1; // Refresh existing clients' fixture presentation without rerolling the map.
+ return changed;
+}
+
 export function dungeonReachable(f,start=f.entrance){
  const seen=new Set(),queue=[start];
  for(let i=0;i<queue.length;i++){const p=queue[i];if(!walkable(f,p.x,p.y)||seen.has(key(p)))continue;seen.add(key(p));for(const [dx,dy] of directions)queue.push({x:p.x+dx,y:p.y+dy});}
@@ -146,8 +172,8 @@ export function generateFullDungeon(data,edition,depth=1){
  const spawn=(type,p,id,roaming=data.enemies[type]?.roaming!==false)=>{f.enemies.push({id,type,...p,spawn:{...p},roaming,engaged:null,respawnAt:0});};
  for(const boss of c.bosses){const room=f.rooms.find(r=>r.type===boss.room_type),p=bossPositions.get(boss.enemy_id);spawn(boss.enemy_id,p,'boss-'+boss.enemy_id,boss.roaming);if(data.boss_loot.length){const loot=free(room);if(loot)f.chests.push({id:'boss-loot-'+boss.enemy_id,...loot,loot_pool:data.boss_loot,requires_encounter:'boss-'+boss.enemy_id});}}
  if(c.theme==='dungeon'){const p=free(start);if(!p)throw Error('No space for guaranteed Iron Dagger');f.pickups.push({id:'guaranteed-iron-dagger',kind:'treasure',...p,item_id:'iron_dagger',sprite:data.items.iron_dagger.sprite??'sprItem'});}
- const weighted=(source.enemy_types??[]).flatMap(e=>Array(Math.max(1,e.chance??1)).fill(e.enemy_id??data.enemy_types.find(t=>t.enemy_id===e.name)?.enemy_id)).filter(Boolean);
- const fallback=weighted.length?weighted:Object.keys(data.enemies).filter(id=>!bossTypes.has(id));
+ const weighted=fullDungeonAmbientPool(data); // Never fall back to the live catalogue: it contains monsters from unrelated regions.
+ const fallback=weighted;
  for(const [i,r] of f.rooms.entries()){
   if(r===start)continue;
   const pool=(data.room_enemies[r.type]??(r.is_atrium?data.room_enemies.atrium:undefined)??(c.theme==='dungeon'?fallback:[])).filter(id=>!bossTypes.has(id));

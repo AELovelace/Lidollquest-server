@@ -26,6 +26,7 @@ import {hubArrival,routePortals,routeHome,returnSource,wildernessGates,hubRooms,
 import {routeCategory} from './zone-categories.mjs';
 import {inExit,nearExit} from './wilderness-links.mjs';
 import {createDungeonRules,recordDungeonVictories} from './full-dungeon-rules.mjs';
+import {repairFullDungeonContent} from './full-dungeon-generation.mjs';
 import {findShop,shopOffers,shopperLevel} from './hubs.mjs';
 
 export const diveData=JSON.parse(readFileSync(new URL('./dive-data.json',import.meta.url),'utf8'));
@@ -168,6 +169,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const edition=latest(),idleKey=edition+'|'+(live?.published().revision??'');
   if(idleKey===settledKey&&!sweepDue()&&!presentQuery.get(zoneId,now()-30000))return; // Idle fast path: an empty route whose floor already passed reconcile/upgrades for this edition and content skips reading and decoding the whole floor every second. Its own sweep deadline (at most 15 s) and any arriving player bring back the full pass.
   settledKey=null;let active=getFloor(edition);if(!active)return; // Same floor current() returns; only marked settled once the pass below finishes.
+  if(dungeonRules&&repairFullDungeonContent(active.floor,data))saveFloor(active); // Repair deployed NPC art and misplaced ambient spawns in place before ordinary maintenance.
   controls?.reconcile(active);
   if(upgradeFloor(active.floor))saveFloor(active); // Add a trail to an existing edition without rerolling rooms or claimed treasure.
   if(addPinkMist(active.floor))saveFloor(active); // Install a layer on existing editions once, preserving every room, enemy lock and personal claim.
@@ -399,5 +401,6 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(zoneId,position.x,position.y,now(),c.id);
   reveal(c,state,f,position.x,position.y); // Personal fog and claims for this edition are reused, never reset.
  }
- return {category,tick,snapshot,handles,act,chatArea,arrive,gmPlace,parentZone:config.parent_zone??null,controls,floor:()=>current()?.floor??null,prepare:ensure,close(){closed=true;controls?.close();},available:()=>Boolean(config.enabled&&enabledQuery.get(route)),encounterSnapshot:state=>encounters.snapshot(state)};
+ const parentZone=config.parent_zone??config.endpoints?.find(e=>e.zone.startsWith('dive-'))?.zone??null; // GM visits may follow a declared wilderness endpoint (Caldera -> Tundra) when no parent override exists; normal Escape still uses config.parent_zone.
+ return {category,tick,snapshot,handles,act,chatArea,arrive,gmPlace,parentZone,controls,floor:()=>current()?.floor??null,prepare:ensure,close(){closed=true;controls?.close();},available:()=>Boolean(config.enabled&&enabledQuery.get(route)),encounterSnapshot:state=>encounters.snapshot(state)};
 } // All mutations run inside the zone command transaction; scheduled simulation owns its own transaction.

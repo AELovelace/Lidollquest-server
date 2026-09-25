@@ -32,6 +32,43 @@ test('Castle stairs traverse the full Dungeon to Arcadia; opposite entrances and
  }finally{f.close();}
 });
 
+test('live Dungeon upgrades repair Testicles and misplaced Hypnotists, preserve progress, and leave ordinary enemies attackable',()=>{
+ const f=fixture();try{
+  f.create('a','princess-rose');f.place('a',f.map().portals.find(p=>p.target==='princess-rose-garden'));f.act('a','hub_visit',{zone:'princess-rose-garden'});
+  f.place('a',f.map().portals.find(p=>p.target==='dive-castle-dungeon'));f.act('a','dive_enter',{zone:'dive-castle-dungeon'});
+  const visit=f.snap().character.dive,query=f.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=? AND depth=1'),read=()=>JSON.parse(query.get(visit.route,visit.edition).content);
+  const floor=read(),enemy=floor.enemies.find(e=>e.id.startsWith('enemy-'));
+  assert.ok(floor.enemies.every(e=>!e.type.startsWith('hypnotist')),'live generation stays in the campaign pool');
+  floor.fixtures.find(n=>n.content==='objFriendlyTest').sprite='sprFriendly';enemy.type='hypnotist_master';enemy.definition=structuredClone(f.live.published().monsters.hypnotist_master);
+  f.db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=? AND depth=1').run(JSON.stringify(floor),visit.route,visit.edition);
+  const progress=f.db.prepare('SELECT * FROM dive_progress WHERE character_id=?').all(f.ids.a);f.restart();f.snap();
+  const repaired=read();assert.equal(repaired.fixtures.find(n=>n.content==='objFriendlyTest').sprite,'sprNPCHalfwayHero');assert.ok(repaired.enemies.every(e=>!e.type.startsWith('hypnotist')));
+  assert.deepEqual(repaired.walls,floor.walls);assert.deepEqual(repaired.chests,floor.chests);assert.deepEqual(f.db.prepare('SELECT * FROM dive_progress WHERE character_id=?').all(f.ids.a),progress);
+  const foe=repaired.enemies.find(e=>e.id===enemy.id),neighbor=[[1,0],[-1,0],[0,1],[0,-1]].map(([dx,dy])=>({x:foe.x+dx,y:foe.y+dy})).find(p=>repaired.walls[p.y]?.[p.x]===0&&!repaired.props[p.y][p.x]);assert.ok(neighbor);
+  f.place('a',neighbor);let result=f.act('a','dive_engage',{encounter:foe.id});assert.ok(result.encounter);
+  const battle=result.encounter.id,cycle=result.encounter.players.find(p=>p.id===f.ids.a).cycle; // Match the client's shared-combat receipt, including its action cycle.
+  f.advance(5000);result=f.act('a','turn_ready',{battle,cycle,forfeit:false,patch:[]});const target=result.encounter.enemies.find(e=>e.id===foe.id),hp=target.hp;
+  result=f.act('a','attack',{battle,cycle,target:foe.id});assert.ok(!result.encounter||result.encounter.enemies.find(e=>e.id===foe.id).hp<hp,'a normal attack damages the repaired encounter');
+ }finally{f.close();}
+});
+
+test('publishing live content and respawning keep full dungeon room populations and boss behavior intact',()=>{
+ const f=fixture();try{
+  f.create('a','princess-rose');
+  const before=fullDungeons.map(data=>f.api.world.map(data.config.zone_id));
+  const roster=floor=>floor.enemies.map(e=>({id:e.id,type:e.type,roaming:e.roaming}));
+  for(const map of before){
+   const floor=structuredClone(map.floor);
+   for(const foe of floor.enemies){foe.dead=true;foe.diedAt=1;foe.respawnAt=2;} // Expired bosses and ordinary enemies both exercise live reconciliation.
+   f.db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=? AND depth=1').run(JSON.stringify(floor),floor.route,map.edition);
+  }
+  const entry=f.live.entry('monster','hypnotist_master');
+  f.live.change({action:'content_publish',kind:'monster',id:'hypnotist_master',revision:entry.revision,entry:entry.draft},'dm');
+  f.restart();f.api.tick();
+  for(const old of before){const after=f.api.world.map(old.id);assert.deepEqual(roster(after.floor),roster(old.floor),old.id);assert.ok(after.floor.enemies.every(e=>!e.dead));assert.deepEqual(after.floor.walls,old.floor.walls);}
+ }finally{f.close();}
+});
+
 test('named Utopia and LittleBig entrances require the new capability and return beside their own doors',()=>{
  const f=fixture();try{
   for(const data of fullDungeons.filter(d=>d.config.theme!=='dungeon')){
