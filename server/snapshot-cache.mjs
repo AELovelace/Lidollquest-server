@@ -19,11 +19,21 @@ export function parseKnown(value){ // `known` query value -> Set of keys, or nul
  return new Set(keys.slice(0,MAX_KNOWN)); // Malformed or excess entries are ignored; they only cost a full resend.
 }
 
+const walks=f=>f?.kind==='npc'&&f.roaming===true; // Hub residents that stroll on the world tick (district-residents.mjs moveDistrictResidents).
+export function splitLive(zone){ // {stable, live}: the room without its strolling residents' positions, and those positions on their own.
+ const fixtures=Array.isArray(zone.fixtures)?zone.fixtures:[];
+ const moving=fixtures.map((f,i)=>walks(f)?i:-1).filter(i=>i>=0); // Fixture indexes whose x/y/facing change every few seconds.
+ if(!moving.length&&zone.residentTickAt===undefined)return {stable:zone,live:null}; // Most rooms have nothing that walks.
+ const {residentTickAt,...rest}=zone;
+ const stable={...rest,fixtures:fixtures.map(f=>{if(!walks(f))return f;const {x,y,facing,...still}=f;return still;})}; // Same room minus what the resident tick rewrites.
+ return {stable,live:{residentTickAt:residentTickAt??null,moves:moving.map(i=>[i,fixtures[i].x,fixtures[i].y,fixtures[i].facing??0])}}; // [fixture index, x, y, facing]
+}
+
 export function elide(result,known){ // Mutates a freshly built snapshot for an opted-in client and returns it.
  if(!known||!result||typeof result!=='object')return result;
  if(Array.isArray(result.zones))result.zones=result.zones.map(zone=>{
-  const key=cacheKey(zone);
-  return known.has(key)?{id:zone.id,cacheKey:key,cached:true}:{...zone,cacheKey:key}; // Stub keeps the id so lookups by id never break; full entries carry their key so the client can store them.
+  const {stable,live}=splitLive(zone),key=cacheKey(stable); // A resident's step must not change the key of a ~100 KB room.
+  return known.has(key)?{id:zone.id,cacheKey:key,cached:true,...(live?{live}:{})}:{...zone,cacheKey:key}; // Stub keeps the id so lookups by id never break, plus current resident positions; full entries carry their key so the client can store them.
  });
  const keys={};
  for(const name of CACHED_SECTIONS){
