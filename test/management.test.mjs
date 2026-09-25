@@ -94,7 +94,7 @@ test('cloud labels and deletion preserve monotonic revisions, pause cleared hist
  }finally{f.db.close();}
 });
 test('HTTP management requires save consent and star consent for purchases, rejects browser origins and wrong verbs',async()=>{
- const token='a'.repeat(43);let scope='wallet:read wallet:write saves:write';const service=createQuestService({walletClient:{authenticate:async()=>({owner:'owner',id:'grant',client:'lidollquest',coins:50,scope})},log:()=>{}});
+ const token='a'.repeat(43);let scope='wallet:read wallet:write saves:write';const service=createQuestService({authTtlMs:0,walletClient:{authenticate:async()=>({owner:'owner',id:'grant',client:'lidollquest',coins:50,scope})},log:()=>{}});
  await new Promise(resolve=>service.server.listen(0,'127.0.0.1',resolve));const url='http://127.0.0.1:'+service.server.address().port;
  const post=(route,input,headers={})=>fetch(url+route,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',...headers},body:JSON.stringify(input)});
  try{

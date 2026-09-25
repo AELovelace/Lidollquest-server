@@ -47,7 +47,7 @@ test('disabled join feed exposes no player information',async()=>{
 
 test('a resumed session reads as a return while a fresh sign-in or an explicit leave reads as a join',async()=>{
  let now=1000000,grantId='grant-a';
- const service=createQuestService({onlineToken,now:()=>now,walletClient:{authenticate:async secret=>{
+ const service=createQuestService({authTtlMs:0,onlineToken,now:()=>now,walletClient:{authenticate:async secret=>{
   if(secret!==token)throw Object.assign(Error('No account'),{status:401});
   return {owner,id:grantId,client:'lidollquest',coins:0};
  }}});

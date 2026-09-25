@@ -1102,6 +1102,22 @@ timeout. Crashed workers are replaced on demand. Shutdown cancels pending work
 before closing the database. Do not run duplicate service instances against
 one SQLite database for scaling.
 
+Gameplay logins are remembered for `QUEST_AUTH_CACHE_MS` (default 30000 ms;
+`0` disables) in `server/auth-cache.mjs`, so steps and polls no longer each wait
+on a tracker round-trip. Only a fresh tracker answer updates `wallet_cache`
+coins; suspensions are still checked per request; failed logins and any tracker
+401 drop the entry; `/gm` authenticates every request. A reconnect or new scope
+always arrives as a new token. `account.authenticate` in `/gm` now mostly shows
+cache hits. Covered by `test/auth-cache.test.mjs`.
+
+Empty routes idle cheaply: once a route has finished a full pass (reconcile,
+floor upgrades, sweep) for its current edition and published content, later
+ticks with nobody present skip reading and decoding the floor until its own
+sweep deadline (at most 15 s), a new edition/content revision, or an arriving
+player. Before this, every route decoded its whole floor every second, which
+showed as `world.timer` ~120 ms and ~40 `simulation.<zone>` rows per minute with
+one player online. Covered by `test/idle-routes.test.mjs`.
+
 HTTP actions now build one snapshot after purchase settlement; HTTP reads build
 one snapshot as well. Availability checks no longer decode every dungeon floor.
 Snapshot assembly, combat, monthly districts and database writes remain on the

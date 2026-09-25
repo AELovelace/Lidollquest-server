@@ -83,7 +83,7 @@ test('changed retry payloads, unowned characters and malformed strips are reject
 });
 
 test('HTTP generation requires diamond consent before any billing and preserves native method/origin checks',async()=>{
- let scope='wallet:read saves:read saves:write',charges=0;const service=createQuestService({spriteProvider:async()=>{throw Error('Fixture failure');},walletClient:{authenticate:async()=>({owner:'owner',id:'grant',client:'lidollquest',coins:50,scope}),diamonds:async(_token,body)=>{if(body.kind==='debit')charges++;return {balance:10};}},log:()=>{}});
+ let scope='wallet:read saves:read saves:write',charges=0;const service=createQuestService({authTtlMs:0,spriteProvider:async()=>{throw Error('Fixture failure');},walletClient:{authenticate:async()=>({owner:'owner',id:'grant',client:'lidollquest',coins:50,scope}),diamonds:async(_token,body)=>{if(body.kind==='debit')charges++;return {balance:10};}},log:()=>{}});
  await new Promise(resolve=>service.server.listen(0,'127.0.0.1',resolve));const url='http://127.0.0.1:'+service.server.address().port,headers={Authorization:'Bearer '+'a'.repeat(43),'Content-Type':'application/json'};
  const input={action:'generate',character_id:'',request_id:'http-generation',prompt:'A violet knight with a silver cape'};
  const post=extra=>fetch(url+'/sprites/action',{method:'POST',headers:{...headers,...extra},body:JSON.stringify(input)});
