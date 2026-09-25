@@ -224,12 +224,10 @@ export function createLootStore(db,{now=Date.now}={}){
 
  // A cheap fingerprint of every override, so the roller can cache itself and rebuild
  // only when a gamemaster has actually changed something.
- const revision=()=>{
-  const t=db.prepare('SELECT COUNT(*) AS n,COALESCE(MAX(updated),0) AS at FROM gm_loot_tuning').get();
-  const a=db.prepare('SELECT COUNT(*) AS n,COALESCE(MAX(updated),0) AS at FROM gm_loot_affixes').get();
-  const b=db.prepare('SELECT COUNT(*) AS n,COALESCE(MAX(updated),0) AS at FROM gm_loot_bases').get();
-  return `${t.n}:${t.at}:${a.n}:${a.at}:${b.n}:${b.at}`;
- };
+ const revisionQuery=db.prepare(`SELECT (SELECT COUNT(*) FROM gm_loot_tuning) AS tn,(SELECT COALESCE(MAX(updated),0) FROM gm_loot_tuning) AS ta,
+  (SELECT COUNT(*) FROM gm_loot_affixes) AS an,(SELECT COALESCE(MAX(updated),0) FROM gm_loot_affixes) AS aa,
+  (SELECT COUNT(*) FROM gm_loot_bases) AS bn,(SELECT COALESCE(MAX(updated),0) FROM gm_loot_bases) AS ba`); // Prepared once, one round trip: every snapshot asks for this about eight times through currentTuning().
+ const revision=()=>{const r=revisionQuery.get();return `${r.tn}:${r.ta}:${r.an}:${r.aa}:${r.bn}:${r.ba}`;}; // Same fingerprint string as before, so /gm panel revisions still compare equal.
 
  const tuningRows=()=>Object.fromEntries(db.prepare('SELECT key,value FROM gm_loot_tuning').all().map(r=>[r.key,JSON.parse(r.value)]));
  const affixRows=()=>db.prepare('SELECT * FROM gm_loot_affixes').all();

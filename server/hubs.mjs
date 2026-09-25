@@ -120,9 +120,18 @@ export const LOBBY_EXIT=Object.freeze({x:1,y:10,style:'stairs'}); // Bottom-left
 export const hubBlocked=(z,x,y)=>z.fixtures?.some(f=>f.solid!==false&&x>=f.x&&y>=f.y&&x<f.x+(f.span_w??1)&&y<f.y+(f.span_h??1))??false;
 import {stackable,slotsUsed,addToInventory} from './loadout.mjs'; // Stack-aware capacity and purchases.
 export const shopperLevel=state=>Math.max(1,Math.floor(Number(state?.loadout?.player_info?.level)||1)); // The level hub stock is rolled at for this character (clamped per hub by shopLevel).
-export function shopOffers(zone,shop,time,level=1){ // `level`: the shopper's level; the item picks are shared per day, only their rolled level differs per shopper.
- const day=Math.floor(time/86400000),rnd=seeded(`${zone}:${shop.id}:${day}`),pool=[...shop.pool],offers=[];
- const roller=shopRoller(),hub=hubRooms.find(r=>r.id===zone)?.parent??zone; // Once per shelf, not per slot: shopRoller() asks SQLite for the loot revision (3 queries) every call. Annex shops use their parent hub's level band.
+const offerMemo={roller:null,rows:new Map()}; // roller: the loot roller the rows were rolled with. rows: "zone|shop|day|level" -> that shelf's offers.
+const deepFreeze=v=>{if(v&&typeof v==='object'&&!Object.isFrozen(v)){Object.freeze(v);for(const k of Object.keys(v))deepFreeze(v[k]);}return v;}; // Remembered shelves are shared by snapshots, so any accidental edit throws instead of changing everyone's stock.
+export function shopOffers(zone,shop,time,level=1,{copy=true}={}){ // `level`: the shopper's level; the item picks are shared per day, only their rolled level differs per shopper. copy:false hands back the shared read-only shelf (snapshots only serialize it).
+ const day=Math.floor(time/86400000),roller=shopRoller(),key=`${zone}|${shop.id}|${day}|${level}`; // Once per shelf, not per slot: shopRoller() asks SQLite for the loot revision every call.
+ if(offerMemo.roller!==roller){offerMemo.roller=roller;offerMemo.rows.clear();} // A /gm loot change builds a new roller, so every remembered shelf re-rolls.
+ let known=offerMemo.rows.get(key); // Stock is deterministic per shelf, day, level and loot revision.
+ if(!known){if(offerMemo.rows.size>=512)offerMemo.rows.clear();known=deepFreeze(rollOffers(zone,shop,day,level,roller));offerMemo.rows.set(key,known);} // The bound keeps a long-running server from remembering every past day.
+ return copy?structuredClone(known):known; // Purchases and tools get a copy they may edit; copying 16 items cost more than rolling them.
+}
+function rollOffers(zone,shop,day,level,roller){ // The actual daily roll behind shopOffers.
+ const rnd=seeded(`${zone}:${shop.id}:${day}`),pool=[...shop.pool],offers=[];
+ const hub=hubRooms.find(r=>r.id===zone)?.parent??zone; // Annex shops use their parent hub's level band.
  // Always stocked: a meal at the general merchant and apothecary, arrows wherever arrows are sold (Grog's bows need them).
  const guaranteed=['adult_food','arrows'].filter(id=>pool.includes(id));for(const id of guaranteed)pool.splice(pool.indexOf(id),1);
  const shelf=Number.isInteger(shop.stock_size)&&shop.stock_size>=1&&shop.stock_size<=24?shop.stock_size:c.stock_size; // a merchant's own shelf size (Bramble keeps a small rotating one), else the hub's
@@ -134,7 +143,7 @@ export function shopOffers(zone,shop,time,level=1){ // `level`: the shopper's le
   offers.push({id:`${day}-${slot}`,price,item});
  }return offers;
 } // Stock is deterministic and inexhaustible; the same eight items greet everyone that day, scaled to each shopper.
-export function hubDefinition(z,time,level=1,{offers=true}={}){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??LOBBY_EXIT,restTickMs:c.rest_tick_ms,portals:[...(z.fullDungeonPortals??[]),...(z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z))],fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:offers?shopOffers(z.id,findShop(f.id),time,level):[]}:f)};} // offers:false skips rolling every shelf for callers that only need walls, portals, spawns or NPCs (rolling a whole town's stock cost most of a snapshot). // Monthly full-dungeon connectors coexist with every existing hall and wilderness route.
+export function hubDefinition(z,time,level=1,{offers=true,shared=false}={}){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:z.exit??LOBBY_EXIT,restTickMs:c.rest_tick_ms,portals:[...(z.fullDungeonPortals??[]),...(z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z))],fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:offers?shopOffers(z.id,findShop(f.id),time,level,{copy:!shared}):[]}:f)};} // shared:true lends the read-only remembered shelves (snapshots). offers:false skips rolling every shelf for callers that only need walls, portals, spawns or NPCs (rolling a whole town's stock cost most of a snapshot). // Monthly full-dungeon connectors coexist with every existing hall and wilderness route.
 export const besideFixture=(f,p)=>{const dx=p.x<f.x?f.x-p.x:Math.max(0,p.x-(f.x+(f.span_w??1)-1)),dy=p.y<f.y?f.y-p.y:Math.max(0,p.y-(f.y+(f.span_h??1)-1));return dx+dy<=1;}; // Beside any tile of a fixture's footprint (a 2-wide altar, a 1x2 cubicle).
 export function nearbyFixture(z,p,id,kind){const f=z.fixtures?.find(f=>f.id===id&&f.kind===kind);if(!f||!besideFixture(f,p))fail('Stand next to that '+kind+'.');return f;}
 
