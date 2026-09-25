@@ -6,12 +6,13 @@
 import {gmZones} from './gm.mjs';
 import {hubDefinition,hubGaps,inHubGap,hubCatalog,hubRooms,routePortals,routeHome,wildernessGates} from './hubs.mjs';
 import {currentTuning} from './combat.mjs';
+import {GODS,FAITH_SETTINGS,dedicate,combatFaith} from './faith.mjs'; // gm_faith_set
 
 const ONLINE_WINDOW=30000; // Matches the presence freshness window every other module uses.
 const HUB_SPAWN={x:10,y:9}; // hubDefinition() falls back to this tile when a room declares no spawn.
 const zoneInfo=new Map(gmZones.map(z=>[z.id,z])); // One shared catalogue with the web panel: names, kinds and which rooms may be warped into.
 const fail=(status,message,code='gm_tool_rejected')=>{throw Object.assign(Error(message),{status,code});}; // Never 401/403: the client treats those as a lost sign-in.
-export const GM_ACTIONS=Object.freeze(['gm_catalog','gm_warp_zone','gm_warp_player','gm_summon','gm_zone_reload','gm_quest_start','gm_quest_advance','gm_quest_complete','gm_quest_reset','gm_chat_delete','gm_chat_clear','gm_combat_tune','gm_announce','gm_announce_end']);
+export const GM_ACTIONS=Object.freeze(['gm_catalog','gm_warp_zone','gm_warp_player','gm_summon','gm_zone_reload','gm_quest_start','gm_quest_advance','gm_quest_complete','gm_quest_reset','gm_chat_delete','gm_chat_clear','gm_combat_tune','gm_announce','gm_announce_end','gm_faith_set']);
 export const COMBAT_KEYS=Object.freeze(['row_swap_costs_turn','row_back_damage_taken','row_back_melee_dealt','row_front_target_weight','reach_damage_mult','move_delay_ms','crawl_move_delay_ms','daily_coin_cap','diamond_roll_floor']); // What the in-game Combat page may retune; bounds come from loot-store.mjs. // Every command the in-game panel can send.
 
 export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new Map(),quests=null,live=null,audit=()=>{},loot=null,announcements=null}={}){
@@ -97,6 +98,18 @@ export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new 
    let values;try{values=loot.tune({[key]:input.value},i.owner);}catch(e){fail(400,e.message,'gm_unknown_setting');}
    audit(i.owner,'loot_tune','combat',{keys:[key],value:values[key],reason:'in-game'});
    state.hubNotice='[GM] '+key.replace(/_/g,' ')+' is now '+values[key]+'.';state.hubNoticeAt=now();
+   return;
+  }
+  if(action==='gm_faith_set'){ // Testing the gods: swear yourself to key (a god id, or 'none') and set your piety to amount (0..piety_max).
+   const god=String(input.key??'');
+   if(god==='none'){delete state.faith;state.hubNotice='[GM] You now follow no god.';state.hubNoticeAt=now();return;}
+   if(!GODS[god])fail(400,'Choose orthain, sula, nyx, sable, orin or none.','gm_unknown_setting');
+   if(state.faith?.god!==god)dedicate(state,god,now());
+   const piety=Math.round(Number(input.amount??state.faith.piety));if(!Number.isFinite(piety))fail(400,'Piety must be a number.','gm_unknown_setting');
+   state.faith.piety=Math.max(0,Math.min(FAITH_SETTINGS.piety_max,piety));
+   if(state.loadout)state.loadout.faith=combatFaith(state); // The blessing applies at once, even before the next step.
+   audit(i.owner,'faith_set',c.id,{god,piety:state.faith.piety,reason:'in-game'});
+   state.hubNotice='[GM] You follow '+GODS[god].name+' with '+state.faith.piety+' piety.';state.hubNoticeAt=now();
    return;
   }
   if(action==='gm_announce'){ // "/announce text" from chat or the GM tools: a banner in front of every online player, signed with this GM's character name.

@@ -17,6 +17,7 @@ export function validateQuestContent(kind,v,{assetRef,spells,equipment}){
   out.quests=list(v.quests??[],32).map(id);out.dialogue=unique(list(v.dialogue??[]).map((p,i)=>({id:id(p.id??'page_'+i),text:text(p.text??''),next:p.next??'close',actions:list(p.actions??[],8).map(a=>({label:text(a.label??'',160),next:a.next??'close',effect:choose(a.effect??'none',['none','offer','turn_in','branch']),...(a.quest?{quest:id(a.quest)}:{}),...(a.branch?{branch:id(a.branch)}:{}),conditions:validateConditions(a.conditions)}))})));
   const names=new Set(out.dialogue.map(p=>p.id));for(const p of out.dialogue)for(const link of [p,...p.actions]){if(Number.isInteger(link.next))link.next=out.dialogue[link.next]?.id;if(link.next!=='close'&&!names.has(link.next))fail('Dialogue points to an unknown page.');if(link.effect&&link.effect!=='none'&&!link.quest)fail('Choose a quest for this dialogue action.');}
  }else{
+  if(v.offer_line!==undefined)out.offer_line=text(v.offer_line);if(v.complete_line!==undefined)out.complete_line=text(v.complete_line); // Preserve authored side-quest offer and outcome dialogue in pinned definitions.
   out.prerequisites=list(v.prerequisites??[],32).map(id);out.conditions=validateConditions(v.conditions);
   out.failure_text=text(v.failure_text??'This quest could not be completed.');
   out.repeat=choose(v.repeat??'once',['once','daily','weekly','cooldown']);out.cooldown_seconds=num(v.cooldown_seconds??86400,1,31536000);
@@ -28,6 +29,7 @@ export function validateQuestContent(kind,v,{assetRef,spells,equipment}){
   function walk(key){if(key==='complete'||key==='failed')return;if(!names.has(key))fail('Stage destination does not exist.');if(active.has(key))fail('Quest stages cannot form a cycle.');if(visited.has(key))return;active.add(key);const s=out.stages.find(v=>v.id===key);for(const next of s.branches.length?s.branches.map(b=>b.to):[s.next])walk(next);active.delete(key);visited.add(key);}
   if(out.stages.length){walk(out.stages[0].id);if(visited.size!==names.size)fail('Every stage must be reachable.');}
   const r=v.rewards??{};out.rewards={xp:num(r.xp??0),coins:num(r.coins??0),rpp:num(r.rpp??0),items:list(r.items??[],32).map(i=>({id:id(i.id),count:num(i.count??1,1,100)})),spells:list(r.spells??[],32).map(id),stats:{},equipment:list(r.equipment??[],16).map(id)};
+  if(r.dignity!==undefined)out.rewards.dignity=num(r.dignity,-1024,1024); // Signed campaign quest Dignity rewards, applied by the server once.
   for(const [key,value] of Object.entries(r.stats??{})){choose(key,questStats);out.rewards.stats[key]=num(value,-200,200);}
   for(const item of [...out.rewards.items.map(i=>i.id),...out.rewards.equipment])if(!Object.hasOwn(equipment,item))fail('Choose existing equipment or items.');
   for(const spell of out.rewards.spells)if(!Object.hasOwn(spells,spell))fail('Choose existing spells.');

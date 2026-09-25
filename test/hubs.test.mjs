@@ -5,7 +5,7 @@ import {randomUUID} from 'node:crypto';
 import {mkdtempSync,mkdirSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {createQuestZones,questZones} from '../server/zones.mjs';
-import {hubRooms,hubData} from '../server/hubs.mjs';
+import {hubRooms,hubData,hubArrival,hubCatalog} from '../server/hubs.mjs';
 import {diveData} from '../server/dive.mjs';
 import {generateFloor,addFood,validateFloor} from '../server/dive-generation.mjs';
 import {createQuestService} from '../server/service.mjs';
@@ -22,10 +22,11 @@ test('every lobby connects to its shared annexes with 50x50 districts, six beds 
    const initial=act('enter',{zone:lobby.id,loadout:{player_info:{playerHealth:20},inventory:[{item_id:'adult_food'}]}});
    const size=[lobby.width??20,lobby.height??12];
    for(const portal of initial.zones.find(z=>z.id===lobby.id).portals){
+    if(portal.fullDungeon){place(portal.x,portal.y+1);assert.throws(()=>act('dive_enter',{zone:portal.target}),/Update the game/);continue;} // This legacy-client regression keeps its old routes; full-dungeon travel has dedicated capability-aware coverage.
     if(portal.target.startsWith('dive-')){ // Rose Court's garden wall opens straight onto the Tundra where its Beds door used to be.
      const step=beside(portal,...size);place(step.x,step.y);const crossed=act('move',{direction:step.direction,world_step:true});
      assert.equal(crossed.zone,portal.target);assert.equal(c.loadout.inventory.length,1);assert.equal(c.dive.returnZone,lobby.id);
-     const home=act('dive_exit');assert.equal(home.zone,lobby.id);assert.deepEqual(home.position,portal.side==='top'?{x:portal.x,y:portal.y+1}:{x:portal.side==='left'?portal.x+1:portal.x-1,y:portal.y+1}); // Back one tile inside the same lobby-wall gate (Rose: right wall; Honeydew: both side walls and the north wall).
+     const home=act('dive_exit');assert.equal(home.zone,lobby.id);assert.deepEqual(home.position,portal.side==='top'?{x:portal.x,y:portal.y+1}:portal.side==='bottom'?{x:portal.x,y:portal.y-1}:{x:portal.side==='left'?portal.x+1:portal.x-1,y:portal.y+1}); // Back one tile inside the same lobby-wall gate (Rose: right wall; Honeydew: both side walls, the north wall and the south wall).
      continue;
     }
     assert.throws(()=>act('hub_visit',{zone:portal.target}),/Stand next/);
@@ -61,18 +62,20 @@ test('every lobby connects to its shared annexes with 50x50 districts, six beds 
      for(const merchant of definition.fixtures.filter(f=>f.kind==='shop')){assert.ok(merchant.offers.length);assert.ok(merchant.offers.every(o=>Number.isSafeInteger(o.price)&&o.price>0));}
     }
     if(definition.kind==='dives'&&lobby.id==='honeydew-lantern'){assert.equal(portal.style,'door');assert.deepEqual(definition.exit,{x:10,y:18,style:'door'});assert.deepEqual(definition.portals.map(p=>[p.target,p.style,p.x,p.y]),[['dive-nursery','warp',2,4],['dive-school','warp',5,4],['dive-forest','warp',8,4]]);} // The Community Hall: three pads in the old companion room (top-left), no side gaps.
+    else if(definition.kind==='dives'&&lobby.id==='arcadia-foundry'){assert.equal(portal.style,'door');assert.deepEqual(definition.exit,{x:0,y:6,w:1,h:2,style:'gap',side:'left'});assert.deepEqual(definition.portals,[]);} // The Rail Depot: no pads until Arcadia has its own dungeon.
+    else if(definition.kind==='dives'&&lobby.id==='utopia-arcanum'){assert.equal(portal.style,'door');assert.deepEqual(definition.exit,{x:0,y:6,w:1,h:2,style:'gap',side:'left'});assert.deepEqual(definition.portals.map(p=>p.target),['dive-nursery','dive-school']);} // The Artificer's Workshop: two pads on its right, out through the left wall.
     else if(definition.kind==='dives'){assert.equal(portal.style,lobby.id==='littlebig-clockwork'?'door':'gap');if(portal.style==='gap')assert.equal(portal.side,'top');assert.deepEqual(definition.exit,{x:9,y:11,w:2,h:1,style:'gap',side:'bottom'});assert.equal(definition.portals.length,{'littlebig-clockwork':2,'princess-rose':2}[lobby.id]);assert.ok(definition.portals.every(p=>p.style==='warp'),'no hall keeps a side gap any more');} // West-to-east: Rose | Tundra | Lantern | Desert | LittleBig; Rose's Tundra gap is in its garden wall, not its hall.
     const committed=structuredClone(c.loadout);const reconnect=act('enter',{zone:lobby.id,loadout:{player_info:{},inventory:[]}});
     assert.equal(reconnect.zone,portal.target);assert.deepEqual(c.loadout,committed);
     if(definition.exit.style==='gap'){
      const e=beside(definition.exit,definition.width,definition.height);place(e.x,e.y);
      const returned=act('move',{direction:e.direction,world_step:true});
-     assert.equal(returned.zone,lobby.id);assert.deepEqual(returned.position,(lobby.id==='princess-rose'?{garden:{x:1,y:13},dives:{x:9,y:1}}:{beds:{x:28,y:29},dives:{x:33,y:29}})[definition.kind]); /* Arrive one tile inside the matching lobby opening, or below the plaza doorstep. */assert.equal(returned.character.worldTurnDue,undefined);
+     assert.equal(returned.zone,lobby.id);if(definition.kind==='temple'||['utopia-arcanum','arcadia-foundry'].includes(lobby.id))assert.equal(Math.abs(returned.position.x-portal.x)+Math.abs(returned.position.y-portal.y),1,'back out right beside the doorstep'); /* Temples and the two newest towns: the live month decides which side of the mat. */else assert.deepEqual(returned.position,(lobby.id==='princess-rose'?{garden:{x:1,y:13},dives:{x:9,y:1}}:lobby.id==='utopia-arcanum'||lobby.id==='arcadia-foundry'?{beds:{x:34,y:32},dives:{x:26,y:32},tower:{x:30,y:29}}:{beds:{x:28,y:29},dives:{x:33,y:29}})[definition.kind]); /* Arrive one tile inside the matching lobby opening, or below the plaza doorstep. */assert.equal(returned.character.worldTurnDue,undefined);
     }else if(definition.exit.style==='door'){place(definition.exit.x,definition.exit.y-1);const returned=act('move',{direction:'south',world_step:true});assert.equal(returned.zone,lobby.id);assert.equal(Math.abs(returned.position.x-portal.x)+Math.abs(returned.position.y-portal.y),1,'back outside beside the doorstep');assert.equal(returned.character.worldTurnDue,undefined);} /* Walking onto a village room's or store's door tile steps back outside next to its doorstep. */
     else {place(10,9);assert.equal(act('hub_visit',{zone:lobby.id}).zone,lobby.id);}
    }
   }
-  assert.equal(hubRooms.length,15); // Rose: Castle, market, hall. Honeydew: Inn and Community Hall. LittleBigCity: Inn, Coliseum and eight stores (both towns are their own garden and market).
+  assert.equal(hubRooms.length,25); // Four town temples (Orin, Nyx, Sula, Orthain); Sable's is inside The Castle. Utopia: Nap Pods, Artificer's Workshop and Arcanum Tower. Arcadia: Boarding House, Rail Depot and Clockmakers' Guildhall. Rose: Castle, market, hall. Honeydew: Inn and Community Hall. LittleBigCity: Inn, Coliseum and eight stores (both towns are their own garden and market).
  }finally{db.close();}
 });
 

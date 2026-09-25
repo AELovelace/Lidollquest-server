@@ -49,7 +49,7 @@ test('north trail upgrades existing Tundra editions without rerolling content, l
  }
  const f=fixture({upgrade:false});try{
   f.player('alice');f.act('alice','dive_enter',{zone:TUNDRA_ZONE});const chest=f.snap('alice').dive.chests[0];f.place('alice',chest);f.act('alice','dive_claim',{chest:chest.id});
-  const old=f.floor('alice');assert.equal(old.exits.length,2);f.restart(true);const upgraded=f.floor('alice');assert.equal(upgraded.exits.length,3);assert.ok(upgraded.exits.every(e=>e.style==='gap'));assert.equal(upgraded.geometryVersion,2); // Trail, then wall gaps.assert.equal(f.snap('alice').dive.claimed,1);
+  const old=f.floor('alice');assert.equal(old.exits.length,2);f.restart(true);const upgraded=f.floor('alice');assert.equal(upgraded.exits.length,4);assert.ok(upgraded.exits.every(e=>e.style==='gap'));assert.equal(upgraded.geometryVersion,3);assert.equal(f.snap('alice').dive.claimed,1); // Taiga trail, Emberfall Caldera trail, then wall gaps; the claim survives.
   f.cross('alice');assert.equal(f.snap('alice').zone,TAIGA_ZONE);
  }finally{f.db.close();}
 });
@@ -57,7 +57,7 @@ test('north trail upgrades existing Tundra editions without rerolling content, l
 test('Taiga requires the north Tundra trail; transfers, replay, reconnect and loot stay route scoped',()=>{
  const f=fixture();try{
   f.player('alice');assert.throws(()=>f.act('alice','dive_enter',{zone:TAIGA_ZONE}),/portal/);
-  assert.ok(f.snap('alice').zones.every(z=>!(z.portals??[]).some(p=>p.target===TAIGA_ZONE)));
+  assert.deepEqual(f.snap('alice').zones.filter(z=>(z.portals??[]).some(p=>p.target===TAIGA_ZONE)).map(z=>z.id),['utopia-arcanum']); // Only Utopia's south gate opens straight onto the Taiga; everyone else walks the Tundra trail.
   f.act('alice','dive_enter',{zone:TUNDRA_ZONE});assert.throws(()=>f.act('alice','dive_exit',{zone:TAIGA_ZONE}),/Stand beside/);
   assert.throws(()=>f.act('alice','dive_enter',{zone:TAIGA_ZONE}),/Leave your current dungeon/);
   const tundraChest=f.snap('alice').dive.chests[0];f.place('alice',tundraChest);f.act('alice','dive_claim',{chest:tundraChest.id});

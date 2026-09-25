@@ -14,7 +14,7 @@ export function addDistrictResidents(f,definition,data,players=[]){
   if(f.fixtures.some(n=>n.id===profile.id))continue; // Existing residents retain their positions and identity through content upgrades.
   const cells=[];
   for(let y=2;y<f.height-2;y++)for(let x=2;x<f.width-2;x++){
-   if(!open(f,x,y)||entry(f,x,y)||f.fixtures.some(n=>covers(n,x,y))||players.some(p=>p.x===x&&p.y===y)||(f.doorsteps??[]).some(d=>Math.abs(d.x-x)+Math.abs(d.y-y)<=1))continue; // Never home a wanderer on a storefront doorstep.
+   if(!open(f,x,y)||entry(f,x,y)||f.fixtures.some(n=>covers(n,x,y))||players.some(p=>p.x===x&&p.y===y)||[...(f.doorsteps??[]),...(f.fullDungeonPortals??[])].some(d=>Math.abs(d.x-x)+Math.abs(d.y-y)<=1))continue; // Keep storefront and full-dungeon arrival tiles clear of resident homes.
    if(steps.filter(([dx,dy])=>open(f,x+dx,y+dy)).length<3)continue;
    cells.push({x,y});
   }
@@ -35,7 +35,7 @@ export function moveDistrictResidents(f,players,time,data){
   const radius=npc.roam_radius??data.roam_radius??8,home=npc.home??npc;
   const choices=steps.filter(([dx,dy])=>{
    const x=npc.x+dx,y=npc.y+dy;
-   return open(f,x,y)&&!entry(f,x,y)&&!(f.doorsteps??[]).some(d=>d.x===x&&d.y===y)&&Math.abs(x-home.x)+Math.abs(y-home.y)<=radius&&!occupied.has(x+','+y)&&!players.some(p=>p.x===x&&p.y===y);
+   return open(f,x,y)&&!entry(f,x,y)&&![...(f.doorsteps??[]),...(f.fullDungeonPortals??[])].some(d=>d.x===x&&d.y===y)&&Math.abs(x-home.x)+Math.abs(y-home.y)<=radius&&!occupied.has(x+','+y)&&!players.some(p=>p.x===x&&p.y===y);
   });
   if(!choices.length)continue;
   const forward=choices.find(s=>s[2]===npc.facing);if(forward)choices.push(forward); // A slight forward preference makes a stroll less jittery than pure random turns.

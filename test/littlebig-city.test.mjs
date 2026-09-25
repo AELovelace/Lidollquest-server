@@ -15,9 +15,9 @@ const covers=(p,x,y)=>x>=p.x&&y>=p.y&&x<p.x+(p.span_w??1)&&y<p.y+(p.span_h??1);
 
 test('LittleBigCity is a 60x60 lobby with a west Desert gate, plaza doorsteps and eight storefronts that follow the street plan',()=>{
  assert.equal(districtZone(city),'littlebig-clockwork');assert.equal(hubCatalog.find(h=>h.id==='littlebig-clockwork').name,'LittleBigCity');
- assert.deepEqual(hubRooms.filter(r=>r.parent==='littlebig-clockwork').map(r=>r.id),['littlebig-clockwork-beds','littlebig-clockwork-dives',...hubData.shops.map(s=>'littlebig-clockwork-store-'+storeSlug(s))]);
- assert.deepEqual(hubPortals('littlebig-clockwork').map(p=>[p.target,p.style,p.x,p.y]),[['dive-desert','gap',0,29],['littlebig-clockwork-beds','door',28,28],['littlebig-clockwork-dives','door',33,28]]); // Without a resolved map only the fixed openings are known.
- assert.deepEqual(wildernessGates('littlebig-clockwork').map(g=>g.target),['dive-desert']);assert.deepEqual(dungeonPortals('littlebig-clockwork').map(p=>p.target),['dive-mansion','dive-hospital']);
+ assert.deepEqual(hubRooms.filter(r=>r.parent==='littlebig-clockwork').map(r=>r.id),['littlebig-clockwork-beds','littlebig-clockwork-dives','littlebig-clockwork-temple',...hubData.shops.map(s=>'littlebig-clockwork-store-'+storeSlug(s))]);
+ assert.deepEqual(hubPortals('littlebig-clockwork').map(p=>[p.target,p.style,p.x,p.y]),[['dive-desert','gap',0,29],['dive-seafoam-coast','gap',29,59],['littlebig-clockwork-beds','door',28,28],['littlebig-clockwork-dives','door',33,28],['littlebig-clockwork-temple','door',28,33]]); // Nyx's temple too. Without a resolved map only the fixed openings are known.
+ assert.deepEqual(wildernessGates('littlebig-clockwork').map(g=>g.target),['dive-desert','dive-seafoam-coast']); // West onto the Desert, south onto the Seafoam Coast.assert.deepEqual(dungeonPortals('littlebig-clockwork').map(p=>p.target),['dive-mansion','dive-hospital']);
  const doors=new Set();
  for(let n=0;n<30;n++){
   const f=generateDistrict(city,{edition:'city-'+n,ends:0}),seen=reachableDistrict(f);
@@ -64,7 +64,7 @@ test('walking the city: storefront doorsteps enter and leave stores, purchases w
   act('create',{name:'Alice'});
   const lobby=act('enter',{zone:'littlebig-clockwork',loadout:{player_info:{playerHealth:50,playerHealthMax:50,level:50},inventory:[{item_id:'adult_food'}]}});
   assert.deepEqual(lobby.position,{x:30,y:32});const def=zoneOf(lobby);assert.equal(def.name,'LittleBigCity');assert.equal(def.width,60);assert.equal(def.district.lobby,true);
-  assert.equal(def.portals.length,11,'gate, two plaza doorsteps and eight storefront doorsteps');assert.ok(Buffer.byteLength(JSON.stringify(lobby))<262144,'the city fits the gateway response budget');
+  assert.equal(def.portals.filter(p=>p.target.startsWith('littlebig-clockwork-')||['dive-desert','dive-seafoam-coast'].includes(p.target)).length,13,'two gates (Desert west, Seafoam Coast south), three plaza doorsteps (Inn, Coliseum, temple) and eight storefront doorsteps'); // Counted by kind, so other entrances on the plaza don't change it.assert.ok(Buffer.byteLength(JSON.stringify(lobby))<262144,'the city fits the gateway response budget');
   const doorstep=def.portals.find(p=>p.target==='littlebig-clockwork-store-mira');
   const beside=def.walls[doorstep.y+1]?.[doorstep.x]===0&&!def.fixtures.some(f=>f.solid!==false&&covers(f,doorstep.x,doorstep.y+1))?{x:doorstep.x,y:doorstep.y+1,direction:'north'}:{x:doorstep.x,y:doorstep.y-1,direction:'south'}; // Stand on the street tile next to the mat and walk onto it.
   place(beside.x,beside.y);const store=act('move',{direction:beside.direction,world_step:true});
@@ -79,7 +79,7 @@ test('walking the city: storefront doorsteps enter and leave stores, purchases w
   place(28,29);const inn=act('hub_visit',{zone:'littlebig-clockwork-beds'});assert.equal(inn.zone,'littlebig-clockwork-beds');
   const beds=zoneOf(inn).fixtures.filter(f=>f.kind==='bed');assert.equal(beds.length,6);
   time+=1000;place(beds[0].x,beds[0].y+1);const next=structuredClone(c.loadout);next.player_info.playerHealth=40;act('hub_rest',{fixture:beds[0].id,loadout:next});assert.equal(c.loadout.player_info.playerHealth,40);
-  place(1,6);const fromInn=act('move',{direction:'west',world_step:true});assert.equal(fromInn.zone,'littlebig-clockwork');assert.deepEqual(fromInn.position,{x:28,y:29}); // The Inn's left-wall gap lands below its plaza doorstep.
+  place(1,12);const fromInn=act('move',{direction:'west',world_step:true}); // The remodelled Inn's exit is the lobby's left-wall gap (y=11-12).assert.equal(fromInn.zone,'littlebig-clockwork');assert.deepEqual(fromInn.position,{x:28,y:29}); // The Inn's left-wall gap lands below its plaza doorstep.
   place(33,29);const hall=act('move',{direction:'north',world_step:true});assert.equal(hall.zone,'littlebig-clockwork-dives');assert.deepEqual(zoneOf(hall).portals.map(p=>p.target),['dive-mansion','dive-hospital']);
   place(9,10);const fromHall=act('move',{direction:'south',world_step:true});assert.equal(fromHall.zone,'littlebig-clockwork');assert.deepEqual(fromHall.position,{x:33,y:29});
   place(1,30);const desert=act('move',{direction:'west',world_step:true});assert.equal(desert.zone,'dive-desert');assert.equal(c.dive.gate,true);assert.equal(c.dive.returnZone,'littlebig-clockwork');

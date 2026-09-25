@@ -1,0 +1,129 @@
+{
+  "_comment": "The five gods of LiDollQuest Online (FAITH_DESIGN.md). Export with python/export_online_gods.py to the service's server/gods-data.json; the client reads this file directly for the HUD and its client-side blessings. Piety runs 0..piety_max; blessings scale with piety / piety_max. Uniform rules are checked on every committed turn; breaking them is anathema.",
+  "version": 1,
+  "settings": {
+    "piety_max": 100,
+    "piety_gain_every_turns": 5,
+    "piety_loss_per_turn": 3,
+    "sable_change_penalty": 10,
+    "orin_anathema_piety": 15,
+    "orin_cursed_drain": 1,
+    "tribute_diamonds": 1,
+    "tribute_stars": 5
+  },
+  "gods": [
+    {
+      "id": "orthain",
+      "name": "Orthain",
+      "domain": "Maturity",
+      "philosophy": "A person should be self-sufficient. Staying little is refusal, not rest.",
+      "temple_hub": "arcadia-foundry",
+      "temple_name": "The Iron Chapel of Orthain",
+      "priest": {
+        "name": "High Warden Stellan",
+        "avatar": "objNPCVillageElder",
+        "line": "Orthain asks nothing you cannot give: stand on your own feet, dress as the adult you are, and keep your body in hand. Kneel here if you mean it."
+      },
+      "uniform": {
+        "max_item_childish": 2,
+        "forbid_diaper": true,
+        "forbid_crawling": true,
+        "incontinence_max": 99
+      },
+      "blessing": {
+        "stamina_drain_cut_pct": 50,
+        "melee_pct": 20
+      },
+      "blessing_text": "Stamina drains up to 50% slower; melee damage up to +20%."
+    },
+    {
+      "id": "sula",
+      "name": "Sula",
+      "domain": "Regression",
+      "philosophy": "Peace is found by letting go. Nobody should be too good to be little, or to ask a friend for help.",
+      "temple_hub": "utopia-arcanum",
+      "temple_name": "Sula's Cradle",
+      "priest": {
+        "name": "Mother Lull",
+        "avatar": "objNPCNursemaid",
+        "line": "Shh, shh. You don't have to hold on so tight any more, sweetpea. Sula catches everyone who lets go."
+      },
+      "uniform": {
+        "require_diaper": true,
+        "min_childish_avg": 6,
+        "incontinence_min": 601
+      },
+      "blessing": {
+        "crawl_free_min_piety": 50,
+        "magic_pct": 20
+      },
+      "blessing_text": "From 50 piety, crawling costs no speed or damage; magic damage up to +20%."
+    },
+    {
+      "id": "nyx",
+      "name": "Nyx",
+      "domain": "Candor",
+      "philosophy": "Truth begins with openness. Feel no shame, and present your best features for all to see.",
+      "temple_hub": "littlebig-clockwork",
+      "temple_name": "The Open Court of Nyx",
+      "priest": {
+        "name": "Oracle Vesna",
+        "avatar": "objNPCBarmaid",
+        "line": "Hiding is a kind of lie, darling. Nyx wants to see all of you: the lace, the padding, the blush. Especially the blush."
+      },
+      "uniform": {
+        "chest": "bare",
+        "underwear": "shown"
+      },
+      "blessing": {
+        "def_pct": 20,
+        "physical_pct": 15
+      },
+      "blessing_text": "Defense up to +20%; physical damage up to +15%."
+    },
+    {
+      "id": "sable",
+      "name": "Sable",
+      "domain": "Decency",
+      "philosophy": "The under-layer is not public property. Flash is theft. Respect is a finished outer garment.",
+      "temple_hub": "princess-rose",
+      "temple_name": "Sable's Veiled Sanctum",
+      "priest": {
+        "name": "Canoness Merrow",
+        "avatar": "objNPCSisterDusk",
+        "line": "Cover yourself, and change only where it is proper to change. What is beneath is between you and Sable alone."
+      },
+      "uniform": {
+        "chest": "covered",
+        "underwear": "concealed",
+        "changing_rooms_only": true
+      },
+      "blessing": {
+        "capacity_bonus": 2,
+        "free_absorb_pct": 5
+      },
+      "blessing_text": "Diapers hold up to 2 more before leaking; up to a 5% chance an accident uses no capacity."
+    },
+    {
+      "id": "orin",
+      "name": "Orin",
+      "domain": "Freedom",
+      "philosophy": "Humanity has no need of the gods' laws. Live your life, and show how foolish those who blindly obey really are.",
+      "temple_hub": "honeydew-lantern",
+      "temple_name": "Orin's Unbound Hearth",
+      "priest": {
+        "name": "Freebrother Tam",
+        "avatar": "objNPCCaravanRemnant",
+        "line": "No rules here, friend. Well, one: nobody locks you into anything. Go show the pious how silly their little uniforms are."
+      },
+      "uniform": {
+        "none": true
+      },
+      "blessing": {
+        "free_breaks_per_day": 3,
+        "cursebreaker_discount_pct": 50
+      },
+      "blessing_text": "Break free of cursed gear up to 3 times a day, anywhere; Cursebreaker prices up to 50% off. Locked in cursed gear, Orin's blessing fails and piety drains."
+    }
+  ]
+}

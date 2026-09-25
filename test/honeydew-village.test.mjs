@@ -15,9 +15,9 @@ const covers=(p,x,y)=>x>=p.x&&y>=p.y&&x<p.x+(p.span_w??1)&&y<p.y+(p.span_h??1);
 
 test('Honeydew Village is its own 50x50 lobby: gates in both walls, doorsteps into the hall and inn, merchants spread through the clearings',()=>{
  assert.equal(districtZone(town),'honeydew-lantern');assert.equal(hubCatalog.find(h=>h.id==='honeydew-lantern').name,'Honeydew Village');
- assert.deepEqual(hubRooms.filter(r=>r.parent==='honeydew-lantern').map(r=>[r.id,r.name]),[['honeydew-lantern-beds','Honeydew Inn'],['honeydew-lantern-dives','Community Hall']]); // No garden or market annex: the town is both.
- assert.deepEqual(hubPortals('honeydew-lantern').map(p=>[p.target,p.style,p.x,p.y]),[['dive-tundra','gap',0,24],['dive-desert','gap',49,24],['dive-haunted-woods','gap',24,0],['honeydew-lantern-dives','door',25,24],['honeydew-lantern-beds','door',29,27]]);
- assert.deepEqual(wildernessGates('honeydew-lantern').map(g=>g.target),['dive-tundra','dive-desert','dive-haunted-woods']); // West, east, and the north gate into the Haunted Woods.
+ assert.deepEqual(hubRooms.filter(r=>r.parent==='honeydew-lantern').map(r=>[r.id,r.name]),[['honeydew-lantern-beds','Honeydew Inn'],['honeydew-lantern-dives','Community Hall'],['honeydew-lantern-temple',"Orin's Unbound Hearth"]]); // No garden or market annex: the town is both. Orin's temple stands on the square.
+ assert.deepEqual(hubPortals('honeydew-lantern').map(p=>[p.target,p.style,p.x,p.y]),[['dive-tundra','gap',0,24],['dive-desert','gap',49,24],['dive-haunted-woods','gap',24,0],['dive-autumnal-plains','gap',24,49],['honeydew-lantern-dives','door',25,24],['honeydew-lantern-beds','door',29,27],['honeydew-lantern-temple','door',22,26]]); // Orin's temple doorstep.
+ assert.deepEqual(wildernessGates('honeydew-lantern').map(g=>g.target),['dive-tundra','dive-desert','dive-haunted-woods','dive-autumnal-plains']); // West, east, the north gate into the Haunted Woods and the south gate into the Autumnal Plains.
  assert.deepEqual(dungeonPortals('honeydew-lantern').map(p=>[p.target,p.x,p.y]),[['dive-nursery',2,4],['dive-school',5,4],['dive-forest',8,4]]); // Pads sit in the hall's old companion room (top-left); no side gaps.
  for(let n=0;n<40;n++){
   const f=generateDistrict(town,{edition:'village-'+n,ends:0}),seen=reachableDistrict(f);

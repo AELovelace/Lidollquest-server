@@ -20,7 +20,7 @@ test('districts express distinct host layouts rather than the old universal open
    assert.ok(f.axes.x.includes(Math.floor(f.width/2))&&f.axes.y.includes(Math.floor(f.height/2))); // The boulevards cross at the centre of whatever size the district is (LittleBigCity is 60x60).
   }
  }
- assert.equal(signatures.size,36,'different months retain different layouts');
+ assert.equal(signatures.size,districtData.districts.length*12,'different months retain different layouts');
 });
 
 test('deploying a layout version archives existing maps and safely returns visitors without waiting for another month',()=>{
@@ -39,7 +39,7 @@ test('deploying a layout version archives existing maps and safely returns visit
    assert.equal(map.district.edition,window.edition);assert.equal(map.district.layoutVersion,data.version);
    assert.deepEqual({...db.prepare('SELECT x,y FROM quest_presence WHERE zone=?').get(id)},map.spawn); // Annex districts return visitors to the east entrance; the village to its square.
   }
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM hub_district_editions').get().n,6);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM hub_district_editions').get().n,districtData.districts.length*2); // One archived and one current map per district.
   for(const row of originals)assert.equal(db.prepare('SELECT content FROM hub_district_editions WHERE zone=? AND edition=?').get(row.zone,row.edition).content,row.content);
   const restarted=createHubDistricts(db,{now:()=>now,data});
   for(const d of data.districts){const id=districtZone(d);db.prepare('UPDATE quest_presence SET x=45,y=25 WHERE zone=?').run(id);restarted.resolve({id});assert.equal(db.prepare('SELECT x FROM quest_presence WHERE zone=?').get(id).x,45,'restart does not repeatedly return visitors to the entrance');}

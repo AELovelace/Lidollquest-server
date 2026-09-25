@@ -14,6 +14,18 @@ export function addNorthTrail(f,{zone_id,name}){ // Carve a 3-wide north-center 
 }
 export const addTaigaTrail=addNorthTrail; // Tundra's original name stays importable for existing tests and tools.
 
+export function addSouthTrail(f,{zone_id,name}){ // Carve a 3-wide south-center trail from (width/2,height-2) up to the nearest open floor (the Tundra's way down to Emberfall Caldera).
+ if(f.exits.some(exit=>exit.zone===zone_id))return false; // Idempotent: an edition that already has this crossing is left alone.
+ const x=Math.floor(f.width/2),cells=new Set();let end=f.height-3;
+ while(end>1&&!walkable(f,x,end))end--; // First walkable row above the bottom wall.
+ for(let y=f.height-2;y>=end;y--)for(let xx=x-1;xx<=x+1;xx++){f.walls[y][xx]=0;cells.add(xx+','+y);}
+ clearProps(f,cells);
+ f.safeRooms.push({x:x-1,y:f.height-3,w:3,h:2}); // Loot, mist and roamers stay off the trail mouth.
+ f.exits.push({x,y:f.height-2,zone:zone_id,name});f.entries[zone_id]={x,y:f.height-3}; // openExitGaps() then turns it into a bottom-wall gap.
+ f.geometryVersion=(f.geometryVersion??0)+1;
+ return true; // Only new terrain opens, so the live edition keeps its rooms, loot and encounter locks.
+}
+
 export function addSideTrail(f,{zone_id,name,side}){ // Carve a 3-tall trail in from the middle of the west ('left') or east ('right') wall to the nearest open floor.
  if(f.exits.some(exit=>exit.zone===zone_id))return false; // Idempotent: an edition that already has this crossing is left alone.
  if(side!=='left'&&side!=='right')throw Error('Side trails open on the left or right wall.');
@@ -29,9 +41,9 @@ export function addSideTrail(f,{zone_id,name,side}){ // Carve a 3-tall trail in 
  return true; // Only new terrain opens, so the live edition keeps its rooms, loot and encounter locks.
 }
 
-export function addLandmark(f,{zone,name,sprite,span_w=4,span_h=4,door_x=Math.floor(span_w/2),radius=6}){ // A building near the map centre whose door is a warp pad into another route (the Woods' haunted house -> Spooky Mansion).
+export function addLandmark(f,{zone,name,sprite,span_w=4,span_h=4,door_x=Math.floor(span_w/2),radius=6,center_dx=0,center_dy=0}){ // center_dx/dy: search round a point off-centre (Emberfall Caldera: north of the lava lake). // A building near the map centre whose door is a warp pad into another route (the Woods' haunted house -> Spooky Mansion).
  if(!zone||f.exits.some(exit=>exit.zone===zone))return false; // Idempotent across restarts and weekly editions.
- const W=f.width,H=f.height,cx=Math.floor(W/2),cy=Math.floor(H/2),k=(x,y)=>x+','+y;
+ const W=f.width,H=f.height,cx=Math.floor(W/2)+center_dx,cy=Math.floor(H/2)+center_dy,k=(x,y)=>x+','+y;
  const taken=new Set([...f.enemies,...f.enemies.map(e=>e.spawn).filter(Boolean),...f.chests,...(f.pickups??[]),...f.exits,f.entrance,...Object.values(f.entries??{})].map(p=>k(p.x,p.y))); // Content never moves; the house must fit around it.
  const offsets=[];for(let d=0;d<=radius;d++)for(let dy=-d;dy<=d;dy++)for(let dx=-d;dx<=d;dx++)if(Math.max(Math.abs(dx),Math.abs(dy))===d)offsets.push([dx,dy]); // Nearest-to-centre first.
  for(const [ox,oy] of offsets){

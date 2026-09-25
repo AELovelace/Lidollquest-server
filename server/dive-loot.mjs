@@ -51,7 +51,8 @@ export function createDiveLootRoller(data,{enchantments=null,table=data.enchantm
  function roll(edition,character,chest,rolls,depth=1){
   if(rolls[chest.id])return structuredClone(rolls[chest.id]); // Preserve receipts and older rolls even when previous tuning allowed more panties.
   const key=`${data.config.route}:${edition}:${depth}:${character}:${chest.id}`,rnd=seeded(key);
-  const pool=chest.kind==='food'?data.food_pool:chest.kind==='potion'?data.potion_pool:general;
+  const preferred=data.priority_pool?.length&&rnd(100)<(data.campaign?.loot_priority_chance??0)?data.priority_pool:general;
+  const pool=chest.item_id?[chest.item_id]:chest.loot_pool??(chest.kind==='food'?data.food_pool:chest.kind==='potion'?data.potion_pool:preferred);
   let item=structuredClone(data.items[pool[rnd(pool.length)]]);
   if(plainPanties(item)&&Object.values(rolls).filter(plainPanties).length>=limit){
    item=structuredClone(data.items[diapers[seeded(key+':diaper-replacement')(diapers.length)]]);

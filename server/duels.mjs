@@ -12,6 +12,9 @@ import {applyCombatPatch,actionDelay,encounterTuning} from './dive-encounters.mj
 import {rowSwapCostsTurn,rowDamageTaken,weaponProfile} from './scaling.mjs';
 import {WEARABLE_CATEGORIES} from './loot.mjs';
 import {isCrawling} from './crawl.mjs';
+import {GODS,FAITH_SETTINGS,wouldBreakUniform,combatFaith} from './faith.mjs'; // Orin's followers gain piety by dressing the pious into anathema.
+import {hubData} from './hubs.mjs';
+import {withGenerated} from './generated-items.mjs';
 
 export const DUEL_ACTIONS=Object.freeze(['duel_challenge','duel_accept','duel_decline','duel_cancel','duel_stake','duel_unstake','duel_ready','duel_pick','duel_dress','duel_feed','duel_finish']); // Lobby, stakes and aftermath commands.
 export const DUEL_FIGHT_ACTIONS=Object.freeze(['turn_ready','attack','cast','charm','allure','use_item','flee','submit','stand','row']); // Fight commands, routed here while run.kind is 'duel'.
@@ -270,6 +273,11 @@ export function createDuels(db,{now=Date.now,roll,parties=null,adjust=()=>{},sav
   if(unit.online_item&&input.source!=='theirs')origins?.transfer(unit.online_item,c.id,loserRow.c.id); // A winner's own piece changes hands with its right.
   loserRow.s.loadout.inventory.push(unit);
   message(d,c.name+' '+verb+' '+loserRow.m.name+' '+(item.name??item.item_id)+'.');
+  const victimGod=loserRow.s.faith?.god;
+  if(flag==='forced_wear'&&state.faith?.god==='orin'&&victimGod&&victimGod!=='orin'&&wouldBreakUniform(victimGod,loserRow.s.loadout,unit,withGenerated(hubData.equipment))){ // Orin's followers delight in forcing the pious into anathema.
+   const gain=Math.min(FAITH_SETTINGS.orin_anathema_piety,FAITH_SETTINGS.piety_max-state.faith.piety);state.faith.piety+=gain;if(state.loadout)state.loadout.faith=combatFaith(state);
+   message(d,c.name+' forces '+loserRow.m.name+' out of '+GODS[victimGod].name+"'s uniform. Orin laughs. (Piety +"+gain+')');
+  }
  }
  function dress(c,state,input){const d=requireDuel(state,['aftermath']),rows=roster(d,c,state);transfer(c,state,input,rows,d,item=>WEARABLE_CATEGORIES.includes(item.category),'forced_wear','dresses');persist(d,rows,c);}
  function feed(c,state,input){const d=requireDuel(state,['aftermath']),rows=roster(d,c,state);transfer(c,state,input,rows,d,isFood,'forced_drink','feeds');persist(d,rows,c);}

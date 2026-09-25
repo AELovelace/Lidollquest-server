@@ -67,6 +67,7 @@ export const GARDEN_SPAWN=Object.freeze({x:10,y:12}); // Just south of the fount
 export const GARDEN_EXIT=Object.freeze({x:2,y:17,style:'stairs'}); // Bottom-left stairs back to the singleplayer campaign, like every court.
 const wallTile=(x,y)=>(x<=1||x>=GARDEN_SIZE-2)&&(y<=1||y>=GARDEN_SIZE-2)?11:[10,10,12,13,10,14][(x*7+y*3)%6]; // Corner towers use the darker block; the curtain wall mixes hearts and wainscoting deterministically.
 const treeTile=(x,y)=>[34,37,34,36,37,34][(x+y*2)%6]; // Deciduous, flowering and pine canopies in a fixed pattern.
+export const ROSE_OUTHOUSE=Object.freeze({id:'garden-outhouse',name:'Outhouse',kind:'toilet',style:'outhouse',sprite:'sprPlainsEnvOuthouse',x:18,y:16,span_w:1,span_h:2,solid:true}); // Tucked in the garden's quiet south-east corner, door facing the lawn (client online_toilet_use).
 export function roseCourtyard(decorations){ // Build the lobby geometry once at boot; every visitor receives the same map.
  if(MAP.length!==GARDEN_SIZE||MAP.some(row=>row.length!==GARDEN_SIZE))throw Error('Rose courtyard map must be 20x20');
  const walls=[],floors=[],wallTiles=[],treeTiles=[];
@@ -75,7 +76,7 @@ export function roseCourtyard(decorations){ // Build the lobby geometry once at 
    walls[y].push(cell.wall?1:0);floors[y].push(cell.floor);treeTiles[y].push(cell.tree?treeTile(x,y):0);wallTiles[y].push(cell.wall&&!cell.tree?wallTile(x,y):0);
   }
  }
- const fixtures=(Array.isArray(decorations)&&decorations.length?decorations:DEFAULT_DECORATIONS).map(d=>({...d,kind:'scenery',name:d.name??'',span_w:d.span_w??1,span_h:d.span_h??1,solid:d.solid??true}));
+ const fixtures=[...(Array.isArray(decorations)&&decorations.length?decorations:DEFAULT_DECORATIONS).map(d=>({...d,kind:'scenery',name:d.name??'',span_w:d.span_w??1,span_h:d.span_h??1,solid:d.solid??true})),{...ROSE_OUTHOUSE}];
  const garden={width:GARDEN_SIZE,height:GARDEN_SIZE,spawn:{...GARDEN_SPAWN},exit:{...GARDEN_EXIT},walls,floors,wallTiles,treeTiles,tilesets:{wall:'tilePrincessQuarters',floor:'tileTown',trees:'tileTown'},fixtures,courtyard:true};
  validateCourtyard(garden,GARDEN_PORTALS);return garden;
 }

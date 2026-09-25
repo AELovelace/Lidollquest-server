@@ -70,10 +70,12 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
   if(purchases.has(owner))return purchases.get(owner);
   const task=(async()=>{for(const row of db.prepare("SELECT * FROM hub_purchases WHERE owner=? AND status='pending'").all(owner)){
    const diamond=JSON.parse(row.item)?.currency==='diamonds'; /* Companion diamond rolls reserve {companion_shop, currency:'diamonds', item} and are paid with the wallet's one-diamond debit, never the coin balance. */
+   const stars=JSON.parse(row.item)?.currency==='stars'; /* A tribute to a new god (hubs.mjs prepareDedication) may be paid in stars, like a rename. */
    try{
-    if(diamond){if(typeof walletClient.diamonds!=='function')throw Object.assign(Error('Diamond payments are unavailable.'),{status:503});await metrics.measureAsync('account.debit',()=>walletClient.diamonds(token,{request_id:'shop-'+row.id,asset:'diamonds',kind:'debit',amount:1}));zones.completePurchase(row.id,true);} /* The durable request id makes a retried or replayed debit idempotent, exactly like coins. */
+    if(stars){if(typeof walletClient.stars!=='function')throw Object.assign(Error('Star payments are unavailable.'),{status:503});await metrics.measureAsync('account.debit',()=>walletClient.stars(token,{request_id:'shop-'+row.id,asset:'stars',kind:'debit',amount:row.price}));zones.completePurchase(row.id,true);}
+    else if(diamond){if(typeof walletClient.diamonds!=='function')throw Object.assign(Error('Diamond payments are unavailable.'),{status:503});await metrics.measureAsync('account.debit',()=>walletClient.diamonds(token,{request_id:'shop-'+row.id,asset:'diamonds',kind:'debit',amount:1}));zones.completePurchase(row.id,true);} /* The durable request id makes a retried or replayed debit idempotent, exactly like coins. */
     else{const receipt=await metrics.measureAsync('account.debit',()=>walletClient.credit(token,{request_id:'shop-'+row.id,kind:'debit',amount:row.price}));zones.completePurchase(row.id,true);db.prepare('UPDATE wallet_cache SET coins=? WHERE owner=?').run(receipt.balance,owner);}
-   }catch(error){if(error.code==='insufficient_balance'||(diamond&&error.status===403))zones.completePurchase(row.id,false);else log('quest_purchase_delivery_pending',row.id,error.status??'transport');} /* A diamond debit the wallet refuses for consent (403) is declined rather than retried forever. */
+   }catch(error){if(error.code==='insufficient_balance'||((diamond||stars)&&error.status===403))zones.completePurchase(row.id,false);else log('quest_purchase_delivery_pending',row.id,error.status??'transport');} /* A diamond debit the wallet refuses for consent (403) is declined rather than retried forever. */
   }})();purchases.set(owner,task);try{await task;}finally{purchases.delete(owner);}
  } // Retry a durable debit ID before accepting any subsequent inventory-changing command.
  let active=0;const perToken=new Map();

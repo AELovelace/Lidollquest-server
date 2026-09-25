@@ -149,6 +149,15 @@
           "x": 43
         }
       },
+      "temple": {
+        "x": 39,
+        "y": 31,
+        "w": 9,
+        "h": 7,
+        "door": {
+          "x": 43
+        }
+      },
       "source_zone": "princess_quarters"
     },
     {
@@ -167,8 +176,10 @@
         "gates": {
           "west": "dive-tundra",
           "east": "dive-desert",
-          "north": "dive-haunted-woods"
+          "north": "dive-haunted-woods",
+          "south": "dive-autumnal-plains"
         },
+        "outhouses": 3,
         "buildings": [
           {
             "id": "community-hall",
@@ -196,6 +207,20 @@
             "door": {
               "x": 29,
               "y": 27
+            }
+          },
+          {
+            "id": "temple",
+            "name": "Orin's Unbound Hearth",
+            "sprite": "sprTempleOrin",
+            "x": 21,
+            "y": 24,
+            "target": "temple",
+            "span_w": 2,
+            "span_h": 2,
+            "door": {
+              "x": 22,
+              "y": 26
             }
           }
         ]
@@ -491,7 +516,8 @@
           "y": 27
         },
         "gates": {
-          "west": "dive-desert"
+          "west": "dive-desert",
+          "south": "dive-seafoam-coast"
         },
         "buildings": [
           {
@@ -521,6 +547,20 @@
               "x": 33,
               "y": 28
             }
+          },
+          {
+            "id": "temple",
+            "name": "The Open Court of Nyx",
+            "sprite": "sprTempleNyx",
+            "x": 27,
+            "y": 31,
+            "target": "temple",
+            "span_w": 2,
+            "span_h": 2,
+            "door": {
+              "x": 28,
+              "y": 33
+            }
           }
         ],
         "storefronts": {
@@ -530,6 +570,409 @@
         }
       },
       "source_zone": "littlebig_city"
+    },
+    {
+      "hub": "utopia-arcanum",
+      "name": "Utopia",
+      "style": "magitek",
+      "width": 60,
+      "height": 60,
+      "tileset": "tileUtopia",
+      "layout": {
+        "num_clearings": 7,
+        "min_clearing": 3,
+        "max_clearing": 5,
+        "village_square_radius": 7,
+        "path_width": 3,
+        "building_min_gap": 3
+      },
+      "scenery": [
+        {
+          "sprite": "sprUtopiaEnvRuneLamp",
+          "span_w": 1,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprUtopiaEnvCrystalSpire",
+          "span_w": 1,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprUtopiaEnvGearDome",
+          "span_w": 2,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprUtopiaEnvHoverPlanter",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprUtopiaEnvHoloSign",
+          "span_w": 1,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprUtopiaEnvToyRobot",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprUtopiaEnvSoftBlocks",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        }
+      ],
+      "npcs": [
+        {
+          "avatar": "objNPCMikaScrapwright",
+          "name": "Director Pip",
+          "line": "Welcome to Utopia! Everything here is built for littles, by littles. The Arcanum Tower is right behind me, the Nap Pods are east and the Artificer's Workshop is west. Oh, and we don't do potties here. Just find a changing station!"
+        },
+        {
+          "avatar": "objNPCPaddedWarrior",
+          "name": "Rune Warden Tuck",
+          "line": "I keep the rune-lamps glowing and the avenues safe. Big crinkly boots are regulation, don't you know."
+        },
+        {
+          "avatar": "objNPCBottleBaby",
+          "name": "Pod Tender Bibi",
+          "line": "Tired? The Nap Pods are lovely and warm. You'll wake up feeling like you belong here. Because you do!"
+        },
+        {
+          "avatar": "objNPCStudyBuddy",
+          "name": "Moss, Apprentice Artificer",
+          "line": "I'm building a stroller that flies! It only flies sideways right now. Want to hold the wrench?",
+          "id": "utopia-moss",
+          "roaming": true
+        },
+        {
+          "avatar": "objNPCBigBaby",
+          "name": "Dot, Station Engineer",
+          "line": "Every changing station runs on a little rune-core. Step in, hold still, and whirr-click, all fresh! No bigs required.",
+          "id": "utopia-dot",
+          "roaming": true
+        },
+        {
+          "avatar": "objNPCNurseryBaby",
+          "name": "Tibbs, Crinkle Courier",
+          "line": "Deliveries! Pacifiers, pull-ups, puzzle blocks! Everything in Utopia goes by glowing avenue.",
+          "id": "utopia-courier",
+          "roaming": true
+        },
+        {
+          "id": "utopia-kite",
+          "avatar": "objNPCShyStudent",
+          "name": "Wick, Hover-Kite Pilot",
+          "line": "My hover-kite runs on one rune and a whole lot of wishing. When it dips I go 'wheee' and so does my diaper, a little. Nobody minds! That's Utopia.",
+          "roaming": true
+        }
+      ],
+      "lobby": {
+        "spawn": {
+          "x": 30,
+          "y": 32
+        },
+        "stairs": {
+          "x": 2,
+          "y": 27
+        },
+        "gates": {
+          "south": "dive-taiga"
+        },
+        "changers": 5,
+        "buildings": [
+          {
+            "id": "arcanum-tower",
+            "name": "Arcanum Tower",
+            "sprite": "sprUtopiaTower",
+            "x": 29,
+            "y": 25,
+            "target": "tower",
+            "span_w": 3,
+            "span_h": 3,
+            "door": {
+              "x": 30,
+              "y": 28
+            }
+          },
+          {
+            "id": "workshop",
+            "name": "Artificer's Workshop",
+            "sprite": "sprUtopiaWorkshop",
+            "x": 25,
+            "y": 28,
+            "target": "dives",
+            "span_w": 3,
+            "span_h": 3,
+            "door": {
+              "x": 26,
+              "y": 31
+            }
+          },
+          {
+            "id": "nap-pods",
+            "name": "Nap Pods",
+            "sprite": "sprUtopiaNapPods",
+            "x": 33,
+            "y": 28,
+            "target": "beds",
+            "span_w": 3,
+            "span_h": 3,
+            "door": {
+              "x": 34,
+              "y": 31
+            }
+          },
+          {
+            "id": "temple",
+            "name": "Sula's Cradle",
+            "sprite": "sprTempleSula",
+            "x": 31,
+            "y": 32,
+            "target": "temple",
+            "span_w": 2,
+            "span_h": 2,
+            "door": {
+              "x": 32,
+              "y": 34
+            }
+          }
+        ]
+      },
+      "source_zone": "utopia"
+    },
+    {
+      "hub": "arcadia-foundry",
+      "name": "Arcadia",
+      "style": "industrial",
+      "width": 60,
+      "height": 60,
+      "tileset": "tileArcadia",
+      "layout": {
+        "avenue_spacing": 12,
+        "road_spacing_jitter": 2,
+        "path_width": 3,
+        "village_square_radius": 7,
+        "yard_count": 3,
+        "alley_chance": 60
+      },
+      "scenery": [
+        {
+          "sprite": "sprArcadiaEnvSmokestack",
+          "span_w": 1,
+          "span_h": 3,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprArcadiaEnvBoiler",
+          "span_w": 2,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprArcadiaEnvGearPile",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprArcadiaEnvPipes",
+          "span_w": 2,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprArcadiaEnvGauge",
+          "span_w": 1,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprArcadiaEnvGasLamp",
+          "span_w": 1,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprArcadiaEnvCoalCart",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprArcadiaEnvCrates",
+          "span_w": 1,
+          "span_h": 1,
+          "solid": true,
+          "glow": false
+        },
+        {
+          "sprite": "sprArcadiaEnvCrane",
+          "span_w": 2,
+          "span_h": 2,
+          "solid": true,
+          "glow": false
+        }
+      ],
+      "npcs": [
+        {
+          "avatar": "objNPCGuard",
+          "name": "Gate Inspector Holloway",
+          "line": "Papers? No? Then state your business in Arcadia, plainly and in a grown-up voice. The Guildhall is dead ahead, the Boarding House is east, the Rail Depot is west. And keep off the tracks."
+        },
+        {
+          "avatar": "objNPCBlacksmith",
+          "name": "Foreman Grist",
+          "line": "Twelve-hour shifts, one whistle for lunch, and no stopping the line for anyone who can't hold it. That's how a city gets built."
+        },
+        {
+          "avatar": "objNPCCorporalVex",
+          "name": "Constable Brask",
+          "line": "Arcadia's orderly and it's staying that way. Anyone making a puddle on my cobbles spends the night in the cells, crinkle or no crinkle."
+        },
+        {
+          "avatar": "objNPCLunchLady",
+          "name": "Madam Coalby",
+          "line": "Hot pies, a penny each. Not for you, sweetheart. Bigs only at the counter; littles round the back, if there's anything left."
+        },
+        {
+          "id": "arcadia-bootblack",
+          "avatar": "objNPCWaddlingKid",
+          "name": "Tuppence, Boot-Black",
+          "line": "Shine, mister? Shine? ...They never look down, the bigs. Suits me. Nobody notices a little down here, not even when she's soggy.",
+          "roaming": true
+        },
+        {
+          "id": "arcadia-sweep",
+          "avatar": "objNPCLostChild",
+          "name": "Sooty, Chimney Sweep",
+          "line": "They send me up the stacks 'cause I'm small. Coughing all day, and no stopping to go, so I just... don't stop. The soot hides most of it.",
+          "roaming": true
+        },
+        {
+          "id": "arcadia-coalrunner",
+          "avatar": "objNPCNewKid",
+          "name": "Nibs, Coal-Runner",
+          "line": "Heard there's a city up north where littles run everything and nobody laughs at your padding. Bet it's made up. Bet it's lovely, though.",
+          "roaming": true
+        },
+        {
+          "id": "arcadia-inspector",
+          "avatar": "objNPCWhistleblower",
+          "name": "Mr. Ratchet, Smog Inspector",
+          "line": "Smog levels: acceptable. Whistle schedule: acceptable. You: under review. Stand up straight and stop fidgeting.",
+          "roaming": true
+        }
+      ],
+      "lobby": {
+        "spawn": {
+          "x": 30,
+          "y": 32
+        },
+        "stairs": {
+          "x": 2,
+          "y": 27
+        },
+        "gates": {
+          "north": "dive-autumnal-plains"
+        },
+        "buildings": [
+          {
+            "id": "guildhall",
+            "name": "Clockmakers' Guildhall",
+            "sprite": "sprArcadiaGuildhall",
+            "x": 29,
+            "y": 25,
+            "target": "tower",
+            "span_w": 3,
+            "span_h": 3,
+            "door": {
+              "x": 30,
+              "y": 28
+            }
+          },
+          {
+            "id": "rail-depot",
+            "name": "Rail Depot",
+            "sprite": "sprArcadiaDepot",
+            "x": 25,
+            "y": 28,
+            "target": "dives",
+            "span_w": 3,
+            "span_h": 3,
+            "door": {
+              "x": 26,
+              "y": 31
+            }
+          },
+          {
+            "id": "boarding-house",
+            "name": "Boarding House",
+            "sprite": "sprArcadiaBoardingHouse",
+            "x": 33,
+            "y": 28,
+            "target": "beds",
+            "span_w": 3,
+            "span_h": 3,
+            "door": {
+              "x": 34,
+              "y": 31
+            }
+          },
+          {
+            "id": "temple",
+            "name": "The Iron Chapel of Orthain",
+            "sprite": "sprTempleOrthain",
+            "x": 31,
+            "y": 32,
+            "target": "temple",
+            "span_w": 2,
+            "span_h": 2,
+            "door": {
+              "x": 32,
+              "y": 34
+            }
+          }
+        ],
+        "pay_toilets": 2
+      },
+      "features": {
+        "smog": {
+          "radius": 6,
+          "stamina_per_step": 2,
+          "thirst_per_step": 2,
+          "view_tiles": 5
+        },
+        "whistle": {
+          "period_minutes": 6,
+          "warning_seconds": 15,
+          "blast_seconds": 8,
+          "startle_wet": 30
+        }
+      },
+      "source_zone": "arcadia"
     }
   ],
   "resident_version": 1,

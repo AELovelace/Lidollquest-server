@@ -1,5 +1,5 @@
 {
-  "_comment": "20 weekly online quests for the three shared hubs. Upload with python/upload_weekly_quests.py. Every giver is an existing roaming district resident and every objective type is placement-free, so this pack needs no published NPCs, no published monsters and no Zones-tab placements. See QUEST_MAKING_GUIDE.md.",
+  "_comment": "26 weekly online quests for the five shared hubs. Upload with python/upload_weekly_quests.py. Every giver is an existing roaming district resident and every objective type is placement-free, so this pack needs no published NPCs, no published monsters and no Zones-tab placements. See QUEST_MAKING_GUIDE.md.",
   "kind": "quest",
   "version": 1,
   "quests": [
@@ -618,6 +618,154 @@
         }
       ],
       "rewards": {"xp": 140, "coins": 55, "items": [{"id": "nanny_juice_box", "count": 1}]}
+    },
+    {
+      "id": "utopia_wheee_test_flight",
+      "name": "Wheee Test Flight",
+      "description": "Wick's hover-kite dips every time the rune flickers, and every dip earns a delighted squeal from its pilot. Moss says a second pair of hands on the string would steady it. Wick says a second squealer would make it more fun. Both are probably right.",
+      "repeat": "weekly",
+      "givers": ["utopia-arcanum:utopia-kite"],
+      "turn_in": {"mode": "npc", "npc": "utopia-arcanum:utopia-kite"},
+      "failure_text": "The kite drifts off sideways. Wick squeals anyway.",
+      "stages": [
+        {
+          "id": "hold_the_string",
+          "name": "Hold the string",
+          "text": "Find Moss in the Artificer's Workshop, then hold the kite string while it swoops.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "the_workshop", "type": "visit", "target": "utopia-arcanum-dives", "text": "Visit the Artificer's Workshop", "count": 1},
+            {"id": "ask_moss", "type": "talk", "target": "utopia-arcanum:utopia-moss", "text": "Ask Moss about the rune", "count": 1},
+            {"id": "three_minutes", "type": "timer", "text": "Hold the kite string for three minutes (squealing optional)", "count": 180}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 80, "coins": 30, "items": [{"id": "herbal_tea", "count": 1}]}
+    },
+    {
+      "id": "utopia_station_rounds",
+      "name": "Station Rounds",
+      "description": "Dot keeps a chart of every Auto-Changing Station in Utopia and likes a fresh pair of eyes on the indoor ones. Walk the Nap Pods, the Arcanum Tower and the Workshop and make sure each station is whirring happily.",
+      "repeat": "weekly",
+      "givers": ["utopia-arcanum:utopia-dot"],
+      "turn_in": {"mode": "npc", "npc": "utopia-arcanum:utopia-dot"},
+      "failure_text": "The rounds go unwalked. The stations whirr on without supervision.",
+      "stages": [
+        {
+          "id": "the_rounds",
+          "name": "The rounds",
+          "text": "Check the changing station in each of Utopia's three buildings.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "pods", "type": "visit", "target": "utopia-arcanum-beds", "text": "Check the station in the Nap Pods", "count": 1},
+            {"id": "tower", "type": "visit", "target": "utopia-arcanum-tower", "text": "Check the station in the Arcanum Tower", "count": 1},
+            {"id": "workshop", "type": "visit", "target": "utopia-arcanum-dives", "text": "Check the station in the Artificer's Workshop", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 90, "coins": 35, "items": [{"id": "herbal_tea", "count": 1}]}
+    },
+    {
+      "id": "utopia_crinkle_courier",
+      "name": "Crinkle Courier Relief",
+      "description": "Tibbs has three deliveries and only two hands, and one of those is holding a paci. Help run messages along the glowing avenues: a note for Dot, a spare wrench for Moss, and a sticker sheet for the Tower.",
+      "repeat": "weekly",
+      "givers": ["utopia-arcanum:utopia-courier"],
+      "turn_in": {"mode": "npc", "npc": "utopia-arcanum:utopia-courier"},
+      "failure_text": "The deliveries wait on the avenue. Nobody in Utopia is in any hurry.",
+      "stages": [
+        {
+          "id": "deliveries",
+          "name": "Deliveries",
+          "text": "Carry Tibbs's messages across the city.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "note_for_dot", "type": "talk", "target": "utopia-arcanum:utopia-dot", "text": "Bring Dot the station note", "count": 1},
+            {"id": "wrench_for_moss", "type": "talk", "target": "utopia-arcanum:utopia-moss", "text": "Bring Moss the spare wrench", "count": 1},
+            {"id": "stickers", "type": "visit", "target": "utopia-arcanum-tower", "text": "Drop the sticker sheet at the Arcanum Tower", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 85, "coins": 35, "items": [{"id": "herbal_tea", "count": 1}]}
+    },
+    {
+      "id": "arcadia_mind_the_stall",
+      "name": "Mind the Stall",
+      "description": "Tuppence needs to run an errand and can't leave the boot-black stall, or some big will kick her box into the gutter again. Stand guard on the street for a few minutes. Nobody will look twice at you. Nobody looks at littles here.",
+      "repeat": "weekly",
+      "givers": ["arcadia-foundry:arcadia-bootblack"],
+      "turn_in": {"mode": "npc", "npc": "arcadia-foundry:arcadia-bootblack"},
+      "failure_text": "The stall gets kicked over again. Tuppence rebuilds it without a word.",
+      "stages": [
+        {
+          "id": "the_job",
+          "name": "Guard the stall",
+          "text": "Hold the corner until Tuppence gets back.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "the_street", "type": "visit", "target": "arcadia-foundry", "text": "Stand on the Arcadia streets", "count": 1},
+            {"id": "three_minutes", "type": "timer", "text": "Guard the stall for three minutes", "count": 180}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 75, "coins": 30, "items": [{"id": "herbal_tea", "count": 1}]}
+    },
+    {
+      "id": "arcadia_chimney_errand",
+      "name": "Up the Chimney",
+      "description": "Sooty has been sent up another stack and can't come down until the Boarding House stove is lit and the Guildhall's clock is wound. Take the message to both, and pretend you don't hear the coughing.",
+      "repeat": "weekly",
+      "givers": ["arcadia-foundry:arcadia-sweep"],
+      "turn_in": {"mode": "npc", "npc": "arcadia-foundry:arcadia-sweep"},
+      "failure_text": "Sooty stays up the stack until dark. Nobody asks after her.",
+      "stages": [
+        {
+          "id": "the_job",
+          "name": "Two messages",
+          "text": "Carry Sooty's messages through the city.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "boarding_house", "type": "visit", "target": "arcadia-foundry-beds", "text": "Tell Mrs. Grimsby to light the stove", "count": 1},
+            {"id": "guildhall", "type": "visit", "target": "arcadia-foundry-tower", "text": "Ask the Guildhall to wind the clock", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 80, "coins": 30, "items": [{"id": "herbal_tea", "count": 1}]}
+    },
+    {
+      "id": "arcadia_the_rumour",
+      "name": "The Rumour Up North",
+      "description": "Nibs has heard there is a city past the Taiga where littles run everything. Ratchet, the smog inspector, says it's nonsense. Talk to both of them and find the depot where the new line will one day run.",
+      "repeat": "weekly",
+      "givers": ["arcadia-foundry:arcadia-coalrunner"],
+      "turn_in": {"mode": "npc", "npc": "arcadia-foundry:arcadia-coalrunner"},
+      "failure_text": "Nibs stops asking. The rumour doesn't stop spreading.",
+      "stages": [
+        {
+          "id": "the_job",
+          "name": "Asking around",
+          "text": "Some bigs laugh. Some littles listen.",
+          "mode": "all",
+          "next": "complete",
+          "objectives": [
+            {"id": "ask_ratchet", "type": "talk", "target": "arcadia-foundry:arcadia-inspector", "text": "Ask Mr. Ratchet about the city up north", "count": 1},
+            {"id": "the_depot", "type": "visit", "target": "arcadia-foundry-dives", "text": "Look over the Rail Depot's empty platform", "count": 1},
+            {"id": "ask_tuppence", "type": "talk", "target": "arcadia-foundry:arcadia-bootblack", "text": "Tell Tuppence what you heard", "count": 1}
+          ],
+          "branches": []
+        }
+      ],
+      "rewards": {"xp": 90, "coins": 35, "items": [{"id": "herbal_tea", "count": 1}]}
     }
   ]
 }

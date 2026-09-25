@@ -30,7 +30,7 @@ test('new Dives enforce hub adjacency, isolate claims, retain fights/reconnects 
    place(...(hub==='honeydew-lantern'?[25,25]:hub==='littlebig-clockwork'?[33,29]:[9,0]));act('hub_visit',{zone:hub+'-dives'});place(2,9); // Plaza doorsteps for the two towns; Rose's top-wall gap.
    assert.throws(()=>act('dive_enter',{zone:zone_id}),/glowing portal/);
    place(data.config.pad.x,data.config.pad.y);const entered=act('dive_enter',{zone:zone_id});
-   assert.ok(Buffer.byteLength(JSON.stringify(entered))<262144);assert.equal(entered.dungeons.length,13); // Includes the Haunted Woods overworld and the Spooky Mansion dungeon.assert.equal(entered.dive.claimed,0);
+   assert.ok(Buffer.byteLength(JSON.stringify(entered))<262144);assert.equal(entered.dungeons.length,22);assert.equal(entered.dive.claimed,0); // Four full routes are additive; the six small campaign Dives retain their claims and entrances.
    const floor=entered.zones.at(-1),chest=entered.dive.chests[0],near=pathTo(floor,floor.entrance,chest).at(-2)??floor.entrance;
    place(near.x,near.y);act('dive_claim',{chest:chest.id});setup();
    const resumed=act('enter',{zone:zone_id});assert.equal(resumed.dive.claimed,1);assert.equal(c.dive.returnZone,hub+'-dives');
