@@ -127,17 +127,24 @@ test('potions and treasure are personal, persistent, replay-safe and remain avai
  }finally{f.close();}
 });
 
-test('live dressing upgrade preserves walls, claims, inventory, fights and player positions exactly once',()=>{
- const f=fixture();try{
+test('live dressing upgrade preserves walls, claims, inventory, fights and player positions exactly once',t=>{
+ const logs=[];t.mock.method(console,'warn',(...args)=>logs.push(args)); // Capture other routes too: a caught tick exception must still fail this regression.
+ const f=fixture({log:(...args)=>logs.push(args)});try{
   const a=f.player(),ch=f.snap(a).dive.chests[0];f.near(a,ch);f.act(a,'dive_claim',{chest:ch.id});const fighting=f.engage(a);
-  const row=f.db.prepare('SELECT * FROM dive_editions').get(),floor=JSON.parse(row.content);
+  const visit=fighting.character.dive,key=[visit.route,visit.edition,1]; // Target the occupied route, weekly edition and floor, never whichever row SQLite returns first.
+  const readFloor=()=>JSON.parse(f.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=? AND depth=?').get(...key).content);
+  const otherFloors=()=>f.db.prepare('SELECT route,edition,depth,content FROM dive_editions WHERE NOT (route=? AND edition=? AND depth=?) ORDER BY route,edition,depth').all(...key);
+  const untouched=otherFloors(),floor=readFloor();assert.ok(untouched.length>0,'other routes must exist to exercise upgrade isolation');
   delete floor.dressingVersion;delete floor.pickups;delete floor.props;floor.decorations=[];
-  f.db.prepare('UPDATE dive_editions SET content=?').run(JSON.stringify(floor));f.restart();f.tick();
-  const s=f.snap(a),upgraded=JSON.parse(f.db.prepare('SELECT content FROM dive_editions').get().content);
+  const update=f.db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=? AND depth=?').run(JSON.stringify(floor),...key);
+  assert.equal(update.changes,1,'only the occupied floor is downgraded');f.restart();f.tick();
+  const s=f.snap(a),upgraded=readFloor();
   assert.deepEqual(s.character.run,fighting.character.run);assert.deepEqual(s.character.loadout,fighting.character.loadout);assert.deepEqual(s.position,fighting.position);
   assert.deepEqual(upgraded.walls,floor.walls);assert.deepEqual(upgraded.chests,floor.chests);assert.equal(s.dive.claimed,1);assert.equal(s.dive.completed,false);
   assert.ok(walkable(upgraded,s.position.x,s.position.y));assert.ok(s.dive.pickupsTotal>0);assert.equal(s.dive.enemies.find(e=>e.id==='iris').engaged,a);
-  f.restart();f.tick();assert.deepEqual(JSON.parse(f.db.prepare('SELECT content FROM dive_editions').get().content),upgraded);
+  f.restart();f.tick();assert.deepEqual(readFloor(),upgraded);
+  assert.deepEqual(logs.filter(([event])=>event.endsWith('_failed')),[],'all routes must survive the upgrade and both restarts without caught failures');
+  assert.deepEqual(otherFloors(),untouched,'upgrading one floor must preserve every other saved map byte for byte');
  }finally{f.close();}
 });
 test('both lobbies share a floor; personal chest claims survive replay, inventory limits and reconnects',()=>{

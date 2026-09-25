@@ -25,12 +25,12 @@ test('districts express distinct host layouts rather than the old universal open
 
 test('deploying a layout version archives existing maps and safely returns visitors without waiting for another month',()=>{
  const db=new DatabaseSync(':memory:'),now=Date.parse('2026-09-17T12:00:00Z'),data=structuredClone(districtData),window=monthlyWindow(now);
- db.exec('CREATE TABLE quest_presence(zone TEXT,x INTEGER,y INTEGER,moved INTEGER)');
+ db.exec('CREATE TABLE quest_presence(zone TEXT,x INTEGER,y INTEGER,moved INTEGER,seen INTEGER)'); // Match the live presence timestamp used to protect connected visitors during entrance upgrades.
  try{
   const districts=createHubDistricts(db,{now:()=>now,data});
   for(const d of data.districts){
    const id=districtZone(d);districts.resolve({id});
-   db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?)').run(id,25,25,0);
+   db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?)').run(id,25,25,0,now); // Keep this visitor connected while the layout version changes.
   }
   const originals=db.prepare('SELECT * FROM hub_district_editions ORDER BY zone').all();
   data.version++;
