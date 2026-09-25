@@ -157,7 +157,8 @@ test('presence and chat are zone-scoped, expire, and enforce message limits',()=
   for(let i=0;i<5;i++)a=f.act('chat',a,{text:'Hi #there\nfriend '+i}).character; // Distinct lines: an identical repeat inside four seconds is treated as a lag echo and stored once.
   assert.throws(()=>f.act('chat',a,{text:'Spam'}),e=>e.status===429);
   f.as('bob');let b=f.act('create',null,{name:'Bob'}).character;b=f.act('enter',b,{zone:questZones[0].id}).character;
-  let view=f.zones.read('bob',b.id);assert.equal(view.peers.length,2);assert.equal(view.chat.length,5);assert.equal(view.chat[0].text.includes('#'),false);
+  let view=f.zones.read('bob',b.id);assert.equal(view.peers.length,2);assert.equal(view.chat.length,0,'Bob arrived after the lines were spoken');
+  b=f.act('chat',b,{text:'Hi #back'}).character;view=f.zones.read('bob',b.id);assert.equal(view.chat.length,1);assert.equal(view.chat[0].text.includes('#'),false);
   b=f.act('leave',b).character;b=f.act('enter',b,{zone:questZones[1].id}).character;view=f.zones.read('bob',b.id);assert.equal(view.peers.length,1);assert.equal(view.chat.length,0);
   f.advance(31000);assert.equal(f.zones.read('bob',b.id).zone,null);assert.throws(()=>f.act('heartbeat',b),e=>e.status===409);
  }finally{f.db.close();}

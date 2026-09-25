@@ -82,7 +82,7 @@ test('dungeon partner selection uses room and edition boundaries, while partners
  const f=fixture();try{
   f.player('Alice');f.player('Bob');f.act('Alice','dive_enter');let s=f.act('Bob','dive_enter');
   const id=f.act('Alice','rp_post',{text:'We explore together.',partners:[f.ids.Bob]}).receipt.rpId;
-  const room=s.zones.find(z=>z.id==='dive-quarters').rooms[1];f.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(room.x,room.y,f.ids.Bob);
+  const alice=f.db.prepare('SELECT x,y FROM quest_presence WHERE character_id=?').get(f.ids.Alice),room=s.zones.find(z=>z.id==='dive-quarters').rooms.find(r=>Math.abs(r.x-alice.x)>15||Math.abs(r.y-alice.y)>10);assert.ok(room,'a room off screen for Alice');f.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(room.x,room.y,f.ids.Bob);
   assert.equal(f.read('Alice').rp.candidates.length,0);assert.equal(f.act('Bob','rp_read',{rp_id:id}).receipt.rpPost.text,'We explore together.');
   f.advance(11000);assert.throws(()=>f.act('Alice','rp_post',{text:'Different room',partners:[f.ids.Bob]}),/area-chat/);
  }finally{f.close();}

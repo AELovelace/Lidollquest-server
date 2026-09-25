@@ -269,15 +269,22 @@ new clients refuse OOC sends when the server does not advertise support.
 Run `node --test test/global-chat.test.mjs test/dive.test.mjs test/gm.test.mjs`.
 The game checkout's GX browser fixture supports `--global-chat-only`.
 
-### Radius chat, echo suppression and clearing (2026-09-23)
+### Screen-range chat, echo suppression and clearing (2026-09-23, screen range 2026-09-25)
 
-Area speech is heard by distance. `quest_chat` rows store the speaker's committed
-tile (`x`, `y`); a reader sees an area line when they stand within `chatRadius`
-tiles of it (Euclidean, default 8, env `CHAT_RADIUS`), when the row has no tile
-(`broadcast`, legacy rows) or when their own account wrote it. Global and party
-streams ignore distance. Snapshots carry `chatRadius`. Dive streams are one per
-route, edition and depth; room walls no longer split them. RP partners must be within
-the radius, and RP/activity notices carry the author's tile.
+Area speech is heard by whoever was on the speaker's screen when it was said.
+`quest_chat` rows store the speaker's committed tile (`x`, `y`). Inside the same
+command transaction, `stampHearers()` in `server/zones.mjs` writes one
+`quest_chat_heard(seq, character_id)` row for every live character in the same
+stream whose tile is within `chatReach` of the speaker: 15 tiles sideways and 10 up or down
+(the 920x640 px online map at 32 px tiles; env `CHAT_REACH_X` / `CHAT_REACH_Y` or the
+`chatReach:{x,y}` factory option). A reader sees an area line only if they were
+stamped for it, if the row has no tile (`broadcast` announcements) or if their own
+account wrote it. Walking up later never reveals a line you missed, and a line you
+heard stays in your log after you walk away. Rows written before the heard table existed
+show only to their speaker. A delete trigger drops hearers along with their chat row.
+Global and party streams ignore distance. Snapshots carry `chatReach`. Dive streams
+are one per route, edition and depth; room walls do not split them. RP partners must be
+on your screen, and RP/activity notices carry the author's tile, so they are stamped too.
 
 A `chat` command whose character, stream, text and emote flag match a row from the
 last four seconds succeeds without storing anything and without spending quota, so
