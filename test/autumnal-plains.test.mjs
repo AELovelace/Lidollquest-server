@@ -67,7 +67,7 @@ test('a character walks from the village square out the south gate into the Plai
  assert.ok(seen.has(key(24,49))&&seen.has(key(25,49))&&seen.has(key(24,48))); // The gate and its strip join the square this month (no scenery in the way of the walls).
  f.place('alice',{x:24,y:48});const out=f.act('alice','move',{direction:'south',world_step:true});
  assert.equal(out.zone,AUTUMNAL_PLAINS_ZONE);
- const plains=f.floor('alice');assert.equal(plains.theme,'autumn_plains');assert.deepEqual(plains.exits.map(e=>[e.zone,e.side,e.style]),[[HONEYDEW,'top','gap'],['dive-farmstead',undefined,'warp'],['dive-seafoam-coast','right','gap'],['dive-emberfall-caldera','left','gap'],['arcadia-foundry','bottom','gap']]); // Plus the barn door's warp pad, the east trail to the Seafoam Coast, the west trail to Emberfall Caldera and the south road to Arcadia.
+ const plains=f.floor('alice');assert.equal(plains.theme,'autumn_plains');assert.deepEqual(plains.exits.map(e=>[e.zone,e.side,e.style]),[[HONEYDEW,'top','gap'],['overworld-farmstead',undefined,'warp'],['overworld-seafoam-coast','right','gap'],['overworld-emberfall-caldera','left','gap'],['arcadia-foundry','bottom','gap']]); // Plus the barn door's warp pad, the east trail to the Seafoam Coast, the west trail to Emberfall Caldera and the south road to Arcadia.
  assert.deepEqual(out.position,{x:40,y:1}); // Arrive just inside the Plains' top gap.
  f.place('alice',{x:40,y:1});const home=f.act('alice','move',{direction:'north',world_step:true});
  assert.equal(home.zone,HONEYDEW);assert.deepEqual(home.position,{x:24,y:48}); // Back one tile inside Honeydew's south gate.

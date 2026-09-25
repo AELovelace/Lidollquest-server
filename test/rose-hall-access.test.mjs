@@ -29,7 +29,7 @@ test('Quarters entry belongs only to Rose; retired hub entries resume and return
    }else{
     for(const action of ['enter','dive_enter'])assert.throws(()=>act(action,{zone:'dive-quarters'}),/glowing portal/);
     assert.throws(()=>act('dive_enter'),/glowing portal/); // Older clients cannot bypass the revised destination list.
-    assert.equal(pads.find(p=>p.target==='dive-desert'),undefined); // Desert opens through Honeydew Village's east wall and LittleBigCity's west wall, never a hall.
+    assert.equal(pads.find(p=>p.target==='overworld-desert'),undefined); // Desert opens through Honeydew Village's east wall and LittleBigCity's west wall, never a hall.
    }
    place(10,9);act('hub_visit',{zone:hub});act('leave');
   }

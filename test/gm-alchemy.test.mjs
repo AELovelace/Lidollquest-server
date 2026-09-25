@@ -52,7 +52,7 @@ test('the alchemy tab is staff-only, validates the whole table, audits every wri
    [{section:'chest_loot',patch:{chance:500}},/between 0 and 100/],
    [{section:'chest_loot',patch:{made_up:1}},/not an alchemy setting/],
    [{section:'chest_loot',patch:{everywhere:['not_an_herb']}},/not a known ingredient/],
-   [{section:'chest_loot',patch:{online_zones:{'dive-desert':'nowhere'}}},/no ingredient list/],
+   [{section:'chest_loot',patch:{online_zones:{'overworld-desert':'nowhere'}}},/no ingredient list/],
    [{section:'brewing',patch:{mishap:{base:0.1,per_point:0.01,min:0.5,max:0.1,kit_penalty:0}}},/must not be below/],
    [{section:'brewing',patch:{adjectives:{potent:{name:'Potent',bad:false,weight:5}}}},/must stay an adjective/],
    [{section:'brewing',patch:{secret_recipes:[{ingredients:['dandelion','ghost'],min_rarity:'rare'}]}},/not a known ingredient/],
@@ -83,7 +83,7 @@ test('the alchemy tab is staff-only, validates the whole table, audits every wri
 
 test('live chest odds reach the next dive chest and brewing overrides reach the client view',()=>{
  const db=new DatabaseSync(':memory:'),store=createAlchemyStore(db,{now:()=>5});
- const base=diveData.alchemy,roll=createDiveLootRoller(diveData,{lootTable:diveData.loot,alchemy:base,alchemyStore:store,alchemyZone:'dive-desert'});
+ const base=diveData.alchemy,roll=createDiveLootRoller(diveData,{lootTable:diveData.loot,alchemy:base,alchemyStore:store,alchemyZone:'overworld-desert'});
  let hits=0;for(let n=0;n<200;n++)if(roll.ingredient('ed','alice',{id:'chest-'+n}))hits++;
  assert.ok(hits>20&&hits<120,'shipped odds first ('+hits+'/200)');
  store.save('chest_loot',{chance:100},base,'gm');

@@ -6,7 +6,7 @@
     "_comment": "Weekly Haunted Woods overworld north of Honeydew Village, between Frostveil Taiga (west) and Dustbreak High Desert (east). Uses the singleplayer Haunted Forest clearing-and-trail layout (server/forest-generation.mjs). Export with python/export_online_haunted_woods.py.",
     "enabled": true,
     "route": "haunted-woods",
-    "zone_id": "dive-haunted-woods",
+    "zone_id": "overworld-haunted-woods",
     "zone_category": "overworld",
     "static": false,
     "name": "Haunted Woods",
@@ -39,19 +39,19 @@
         "side": "south"
       },
       {
-        "zone": "dive-taiga",
+        "zone": "overworld-taiga",
         "name": "Frostveil Taiga",
         "side": "west"
       },
       {
-        "zone": "dive-high-desert",
+        "zone": "overworld-high-desert",
         "name": "Dustbreak High Desert",
         "side": "east"
       }
     ],
     "landmark": {
-      "_comment": "The haunted house in the middle of the Woods. Its door is a warp pad into the Spooky Mansion dungeon (dive-spooky-mansion). sprite comes from python/make_haunted_house_sprite.py; span_w/span_h are its tile footprint and door_x is the pad's column inside it.",
-      "zone": "dive-spooky-mansion",
+      "_comment": "The haunted house in the middle of the Woods. Its door is a warp pad into the Spooky Mansion dungeon (overworld-spooky-mansion). sprite comes from python/make_haunted_house_sprite.py; span_w/span_h are its tile footprint and door_x is the pad's column inside it.",
+      "zone": "overworld-spooky-mansion",
       "name": "Spooky Mansion",
       "sprite": "sprHauntedHouse",
       "span_w": 4,

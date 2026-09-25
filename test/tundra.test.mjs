@@ -58,7 +58,7 @@ test('fresh characters can fight the beginner roster with each existing class',(
 test('legacy and hall entry cannot use a route belonging to a different hub',()=>{
  const f=fixture();try{
   const id=f.player('alice','princess-rose');f.act(id,'dive_exit');
-  assert.throws(()=>f.act(id,'dive_enter',{zone:'dive-desert'}),/glowing portal/);
+  assert.throws(()=>f.act(id,'dive_enter',{zone:'overworld-desert'}),/glowing portal/);
   f.act(id,'enter',{zone:'littlebig-clockwork'});
   assert.throws(()=>f.act(id,'dive_enter',{zone:TUNDRA_ZONE}),/glowing portal/);
   f.db.prepare('UPDATE quest_presence SET x=33,y=29 WHERE character_id=?').run(id); // Below the Coliseum doorstep on the LittleBigCity plaza.

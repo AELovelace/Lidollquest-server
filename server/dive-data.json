@@ -22572,15 +22572,15 @@
         "dive-forest": "forest",
         "dive-mansion": "mansion",
         "dive-hospital": "hospital",
-        "dive-desert": "desert",
-        "dive-high-desert": "high_desert",
-        "dive-tundra": "tundra",
-        "dive-taiga": "taiga",
-        "dive-autumnal-plains": "autumn_plains",
-        "dive-farmstead": "autumn_plains",
-        "dive-seafoam-coast": "coast",
-        "dive-emberfall-caldera": "caldera",
-        "dive-obsidian-spa": "caldera"
+        "overworld-desert": "desert",
+        "overworld-high-desert": "high_desert",
+        "overworld-tundra": "tundra",
+        "overworld-taiga": "taiga",
+        "overworld-autumnal-plains": "autumn_plains",
+        "overworld-farmstead": "autumn_plains",
+        "overworld-seafoam-coast": "coast",
+        "overworld-emberfall-caldera": "caldera",
+        "overworld-obsidian-spa": "caldera"
       }
     },
     "brewing": {

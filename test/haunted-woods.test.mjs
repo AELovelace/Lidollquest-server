@@ -72,7 +72,7 @@ test('a character walks Honeydew -> Woods -> Taiga -> Woods -> High Desert -> Wo
  f.player('alice');
  f.place('alice',{x:24,y:1});f.act('alice','move',{direction:'north',world_step:true});
  assert.equal(f.snap('alice').zone,HAUNTED_WOODS_ZONE);
- const woods=f.floor('alice');assert.equal(woods.theme,'forest');assert.deepEqual(woods.exits.map(e=>[e.zone,e.side,e.style]),[[HONEYDEW,'bottom','gap'],[TAIGA_ZONE,'left','gap'],[HIGH_DESERT_ZONE,'right','gap'],['dive-spooky-mansion',undefined,'warp']]); // Plus the haunted house's warp pad in the middle.
+ const woods=f.floor('alice');assert.equal(woods.theme,'forest');assert.deepEqual(woods.exits.map(e=>[e.zone,e.side,e.style]),[[HONEYDEW,'bottom','gap'],[TAIGA_ZONE,'left','gap'],[HIGH_DESERT_ZONE,'right','gap'],['overworld-spooky-mansion',undefined,'warp']]); // Plus the haunted house's warp pad in the middle.
  f.cross('alice',TAIGA_ZONE);assert.equal(f.snap('alice').zone,TAIGA_ZONE);
  const taiga=f.floor('alice');assert.ok(taiga.exits.some(e=>e.zone===HAUNTED_WOODS_ZONE&&e.side==='right'));
  f.cross('alice',HAUNTED_WOODS_ZONE);assert.equal(f.snap('alice').zone,HAUNTED_WOODS_ZONE);

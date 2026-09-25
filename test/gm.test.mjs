@@ -301,7 +301,7 @@ test('the overview reports live presence, rooms and totals',async()=>{
   assert.equal(view.players[0].name,'Poppy');
   assert.equal(view.players[0].zoneName,'Honeydew Village');
   assert.equal(view.zones.find(z=>z.id==='honeydew-lantern').players,1);
-  assert.equal(view.zones.find(z=>z.id==='dive-desert').warp,false);
+  assert.equal(view.zones.find(z=>z.id==='overworld-desert').warp,false);
   assert.ok(view.zones.find(z=>z.id==='princess-rose-shops').warp);
 
   h.advance(31000);
@@ -394,7 +394,7 @@ test('a gamemaster can move a player between rooms but never into a dive',async(
   await h.ok(playerToken,'enter',{zone:'honeydew-lantern'});
 
   assert.equal((await h.act('warp',{owner,zone:'nowhere'})).body.error,'gm_unknown_zone');
-  assert.equal((await h.act('warp',{owner,zone:'dive-desert'})).body.error,'gm_zone_not_warpable');
+  assert.equal((await h.act('warp',{owner,zone:'overworld-desert'})).body.error,'gm_zone_not_warpable');
 
   const moved=await h.act('warp',{owner,zone:'princess-rose-shops',reason:'stuck'});
   assert.equal(moved.body.result.to,'Rose Market Hall');

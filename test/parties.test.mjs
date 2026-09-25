@@ -277,7 +277,7 @@ test('expired disconnected membership changes leader and weekly grace releases e
 });
 
 test('all nine routes support shared fights while claims and chat stay personal and route-scoped',()=>{
- for(const [hub,zone] of [['princess-rose','dive-quarters'],['princess-rose','dive-dungeon'],['princess-rose','dive-tundra'],['honeydew-lantern','dive-desert'],['honeydew-lantern','dive-nursery'],['honeydew-lantern','dive-school'],['honeydew-lantern','dive-forest'],['littlebig-clockwork','dive-mansion'],['littlebig-clockwork','dive-hospital']]){
+ for(const [hub,zone] of [['princess-rose','dive-quarters'],['princess-rose','dive-dungeon'],['princess-rose','overworld-tundra'],['honeydew-lantern','overworld-desert'],['honeydew-lantern','dive-nursery'],['honeydew-lantern','dive-school'],['honeydew-lantern','dive-forest'],['littlebig-clockwork','dive-mansion'],['littlebig-clockwork','dive-hospital']]){
   const f=fixture();try{f.player('alice','fighter',hub);f.player('bob','mage',hub);f.join('bob');f.act('alice','dive_enter',{zone});const s=f.snap('alice'),foe=s.dive.enemies.find(e=>e.id!==s.dive.boss);const e=f.engage('alice',foe.id);assert.equal(e.encounter.players.length,2,zone);assert.equal(f.snap('bob').encounter.id,e.encounter.id);f.act('bob','flee');f.win();assert.equal(f.snap('bob').encounter,null);assert.equal(f.snap('alice').dive.claimed,0);assert.equal(f.snap('bob').dive.claimed,0);f.act('alice','chat',{text:zone});assert.ok(f.snap('alice').chatArea.id.includes(zone));
   }finally{f.close();}
  }

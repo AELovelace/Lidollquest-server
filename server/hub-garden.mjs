@@ -59,7 +59,7 @@ export const DEFAULT_DECORATIONS=[ // Princess' Quarters props and Honeydew prop
 ];
 export const GARDEN_PORTALS=Object.freeze([ // Lobby openings; hubs.mjs fills in the district's display name.
  {x:0,y:12,w:1,h:2,name:'The Castle',target:'princess-rose-garden',style:'gap',side:'left'},     // The castle keep is on the left: its gate leads into The Castle district.
- {x:19,y:5,w:1,h:2,name:'Frostveil Tundra',target:'dive-tundra',style:'gap',side:'right'},       // The Tundra road leaves where the old Beds door used to be.
+ {x:19,y:5,w:1,h:2,name:'Frostveil Tundra',target:'overworld-tundra',style:'gap',side:'right'},       // The Tundra road leaves where the old Beds door used to be.
  {x:15,y:16,name:'Shops',target:'princess-rose-shops',style:'stairs'},
  {x:9,y:0,w:2,h:1,name:'Dungeon Dive',target:'princess-rose-dives',style:'gap',side:'top'},
 ]);

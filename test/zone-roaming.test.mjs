@@ -70,7 +70,7 @@ test('wilderness routes: respawns keep walking, the explicit export trait thaws 
  const ticks=n=>{for(let i=0;i<n;i++){time+=1001;db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(time,c.id);zones.tick();}};
  const moved=(a,b)=>Object.keys(a).filter(id=>b[id]&&b[id]!==a[id]).length;
  try{
-  live.change({action:'content_publish',kind:'zone',id:'dive-desert',revision:live.entry('zone','dive-desert').revision,entry:{...live.entry('zone','dive-desert').draft}},'dm'); // Published content turns reconcile on, as on the live service.
+  live.change({action:'content_publish',kind:'zone',id:'overworld-desert',revision:live.entry('zone','overworld-desert').revision,entry:{...live.entry('zone','overworld-desert').draft}},'dm'); // Published content turns reconcile on, as on the live service.
   act('create',{name:'Alice'});act('enter',{zone:'honeydew-lantern',loadout:{player_info:{playerHealth:500,playerHealthMax:500,level:30},inventory:[]},combat_version:3,content_version:1,defeat_version:1});
   db.prepare('UPDATE quest_presence SET x=48,y=25 WHERE character_id=?').run(c.id);act('move',{direction:'east',world_step:true});time+=15000;
   assert.ok(record().floor.enemies.every(e=>e.roaming===true),'the wilderness generator marks every enemy as roaming');

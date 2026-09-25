@@ -6,7 +6,7 @@
     "_comment": "The Obsidian Spa: the bathhouse behind the landmark door in Emberfall Caldera (landmark in online_caldera.json). Its only way in and out is that warp pad. Fixed 22x14 layout (server/spa-generation.mjs): three private changing stalls (toilets), a lounge and two cooling baths. features.cool: what a dip does (dive_cool). Export with python/export_online_spa.py.",
     "enabled": true,
     "route": "obsidian-spa",
-    "zone_id": "dive-obsidian-spa",
+    "zone_id": "overworld-obsidian-spa",
     "zone_category": "overworld",
     "static": false,
     "name": "Obsidian Spa",
@@ -38,12 +38,12 @@
     },
     "endpoints": [
       {
-        "zone": "dive-emberfall-caldera",
+        "zone": "overworld-emberfall-caldera",
         "name": "Emberfall Caldera",
         "side": "foyer"
       }
     ],
-    "parent_zone": "dive-emberfall-caldera"
+    "parent_zone": "overworld-emberfall-caldera"
   },
   "structure": {},
   "enemy_types": [],

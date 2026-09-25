@@ -96,7 +96,7 @@ two-client browser fixture. The existing short chat cleanup never deletes RP pro
 
 ## Frostveil Taiga
 
-`dive-taiga` / `frostveil-taiga` adds an 80×80 weekly region with Forest and Tundra
+`overworld-taiga` / `frostveil-taiga` adds an 80×80 weekly region with Forest and Tundra
 enemies, their authored spells/DEX, and both native scenery pools. Its only entrance
 is the north-center Tundra trail (50,1). The Taiga southern exit (40,78) and manual
 retreat lead back to Tundra; no hub or Dive Hall offers a shortcut. Crossings use
@@ -115,7 +115,7 @@ The new route otherwise uses the Monday 04:00 Pacific lifecycle. Run
 
 ## Dustbreak High Desert
 
-`dive-high-desert` / `dustbreak-high-desert` adds an 80×80 weekly juniper plateau
+`overworld-high-desert` / `dustbreak-high-desert` adds an 80×80 weekly juniper plateau
 with Desert and Forest enemies and both scenery pools. Its only entrance is the
 Desert's north-center trail (50,1); its southern exit (40,78) and manual retreat
 lead back to the Desert. Reciprocal branches are listed in `WILDERNESS_LINKS`
@@ -974,7 +974,7 @@ The rebuilt game restores ordinary Quick Actions, places online services behind 
 
 ## Weekly shared Desert
 
-The Dustbreak Desert is a second weekly route (dustbreak-crossing / dive-desert), connecting both online lobbies. It uses the same Monday 04:00 America/Los_Angeles schedule, personal loot, combat and reset/recovery system as the Quarters, with route-isolated state. No additional coin boss reward is added. Config and authored pools are exported from the game with python/export_online_desert.py into server/desert-data.json. Deploy this service/content before the new game. npm test covers deterministic Desert generation, crossings, route isolation, reset, reconnects and all classes. See the game checkout ONLINE_DESERT_GUIDE.md for editor settings and the two-player browser regression.
+The Dustbreak Desert is a second weekly route (dustbreak-crossing / overworld-desert), connecting both online lobbies. It uses the same Monday 04:00 America/Los_Angeles schedule, personal loot, combat and reset/recovery system as the Quarters, with route-isolated state. No additional coin boss reward is added. Config and authored pools are exported from the game with python/export_online_desert.py into server/desert-data.json. Deploy this service/content before the new game. npm test covers deterministic Desert generation, crossings, route isolation, reset, reconnects and all classes. See the game checkout ONLINE_DESERT_GUIDE.md for editor settings and the two-player browser regression.
 
 Shared hubs now include Dive Halls with Quarters/Desert floor portals. The former gardens are now monthly 50x50 host-zone districts, exported from online_districts.json; their existing *-garden identifiers are retained. Definitions include authoritative width/height, spawn, exit and portal style. Garden uses a left-wall gap and Beds a right-wall gap in each lobby (y=5–6). `style: gap` includes width/height and side metadata; `move` atomically transfers characters on contact, with matching right/left return openings and safe interior arrival tiles. These boundary cells are ordinary floor. Dive Hall retains its doorway and Shops its stairs. A dungeon visit keeps both its parent origin hub and returnZone hall; crossing the Desert returns to the other hub hall. Direct lobby dive_enter remains supported for old clients during service-first rollout.
 

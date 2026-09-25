@@ -6,7 +6,7 @@
     "_comment": "Spooky Mansion dungeon (not a weekly-boss Dive): the campaign-sized 60x80 singleplayer mansion layout (server/mansion-generation.mjs), shared and weekly-regenerated like the overworlds. Its only way in and out is the warp pad at the haunted house in the middle of the Haunted Woods. The separate Haunted Mansion Dive (dive-mansion, LittleBigCity pad) is unchanged. Export with python/export_online_spooky_mansion.py.",
     "enabled": true,
     "route": "spooky-mansion",
-    "zone_id": "dive-spooky-mansion",
+    "zone_id": "overworld-spooky-mansion",
     "zone_category": "overworld",
     "static": false,
     "name": "Spooky Mansion",
@@ -34,7 +34,7 @@
     "non_diaper_panties_per_floor": 1,
     "endpoints": [
       {
-        "zone": "dive-haunted-woods",
+        "zone": "overworld-haunted-woods",
         "name": "Haunted Woods",
         "side": "foyer"
       }

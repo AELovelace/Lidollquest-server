@@ -7,7 +7,7 @@ import {gmZones} from '../server/gm.mjs';
 import {routeCategory,ZONE_CATEGORY} from '../server/zone-categories.mjs';
 
 const DIVES=['dive-quarters','dive-dungeon','dive-nursery','dive-school','dive-forest','dive-mansion','dive-hospital']; // Instanced boss routes.
-const OVERWORLD=['dive-desert','dive-tundra','dive-taiga','dive-high-desert']; // Open wilderness linked by trails.
+const OVERWORLD=['overworld-desert','overworld-tundra','overworld-taiga','overworld-high-desert']; // Open wilderness linked by trails.
 
 function fixture(){ // Minimal in-memory server with one character standing in a court lobby.
  const db=new DatabaseSync(':memory:'),quiet={log:()=>{}};
@@ -39,5 +39,5 @@ test('the GM zone catalogue shows every playable zone category',()=>{
  const byId=Object.fromEntries(gmZones.map(z=>[z.id,z.category]));
  for(const id of DIVES)assert.equal(byId[id],ZONE_CATEGORY.DIVE,id);
  for(const id of OVERWORLD)assert.equal(byId[id],ZONE_CATEGORY.OVERWORLD,id);
- assert.ok(gmZones.filter(z=>z.kind!=='chat'&&!z.id.startsWith('dive-')).every(z=>z.category===ZONE_CATEGORY.SAFE)); // Courts and RP rooms.
+ assert.ok(gmZones.filter(z=>z.kind!=='chat'&&!/^(dive|overworld)-/.test(z.id)).every(z=>z.category===ZONE_CATEGORY.SAFE)); // Courts and RP rooms.
 });
