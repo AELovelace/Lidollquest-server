@@ -281,7 +281,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     if(c&&JSON.stringify(JSON.parse(c.state).creation??null)!==JSON.stringify(creation))fail(409,'This creation request already has different choices.');
     if(creation?.start_hub!==undefined&&!hubCatalog.some(h=>h.id===creation.start_hub))fail(400,'Choose one of the five hubs to start in.'); // Starting hubs: Rose Court, Honeydew Village, LittleBigCity, Utopia or Arcadia.
     if(creation?.patron!==undefined&&creation.patron!==''&&!GODS_BY_ID[creation.patron])fail(400,'Choose one of the five gods, or none.');
-    if(!c){if(db.prepare('SELECT COUNT(*) AS n FROM quest_characters WHERE owner=?').get(i.owner).n>=5)fail(409,'This account already has five online characters.');const id=randomUUID(),initial={avatar:appearance,creationAvatar:appearance,creationName:name,creation,wins:0,run:null,lastStart:0,lastResult:null,homeHub:creation?.start_hub??'princess-rose'};if(creation?.patron)dedicate(initial,creation.patron,now()); /* A patron chosen at creation is the character's one free vow. */db.prepare('INSERT INTO quest_characters VALUES (?,?,?,?,0,?,?)').run(id,i.owner,name,now(),JSON.stringify(initial),input.request_id);c=character(i.owner,id);privateSprites?.claimDraft(i.owner,c.id);}
+    if(!c){if(db.prepare('SELECT COUNT(*) AS n FROM quest_characters WHERE owner=?').get(i.owner).n>=5)fail(409,'This account already has five online characters.');const id=randomUUID(),initial={avatar:appearance,creationAvatar:appearance,creationName:name,creation,wins:0,run:null,lastStart:0,lastResult:null,homeHub:creation?.start_hub??'princess-rose',startChoiceDone:true}; /* New characters chose their hub and patron on the creation screen. */if(creation?.patron)dedicate(initial,creation.patron,now()); /* A patron chosen at creation is the character's one free vow. */db.prepare('INSERT INTO quest_characters VALUES (?,?,?,?,0,?,?)').run(id,i.owner,name,now(),JSON.stringify(initial),input.request_id);c=character(i.owner,id);privateSprites?.claimDraft(i.owner,c.id);}
     return response(i,c);
    }
    const c=character(i.owner,input.character_id),fingerprint=createHash('sha256').update(JSON.stringify(Object.keys(input).sort().map(k=>[k,canonical(input[k])]))).digest('hex'); // Preserve legacy flat command fingerprints while stabilizing nested loadout data.
@@ -318,7 +318,23 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    const divePresence=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
    if(quests&&input.action==='move'&&divePresence){const step={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];if(step&&quests.placements.rows(divePresence.zone).length&&quests.placements.view(divePresence.zone).placements.some(p=>p.kind==='npc'&&p.x===divePresence.x+step[0]&&p.y===divePresence.y+step[1]))fail(409,'An NPC is standing there. Speak to them or walk around.');}
    if(input.action==='move'&&divePresence&&!state.dive){const room=zone(divePresence.zone),step={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];const gap=room&&step?hubGaps(room).find(g=>g.target.startsWith('dive-')&&inHubGap(g,divePresence.x+step[0],divePresence.y+step[1])):null;if(gap){if(live?.published().enabled&&state.contentVersion!==1)fail(409,'Update the game to use published world content.','client_update_required');input={...input,action:'dive_enter',zone:gap.target,gate:!room.parent};}} // Resolve monthly Castle/town connectors before dispatching contact travel.
-   if(input.action==='faith_break_free'){ // Orin's devout tear free of one cursed piece, anywhere, a few times a day.
+   if(input.action==='choose_start'){ // Characters made before the religion update pick a starting hub and a free patron, once (client objFaithChoiceUI). Empty zone/key keeps things as they are.
+    p=presence(i,c,input.controller);if(state.startChoiceDone)fail(409,'You have already made this choice.');
+    const hub=String(input.zone??''),patron=String(input.key??''),lines=[];
+    if(hub&&!hubCatalog.some(h=>h.id===hub))fail(400,'Choose one of the five hubs.');
+    if(patron&&!GODS_BY_ID[patron])fail(400,'Choose one of the five gods, or none.');
+    if(hub){
+     state.homeHub=hub;lines.push(`${hubCatalog.find(h=>h.id===hub).name} is your home now; you will arrive there when you come online.`);
+     const busy=state.run||state.dive||state.pendingPurchase||state.worldTurnDue||state.duel||state.trade||parties.party(c.id);
+     if(!busy&&p.zone!==hub){const spawn=zone(hub).spawn??{x:10,y:9};db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(hub,spawn.x,spawn.y,now(),c.id);delete state.hubVisit;lines.push('You set off for it at once.');} // Solo and idle: go there now; otherwise it takes effect next time.
+    }
+    if(patron){
+     if(state.faith||state.faithSworn>0)lines.push(`You already follow ${GODS_BY_ID[state.faith?.god]?.name??'a god'}; visit ${GODS_BY_ID[patron].name}'s temple to switch.`);
+     else{dedicate(state,patron,now());state.loadout&&(state.loadout.faith=combatFaith(state));lines.push(`You swear yourself to ${GODS_BY_ID[patron].name}, god of ${GODS_BY_ID[patron].domain}. This first vow is free.`);}
+    }
+    state.startChoiceDone=true;state.faithNotice=lines.length?lines.join(' '):'You keep things as they are. Temples in every hub welcome you whenever you are ready.';state.faithNoticeAt=now();
+   }
+   else if(input.action==='faith_break_free'){ // Orin's devout tear free of one cursed piece, anywhere, a few times a day.
     presence(i,c,input.controller);if(state.run||!state.loadout)fail(409,'Finish the fight first.');
     if(!GODS_BY_ID[state.faith?.god]?.blessing.free_breaks_per_day)fail(409,"Only Orin's followers can break free of cursed gear.");
     const result=removeCursedGear(state.loadout,input.slot,input.item_id,hubData.equipment,hubData.config.inventory_capacity??99);
