@@ -1115,7 +1115,10 @@ Snapshot diet (`server/snapshot-cache.mjs`): a client that sends `?known=` (a
 comma list of 16-hex cache keys, forwarded by the tracker on GET and POST) gets
 each `zones[]` entry it already holds as `{id,cacheKey,cached:true}` and the
 sections in `CACHED_SECTIONS` omitted, with `cacheKeys` naming every section's key.
-Keys are SHA-1 content hashes, so any change resends that piece in full. Without
+Keys are SHA-1 content hashes, so any change resends that piece in full. Strolling hub
+residents (`npc` fixtures with `roaming`) are left out of a room's key by `splitLive()`: their
+`x`/`y`/`facing` and the room's `residentTickAt` ride on the stub as `live.moves`
+(`[fixture index,x,y,facing]`), so a resident's step never resends a ~100 KB room. Without
 `known` the response is unchanged. Snapshots advertise
 `capabilities.snapshotCache`, and the game opts in only after seeing it. A Honeydew
 snapshot goes from ~139 KB to ~6 KB. `response.cache` times the hashing. Covered
