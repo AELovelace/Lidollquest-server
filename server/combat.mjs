@@ -124,9 +124,13 @@ function enemySpell(state,s){ // Enemy spell effects share the player's serializ
  }
 }
 
+export function godMode(state){return state?.godMode===true&&!state.run?.duel;} // GM god mode (gm_god_mode in gm-tools.mjs): invincible and one-hit kills, never in PvP duels.
+function godStrike(r){r.enemy.hp=0;r.log.push(r.enemy.name+' falls in one hit. (GM god mode)');} // The normal win path still pays XP, loot and quest progress.
+
 export function enemyAction(state,z,roll){ // One enemy acts independently in shared Dives; legacy rounds call the same authored attack routine.
  syncCrawl(state.loadout);
  const r=state.run;r.enemy.turn++;
+ if(godMode(state)){r.log.push(r.enemy.name+' cannot touch you. (GM god mode)');return 'continue';} // No hit, spell, debuff or knockdown lands; HP stays where it is.
  const spells=(r.enemy.enemy_spells??[]).filter(id=>combatData.spells[id]?.enemy_only);
  if(spells.length&&roll(10000)<r.enemy.spell_cast_chance*10000)enemySpell(state,combatData.spells[spells[roll(spells.length)]]);
  else{let hit=Math.max(1,r.enemy.str-1);if(z.theme==='clockwork'&&r.enemy.turn%3===0)hit+=5;hit=mitigate(currentTuning(),hit,r.defense??blessedDef(state.loadout));hit=Math.max(1,Math.floor(hit*rowDamageTaken(currentTuning(),r.row,r.rowAlone===true)));r.hp=Math.max(0,r.hp-hit);/* Back row takes half of a physical hit while someone holds the front. */r.log.push(r.enemy.name+' dealt '+hit+' damage.');} // Basic enemy hits are mitigated by the player's DEF (run.defense carries arena armor handicaps).
@@ -169,6 +173,7 @@ export function combatAction(state,input,z,roll,supportTarget=state){
   const base=Math.max(1,mitigate(t,raw,r.enemy.def)-weakened); // Enemy DEF as a percentage (def_mitigation_k).
   const damage=isCrawling(state.loadout)&&!loadoutCrawlFree(state.loadout)?Math.max(1,Math.floor(base*0.75)):base; // Match campaign rounding and preserve minimum damage. Sula's devout crawl without penalty.
   r.enemy.hp=Math.max(0,r.enemy.hp-damage);r.log.push('You '+verb+' '+r.enemy.name+' for '+damage+' damage.');
+  if(godMode(state)&&r.enemy.hp>0)godStrike(r); // Any landed attack finishes the enemy.
  }else if(input.action==='row'){ // Party rows: a free change once per turn by default, or a turn-spending one when row_swap_costs_turn is set.
   if(!r.rowPartner)fail('No one is here to hold the line; alone you always fight in front.');
   if(isCrawling(state.loadout))fail('Stand up before changing rows.');
@@ -179,8 +184,8 @@ export function combatAction(state,input,z,roll,supportTarget=state){
   if(!isCrawling(state.loadout))fail('You are already standing.');
   const reason=standBlockReason(state.loadout);if(reason)fail(reason);
   setCrawling(state.loadout,false);r.log.push('You spend your action standing up.');
- }else if(input.action==='cast')cast(state,input.spell,supportTarget);
- else if(['charm','allure'].includes(input.action)){const result=charm(state,input.action,roll);if(result!=='continue')return result;}
+ }else if(input.action==='cast'){cast(state,input.spell,supportTarget);if(godMode(state)&&r.enemy.hp>0&&['offense','debuff'].includes(combatData.spells[input.spell]?.type))godStrike(r);} // Heals, cures and buffs stay ordinary support spells.
+ else if(['charm','allure'].includes(input.action)){if(godMode(state))godStrike(r);else{const result=charm(state,input.action,roll);if(result!=='continue')return result;}} // A god-mode charm simply wins.
  else if(input.action==='use_item')r.log.push('Used campaign inventory.');
  else fail('Choose a class action.');
  return z.activeTime?(r.enemy.hp<=0?'win':'continue'):finishTurn(state,z,roll); // Live gauges schedule the enemy separately.
