@@ -36,7 +36,7 @@ test('both hub entrances share one Desert; loot, chat, replay and reconnect are 
   const chest=f.snap(a).dive.chests[0];f.near(a,chest);const claim=f.command(a,'dive_claim',{chest:chest.id});f.raw(claim);f.raw(claim);
   assert.equal(f.snap(a).character.loadout.inventory.filter(i=>i.category!=='ingredient').length,1);assert.ok(f.snap(a).character.loadout.inventory[0].online_item);
   const room=f.floor(a).rooms[2];f.place(a,room);f.act(a,'chat',{text:'Desert friends'});
-  f.as('bob');assert.equal(f.snap(b).dive.claimed,0);assert.equal(f.snap(b).chat.length,0);f.place(b,room);assert.equal(f.snap(b).chat[0].text,'Desert friends');f.near(b,chest);f.act(b,'dive_claim',{chest:chest.id});assert.equal(f.snap(b).dive.claimed,1);
+  f.as('bob');assert.equal(f.snap(b).dive.claimed,0);assert.equal(f.snap(b).chat.length,0);f.place(b,room);assert.equal(f.snap(b).chat.length,0,'arriving later does not reveal a line you missed');f.as('alice');f.act(a,'chat',{text:'Welcome over'});f.as('bob');assert.equal(f.snap(b).chat[0].text,'Welcome over');f.near(b,chest);f.act(b,'dive_claim',{chest:chest.id});assert.equal(f.snap(b).dive.claimed,1);
   f.restart();assert.equal(f.snap(b).dive.claimed,1);assert.equal(f.snap(b).zone,DESERT_ZONE);
   f.act(b,'dive_exit');assert.equal(f.snap(b).zone,'littlebig-clockwork');f.act(b,'enter',{zone:'princess-rose'});f.act(b,'dive_enter');assert.equal(f.snap(b).zone,'dive-quarters');assert.equal(f.snap(b).dive.claimed,0);
   f.as('alice');assert.equal(f.snap(a).zone,DESERT_ZONE);assert.equal(f.snap(a).dive.claimed,1);assert.equal(f.snap(a).peers.length,1);

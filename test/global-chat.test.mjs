@@ -47,11 +47,12 @@ test('blocks, mutes and the account spam budget apply to both chat channels',()=
  }finally{f.close();}
 });
 
-test('dungeon speech stays within the radius while OOC reaches other floors and hubs with mute enforcement',()=>{
+test('dungeon speech stays on screen while OOC reaches other floors and hubs with mute enforcement',()=>{
  const f=fixture();try{
   f.player('Alice','princess-rose');f.player('Bob','princess-rose');f.player('Cara','honeydew-lantern');
   f.act('Alice','dive_enter');const entered=f.act('Bob','dive_enter');
-  const room=entered.zones.find(z=>z.id==='dive-quarters').rooms[1];
+  const alice=f.db.prepare('SELECT x,y FROM quest_presence WHERE owner=?').get('Alice'),room=entered.zones.find(z=>z.id==='dive-quarters').rooms.find(r=>Math.abs(r.x-alice.x)>15||Math.abs(r.y-alice.y)>10); // A room off Alice's screen.
+assert.ok(room,'the floor has a room off screen');
   f.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(room.x,room.y,f.read('Bob').character.id);
   f.act('Alice','chat',{text:'At the entrance'});f.act('Alice','chat',{channel:'global',text:'Dungeon OOC'});
   assert.equal(f.read('Bob').chat.length,0);assert.equal(f.read('Bob').globalChat.at(-1).text,'Dungeon OOC');
@@ -76,17 +77,19 @@ test('global history remains bounded, expires, sanitizes text and requires live 
  }finally{f.close();}
 });
 
-test('area speech is heard within the chat radius, own lines always show, and announcements reach the whole room',()=>{
+test('area speech is heard by whoever is on screen when it is said, own lines always show, and announcements reach the whole room',()=>{
  const f=fixture();try{
   f.player('Alice','honeydew-lantern');f.player('Bob','honeydew-lantern');
   const at=(owner,x,y)=>f.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE owner=?').run(x,y,owner); // Presence is the committed tile the server measures from.
-  at('Alice',2,2);at('Bob',10,2); // Eight tiles apart: exactly on the default radius.
-  f.act('Alice','chat',{text:'Edge of earshot'});assert.equal(f.read('Alice').chatRadius,8);
-  assert.equal(f.read('Bob').chat.at(-1).text,'Edge of earshot');
-  at('Bob',11,2);assert.equal(f.read('Bob').chat.length,0,'nine tiles away is silent');
-  at('Bob',8,8);assert.equal(f.read('Bob').chat.length,0,'diagonal distance counts: sqrt(72) is more than eight');
-  at('Bob',7,7);assert.equal(f.read('Bob').chat.length,1,'sqrt(50) is within eight');
-  at('Alice',18,10);assert.equal(f.read('Alice').chat.at(-1).text,'Edge of earshot','your own lines stay visible wherever you walk');
+  at('Alice',2,2);at('Bob',17,12); // 15 across and 10 down: the corner of Alice's screen.
+  f.act('Alice','chat',{text:'Edge of the screen'});assert.deepEqual(f.read('Alice').chatReach,{x:15,y:10});
+  assert.equal(f.read('Bob').chat.at(-1).text,'Edge of the screen');
+  at('Bob',40,40);assert.equal(f.read('Bob').chat.at(-1).text,'Edge of the screen','a heard line stays after walking away');
+  f.act('Alice','chat',{text:'Too far'});
+  at('Bob',2,3);assert.deepEqual(f.read('Bob').chat.map(m=>m.text),['Edge of the screen'],'walking over afterwards does not reveal what you missed');
+  at('Bob',18,2);f.act('Alice','chat',{text:'Sixteen across'});assert.ok(!f.read('Bob').chat.some(m=>m.text==='Sixteen across'),'one tile past the screen edge is silent');
+  at('Bob',2,13);f.act('Alice','chat',{text:'Eleven down'});assert.ok(!f.read('Bob').chat.some(m=>m.text==='Eleven down'),'the screen is shorter than it is wide');
+  at('Alice',60,60);assert.equal(f.read('Alice').chat.at(-1).text,'Eleven down','your own lines stay visible wherever you walk');
   f.db.prepare("INSERT INTO quest_chat(zone,owner,character_id,name,text,created) VALUES ('honeydew-lantern','activity:gm','gm','Gamemaster','Everyone hears this',?)").run(Date.parse('2026-09-19T12:00:00Z'));
   at('Bob',1,1);assert.equal(f.read('Bob').chat.at(-1).text,'Everyone hears this','rows without a tile reach the whole room');
   assert.equal(f.read('Bob').chat.at(-1).x,undefined,'speaker tiles never leave the server');
