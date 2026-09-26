@@ -31,13 +31,21 @@ export function createFollowers(db,{now=Date.now,enabled=process.env.QUEST_FOLLO
  function tick(){db.prepare("UPDATE quest_follower_hires SET status='expired' WHERE status='active' AND expires<=? AND battle IS NULL").run(now());} // Battle locks grant only the current encounter a departure grace period.
  function placement(id,zone,geometry){
   const def=catalog[id];if(!def||def.online.home_zone!==zone||!geometry)return null;
-  const origin=geometry.entrance??geometry.spawn??{x:2,y:2},walls=geometry.walls??[],fixtures=geometry.fixtures??[];
-  for(let radius=1;radius<=8;radius++)for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){
-   if(Math.abs(dx)+Math.abs(dy)!==radius)continue;const x=origin.x+dx,y=origin.y+dy;
-   if(x<1||y<1||x>=(geometry.width??20)-1||y>=(geometry.height??12)-1||walls[y]?.[x]||fixtures.some(f=>f.solid!==false&&x>=f.x&&y>=f.y&&x<f.x+(f.span_w??1)&&y<f.y+(f.span_h??1)))continue;
-   return {x,y};
+  const origin=geometry.entrance??geometry.spawn;if(!origin)return null;
+  const walls=geometry.walls??[],fixtures=geometry.fixtures??[],reserved=[origin,geometry.exit,...(geometry.exits??[]),...(geometry.portals??[]),...Object.values(geometry.entries??{})].filter(Boolean);
+  const queue=[{...origin,steps:0}],seen=new Set([origin.x+','+origin.y]);
+  let slot=Object.keys(catalog).filter(key=>catalog[key].online.home_zone===zone).sort().indexOf(id); // Shared homes get separate, stable spots even when another recruiter is hired.
+  for(let index=0;index<queue.length;index++){
+   const p=queue[index];
+   if(p.steps>0&&!reserved.some(r=>r.x===p.x&&r.y===p.y)&&!(geometry.traps??[]).some(t=>t.x===p.x&&t.y===p.y)&&slot--===0)return {x:p.x,y:p.y};
+   if(p.steps>=8)continue;
+   for(const [dx,dy] of [[0,-1],[-1,0],[1,0],[0,1]]){
+    const x=p.x+dx,y=p.y+dy,key=x+','+y;
+    if(seen.has(key)||x<1||y<1||x>=(geometry.width??20)-1||y>=(geometry.height??12)-1||walls[y]?.[x]||geometry.props?.[y]?.[x]||(geometry.managedOccupancy??[]).some(o=>o.x===x&&o.y===y)||fixtures.some(f=>f.solid!==false&&x>=f.x&&y>=f.y&&x<f.x+(f.span_w??1)&&y<f.y+(f.span_h??1)))continue;
+    seen.add(key);queue.push({x,y,steps:p.steps+1});
+   }
   }return null;
- } // Recruiters use deterministic walkable tiles beside the authored entrance, never random client coordinates.
+ } // Search outward along walkable tiles from the inside entrance, avoiding furniture, hazards and arrival/exit pads.
  function reserve(c,state,input,p,geometry,memberIds){
   tick();if(!enabled)fail('Companion recruitment is not enabled.');if(state.followerVersion!==1)fail('Update the game to recruit companions.');
   if(state.run||state.pendingDefeat||state.pendingPurchase||state.worldTurnDue)fail('Finish your current action before hiring.');
