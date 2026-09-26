@@ -20613,6 +20613,7 @@
       "stack_max": 512,
       "move_delay_ms": 150,
       "crawl_move_delay_ms": 300,
+      "move_burst_steps": 6,
       "daily_coin_cap": 9999,
       "diamond_roll_floor": 2,
       "defeat_dignity_loss": 64,

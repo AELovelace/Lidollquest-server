@@ -173,7 +173,7 @@ export function createDungeonRules({db,data,now,roll,origins,adjust,progress,sav
  }
  function act(c,s,record,input,p){
   if(input.action==='dungeon_scene_choice'){sceneChoice(c,s,record,input);return true;}
-  if(s.dungeonScene&&['move','dungeon_push','dungeon_reset','dungeon_interact','hub_rest','dive_engage'].includes(input.action))fail('Finish the current dungeon scene first.');
+  if(s.dungeonScene&&['move','walk','dungeon_push','dungeon_reset','dungeon_interact','hub_rest','dive_engage'].includes(input.action))fail('Finish the current dungeon scene first.');
   if(['dungeon_push','dungeon_reset'].includes(input.action)){puzzle(c,s,record,input,p);return true;}
   if(!['dungeon_interact','hub_rest'].includes(input.action))return false;
   if(s.run)fail('Finish combat before using a fixture.');
