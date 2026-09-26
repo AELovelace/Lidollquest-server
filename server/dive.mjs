@@ -240,12 +240,14 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const f=active.floor;
   const occupied=new Set(f.enemies.filter(e=>e.respawnAt<=now()).map(e=>e.x+','+e.y));
   const rnd=seeded(active.edition+':'+Math.floor(tickAt/seconds));
+  let targets=null; // Eligible pursuit targets, parsed once per tick instead of once per enemy (enemies x party states was ~1 s/tick on big dungeons).
+  const eligible=()=>players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return v.pendingDefeat||v.dive?.route!==route||v.dive?.edition!==active.edition||(!v.run&&!v.dungeonScene&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0);});return ready&&(!live?.published().enabled||s.contentVersion===1)&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.dungeonScene&&!s.worldTurnDue&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);}); // Storing points cannot grant immunity from roaming enemies or block party encounters.
   for(const foe of f.enemies){
    if(foe.engaged||foe.respawnAt>now()||!enemyRoams(data,foe))continue;
-   const targets=players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return v.pendingDefeat||v.dive?.route!==route||v.dive?.edition!==active.edition||(!v.run&&!v.dungeonScene&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0);});return ready&&(!live?.published().enabled||s.contentVersion===1)&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.dungeonScene&&!s.worldTurnDue&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);}); // Storing points cannot grant immunity from roaming enemies or block party encounters.
+   targets??=eligible(); // First roaming enemy builds the list; later enemies reuse it.
    let target=null,best=null;
    for(const p of targets){const path=plans?plans.get(foe.id)?.get(p.character_id):measure('pathfinding.'+zoneId,()=>pathTo(f,foe,p,config.pursuit_steps));if(path&&(!best||path.length<best.length)){target=p;best=path;}} // Worker paths are consumed only against revalidated coordinates; combat remains on the coordinator.
-   if(best?.length===0||best?.length===1){const c={id:target.character_id,owner:target.owner,revision:target.revision},s=JSON.parse(target.state);if(s.loadout?.player_info.playerHealth>0){start(c,s,active,foe);saveCharacter(c,s);target.state=c.state;target.revision=c.revision;}continue;}
+   if(best?.length===0||best?.length===1){const c={id:target.character_id,owner:target.owner,revision:target.revision},s=JSON.parse(target.state);if(s.loadout?.player_info.playerHealth>0){start(c,s,active,foe);saveCharacter(c,s);target.state=c.state;target.revision=c.revision;targets=null;}continue;} // An engagement changes that player's (and their party's) readiness, so rebuild the list for the next enemy.
    let step=best?.[0];if(!step){const [dx,dy]=[[1,0],[-1,0],[0,1],[0,-1]][rnd(4)];step={x:foe.x+dx,y:foe.y+dy};}
    if(walkable(f,step.x,step.y)&&!safe(f,step.x,step.y)&&!occupied.has(step.x+','+step.y)&&!players.some(p=>p.x===step.x&&p.y===step.y)){
     occupied.delete(foe.x+','+foe.y);foe.x=step.x;foe.y=step.y;occupied.add(foe.x+','+foe.y);
