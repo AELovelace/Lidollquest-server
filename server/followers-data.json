@@ -1,0 +1,696 @@
+{
+  "version": 1,
+  "companions": {
+    "paladin_aegis": {
+      "name": "Dame Elowen",
+      "overworld_sprite": "sprNPCCartMerchant",
+      "save_key": "",
+      "state_defaults": {
+        "unlocked": false,
+        "waiting_at_hall": false,
+        "active": false,
+        "level": 1,
+        "xp": 0
+      },
+      "stat_profile": {
+        "level_cap": 30,
+        "str_base": 3,
+        "str_step": 5,
+        "def_base": 5,
+        "def_step": 3,
+        "dex_base": 3,
+        "dex_step": 6,
+        "int_base": 5,
+        "int_step": 5,
+        "hp_base": 66,
+        "hp_per_level": 5,
+        "hp_def_scale": 4,
+        "mp_base": 20,
+        "mp_int_scale": 4
+      },
+      "combat": {
+        "weapon_bonus": 2,
+        "special_skill": {
+          "id": "guardian_cover",
+          "type": "cover_low_hp",
+          "name": "Guardian's Cover",
+          "cover_threshold_pct": 25,
+          "trigger_text": "{name} throws herself in front of the blow!",
+          "success_text": "{name} raises her shield. She will cover you whenever your HP falls below {threshold_pct}%.",
+          "fail_text": "{name} adjusts her shield grip and watches your footing."
+        },
+        "spell_unlocks": [
+          {
+            "level": 1,
+            "spell_id": "fortify"
+          },
+          {
+            "level": 3,
+            "spell_id": "haste"
+          },
+          {
+            "level": 6,
+            "spell_id": "empower"
+          }
+        ]
+      },
+      "dialogue": {
+        "talk_lines": [
+          "Stay behind me when things get rough. I can hold the line.",
+          "Your life comes first. I'll intercept anything that breaks through.",
+          "Armor checked, shield ready. We move when you do.",
+          "If you're wavering, call it out. I guard better when I can read your pace.",
+          "Keep your focus. I'll keep you standing."
+        ],
+        "recruit_prompt_default": "You look like you could use a shield arm. Want me at your side?",
+        "recruit_prompt_switch": "You're already traveling with {active_name}. Want me to take point instead?",
+        "recruit_yes_default": "Then I swear my shield to you.",
+        "recruit_yes_switch": "Understood. I'll take over while {active_name} rests.",
+        "recruit_no": "Then I'll keep watch until you call for me."
+      },
+      "online": {
+        "home_zone": "overworld-haunted-woods",
+        "aliases": [
+          "Elowen"
+        ],
+        "persona": "A patient, brave shield-bearer who puts her companion first.",
+        "hire_text": "Hire for 1 diamond - 60 minutes.",
+        "fallback": "I lost my train of thought. Ask me again in a moment?",
+        "combat_priorities": [
+          "heal",
+          "recovery",
+          "buff",
+          "offense",
+          "attack"
+        ]
+      }
+    },
+    "sorceress_arcana": {
+      "name": "Astra the Uncursed",
+      "overworld_sprite": "sprNPCLibrarian",
+      "save_key": "companion_sorceress",
+      "state_defaults": {
+        "unlocked": false,
+        "waiting_at_hall": false,
+        "active": false,
+        "level": 1,
+        "xp": 0
+      },
+      "stat_profile": {
+        "level_cap": 30,
+        "str_base": 2,
+        "str_step": 6,
+        "def_base": 1,
+        "def_step": 7,
+        "dex_base": 4,
+        "dex_step": 4,
+        "int_base": 8,
+        "int_step": 2,
+        "hp_base": 55,
+        "hp_per_level": 5,
+        "hp_def_scale": 3,
+        "mp_base": 20,
+        "mp_int_scale": 6
+      },
+      "combat": {
+        "weapon_bonus": 5,
+        "special_skill": {
+          "id": "purify_padding",
+          "type": "purify_padding",
+          "name": "Purify Padding",
+          "success_text": "{name} uses Purify Padding! Your protection is clean again.",
+          "fail_text": "{name} channels Purify Padding, but you're not wearing protection."
+        },
+        "spell_unlocks": [
+          {
+            "level": 1,
+            "spell_id": "ice_shard"
+          },
+          {
+            "level": 3,
+            "spell_id": "fortify"
+          },
+          {
+            "level": 6,
+            "spell_id": "heal_light"
+          },
+          {
+            "level": 9,
+            "spell_id": "fireball"
+          },
+          {
+            "level": 12,
+            "spell_id": "haste"
+          },
+          {
+            "level": 15,
+            "spell_id": "heal_medium"
+          },
+          {
+            "level": 18,
+            "spell_id": "weaken"
+          },
+          {
+            "level": 21,
+            "spell_id": "poison_cloud"
+          },
+          {
+            "level": 25,
+            "spell_id": "corrode"
+          },
+          {
+            "level": 30,
+            "spell_id": "smite"
+          }
+        ]
+      },
+      "dialogue": {
+        "talk_lines": [
+          "These curses can't touch me, but they can still burn you. Stay close.",
+          "Front row, back row - call it and I'll adapt.",
+          "Arcane barrier's steady. Your turn when you're ready.",
+          "If your padding fails, I can reset it. Don't panic.",
+          "Let's keep moving. Dungeon mana is strongest where it's darkest."
+        ],
+        "recruit_prompt_default": "Heading out again? Want me to come with you?",
+        "recruit_prompt_switch": "You're already traveling with {active_name}. Want me to take over?",
+        "recruit_yes_default": "Good. I'll fall in behind you.",
+        "recruit_yes_switch": "Then I'll join you while {active_name} rests here.",
+        "recruit_no": "Very well. I'll keep watch in the Community Hall."
+      },
+      "online": {
+        "home_zone": "dungeon-castle-dungeon",
+        "aliases": [
+          "Astra"
+        ],
+        "persona": "An observant, wry sorceress relieved to be free of her curse.",
+        "hire_text": "Hire for 1 diamond - 60 minutes.",
+        "fallback": "I lost my train of thought. Ask me again in a moment?",
+        "combat_priorities": [
+          "heal",
+          "recovery",
+          "buff",
+          "offense",
+          "attack"
+        ]
+      }
+    },
+    "merchant_mira": {
+      "name": "Mira the Peddler",
+      "overworld_sprite": "sprNPCLunchlady",
+      "save_key": "",
+      "zone": "town",
+      "state_defaults": {
+        "unlocked": false,
+        "waiting_at_hall": false,
+        "active": false,
+        "level": 1,
+        "xp": 0
+      },
+      "stat_profile": {
+        "level_cap": 30,
+        "str_base": 1,
+        "str_step": 10,
+        "def_base": 1,
+        "def_step": 8,
+        "dex_base": 3,
+        "dex_step": 6,
+        "int_base": 3,
+        "int_step": 5,
+        "hp_base": 40,
+        "hp_per_level": 3,
+        "hp_def_scale": 2,
+        "mp_base": 10,
+        "mp_int_scale": 4
+      },
+      "combat": {
+        "weapon_bonus": 1,
+        "special_skill": {
+          "id": "open_shop",
+          "type": "open_shop",
+          "name": "Mira's Wares",
+          "success_text": "{name} rummages through her pack and opens shop!",
+          "fail_text": "{name} fumbles with her bag nervously. Nothing to sell right now..."
+        },
+        "spell_unlocks": [
+          {
+            "level": 15,
+            "spell_id": "heal_light"
+          },
+          {
+            "level": 25,
+            "spell_id": "heal_medium"
+          }
+        ]
+      },
+      "dialogue": {
+        "talk_lines": [
+          "D-don't look at me like that! I'm just... checking my stock. Yeah.",
+          "I always keep a few diapers on hand. You never know around here...",
+          "E-eek! Was that a monster?! ...oh, just the wind. Phew!",
+          "Want to browse my wares? I've got everything you need! ...probably.",
+          "The curse doesn't hit everyone the same. Me? I just get really, REALLY nervous. My bladder's fine! ...mostly!"
+        ],
+        "recruit_prompt_default": "Y-you want me to come along?! I mean... I could sell you stuff on the road! That's useful, right?",
+        "recruit_prompt_switch": "You already have {active_name} with you. Want me instead? I-I have supplies!",
+        "recruit_yes_default": "Okay! Just... stay between me and the scary things, deal?",
+        "recruit_yes_switch": "R-right! I'll take over while {active_name} gets some rest!",
+        "recruit_no": "That's fine! I'll be here if you need anything from the shop!"
+      },
+      "online": {
+        "home_zone": "honeydew-lantern",
+        "aliases": [
+          "Mira"
+        ],
+        "persona": "A nervous, kind travelling peddler who talks about supplies and bargains.",
+        "hire_text": "Hire for 1 diamond - 60 minutes.",
+        "fallback": "I lost my train of thought. Ask me again in a moment?",
+        "combat_priorities": [
+          "heal",
+          "recovery",
+          "buff",
+          "offense",
+          "attack"
+        ]
+      }
+    },
+    "matron_haven": {
+      "name": "Matron Rosalind",
+      "overworld_sprite": "sprNPCHerbalist",
+      "save_key": "",
+      "zone": "nursery",
+      "state_defaults": {
+        "unlocked": false,
+        "waiting_at_hall": false,
+        "active": false,
+        "level": 1,
+        "xp": 0
+      },
+      "stat_profile": {
+        "level_cap": 30,
+        "str_base": 2,
+        "str_step": 6,
+        "def_base": 3,
+        "def_step": 5,
+        "dex_base": 2,
+        "dex_step": 7,
+        "int_base": 6,
+        "int_step": 3,
+        "hp_base": 60,
+        "hp_per_level": 4,
+        "hp_def_scale": 3,
+        "mp_base": 25,
+        "mp_int_scale": 5
+      },
+      "combat": {
+        "weapon_bonus": 2,
+        "special_skill": {
+          "id": "matron_change",
+          "type": "matron_change",
+          "name": "Matron's Care",
+          "success_text": "{name} deftly changes your protection and pops a pacifier in your mouth. There, there~",
+          "fail_text": "{name} tuts softly. You're not wearing protection to change, sweetie."
+        },
+        "spell_unlocks": [
+          {
+            "level": 1,
+            "spell_id": "heal_light"
+          },
+          {
+            "level": 4,
+            "spell_id": "calm_bladder"
+          },
+          {
+            "level": 7,
+            "spell_id": "settle_tummy"
+          },
+          {
+            "level": 10,
+            "spell_id": "fortify"
+          },
+          {
+            "level": 13,
+            "spell_id": "heal_medium"
+          },
+          {
+            "level": 16,
+            "spell_id": "ice_shard"
+          },
+          {
+            "level": 19,
+            "spell_id": "refresh"
+          },
+          {
+            "level": 22,
+            "spell_id": "fireball"
+          },
+          {
+            "level": 26,
+            "spell_id": "heal_full"
+          }
+        ]
+      },
+      "matron_overworld": {
+        "change_at_capacity_mult": 2,
+        "force_equip_mouth": "pacifier",
+        "shame_delta": -15
+      },
+      "dialogue": {
+        "talk_lines": [
+          "Come here little one, let Matron check your padding~",
+          "The curse? Oh, I'm not affected, dear. But I do so love taking care of those who are~",
+          "Everyone deserves a good Mummy. That's what I'm here for!",
+          "Don't be embarrassed, sweetie. Matron's changed more diapers than she can count.",
+          "I help the townsfolk... adjust to their new needs. Most of them come around eventually~"
+        ],
+        "recruit_prompt_default": "Would you like Matron to come along? I'll keep you clean and safe, little one~",
+        "recruit_prompt_switch": "You're traveling with {active_name} right now. Want Matron to take over, sweetie?",
+        "recruit_yes_default": "Wonderful! Matron will take good care of you~",
+        "recruit_yes_switch": "Of course, dear. {active_name} can rest while Matron watches over you~",
+        "recruit_no": "That's alright, little one. Matron will be here when you need her."
+      },
+      "online": {
+        "home_zone": "dungeon-auto-nursery",
+        "aliases": [
+          "Rosalind"
+        ],
+        "persona": "A warm, confident matron who offers practical care and reassurance.",
+        "hire_text": "Hire for 1 diamond - 60 minutes.",
+        "fallback": "I lost my train of thought. Ask me again in a moment?",
+        "combat_priorities": [
+          "heal",
+          "recovery",
+          "buff",
+          "offense",
+          "attack"
+        ]
+      }
+    },
+    "brawler_kai": {
+      "name": "Sable the Unbroken",
+      "overworld_sprite": "sprNPCBrawler",
+      "save_key": "",
+      "zone": "school",
+      "state_defaults": {
+        "unlocked": false,
+        "waiting_at_hall": false,
+        "active": false,
+        "level": 1,
+        "xp": 0
+      },
+      "stat_profile": {
+        "level_cap": 30,
+        "str_base": 4,
+        "str_step": 4,
+        "def_base": 4,
+        "def_step": 4,
+        "dex_base": 3,
+        "dex_step": 5,
+        "int_base": 2,
+        "int_step": 8,
+        "hp_base": 70,
+        "hp_per_level": 5,
+        "hp_def_scale": 4,
+        "mp_base": 10,
+        "mp_int_scale": 3
+      },
+      "combat": {
+        "weapon_bonus": 3,
+        "passive_atk_bonus": 15,
+        "special_skill": {
+          "id": "iron_fist",
+          "type": "iron_fist",
+          "name": "Iron Fist",
+          "success_text": "{name} cracks her knuckles and unleashes a devastating punch!",
+          "fail_text": "{name} swings wide — the enemy dodged!"
+        },
+        "spell_unlocks": [
+          {
+            "level": 8,
+            "spell_id": "empower"
+          },
+          {
+            "level": 16,
+            "spell_id": "fortify"
+          },
+          {
+            "level": 24,
+            "spell_id": "haste"
+          }
+        ]
+      },
+      "dialogue": {
+        "talk_lines": [
+          "Don't stare. ...I said DON'T stare! I'm FINE.",
+          "The school's 'curriculum' is garbage. But it makes my fists harder, so whatever.",
+          "Yeah, I have... accidents sometimes. It's the curse, okay?! Everyone here does!",
+          "If you tell ANYONE about my... situation, I will END you. Got it?",
+          "I don't need magic. I don't need weapons. Just these fists and a target."
+        ],
+        "recruit_prompt_default": "Tch. You look like you could use some muscle. Want me to tag along or what?",
+        "recruit_prompt_switch": "You've got {active_name} already. Want me instead? I hit harder.",
+        "recruit_yes_default": "Fine. Try to keep up. And NO comments about... anything.",
+        "recruit_yes_switch": "About time. {active_name} can take a break while I handle things.",
+        "recruit_no": "Whatever. I'll be here punching stuff if you change your mind."
+      },
+      "online": {
+        "home_zone": "dungeon-regression-school",
+        "aliases": [
+          "Sable"
+        ],
+        "persona": "A proud, blunt brawler with a protective heart and a competitive streak.",
+        "hire_text": "Hire for 1 diamond - 60 minutes.",
+        "fallback": "I lost my train of thought. Ask me again in a moment?",
+        "combat_priorities": [
+          "heal",
+          "recovery",
+          "buff",
+          "offense",
+          "attack"
+        ]
+      }
+    },
+    "nurse_vex": {
+      "name": "Nurse Vex",
+      "overworld_sprite": "sprNPCFriendlyNurse",
+      "save_key": "",
+      "zone": "hospital",
+      "state_defaults": {
+        "unlocked": false,
+        "waiting_at_hall": false,
+        "active": false,
+        "level": 1,
+        "xp": 0
+      },
+      "stat_profile": {
+        "level_cap": 30,
+        "str_base": 4,
+        "str_step": 4,
+        "def_base": 1,
+        "def_step": 8,
+        "dex_base": 3,
+        "dex_step": 5,
+        "int_base": 7,
+        "int_step": 2,
+        "hp_base": 48,
+        "hp_per_level": 3,
+        "hp_def_scale": 2,
+        "mp_base": 22,
+        "mp_int_scale": 6
+      },
+      "combat": {
+        "weapon_bonus": 4,
+        "special_skill": {
+          "id": "emergency_treatment",
+          "type": "emergency_treatment",
+          "name": "Emergency Treatment",
+          "vaccine_chance_denom": 2,
+          "vaccine_step_chance_denom": 16,
+          "vaccine_step_cooldown_steps": 4,
+          "vaccine_inco_turns": 25,
+          "vaccine_inco_permanent_delta": -1,
+          "success_text": "{name} administers emergency healing! You feel much better!",
+          "fail_text": "{name} reaches for her supplies but fumbles the syringe.",
+          "vaccine_text": "{name} jabs you with a syringe! 'Just a little vaccine, don't worry~' ...something feels very wrong."
+        },
+        "spell_unlocks": [
+          {
+            "level": 1,
+            "spell_id": "heal_light"
+          },
+          {
+            "level": 4,
+            "spell_id": "heal_medium"
+          },
+          {
+            "level": 8,
+            "spell_id": "calm_bladder"
+          },
+          {
+            "level": 11,
+            "spell_id": "settle_tummy"
+          },
+          {
+            "level": 14,
+            "spell_id": "ice_shard"
+          },
+          {
+            "level": 17,
+            "spell_id": "heal_full"
+          },
+          {
+            "level": 20,
+            "spell_id": "refresh"
+          },
+          {
+            "level": 23,
+            "spell_id": "fireball"
+          },
+          {
+            "level": 26,
+            "spell_id": "shadow_bolt"
+          },
+          {
+            "level": 30,
+            "spell_id": "smite"
+          }
+        ]
+      },
+      "dialogue": {
+        "talk_lines": [
+          "Deep breaths, patient. Nurse Vex is here to help. Mostly.",
+          "I've restrained bigger patients than you. Don't test me~",
+          "The vaccine is perfectly safe! The side effects are... temporary. Mostly temporary.",
+          "My bedside manner is impeccable. My patients only cry a little.",
+          "Medicine requires a strong arm AND a sharp mind. I have both, lucky you~"
+        ],
+        "recruit_prompt_default": "Need a nurse on your team? I can heal you up! ...and maybe give you a checkup along the way~",
+        "recruit_prompt_switch": "You already have {active_name}. Want me instead? Medical expertise is invaluable!",
+        "recruit_yes_default": "Excellent! Nurse Vex reporting for duty. Now hold still...",
+        "recruit_yes_switch": "I'll take over from {active_name}. Time for a change of care~",
+        "recruit_no": "Suit yourself. But don't come crying to me when you're... actually, you probably will anyway."
+      },
+      "online": {
+        "home_zone": "dungeon-regression-hospital",
+        "aliases": [
+          "Vex"
+        ],
+        "persona": "A brisk, mischievous nurse who cares about keeping her travelling partner healthy.",
+        "hire_text": "Hire for 1 diamond - 60 minutes.",
+        "fallback": "I lost my train of thought. Ask me again in a moment?",
+        "combat_priorities": [
+          "heal",
+          "recovery",
+          "buff",
+          "offense",
+          "attack"
+        ]
+      }
+    },
+    "defector_wick": {
+      "name": "Sister Wick",
+      "overworld_sprite": "sprFriendly",
+      "save_key": "",
+      "zone": "mansion",
+      "state_defaults": {
+        "unlocked": false,
+        "waiting_at_hall": false,
+        "active": false,
+        "level": 1,
+        "xp": 0
+      },
+      "stat_profile": {
+        "level_cap": 30,
+        "str_base": 3,
+        "str_step": 5,
+        "def_base": 2,
+        "def_step": 6,
+        "dex_base": 5,
+        "dex_step": 4,
+        "int_base": 6,
+        "int_step": 3,
+        "hp_base": 44,
+        "hp_per_level": 3,
+        "hp_def_scale": 2,
+        "mp_base": 26,
+        "mp_int_scale": 6
+      },
+      "combat": {
+        "weapon_bonus": 3,
+        "special_skill": {
+          "id": "wicks_reprieve",
+          "type": "emergency_treatment",
+          "name": "Wick's Reprieve",
+          "vaccine_chance_denom": 0,
+          "vaccine_step_chance_denom": 0,
+          "vaccine_step_cooldown_steps": 0,
+          "vaccine_inco_turns": 0,
+          "vaccine_inco_permanent_delta": 0,
+          "success_text": "{name} talks you through it the way she was taught to talk people into it. The pressure eases.",
+          "fail_text": "{name} starts the words and stops. 'Sorry. Sorry — that one's theirs, not mine.'",
+          "vaccine_text": ""
+        },
+        "spell_unlocks": [
+          {
+            "level": 1,
+            "spell_id": "calm_bladder"
+          },
+          {
+            "level": 4,
+            "spell_id": "settle_tummy"
+          },
+          {
+            "level": 8,
+            "spell_id": "heal_light"
+          },
+          {
+            "level": 12,
+            "spell_id": "refresh"
+          },
+          {
+            "level": 16,
+            "spell_id": "heal_medium"
+          },
+          {
+            "level": 21,
+            "spell_id": "shadow_bolt"
+          },
+          {
+            "level": 26,
+            "spell_id": "heal_full"
+          }
+        ]
+      },
+      "dialogue": {
+        "talk_lines": [
+          "I keep reaching for the pocket the robe had. Four weeks now.",
+          "Ask me what any of them are about to do. Go on. I'll be right.",
+          "I said the pitch forty times. I could still say it. That's the part I don't like.",
+          "The desert's further than it looks from the steps. I've looked a lot.",
+          "If I start sounding like her, tell me. Please actually tell me."
+        ],
+        "recruit_prompt_default": "I know every trick in that house because I taught most of them. Let me come with you.",
+        "recruit_prompt_switch": "You've got {active_name}. I'd still rather be walking than sitting. Swap me in?",
+        "recruit_yes_default": "Right. Good. Let's go before I do the sum again.",
+        "recruit_yes_switch": "I'll take it from here, {active_name}. Thank you.",
+        "recruit_no": "That's all right. I'll be here. I'm very good at being here."
+      },
+      "online": {
+        "home_zone": "overworld-spooky-mansion",
+        "aliases": [
+          "Wick"
+        ],
+        "persona": "A thoughtful former cultist, quietly brave and relieved to be exploring freely.",
+        "hire_text": "Hire for 1 diamond - 60 minutes.",
+        "fallback": "I lost my train of thought. Ask me again in a moment?",
+        "combat_priorities": [
+          "heal",
+          "recovery",
+          "buff",
+          "offense",
+          "attack"
+        ]
+      }
+    }
+  }
+}

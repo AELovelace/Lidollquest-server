@@ -1354,3 +1354,37 @@ Tundra endpoint when no explicit parent is configured. This restores the GM's
 hub-return chain without changing ordinary Escape behavior or regenerating maps.
 The correction is server-only; authenticated entry, joining, refresh and physical
 exit regressions are in `test/gm-tools.test.mjs`.
+
+## Tutor NPC (Pip)
+
+Pip is a guide standing two to eight steps from the spawn of every starting lobby (Rose Court, Honeydew Village,
+LittleBigCity, Utopia and Arcadia). Players talk to Pip like any resident, choose **Ask a question.**, type into the
+chat box (now labelled "To Pip") and press Enter. The answer comes from the **npc-rag** service on the AI server
+(`C:/Scripts/npc-rag`), which classifies the question, looks it up in the public player wiki and has the AI model
+write Pip's reply.
+
+- **Configuration:** `NPC_RAG_URL` (for example `http://47.51.162.106:9092`) and `NPC_RAG_KEY` (npc-rag's
+  `NPC_API_KEY`). Without `NPC_RAG_URL` Pip never appears. Optional: `NPC_RAG_TIMEOUT_MS` (45000) and
+  `TUTOR_DAILY_LIMIT` (100 questions per account per UTC day). The AI server's firewall must allow this host on 9092.
+- **Flow:** `tutor_ask` (zones.mjs) checks the player stands beside Pip and stores the question in `quest_tutor` as
+  `pending` inside the ordinary command transaction. `service.mjs` then calls `tutor.kick()`, which posts pending
+  rows to npc-rag outside every transaction, and again every 5 s for retries. The answer is written back to the row,
+  and `tutor.view()` adds it to every snapshot as the top-level `tutor` key for 10 minutes.
+- **Limits:** one question at a time per character, a 4 s pause after each answer, and the daily cap per account.
+  A failed call is retried once after 15 s; a second failure (or a question stuck for 3 minutes) gives Pip's
+  friendly "ask me again in a little while" line. npc-rag's own 429 (still busy with that player) waits 3 s
+  without counting as a failure.
+- **Placement:** `tutor.decorate()` adds Pip when `zones.mjs` resolves a lobby. Pip is non-solid, never on another
+  fixture, at least two tiles from every door and gate, and always has a reachable tile beside Pip. Monthly towns
+  get a fresh spot per edition.
+- **Gamemasters:** the `/gm` **Tutor NPC** tab switches Pip on or off, renames Pip and edits the greeting
+  (`tutor_settings`, audited), shows npc-rag's health and lists the latest 60 questions and answers. Rows are kept
+  30 days.
+- **Tests:** `node --test test/tutor.test.mjs`.
+
+
+## Hired NPC followers
+
+Seven globally exclusive companions can be hired for one diamond per real-time hour. One rental per player account and one per party, including pending payments; every NPC consumes one of three allied slots. Rentals remain attached to the hiring character. Enable new hires with QUEST_FOLLOWERS_ENABLED=true only after deploying the follower_version:1 game client. Server-owned rental receipts, persistent NPC XP, automatic PvE actors and asynchronous area-chat replies are stored in additive quest_follower_* tables. Existing rentals remain valid when new hiring is disabled.
+
+Export server/followers-data.json from the game registry with python/export_online_followers.py. Classifier requests use 192.168.1.188:9091, casual character replies use :9090, and grounded game answers use npc-rag at :9092. Configure QUEST_FOLLOWER_CLASSIFIER_URL, QUEST_FOLLOWER_LLM_URL, QUEST_FOLLOWER_AGENT_URL and optional QUEST_FOLLOWER_AGENT_KEY on the server only. Run node --test test/followers.test.mjs test/followers-http.test.mjs and the full suite. Detailed deployment, editing and browser checks are in the game checkout's ONLINE_FOLLOWERS_GUIDE.md.

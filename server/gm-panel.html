@@ -122,6 +122,7 @@ tr.sel td{background:#2c1e3d}
   <button type="button" role="tab" id="tab-enchantments" aria-controls="panel-enchantments" aria-selected="false" tabindex="-1">Curses &amp; Blessings</button>
   <button type="button" role="tab" id="tab-loot" aria-controls="panel-loot" aria-selected="false" tabindex="-1">Loot</button>
   <button type="button" role="tab" id="tab-alchemy" aria-controls="panel-alchemy" aria-selected="false" tabindex="-1">Alchemy</button>
+  <button type="button" role="tab" id="tab-tutor" aria-controls="panel-tutor" aria-selected="false" tabindex="-1">Tutor NPC</button>
   <button type="button" role="tab" id="tab-moderation" aria-controls="panel-moderation" aria-selected="false" tabindex="-1">Moderation</button>
   <button type="button" role="tab" id="tab-performance" aria-controls="panel-performance" aria-selected="false" tabindex="-1">Performance</button>
 <button type="button" role="tab" id="tab-monsters" aria-controls="panel-monsters" aria-selected="false" tabindex="-1">Monsters</button>
@@ -442,6 +443,17 @@ tr.sel td{background:#2c1e3d}
     <div class="row"><label for="alchemyKey">Setting</label><select id="alchemyKey"></select><b id="alchemyKeySource" class="mono"></b></div>
     <textarea id="alchemyJson" rows="16" spellcheck="false" style="width:100%;font-family:monospace"></textarea>
     <div class="row"><input id="alchemyJsonReason" placeholder="Reason (kept in the audit log)" style="flex:1"><button id="alchemyJsonSave">Save this setting</button><button id="alchemyJsonReset">Back to shipped</button></div>
+  </section>
+</div>
+<div class="tab-panel" id="panel-tutor" role="tabpanel" aria-labelledby="tab-tutor" tabindex="0" hidden>
+  <section class="wide">
+    <h2>Tutor NPC</h2>
+    <p class="note">The tutor stands beside the spawn in every starting lobby and answers players' questions with the npc-rag AI service, which reads the player wiki. Changes apply on the next refresh of each player's screen. Turning the tutor off hides it everywhere; questions already asked still get their answers.</p>
+    <p id="tutorStatus" role="status"></p>
+    <div class="row"><label for="tutorEnabled">Tutor is on</label><input id="tutorEnabled" type="checkbox"><label for="tutorName">Name</label><input id="tutorName" maxlength="24" style="width:160px"></div>
+    <div class="row"><label for="tutorGreeting">Greeting</label><input id="tutorGreeting" class="grow" maxlength="300"><button class="go" id="tutorSave">Save tutor</button><button id="tutorLoad">Refresh</button></div>
+    <h2>Latest questions</h2>
+    <div id="tutorLog" class="log"></div>
   </section>
 </div>
 <div class="tab-panel" id="panel-moderation" role="tabpanel" aria-labelledby="tab-moderation" tabindex="0" hidden>
@@ -779,6 +791,36 @@ tr.sel td{background:#2c1e3d}
   }).catch(function(error){say("err",error.message);});
  }
  $("rppLoad").addEventListener("click",loadRpp);$("rppCharacter").addEventListener("change",loadRpp);
+
+ var tutorEpoch=0;
+ function loadTutor(){
+  var epoch=++tutorEpoch,session=perfEpoch;
+  return api("/gm/tutor").then(function(data){
+   if(epoch!==tutorEpoch||session!==perfEpoch||!token)return;
+   var s=data.settings||{},h=data.health||{};
+   if(document.activeElement!==$("tutorName"))$("tutorName").value=s.name||"";
+   if(document.activeElement!==$("tutorGreeting"))$("tutorGreeting").value=s.greeting||"";
+   $("tutorEnabled").checked=!!s.enabled;
+   $("tutorStatus").textContent=data.configured
+    ?"npc-rag: "+data.service+" · last call: "+(h.at?(h.ok?"OK at ":"FAILED at ")+when(h.at)+" ("+h.detail+")":"none since the server started")+" · "+data.today+" questions today · "+data.pending+" waiting · limit "+data.dailyLimit+" per account per day"
+    :"npc-rag is not configured on this server (set NPC_RAG_URL and NPC_RAG_KEY), so the tutor is hidden.";
+   clear($("tutorLog"));
+   (data.recent||[]).forEach(function(r){
+    var d=r.detail||{},line=el("p");
+    line.appendChild(el("strong",null,when(r.created)+" · "+r.player_name+" · "+r.zone+" · "+r.status+(d.category?" · "+d.category:"")+(d.guard?" · "+d.guard:"")+(d.ms?" · "+d.ms+" ms":"")));
+    line.appendChild(el("br"));line.appendChild(document.createTextNode("Q: "+r.question));
+    if(r.reply){line.appendChild(el("br"));line.appendChild(document.createTextNode(r.npc_name+": "+r.reply));}
+    $("tutorLog").appendChild(line);
+   });
+   if(!(data.recent||[]).length)$("tutorLog").appendChild(el("p","note","No questions yet."));
+  }).catch(function(error){say("err",error.message);});
+ }
+ $("tab-tutor").addEventListener("click",loadTutor);$("tutorLoad").addEventListener("click",loadTutor);
+ $("tutorSave").addEventListener("click",function(){
+  var body={action:"tutor_settings",enabled:$("tutorEnabled").checked,name:$("tutorName").value.trim(),greeting:$("tutorGreeting").value.trim()};
+  $("tutorSave").disabled=true;
+  api("/gm/action",{method:"POST",body:body}).then(function(response){say("ok","Tutor saved: "+(response.result.enabled?"on":"off")+", named "+response.result.name+".");loadTutor();}).catch(function(error){say("err",error.message);}).finally(function(){$("tutorSave").disabled=false;});
+ });
  $("rppGift").addEventListener("click",function(){
   if(rppBusy)return;
   if(!pendingGift){var amount=Number($("rppAmount").value),reason=$("rppReason").value.trim();if(!$("rppCharacter").value||!Number.isSafeInteger(amount)||amount<1||amount>1000000||!reason){$("rppStatus").textContent="Choose a character, positive whole amount and review note.";return;}pendingGift={action:"rpp_gift",character_id:$("rppCharacter").value,amount:amount,reason:reason,request_id:crypto.randomUUID()};}
@@ -1443,7 +1485,7 @@ tr.sel td{background:#2c1e3d}
  function enter(){ // A confirmed gamemaster grant swaps the gate for the live panel.
   stopSignin();$("gateErr").className="flash";
   selectTab("tab-players",false);$("gate").hidden=true;$("app").hidden=false;
-  refresh();loadChat();loadRp();loadRpp();schedule();
+  refresh();loadChat();loadRp();loadRpp();loadTutor();schedule();
  }
 
  function poll(deviceCode,intervalMs,deadline){
