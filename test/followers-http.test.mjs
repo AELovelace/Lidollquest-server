@@ -21,7 +21,8 @@ test('HTTP recruitment charges once after a lost wallet reply, survives restart,
  try{
   await start();for(const who of Object.keys(tokens)){
    const created=await send(who,{action:'create',name:who,request_id:randomUUID(),controller:who});ids[who]=created.data.character.id;
-   const entered=await command(who,'enter',{zone:'honeydew-lantern',combat_version:3,follower_version:1,loadout:{player_info:{level:1,playerHealth:100,playerHealthMax:100,str:10,def:5},inventory:[]}});assert.equal(entered.status,200);
+   const entered=await command(who,'enter',{zone:'princess-rose',combat_version:3,follower_version:1,loadout:{player_info:{level:1,playerHealth:100,playerHealthMax:100,str:10,def:5},inventory:[]}});assert.equal(entered.status,200);
+   assert.equal((await command(who,'dive_enter',{zone:'dive-quarters'})).status,200); // Mira now recruits from inside this dungeon's entrance.
   }
   let snap=await read('alice');const mira=snap.followers.entities.find(n=>n.npc==='merchant_mira');assert.ok(mira);
   for(const who of Object.keys(tokens))service.db.prepare('UPDATE quest_presence SET x=?,y=?,seen=? WHERE character_id=?').run(mira.x,mira.y,time,ids[who]);

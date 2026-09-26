@@ -69,7 +69,7 @@
         "recruit_no": "Then I'll keep watch until you call for me."
       },
       "online": {
-        "home_zone": "overworld-haunted-woods",
+        "home_zone": "dive-forest",
         "aliases": [
           "Elowen"
         ],
@@ -258,7 +258,7 @@
         "recruit_no": "That's fine! I'll be here if you need anything from the shop!"
       },
       "online": {
-        "home_zone": "honeydew-lantern",
+        "home_zone": "dive-quarters",
         "aliases": [
           "Mira"
         ],
