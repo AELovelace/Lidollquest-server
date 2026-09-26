@@ -69,7 +69,7 @@ export function applyDungeonEffects(effects,c,s,context){
    const day=Math.floor(now()/86400000),used=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(c.owner,day)?.coins??0,paid=Math.min(Math.max(0,amount),Math.max(0,dailyCoinCap()-used));
    if(paid){adjust(c.owner,'coins',paid,'dungeon-'+randomUUID(),'Dungeon discovery');db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=coins+excluded.coins').run(c.owner,day,paid);}lines.push(paid+' LiDollCoins.');
   }else if(type==='xp'){
-   if(s.run)fail('Finish the current encounter first.');s.run={enemy:{exp:amount},log:[],hp:p.playerHealth,maxHp:p.playerHealthMax};awardExperience(s,roll);delete s.run;
+   if(s.run)fail('Finish the current encounter first.');s.run={enemy:{exp:amount},log:[],hp:p.playerHealth,maxHp:p.playerHealthMax};awardExperience(s,roll);s.run=null; // XP uses a temporary combat context; walking snapshots must retain the explicit idle field.
   }else if(type==='spawn_enemy'){
    if(!floor)throw Error('An encounter effect needs a dungeon floor');
    const candidates=Object.keys(data.enemies).filter(k=>!data.config.bosses.some(b=>b.enemy_id===k)),target=e.enemy_id??e.enemy??candidates[roll(candidates.length)];

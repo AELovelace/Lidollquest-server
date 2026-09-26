@@ -14,7 +14,7 @@ export function pinDefeat(enemy){
  return scene?{...enemy,defeat:structuredClone(scene),defeat_inherited:true}:enemy; // Copy presentation only when combat begins, not into every map monster.
 }
 export function publicEnemy(enemy){const {defeat,defeat_ref,defeat_inherited,defeat_equipment,...visible}=enemy;return visible;} // Only the settled scene crosses the gateway; combat definitions/effects stay pinned server-side.
-export function publicCombatState(state){return state?.run?.enemy?{...state,run:{...state.run,enemy:publicEnemy(state.run.enemy)}}:state;}
+export function publicCombatState(state){return {...state,run:state?.run?.enemy?{...state.run,enemy:publicEnemy(state.run.enemy)}:state?.run??null};} // Older saved XP rewards may lack run entirely; every public character still declares an idle or active combat state.
 
 export function resolvedDefeat(scenes,receipt,outcome){
  if(scenes?.schema!==2)return scenes; // Published v1 scenes retain their existing wire format.
