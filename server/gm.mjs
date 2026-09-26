@@ -62,7 +62,7 @@ export function buildAllowList(text){ // Comma-separated addresses and CIDR bloc
  return list;
 } // Rejected loudly at construction so a typo cannot silently admit the whole network.
 
-export function createGameMasterPanel(db,{walletClient,announcements=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn}={}){
+export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn}={}){
  const announcementStore=()=>typeof announcements==='function'?announcements():announcements; // Passed lazily by service.mjs because the zones module is created after the panel.
  const rp=createRoleplay(db,{now}); // RP journals use the same live staff authorization as every moderation tool.
  const rpp=createRpp(db,{now}); // Staff-only RPP gifts and purchase history never touch premium currencies.
@@ -219,6 +219,7 @@ export function createGameMasterPanel(db,{walletClient,announcements=null,live=n
  }
 
  const actions={
+  tutor_settings(input,actor){if(!tutor)fail(409,'The tutor NPC is not available on this server.');const saved=tutor.gmSet(input,actor);record(actor,'tutor_settings','tutor',{enabled:saved.enabled,name:saved.name,greeting:saved.greeting});return saved;}, // Pip on/off, name and greeting (tutor.mjs).
   rpp_gift(input,actor){const result=rpp.gift(input,actor);if(!result.replayed)record(actor,'rpp_gift',result.characterId,{...result,reason:input.reason});return result;},
   rp_award(input,actor){const result=rp.award(input,actor);record(actor,'rp_award',result.characterId,result);return result;},
   kick(input,actor){
@@ -455,6 +456,7 @@ export function createGameMasterPanel(db,{walletClient,announcements=null,live=n
    if(url.pathname==='/gm/asset'&&req.method==='GET')return send(200,live.asset(url.searchParams.get('id')));
    if(url.pathname==='/gm/enchantments'&&req.method==='GET')return send(200,enchantView()); // Content tuning, behind the same staff identity as every moderation tool.
    if(url.pathname==='/gm/loot'&&req.method==='GET')return send(200,lootView()); // Adjective + Item + Rarity tuning and affix authoring.
+   if(url.pathname==='/gm/tutor'&&req.method==='GET')return send(200,tutor?tutor.gmView():{configured:false,settings:null,recent:[]}); // Pip's switch, npc-rag health and the latest questions/answers.
    if(url.pathname==='/gm/alchemy'&&req.method==='GET')return send(200,alchemyView()); // Chest odds and brewing rules (alchemy-store.mjs).
    if(url.pathname==='/gm/rp'&&req.method==='GET')return send(200,rp.journal(Object.fromEntries(url.searchParams)));
    if(url.pathname==='/gm/rpp'&&req.method==='GET')return send(200,rpp.journal(url.searchParams.get('character')??''));

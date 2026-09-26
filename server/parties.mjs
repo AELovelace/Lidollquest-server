@@ -7,11 +7,13 @@ export function createParties(db,{now}) {
  CREATE TABLE IF NOT EXISTS quest_party_members(character_id TEXT PRIMARY KEY,party_id TEXT NOT NULL,joined INTEGER NOT NULL);
  CREATE INDEX IF NOT EXISTS quest_party_roster ON quest_party_members(party_id,joined);
  CREATE TABLE IF NOT EXISTS quest_party_invites(id TEXT PRIMARY KEY,party_id TEXT NOT NULL,sender TEXT NOT NULL,target TEXT NOT NULL,expires INTEGER NOT NULL,UNIQUE(party_id,target));`);
+ let followers=null;
  const party=id=>db.prepare('SELECT p.* FROM quest_parties p JOIN quest_party_members m ON m.party_id=p.id WHERE m.character_id=?').get(id);
  const members=id=>{const p=party(id);return p?db.prepare('SELECT c.*,m.joined FROM quest_party_members m JOIN quest_characters c ON c.id=m.character_id WHERE m.party_id=? ORDER BY m.joined,c.id').all(p.id):[];};
  const presence=id=>db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(id);
  function available(c){ // Joining and group transfers never bypass an unfinished inventory or needs transaction.
   const s=JSON.parse(c.state);
+  if(followers?.get(c.id)?.status==='pending')fail(c.name+' has a companion payment pending.');
   if(s.pendingDefeat||s.run||s.worldTurnDue||s.pendingPurchase||db.prepare("SELECT 1 FROM quest_management WHERE character_id=? AND status='pending'").get(c.id))fail(c.name+' must finish their current action first.');
   return s;
  }
@@ -41,6 +43,7 @@ export function createParties(db,{now}) {
    if(restricted.includes(target.owner))fail('Contact with this player is unavailable.');
    available(target);if(party(target.id))fail('That player already belongs to a party.');
    if(JSON.parse(c.state).diveCombatVersion!==3||JSON.parse(target.state).diveCombatVersion!==3)fail('Both players need the current party-capable game.');
+   followers?.assertSlots([...(p?members(c.id).map(m=>m.id):[c.id]),target.id]);
    if(p&&members(c.id).length>=3)fail('Your party already has three players.');
    if(db.prepare('SELECT COUNT(*) AS n FROM quest_party_invites WHERE sender=? AND expires>?').get(c.id,now()).n>=8)fail('Wait for your outstanding invitations.');
    const id=p?.id??randomUUID();if(!p){db.prepare('INSERT INTO quest_parties VALUES (?,?,?)').run(id,c.id,now());db.prepare('INSERT INTO quest_party_members VALUES (?,?,?)').run(c.id,id,now());}
@@ -51,7 +54,7 @@ export function createParties(db,{now}) {
    const invite=db.prepare('SELECT * FROM quest_party_invites WHERE id=? AND target=? AND expires>?').get(input.invitation??'',c.id,now());
    const leader=invite&&db.prepare('SELECT c.* FROM quest_parties p JOIN quest_characters c ON c.id=p.leader WHERE p.id=?').get(invite.party_id);
    if(!leader||!sameArea(c,leader))fail('This invitation has expired or the party moved.');
-   const roster=members(leader.id);if(roster.length>=3)fail('That party is full.');
+   const roster=members(leader.id);followers?.assertSlots([...roster.map(m=>m.id),c.id]);if(roster.length>=3)fail('That party is full.');
    if(roster.some(other=>restricted.includes(other.owner)))fail('Contact with this party is unavailable.'); // Recheck old invitations against all current members.
    for(const other of roster)if(!JSON.parse(other.state).pendingDefeat)available(other); // A recovering member does not prevent survivors from filling an empty party slot.
    db.prepare('INSERT INTO quest_party_members VALUES (?,?,?)').run(c.id,invite.party_id,now());db.prepare('DELETE FROM quest_party_invites WHERE target=?').run(c.id);return;
@@ -66,7 +69,7 @@ export function createParties(db,{now}) {
  }
  function snapshot(c,restricted=[]){
   if(!c)return {party:null,partyInvitations:[]};const p=party(c.id);
-  return {party:p?{id:p.id,leader:p.leader,members:members(c.id).map(other=>{const s=JSON.parse(other.state),pos=presence(other.id);return {id:other.id,name:other.name,avatar:s.avatar??'player',connected:(pos?.seen??0)>now()-30000,zone:pos?.zone??null,fighting:!!s.run,recovering:!!s.pendingDefeat};})}:null,
+  return {party:p?{id:p.id,leader:p.leader,slots:followers?.slots(members(c.id).map(v=>v.id))??members(c.id).length,followers:members(c.id).flatMap(v=>{const h=followers?.get(v.id);return h?[{npc:h.npc,name:followers.catalog[h.npc].name,hirer:v.id,expires:h.expires,status:h.status}]:[];}),members:members(c.id).map(other=>{const s=JSON.parse(other.state),pos=presence(other.id);return {id:other.id,name:other.name,avatar:s.avatar??'player',connected:(pos?.seen??0)>now()-30000,zone:pos?.zone??null,fighting:!!s.run,recovering:!!s.pendingDefeat};})}:null,
    partyInvitations:db.prepare('SELECT i.id,i.expires,c.name AS name,c.id AS sender FROM quest_party_invites i JOIN quest_characters c ON c.id=i.sender WHERE i.target=? AND i.expires>? ORDER BY i.expires LIMIT 8').all(c.id,now()).filter(invite=>!members(invite.sender).some(other=>restricted.includes(other.owner))).map(({sender,...invite})=>invite)};
  } // Roster views disclose only social status, never other members' loadouts or needs.
  function transfer(c,state,before,after){
@@ -84,5 +87,5 @@ export function createParties(db,{now}) {
    db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(s),other.id);
   }
  } // The caller owns the transaction: a failed group validation rolls back the initiator's portal too.
- return {act,members,party,remove,tick,snapshot,transfer,available};
+ return {act,members,party,remove,tick,snapshot,transfer,available,get followers(){return followers;},setFollowers(value){followers=value;}};
 }

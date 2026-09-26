@@ -30,6 +30,7 @@ export function createCharacterManagement(db,{walletClient,cloud,sprites,now=Dat
   }else if(!Number.isSafeInteger(i.revision)||i.revision!==c.revision)fail(409,'Character changed. Refresh before managing it.');
   if(i.action!=='description'&&(state.run||state.pendingPurchase||state.worldTurnDue||db.prepare('SELECT 1 FROM quest_presence WHERE character_id=? AND seen>?').get(c.id,now()-30000)))fail(409,'Leave online rooms and finish pending battles or purchases before managing this character.');
   if(db.prepare("SELECT 1 FROM quest_management WHERE character_id=? AND status='pending'").get(c.id))fail(409,'Another character change is still settling.','character_change_pending');
+  if(i.action!=='description'&&db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='quest_follower_hires'").get()&&db.prepare("SELECT 1 FROM quest_follower_hires WHERE character_id=? AND status IN ('active','pending')").get(c.id))fail(409,'Dismiss your companion and finish any companion payment before managing this character.');
   if(i.action==='delete'&&i.confirm!==c.name)fail(400,'Type the character name to confirm permanent deletion.');
   if(i.action==='delete')sprites?.blockDeletion(c.id);
   if(i.action==='rename'&&payload.name===c.name)fail(400,'Choose a different character name.');
