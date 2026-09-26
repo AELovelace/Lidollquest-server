@@ -1,4 +1,4 @@
-import {movementDelay} from './crawl.mjs';
+import {movementDelay,moveBurst,paceStep} from './crawl.mjs';
 import {createDiveControls} from './world-dive.mjs';
 import {createDiveEncounters} from './dive-encounters.mjs';
 import {generatorName} from './compute-tasks.mjs'; // Maps a generator function to the name the worker pool understands.
@@ -35,6 +35,7 @@ const fail=(message,code='dive_conflict')=>{throw Object.assign(Error(message),{
 const clone=structuredClone;
 const seconds=1000,minutes=60000;
 
+const WALK_DIRECTIONS={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}; // Direction names shared by move and walk.
 export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,measure=(_name,work)=>work(),upgradeFloor=()=>false,travel=()=>false,enchantments=null,loot=null,alchemyStore=null,compute=null,live=null,resolveHub=z=>z,purchases=null}){
  const baseline=structuredClone(data);if(live){live.register(baseline);data=live.resolve(baseline);} // Each engine keeps mutable configuration isolated from shipped exports.
  const config=data.config,route=config.route,zoneId=config.zone_id??DIVE_ZONE,theme=config.theme??'princess_quarters',name=config.name??"Princess' Quarters - Dungeon Dive",bossId=(config.boss_id??'iris')||'world_boss';
@@ -261,7 +262,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const summary={enabled:config.enabled&&!!record,version:1,route,zone:zoneId,category,name,boss:bossId,edition:record?.edition??'',static:!!config.static,resetsAt:config.static?0:record?.ends??weeklyWindow(now()).ends,completed:personal?.completed??false,claimed:record?.floor.chests.filter(ch=>personal?.claimed.includes(ch.id)).length??0,total:record?.floor.chests.length??0,pickupsClaimed:(record?.floor.pickups??[]).filter(ch=>personal?.claimed.includes(ch.id)).length,pickupsTotal:record?.floor.pickups?.length??0,claimableCoins:personal?.completed?Math.max(0,config.boss_coins-personal.coinsPaid):0};
   if(!record||p?.zone!==zoneId||!owns(state?.dive))return {dive:summary};
   const f=record.floor;
-  return {dive:{...summary,depth:1,origin:state.dive.origin,explored:personal.explored,...(dungeonRules?{scene:dungeonRules.scene(state),mechanismRevision:f.mechanismRevision,puzzles:f.puzzles}:{}),...(config.features?.rain?{weather:weatherAt(route,config.features.rain,now())}:{}),...(config.features?.tide?{tide:{...tideAt(route,config.features.tide,now()),reach:config.features.tide.reach??3,wade_wet:config.features.tide.wade_wet??2}}:{}),...(config.features?.eruption?{eruption:{...eruptionAt(route,config.features.eruption,now()),radius:config.features.eruption.radius??3,startle_wet:config.features.eruption.startle_wet??35}}:{}),enemies:f.enemies.filter(e=>!(e.manual&&!e.respawning&&e.dead)).map(e=>({...e,definition:undefined,name:(e.definition??data.enemies[e.type]).name,sprite:(e.definition??data.enemies[e.type]).sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",category,exits:f.exits??[],theme,...(dungeonRules?{fullDungeonVersion:1,fixtures:f.fixtures.map(v=>v.kind==='shop'?{...v,offers:shopOffers(zoneId,findShop(v.id),now(),shopperLevel(state))}:v),puzzles:f.puzzles,mechanismRevision:f.mechanismRevision}:{}),mist:f.mist,walls:f.walls,props:f.props,geometryVersion:f.geometryVersion??0,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,decorations:f.decorations,...(f.cover?{cover:f.cover,exposed:!!f.exposed}:{}),...(f.shore?{shore:f.shore}:{}),...(f.crater?{crater:f.crater}:{}),...(f.heat?{heat:{...f.heat,thirst_per_step:config.features?.heat?.thirst_per_step??3,sweat_percent:config.features?.heat?.sweat_percent??50}}:{})}}; // crater/heat: Emberfall Caldera's lava lake and the overheated ring round it. // shore: the Seafoam Coast's shoreline column per row (sea to its east, tide flats just west of it). // cover/exposed: the Autumnal Plains' tall grass and open fields (plains-features.mjs).
+  return {dive:{...summary,depth:1,origin:state.dive.origin,explored:personal.explored,...(dungeonRules?{scene:dungeonRules.scene(state),mechanismRevision:f.mechanismRevision,puzzles:f.puzzles}:{}),...(config.features?.rain?{weather:weatherAt(route,config.features.rain,now())}:{}),...(config.features?.tide?{tide:{...tideAt(route,config.features.tide,now()),reach:config.features.tide.reach??3,wade_wet:config.features.tide.wade_wet??2}}:{}),...(config.features?.eruption?{eruption:{...eruptionAt(route,config.features.eruption,now()),radius:config.features.eruption.radius??3,startle_wet:config.features.eruption.startle_wet??35}}:{}),enemies:f.enemies.filter(e=>!(e.manual&&!e.respawning&&e.dead)).map(e=>({...e,definition:undefined,name:(e.definition??data.enemies[e.type]).name,sprite:(e.definition??data.enemies[e.type]).sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",category,exits:f.exits??[],theme,...(dungeonRules?{fullDungeonVersion:1,fixtures:f.fixtures.map(v=>v.kind==='shop'?{...v,offers:shopOffers(zoneId,findShop(v.id),now(),shopperLevel(state))}:v),puzzles:f.puzzles,mechanismRevision:f.mechanismRevision}:{}),mist:f.mist,walls:f.walls,props:f.props,geometryVersion:f.geometryVersion??0,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,...(f.lullabyRooms?{lullabyRooms:f.lullabyRooms}:{}),decorations:f.decorations,...(f.cover?{cover:f.cover,exposed:!!f.exposed}:{}),...(f.shore?{shore:f.shore}:{}),...(f.crater?{crater:f.crater}:{}),...(f.heat?{heat:{...f.heat,thirst_per_step:config.features?.heat?.thirst_per_step??3,sweat_percent:config.features?.heat?.sweat_percent??50}}:{})}}; // crater/heat: Emberfall Caldera's lava lake and the overheated ring round it. // shore: the Seafoam Coast's shoreline column per row (sea to its east, tide flats just west of it). // cover/exposed: the Autumnal Plains' tall grass and open fields (plains-features.mjs).
  } // Snapshots expose claim status but never another character's inventory or chest rolls.
  function claim(c,state,record,chest,automatic=false){
   if(chest.puzzle&&!record.floor.puzzles.find(p=>p.id===chest.puzzle)?.solved)fail('Push the blocks to open this chest first.');
@@ -345,6 +346,22 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(action==='dive_claim'){
    if(state.run)fail('Finish the current fight first.');const chest=[...f.chests,...(f.pickups??[])].find(ch=>ch.id===input.chest);if(!chest||Math.abs(chest.x-p.x)+Math.abs(chest.y-p.y)>1)fail('Stand next to that treasure.');
    claim(c,state,record,chest);return;
+  }
+  if(action==='walk'){ // Queued steps from the walk protocol (zones.mjs imported their needs turns first). Commit in order; stop where anything but plain floor happens.
+   if(state.run)fail('Finish combat first.');
+   const delay=input.walkDelay??movementDelay(state.loadout,currentTuning()),burst=moveBurst(currentTuning()),path=[];let at={x:p.x,y:p.y},clock=p.moved,stop=input.walkCut?'special':''; // `clock` is the step clock (crawl.mjs paceStep); `at` the last committed tile.
+   for(const direction of input.steps){
+    const d=WALK_DIRECTIONS[direction],x=at.x+d[0],y=at.y+d[1],next=paceStep(clock,now(),delay,burst);
+    if(next===null){stop='too_fast';break;} // Faster than move_delay_ms on average, even with the burst allowance.
+    if(!walkable(f,x,y)){stop='blocked';break;}
+    if(f.enemies.some(e=>e.x===x&&e.y===y&&e.respawnAt<=now())||f.exits?.some(e=>inExit(e,x,y))||!(f.exits?.length)&&x===f.entrance.x&&y===f.entrance.y||[...f.chests,...(f.pickups??[])].some(ch=>ch.x===x&&ch.y===y)){stop='special';break;} // Encounters, exits and loot keep the single-step `move` with its own server-ordered needs turn.
+    clock=next;at={x,y};path.push({x,y});
+    db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(x,y,clock,c.id);reveal(c,state,f,x,y); // Same writes as one ordinary step, with the paced clock instead of now().
+    dungeonRules?.step(c,state,record,x,y); // Room timers, events and lullaby rooms count every committed step.
+    if(state.run||state.dungeonScene||state.pendingDefeat||!owns(state.dive)){stop='event';break;} // A room event or scene ends the batch on the tile where it happened.
+   }
+   state.walkReceipt={request:input.request_id,walked:path.length,stop,path}; // zones.mjs hands the path to quests and the companion trail, then drops it; the client reads walked/stop.
+   return;
   }
   if(action==='move'||action==='dive_engage'){
    if(state.run)fail('Finish combat first.'); // Exploration stays available while stat points are banked.

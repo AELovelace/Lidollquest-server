@@ -29,4 +29,9 @@ export function standBlockReason(loadout){ // Failed recovery never consumes an 
 
 const delayKey=(tuning,key)=>{const n=Number(tuning?.[key]);return Number.isFinite(n)&&n>0?n:DEFAULT_TUNING[key];}; // A missing or malformed key falls back to the shipped default, never to zero.
 export function moveDelays(tuning=null){return {walk:delayKey(tuning,'move_delay_ms'),crawl:delayKey(tuning,'crawl_move_delay_ms')};} // Both live cooldowns at once, for the zone snapshot (moveDelayMs / crawlMoveDelayMs).
+export function moveBurst(tuning=null){const n=Math.floor(Number(tuning?.move_burst_steps));return Number.isFinite(n)&&n>=1?Math.min(12,n):DEFAULT_TUNING.move_burst_steps;} // Queued steps one walk batch may deliver at once (snapshot moveBurstSteps).
+export function paceStep(moved,at,delay,burst=1){ // Step clock for queued walking: `moved` is the virtual time of the last committed step. Returns the new value, or null when this step would be too fast.
+ const next=Math.max(moved+delay,at); // Each step claims the next delay slot; an idle player's slot starts from now, so pauses are never banked beyond the burst.
+ return next-at<=(burst-1)*delay?next:null; // burst 1 is exactly the old rule (now - moved >= delay); a larger burst lets a batch arrive early by up to (burst-1) steps.
+}
 export function movementDelay(loadout,tuning=null){const d=moveDelays(tuning);return isCrawling(loadout)&&!loadoutCrawlFree(loadout)?d.crawl:d.walk;} // Milliseconds the server demands between online steps. Shared NPC clocks stay unchanged; only the crawler is slowed.

@@ -49,7 +49,7 @@ export const DEFAULT_TUNING=Object.freeze({
  stack_max:512, // Consumables and ammo stack this high in one bag entry; stacks never count toward the slot cap.
  daily_coin_cap:9999, // Account-wide LiDollCoins one player may earn per UTC day across arena payouts, Dive bosses, weekly quests and item sales (hubs.mjs dailyCoinCap). Live on the /gm Loot tab and the in-game GM Combat page.
  diamond_roll_floor:2, // Companion diamond rolls (exactly 1 diamond) never land below this rarity index: 0 common, 1 uncommon, 2 rare, 3 epic, 4 legendary (companion-shops.mjs).
- move_delay_ms:150,crawl_move_delay_ms:300, // Online walking: milliseconds the server demands between steps (crawl.mjs movementDelay). The zone snapshot ships them as moveDelayMs / crawlMoveDelayMs so the client paces itself to the same clock.
+ move_delay_ms:150,crawl_move_delay_ms:300,move_burst_steps:6, // move_burst_steps: how many queued steps a laggy client may deliver at once in one walk batch (crawl.mjs paceStep); the average pace still never beats move_delay_ms. Online walking: milliseconds the server demands between steps (crawl.mjs movementDelay). The zone snapshot ships them as moveDelayMs / crawlMoveDelayMs so the client paces itself to the same clock.
  // Online Dignity (stored as player_info.shame, 1024 down to 0) and Shame (0-100 predicament). dignity.mjs; shipped to the client as dignityTuning.
  defeat_dignity_loss:64,defeat_dignity_childish_extra:32, // Dignity lost per defeat/submit/failed charm, plus extra in a childish (7+) outfit (defeat-dignity.mjs), before the Shame multiplier.
  witnessed_wet_dignity:12,witnessed_tum_dignity:20, // Dignity lost per wetting/mess while another player is on screen (client online_dignity_witnessed), before the Shame multiplier.

@@ -1,7 +1,7 @@
 const messages={online_accident_seq:name=>name+' had an accident.',online_change_seq:name=>name+' changed their diaper.',online_hold_seq:name=>name+' fidgets and shifts their weight around',online_excitement_seq:name=>'Uh-Oh, '+name+' got way too excited in public ;)'};
 const counters=Object.keys(messages);
 const sequence=value=>Number.isSafeInteger(value)&&value>=0?Math.min(value,1000000000):0;
-const actions=new Set(['world_turn','loadout','use_item','turn_ready','hub_rest']);
+const actions=new Set(['world_turn','walk','loadout','use_item','turn_ready','hub_rest']); // walk carries its steps' needs turns, so accidents during it are announced too.
 
 export function publishPlayerActivity(db,{previous,state,action,character,owner,area,now}){
  const before=previous.loadout?.player_info,after=state.loadout?.player_info;
