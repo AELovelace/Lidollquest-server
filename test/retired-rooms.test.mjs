@@ -16,17 +16,25 @@ test('saved placements, DM maps, presence and hubVisit for a retired room (the o
  try{
   const act=(id,action,extra={})=>{time+=350;const s=id?zones.read('',id):null;return zones.act('',{action,request_id:randomUUID(),controller:'window',character_id:id,revision:s?.character.revision,...extra});};
   const c=act(null,'create',{name:'Alice'}).character;
-  act(c.id,'enter',{zone:'princess-rose',loadout:{player_info:{playerHealth:50},inventory:[]},combat_version:3,content_version:1,defeat_version:1});
+  act(c.id,'enter',{zone:'princess-rose',loadout:{player_info:{playerHealth:50},inventory:[]},combat_version:3,content_version:1,defeat_version:1,quest_version:1});
   // Reproduce a database written before the redesign: the character was last seen in the Resting Hall, and staff had placed NPCs and a DM monster there.
+  const npc={id:'old_room_guide',name:'Old room guide',wander_radius:2,dialogue:[{id:'hello',text:'Welcome!',next:'close',actions:[]}],quests:[]};
+  live.change({action:'content_publish',kind:'npc',id:npc.id,revision:0,entry:npc},'dm'); // A published wanderer and its logical placement are required to exercise the NPC clock's map lookup.
+  const placement={id:'npc-old',zone:'princess-rose-beds',kind:'npc',content:npc.id,x:4,y:4,home:{x:4,y:4},lifetime:'persistent'};
+  db.prepare('INSERT INTO world_placements VALUES (?,?,?)').run(placement.id,placement.zone,JSON.stringify(placement));
   db.prepare('UPDATE quest_presence SET zone=?,x=3,y=4 WHERE character_id=?').run('princess-rose-beds',c.id);
   db.prepare("UPDATE quest_characters SET state=json_set(state,'$.hubVisit','princess-rose-beds') WHERE id=?").run(c.id);
-  db.prepare('INSERT OR REPLACE INTO world_placement_maps VALUES (?,?,?,?)').run('princess-rose-beds','hub-princess-rose-beds','old-signature',JSON.stringify([{id:'npc-old',kind:'npc',content:'ghost',x:4,y:4,home:{x:4,y:4}}]));
+  db.prepare('INSERT OR REPLACE INTO world_placement_maps VALUES (?,?,?,?)').run('princess-rose-beds','hub-princess-rose-beds','old-signature',JSON.stringify([placement]));
   db.prepare('INSERT OR REPLACE INTO world_hub_maps VALUES (?,?,?,?)').run('princess-rose-beds','hub-princess-rose-beds',JSON.stringify({enemies:[{id:'dm-old',type:'ghost',definition:{name:'Ghost',hp:1},x:5,y:5,spawn:{x:5,y:5},manual:true,roaming:true,engaged:null,respawnAt:0,dead:false}]}),time);
   zones.close();zones=createQuestZones(db,options); // Boot against the old rows, exactly like a deployment restart.
   const parked=db.prepare('SELECT zone,x,y FROM quest_presence WHERE character_id=?').get(c.id);
   assert.equal(parked.zone,'princess-rose');assert.equal(parked.x,10);assert.equal(parked.y,12); // A parked character is moved to the Rose garden spawn at boot (SQLite rows are not plain objects, so compare fields).
   time+=1001;zones.tick();time+=1001;zones.tick(); // The placement walker and DM monster clock both skip the retired room instead of throwing "Unknown hub".
-  const resumed=act(c.id,'enter',{zone:'princess-rose',loadout:{player_info:{},inventory:[]},combat_version:3,content_version:1,defeat_version:1});
+  assert.equal(live.published().npcs[npc.id].wander_radius,2); // Keep this fixture eligible for the wandering-NPC clock as its optimizations evolve.
+  assert.deepEqual(JSON.parse(db.prepare('SELECT body FROM world_placements WHERE id=?').get(placement.id).body),placement); // Skipping retired content preserves staff-authored data for recovery.
+  assert.deepEqual(JSON.parse(db.prepare('SELECT body FROM world_placement_maps WHERE zone=?').get(placement.zone).body),[placement]);
+  assert.ok(db.prepare('SELECT 1 FROM world_hub_maps WHERE zone=?').get(placement.zone));
+  const resumed=act(c.id,'enter',{zone:'princess-rose',loadout:{player_info:{},inventory:[]},combat_version:3,content_version:1,defeat_version:1,quest_version:1});
   assert.equal(resumed.zone,'princess-rose');assert.equal(resumed.character.hubVisit,undefined,'a stale hubVisit to the retired annex is dropped');
   assert.equal(act(c.id,'move',{direction:'east'}).position.x,11);
   assert.ok(zones.world.catalog().every(z=>z.id!=='princess-rose-beds'));

@@ -828,6 +828,20 @@ when no adjacent test checkout is available. Running the installer from the
 installed `current` directory redeploys that same code; it does not download
 updates. Existing configuration and persistent data are preserved.
 
+If the service starts listening and then repeatedly exits with `Unknown hub`
+(`hub_encounter_conflict`) from the world tick, saved placements or monster maps
+can refer to a room removed by an earlier deployment. The fix in commit
+`704bac0` skips retired rooms in both clocks and relocates saved presence to an
+existing lobby at boot, preserving the old placement and monster records.
+Deploy a checkout containing that fix using the command above; restarting the
+same old release cannot apply it. The release path in the error identifies the
+code that actually ran. After deployment, use
+`readlink -f /opt/lidollquest-server/current` and
+`sudo journalctl -u lidollquest-server --since '2 minutes ago' --no-pager -l`
+to check the selected release and subsequent ticks. The SQLite experimental
+warning is unrelated. No database reset or client rebuild is needed for this fix.
+Regression check: `node --test test/retired-rooms.test.mjs test/zone-rename.test.mjs`.
+
 If startup or health verification fails, the installer restores the previous
 code pointer and running state. Backups and old releases remain for review.
 It does **not** automatically restore SQLite: doing so could discard live
