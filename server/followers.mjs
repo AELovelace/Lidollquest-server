@@ -1,3 +1,4 @@
+import {envFlag} from './env-flag.mjs'; // TRUE/true/1/yes all switch recruitment on.
 import {readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {importLoadout} from './loadout.mjs';
@@ -12,7 +13,7 @@ export function followerStats(def,level){
  return {...values,hp:p.hp_base+(l-1)*p.hp_per_level+values.def*p.hp_def_scale,mp:p.mp_base+values.int*p.mp_int_scale};
 } // The authored companion profiles remain the source of level, stat and mana scaling.
 
-export function createFollowers(db,{now=Date.now,enabled=process.env.QUEST_FOLLOWERS_ENABLED==='true',catalog=followerData}={}){
+export function createFollowers(db,{now=Date.now,enabled=envFlag('QUEST_FOLLOWERS_ENABLED'),catalog=followerData}={}){
  db.exec(`CREATE TABLE IF NOT EXISTS quest_followers(id TEXT PRIMARY KEY,level INTEGER NOT NULL DEFAULT 1,xp INTEGER NOT NULL DEFAULT 0,hp REAL NOT NULL,mp REAL NOT NULL);
  CREATE TABLE IF NOT EXISTS quest_follower_hires(id TEXT PRIMARY KEY,npc TEXT NOT NULL,character_id TEXT NOT NULL,owner TEXT NOT NULL,request_id TEXT NOT NULL,status TEXT NOT NULL,created INTEGER NOT NULL,expires INTEGER,zone TEXT,x INTEGER,y INTEGER,edition TEXT,area TEXT,battle TEXT,UNIQUE(character_id,request_id));
  CREATE UNIQUE INDEX IF NOT EXISTS quest_follower_exclusive ON quest_follower_hires(npc) WHERE status IN ('pending','active');

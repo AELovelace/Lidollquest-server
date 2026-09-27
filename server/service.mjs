@@ -1,3 +1,4 @@
+import {envFlag} from './env-flag.mjs'; // Case-insensitive on/off switches (FALSE really turns the GM panel off).
 import {migrateZoneIds} from './zone-rename.mjs'; // One-time dive-<name> -> overworld-/dungeon-<name> rewrite of saved zone ids.
 import {createWorldContent} from './world-content.mjs';
 import {createWorldJobs} from './world-jobs.mjs';
@@ -37,7 +38,7 @@ export function loadQuestPack(path){ // LIDOLLQUEST_QUEST_PACK names a shipped q
  return pack.quests;
 } // Publishing live quest content refuses clients without quest_version:1, so this stays an explicit deployment choice.
 
-export function createQuestService({filename=':memory:',walletClient,spriteProvider,artJobOptions={},now=Date.now,roll,log=console.warn,performanceOptions={},workerCount=0,authTtlMs=authCacheMs(),onlineToken=process.env.MOMMYBOT_ONLINE_TOKEN||'',gmAllow=process.env.LIDOLLQUEST_GM_ALLOW||'',gmEnabled=process.env.LIDOLLQUEST_GM_ENABLED!=='false',gmTrustProxy=process.env.LIDOLLQUEST_GM_TRUST_PROXY||'',gmRequireTls=process.env.LIDOLLQUEST_GM_REQUIRE_TLS==='true',questPack=loadQuestPack(process.env.LIDOLLQUEST_QUEST_PACK||''),followerOptions={},followerChatOptions={}}={}){
+export function createQuestService({filename=':memory:',walletClient,spriteProvider,artJobOptions={},now=Date.now,roll,log=console.warn,performanceOptions={},workerCount=0,authTtlMs=authCacheMs(),onlineToken=process.env.MOMMYBOT_ONLINE_TOKEN||'',gmAllow=process.env.LIDOLLQUEST_GM_ALLOW||'',gmEnabled=envFlag('LIDOLLQUEST_GM_ENABLED',true),gmTrustProxy=process.env.LIDOLLQUEST_GM_TRUST_PROXY||'',gmRequireTls=envFlag('LIDOLLQUEST_GM_REQUIRE_TLS'),questPack=loadQuestPack(process.env.LIDOLLQUEST_QUEST_PACK||''),followerOptions={},followerChatOptions={}}={}){
  const poolSize=computeWorkerCount(workerCount);let compute=null; // Validate configuration before opening persistent resources.
  const db=new DatabaseSync(filename);db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;'); /* NORMAL is SQLite's recommended setting for WAL: every commit survives an application crash, and only an OS crash or power loss can drop the last few milliseconds of commits. It removes the per-commit fsync that FULL paid for every heartbeat, move and chat line. */
  migrateZoneIds(db,{log}); // Before any module reads presence, content or maps: saved overworld and full-dungeon ids move to their new names once.

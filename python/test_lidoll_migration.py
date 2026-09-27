@@ -67,6 +67,27 @@ class MigrationTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 migration.require_host("10.1.1.24")
 
+    def test_vendor_dropin_environment_is_not_flagged(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            vendor = root / "usr/lib/systemd/system/service.d"
+            vendor.mkdir(parents=True)
+            (vendor / "10-timeout-abort.conf").write_text("[Service]\nTimeoutStopFailureMode=abort\n")
+            (vendor / "50-keep-warm.conf").write_text("# Fedora workaround\n[Service]\nEnvironment=SYSTEMD_SLEEP_FREEZE_USER_SESSIONS=0\n")
+            dropins = "/usr/lib/systemd/system/service.d/10-timeout-abort.conf /usr/lib/systemd/system/service.d/50-keep-warm.conf"
+            def scoped_path(value):
+                return root / str(value).lstrip("/")  # Read the fake vendor files instead of the real filesystem.
+            def fake_prop(environment):
+                return lambda service, name: {"DropInPaths": dropins, "Environment": environment}[name]
+            with patch.object(migration, "Path", side_effect=scoped_path):
+                with patch.object(migration, "prop", side_effect=fake_prop("SYSTEMD_SLEEP_FREEZE_USER_SESSIONS=0")):
+                    self.assertEqual(migration.admin_environment("lidoll-auth"), [])  # Fedora's global default is ignored.
+                with patch.object(migration, "prop", side_effect=fake_prop('SYSTEMD_SLEEP_FREEZE_USER_SESSIONS=0 "AUTH_HOST=10.1.1.23"')):
+                    self.assertEqual(migration.admin_environment("lidoll-auth"), ["AUTH_HOST=10.1.1.23"])  # A hand-added setting still stops the run.
+        self.assertTrue(migration.vendor_dropin("/usr/lib/systemd/system/service.d/50-keep-warm.conf"))
+        self.assertFalse(migration.vendor_dropin("/etc/systemd/system/lidoll-auth.service.d/override.conf"))
+        self.assertFalse(migration.allowed("/usr/lib/systemd/system/service.d/50-keep-warm.conf"))  # Still never archived.
+
     def test_existing_target_service_aborts(self):
         with patch.object(migration, "prop", return_value="loaded"):
             with self.assertRaises(RuntimeError):

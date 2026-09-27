@@ -84,7 +84,9 @@ reprovision a read-only deploy key if future updates need one.
 
 1. Run `inspect` and review the manifest in `artifacts/migration-<run>/`.
    Nonstandard paths, users, units or inline systemd environment settings stop
-   the script for review. Do not bypass a failure by pointing the archive at a
+   the script for review. Fedora's own package drop-ins under
+   `/usr/lib/systemd/system/service.d/` (for example `50-keep-warm.conf`) are
+   ignored and never archived; the target's systemd package supplies them. Do not bypass a failure by pointing the archive at a
    broader directory. Confirm the live source contains all four expected services.
 2. Verify Fedora `.24` has working SSH/sudo, correct time/NTP, outbound package
    and HTTPS access, and a configured/running firewalld that permits SSH. Keep

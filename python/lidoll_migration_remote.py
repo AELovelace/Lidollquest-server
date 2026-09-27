@@ -17,6 +17,7 @@ try:
 except ImportError:
     pwd = None  # Pure archive/configuration tests also run on the Windows authoring workstation.
 import re
+import shlex
 import shutil
 import sqlite3
 import subprocess
@@ -35,6 +36,7 @@ ENVS = ["/etc/lidoll/auth.env", "/etc/lidoll/tracker.env", "/etc/lidollquest/ser
 DEFAULT_PORTS = [4180, 4173, 4191, 8787]
 NODE = "/usr/bin/node-24"
 NPM = "/usr/lib/node_modules_24/npm/bin/npm-cli.js"
+VENDOR_UNIT_DIRS = ["/usr/lib/systemd/system", "/lib/systemd/system"]  # Package-owned unit dirs; the target's own systemd package supplies these.
 
 
 def run(*args, capture=False, check=True, cwd=None):
@@ -61,6 +63,29 @@ def allowed(path):
     if any(inside(path, root) for root in roots):
         return True
     return any(path == f"/etc/systemd/system/{s}.service" or inside(path, f"/etc/systemd/system/{s}.service.d") for s in SERVICES)
+
+
+def vendor_dropin(path):
+    return any(inside(path, root) for root in VENDOR_UNIT_DIRS)  # e.g. Fedora's service.d/50-keep-warm.conf, applied to every unit on the host.
+
+
+def environment_assignments(text):
+    """Collect Environment= entries from unit-file text, splitting quoted values like systemd does."""
+    found = []
+    for line in text.splitlines():
+        key, _, value = line.strip().partition("=")
+        if key.strip() == "Environment":
+            found.extend(shlex.split(value))  # One line may hold several KEY=value entries.
+    return found
+
+
+def admin_environment(service):
+    """Inline Environment= entries an administrator added, excluding the OS vendor's global drop-ins."""
+    vendor = set()
+    for dropin in prop(service, "DropInPaths").split():
+        if vendor_dropin(dropin):
+            vendor.update(environment_assignments(Path(dropin).read_text()))  # Same KEY=value on both hosts; not ours to migrate.
+    return [entry for entry in shlex.split(prop(service, "Environment")) if entry not in vendor]
 
 
 def validate_member(member):
@@ -154,8 +179,8 @@ def inventory():
         port = int(environment.get("AUTH_PORT" if index == 0 else "PORT", DEFAULT_PORTS[index]))
         if not 1 <= port <= 65535:
             raise RuntimeError("Invalid service port")
-        if prop(service, "Environment"):
-            raise RuntimeError(f"Inline systemd environment for {service} needs explicit review")
+        if admin_environment(service):
+            raise RuntimeError(f"Inline systemd environment for {service} needs explicit review")  # Vendor-wide entries such as SYSTEMD_SLEEP_FREEZE_USER_SESSIONS are ignored.
         for env_file in re.findall(r"(\S+)\s+\(ignore_errors=(?:yes|no)\)", prop(service, "EnvironmentFiles")):
             if env_file != ENVS[index]:
                 raise RuntimeError(f"Additional environment file for {service} needs review before rebinding the service")
@@ -165,6 +190,8 @@ def inventory():
             raise RuntimeError(f"Nonstandard command for {service}; review its required runtime files")
         roots.append(unit)
         for dropin in prop(service, "DropInPaths").split():
+            if vendor_dropin(dropin):
+                continue  # OS package files (10-timeout-abort, 50-keep-warm) are never archived or restored.
             if not allowed(dropin):
                 raise RuntimeError(f"Nonstandard drop-in for {service}")
             roots.append(dropin)
