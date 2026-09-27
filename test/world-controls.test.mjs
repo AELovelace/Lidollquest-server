@@ -129,3 +129,23 @@ test('custom first/repeat equipment consequences settle once per encounter',()=>
 test('publishing requires compatible entry while retirement and restoration preserve history',()=>{
  const f=fixture();try{const id=f.player('alice',false);f.publish('monster',monster);assert.throws(()=>f.act(id,'enter',{zone:'princess-rose',combat_version:3}),error=>error.code==='client_update_required');assert.equal(f.read(id).character.contentVersion,1);f.publish('monster',{...monster,retired:true});assert.ok(f.live.published().monsters.test_monster.retired);f.publish('monster',monster);assert.equal(f.live.published().monsters.test_monster.retired,false);assert.equal(f.live.entry('monster',monster.id).history.length,3);}finally{f.close();}
 });
+
+test('with spawning off, a defeated monster stays gone: hidden, stationary, unengageable and never a reinforcement',()=>{
+ const f=fixture();try{const id=f.player();f.publish('monster',{...monster,roaming:true});const before=f.map();
+  f.publish('zone',{...f.live.entry('zone',before.id).draft,spawning:false});f.tick(); // Population pass runs once for this revision; later deaths are never tidied away.
+  const m=f.map(),first=m.floor.rooms[0],away=(x,y)=>x<first.x-1||x>first.x+first.w||y<first.y-1||y>first.y+first.h; // Stay out of the safe entry room so the corpse could otherwise pursue.
+  let corpse=null,stand=null;
+  for(let y=2;y<m.floor.height-2&&!corpse;y++)for(let x=2;x<m.floor.width-3&&!corpse;x++)if(away(x,y)&&walkable(m.floor,x,y)&&walkable(m.floor,x+1,y)&&!m.floor.enemies.some(e=>Math.abs(e.x-x)+Math.abs(e.y-y)<3)){corpse={x,y};stand={x:x+1,y};}
+  const died=f.advance(0)-3600000; // Long past its respawn timer, like a kill from an hour ago.
+  const row=f.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=?').get(m.floor.route,m.edition),floor=JSON.parse(row.content);
+  floor.enemies.push({id:'enemy-corpse',type:monster.id,definition:{...monster,roaming:true},...corpse,spawn:{...corpse},roaming:true,engaged:null,dead:true,diedAt:died,respawnAt:died+1000});
+  f.db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=?').run(JSON.stringify(floor),m.floor.route,m.edition);
+  f.position(id,stand.x,stand.y);f.state(id,s=>{s.dive.safeUntil=0;}); // Adjacent and pursuable: before the fix the corpse chased, then start() threw and rolled back the tick.
+  for(let n=0;n<3;n++)f.tick();
+  const after=f.map().floor.enemies.find(e=>e.id==='enemy-corpse');
+  assert.equal(after.dead,true);assert.equal(after.engaged,null);assert.deepEqual({x:after.x,y:after.y},corpse); // Still a corpse, never engaged, never walked.
+  assert.equal(f.read(id).character.run,null);
+  assert.equal(f.read(id).dive.enemies.some(e=>e.id==='enemy-corpse'),false); // Clients no longer draw it as a living monster.
+  assert.throws(()=>f.act(id,'dive_engage',{encounter:'enemy-corpse'}),/not available/);
+ }finally{f.close();}
+});

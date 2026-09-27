@@ -361,7 +361,7 @@ def configure(config, manifest):
     for parent in ("/opt/lidoll", "/opt/lidoll/releases", "/opt/lidollquest-server", "/opt/lidollquest-server/releases", "/var/lib/lidoll"):
         os.chmod(parent, 0o755)  # tar's implicit parents inherit the private umask; services still need directory traversal.
     for scaffold in ("/var/backups/lidoll", "/var/backups/lidollquest-server", "/var/lib/lidoll-deploy"):
-        Path(scaffold).mkdir(mode=0o700, exist_ok=True)  # Tracker's systemd InaccessiblePaths requires these paths to exist.
+        Path(scaffold).mkdir(mode=0o700, parents=True, exist_ok=True)  # Tracker's InaccessiblePaths needs these; fresh Fedora has no /var/backups.
     run("chown", "lidoll-deploy:lidoll-deploy", "/var/lib/lidoll-deploy")
     deploy = Path("/etc/lidoll/deploy.json")
     if deploy.is_file():
@@ -385,10 +385,32 @@ def configure(config, manifest):
     run("restorecon", "-RF", *DATA, *CONFIG, "/opt/lidoll", "/opt/lidollquest-server", "/opt/lidoll-gallery")
 
 
-def restore(config, manifest, stage):
+REWRITTEN = ENVS + ["/etc/lidoll/deploy.json", "/opt/lidoll-gallery/server/gallery/nginx-gallery.conf"]  # configure() edits these after extraction.
+
+
+def extraction_complete(members):
+    """True when every archive member is on disk at its archived size (files configure() rewrites are only checked for existence)."""
+    for member in members:
+        name = "/" + member.name
+        path = Path(name)
+        if not (path.exists() or path.is_symlink()):
+            return False  # extractall stopped before this member.
+        if member.isfile() and name not in REWRITTEN and path.stat().st_size != member.size:
+            return False  # A file was cut off mid-write.
+    return True
+
+
+def restore(config, manifest, stage, resume=False):
     """Verify the transport, restore into empty paths and build pinned target dependencies."""
     require_host(config["target"])
-    target_empty()
+    if resume:
+        if (stage / "target-start-attempted").exists():
+            raise RuntimeError("Services were already started here; use the runbook's post-start recovery, not resume")
+        for service in SERVICES:
+            if prop(service, "ActiveState") != "inactive":
+                raise RuntimeError(f"{service} is not inactive; refusing to resume")  # Resume is only for a never-started target.
+    else:
+        target_empty()
     archive = stage / "services.tar"
     if fingerprint(archive) != (stage / "services.sha256").read_text().strip():
         raise RuntimeError("Archive SHA-256 mismatch; nothing restored")
@@ -396,10 +418,15 @@ def restore(config, manifest, stage):
         members = bundle.getmembers()
         for member in members:
             validate_member(member)
-        # The archive is from our authenticated source; every path/link/type was independently scoped above.
-        bundle.extractall("/", members=members, filter="fully_trusted")
-    configure(config, manifest)
-    for pointer in (CODE[0], CODE[2]):
+        if resume:
+            if not extraction_complete(members):
+                raise RuntimeError("Partial extraction on target; keep maintenance on and ask for a clean-target restore")
+            print("Resume: archive already fully extracted here; finishing configuration only.")
+        else:
+            # The archive is from our authenticated source; every path/link/type was independently scoped above.
+            bundle.extractall("/", members=members, filter="fully_trusted")
+    configure(config, manifest)  # Safe to repeat: rewrite_env is idempotent and every other step sets absolute modes/owners.
+    for pointer, reader in ((CODE[0], SERVICES[0]), (CODE[2], SERVICES[3])):
         code = str(Path(pointer).resolve(strict=True))
         run("chown", "-R", "lidoll-migrate:lidoll-migrate", code)
         try:
@@ -407,6 +434,8 @@ def restore(config, manifest, stage):
             run("runuser", "-u", "lidoll-migrate", "--", NODE, "--input-type=module", "-e", "await import('sharp'); await import('openid-client');", cwd=code)
         finally:
             run("chown", "-R", "root:root", code)
+        run("chmod", "-R", "u=rwX,go=rX", str(Path(code) / "node_modules"))  # npm inherited this helper's 077 umask; services run as their own users.
+        run("runuser", "-u", reader, "--", NODE, "--input-type=module", "-e", "await import('sharp'); await import('openid-client');", cwd=code)  # Prove the real service account can load its packages.
     for root in DATA:
         for database in Path(root).rglob("*.sqlite"):
             with sqlite3.connect(str(database)) as connection:
@@ -466,7 +495,7 @@ def start(config, manifest, stage):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["inspect", "prepare", "freeze", "restore", "start"])
+    parser.add_argument("action", choices=["inspect", "prepare", "freeze", "restore", "resume-restore", "start"])
     parser.add_argument("--stage", required=True)
     args = parser.parse_args()
     if os.geteuid() != 0:
@@ -496,7 +525,7 @@ def main():
         print(json.dumps(report, indent=2))
         return
     manifest = json.loads((stage / "manifest.json").read_text())
-    {"prepare": lambda: prepare(config, manifest), "freeze": lambda: freeze(config, manifest, stage), "restore": lambda: restore(config, manifest, stage), "start": lambda: start(config, manifest, stage)}[args.action]()
+    {"prepare": lambda: prepare(config, manifest), "freeze": lambda: freeze(config, manifest, stage), "restore": lambda: restore(config, manifest, stage), "resume-restore": lambda: restore(config, manifest, stage, resume=True), "start": lambda: start(config, manifest, stage)}[args.action]()
 
 
 if __name__ == "__main__":

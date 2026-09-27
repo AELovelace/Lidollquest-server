@@ -88,6 +88,52 @@ class MigrationTests(unittest.TestCase):
         self.assertFalse(migration.vendor_dropin("/etc/systemd/system/lidoll-auth.service.d/override.conf"))
         self.assertFalse(migration.allowed("/usr/lib/systemd/system/service.d/50-keep-warm.conf"))  # Still never archived.
 
+    def test_resume_refuses_started_or_running_targets(self):
+        with tempfile.TemporaryDirectory() as directory:
+            stage = Path(directory)
+            (stage / "target-start-attempted").write_text("started")
+            with patch.object(migration, "require_host"), patch.object(migration, "configure") as configure:
+                with self.assertRaisesRegex(RuntimeError, "already started"):
+                    migration.restore({"target": "10.1.1.24"}, {}, stage, resume=True)
+                (stage / "target-start-attempted").unlink()
+                with patch.object(migration, "prop", return_value="active"), self.assertRaisesRegex(RuntimeError, "not inactive"):
+                    migration.restore({"target": "10.1.1.24"}, {}, stage, resume=True)
+                configure.assert_not_called()
+
+    def test_resume_detects_missing_or_truncated_members(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            def scoped_path(value):
+                return root / str(value).lstrip("/")  # Pretend the temp dir is the target's filesystem root.
+            data = tarfile.TarInfo("var/lib/lidoll/tracker/market.sqlite")
+            data.size = 10
+            env = tarfile.TarInfo("etc/lidoll/auth.env")
+            env.size = 50
+            with patch.object(migration, "Path", side_effect=scoped_path):
+                self.assertFalse(migration.extraction_complete([data, env]))  # Nothing extracted yet.
+                (root / "var/lib/lidoll/tracker").mkdir(parents=True)
+                (root / "var/lib/lidoll/tracker/market.sqlite").write_bytes(b"12345")
+                (root / "etc/lidoll").mkdir(parents=True)
+                (root / "etc/lidoll/auth.env").write_text("AUTH_HOST=10.1.1.24\n")
+                self.assertFalse(migration.extraction_complete([data, env]))  # Database cut off mid-write.
+                (root / "var/lib/lidoll/tracker/market.sqlite").write_bytes(b"1234567890")
+                self.assertTrue(migration.extraction_complete([data, env]))  # Rewritten env file may differ in size.
+
+    def test_backup_scaffolds_create_missing_parents(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "var/lib").mkdir(parents=True)  # Fresh Fedora: no /var/backups at all.
+            real_path = Path
+            def scoped_path(value):
+                return real_path(directory) / str(value).lstrip("/")
+            with patch.object(migration, "Path", side_effect=scoped_path), patch.object(migration, "run"), patch.object(migration, "read_env", return_value={}), patch.object(migration, "rewrite_env", return_value=""), patch.object(migration.os, "chmod"):
+                for env in migration.ENVS:
+                    (root / env.lstrip("/")).parent.mkdir(parents=True, exist_ok=True)
+                    (root / env.lstrip("/")).write_text("")
+                migration.configure({"target": "10.1.1.24", "source": "10.1.1.23", "proxy": "10.1.1.20"}, {"services": [{"port": p} for p in migration.DEFAULT_PORTS]})
+            self.assertTrue((root / "var/backups/lidoll").is_dir())
+            self.assertTrue((root / "var/backups/lidollquest-server").is_dir())
+
     def test_existing_target_service_aborts(self):
         with patch.object(migration, "prop", return_value="loaded"):
             with self.assertRaises(RuntimeError):

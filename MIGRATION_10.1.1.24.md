@@ -183,6 +183,14 @@ The controller records its last phase and both private staging paths in
 automatically**. Read the phase and remote markers before retrying. A partially
 restored target is intentionally rejected by a fresh migration invocation.
 
+**Restore stopped after extraction (before any start):** copy the current helper
+over `<target_stage>/helper.py` and run
+`ssh -t aedith@<target> "sudo /usr/bin/python3 <target_stage>/helper.py resume-restore --stage <target_stage>"`.
+It re-checks the SHA-256, refuses if any service ran or the start marker exists,
+confirms every archive member is on disk at its archived size, and only then
+finishes configuration, ownership, SELinux labels, npm rebuilds and SQLite checks.
+Then run `helper.py start` the same way.
+
 **Before `target-start-attempted`:** verify no destination app has actually run.
 Keep maintenance active and stop/disable any destination app units that were
 installed. The source data remains the authoritative copy. On `.23`, remove

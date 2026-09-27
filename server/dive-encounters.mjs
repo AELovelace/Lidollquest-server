@@ -54,7 +54,7 @@ export function applyCombatPatch(loadout,patch){
  }if(result.player_info&&typeof result.player_info==='object')result.player_info.rpp_abilities=clone(loadout.player_info.rpp_abilities??[]);return importLoadout(result); // A whole player_info replacement cannot bypass protected paid-ability paths.
 } // Numeric deltas preserve intervening attacks/heals; structural item edits require an unchanged baseline.
 
-export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate,context=null}){
+export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate,context=null,gone=()=>false}){
  const config=data.config,zone=config.zone_id??'dive-quarters',route=config.route,boss=(config.boss_id??'iris')||'world_boss',z={theme:config.theme??'princess_quarters',activeTime:true};
  db.exec('CREATE TABLE IF NOT EXISTS quest_dive_encounters(id TEXT PRIMARY KEY,route TEXT NOT NULL,edition TEXT NOT NULL,state TEXT NOT NULL,updated INTEGER NOT NULL)');
  db.exec("CREATE INDEX IF NOT EXISTS quest_open_dive_encounters ON quest_dive_encounters(route) WHERE json_extract(state,'$.finished') IS NOT 1"); // Retain history without scanning every settled fight on each simulation tick.
@@ -78,7 +78,7 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
   }
   const e={id:randomUUID(),edition:record.edition,zone,route,origin:{x:foe.x,y:foe.y},created:now(),sequence:0,events:[],players:[],followers:[],enemies:[]};
   const tuning=currentTuning(),fightLevel=encounterLevel(tuning,routeLevelFor(tuning,route,record.depth),rows.map(row=>row.s.loadout.player_info.level)); // Floor band, raised toward the strongest party member (party_level_slack); hub events use the default band.
-  for(const selected of (context?[foe]:selectEncounterEnemies(record.floor,foe,data,roll,now()))){selected.engaged=e.id;const enemy=pinDefeat(clone(selected.definition??data.enemies[selected.type]));enemy.maxHp=enemy.hp;enemy.turn=0;
+  for(const selected of (context?[foe]:selectEncounterEnemies({...record.floor,enemies:record.floor.enemies.filter(v=>!gone(v))},foe,data,roll,now()))){selected.engaged=e.id;const enemy=pinDefeat(clone(selected.definition??data.enemies[selected.type]));enemy.maxHp=enemy.hp;enemy.turn=0;
    levelEnemy(tuning,enemy,fightLevel,{boss:selected.type===data.config.boss_id||enemy.tier==='boss'||enemy.boss===true}); // str/def/exp by the loot level curve, HP by turns-to-kill for the tier.
    const duration=enemyActionDelay(enemy.dex??0,roll)+e.enemies.length*encounterTuning.enemy_initial_stagger_ms;
    e.enemies.push({id:selected.id,data:enemy,duration,readyAt:now()+duration,dots:[],debuffs:[]});
