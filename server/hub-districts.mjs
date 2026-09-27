@@ -90,6 +90,18 @@ export function addCastleTemple(f,def){ // Sable's Veiled Sanctum: a fixed room 
  if(!f.rooms.some(r=>r.kind==='temple'))f.rooms.push({x:tp.x,y:tp.y,w:tp.w,h:tp.h,cx:mid,cy:tp.y+Math.floor(tp.h/2),kind:'temple',god:god.id}); // Sable's changing-room rule reads this.
  return true;
 }
+export function addLobbyBuildings(f,def){ // Plaza buildings added to hub-district-data after a month was saved (the gods' temples: Orin's Unbound Hearth, Nyx, Sula, Orthain) gain their facade in place. Their doors already worked (lobbyPortals reads the data), only the solid sprite was missing.
+ let added=false;
+ for(const b of def.lobby?.buildings??[]){
+  if(f.fixtures.some(x=>x.id===b.id))continue; // Already standing in this month.
+  const facade={id:b.id,kind:'scenery',name:'',sprite:b.sprite,x:b.x,y:b.y,span_w:b.span_w,span_h:b.span_h,solid:true};
+  const cells=[...footprint(facade),...(b.door?[{x:b.door.x,y:b.door.y}]:[])],inside=new Set(cells.map(c=>c.x+','+c.y)); // The facade and its doorstep.
+  f.fixtures=f.fixtures.filter(x=>!footprint(x).some(c=>inside.has(c.x+','+c.y))); // Scenery, an outhouse or a resident standing where the building goes steps aside (same as addCastleTemple).
+  for(const c of cells)if(f.walls[c.y]?.[c.x]){f.walls[c.y][c.x]=0;if(f.wallTiles?.[c.y])f.wallTiles[c.y][c.x]=0;} // The facade is floor covered by a solid sprite, like the generated plaza buildings; the doorstep must be walkable.
+  f.fixtures.push(facade);added=true;
+ }
+ return added;
+}
 export function generateDistrict(definition,window,data=districtData){
  const {width,height}=districtSize(definition,data);if(![width,height].every(n=>Number.isInteger(n)&&n>=40&&n<=80)||!Number.isInteger(data.scenery_count)||data.scenery_count<12||data.scenery_count>100)throw Error('Monthly districts require 40-80 tile maps and 12-100 scenery pieces.');
  const cx=Math.floor(width/2),cy=Math.floor(height/2),east=entryStrip(width,height),west=westStrip(height);
@@ -194,7 +206,7 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
   f.fixtures=f.fixtures.filter(x=>x.kind!=='scenery'||buildings.has(x.id)||!Array.from({length:(x.span_w??1)*(x.span_h??1)},(_,i)=>(x.x+i%(x.span_w??1))+','+(x.y+Math.floor(i/(x.span_w??1)))).some(k=>cells.has(k))); // Loose scenery sitting on the new road is cleared; plaza buildings and people stay.
   return true;
  };
- const upgrade=(id,f,def)=>{const gate=addEdgeGate(f,def,'north')|addEdgeGate(f,def,'south')|(def.lobby?addOuthouses(f,def,data)|addChangers(f,def,data)|addPayToilets(f,def,data):false)|addArcadiaAir(f,def)|addCastleTemple(f,def),pot=addCauldron(f,def)||gate;if(((f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)))||pot)persist(id,f);};
+ const upgrade=(id,f,def)=>{const gate=addEdgeGate(f,def,'north')|addEdgeGate(f,def,'south')|(def.lobby?addOuthouses(f,def,data)|addChangers(f,def,data)|addPayToilets(f,def,data):false)|addArcadiaAir(f,def)|addCastleTemple(f,def)|addLobbyBuildings(f,def),pot=addCauldron(f,def)||gate;if(((f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)))||pot)persist(id,f);};
  const persist=(id,f)=>db.prepare('UPDATE hub_district_editions SET content=? WHERE zone=? AND edition=?').run(JSON.stringify(f),id,f.district.layoutKey);
  function ensure(def){
   const id=districtZone(def),window=windowFor(id),layoutKey=`${window.edition}:v${data.version}`,cached=cache.get(id);if(cached?.district.layoutKey===layoutKey){upgrade(id,cached,def);return cached;}

@@ -9,21 +9,21 @@ export const FARMSTEAD_SIZE=Object.freeze({width:24,height:16});
 const W=FARMSTEAD_SIZE.width,H=FARMSTEAD_SIZE.height;
 
 // Rooms (inclusive-exclusive boxes). The hall runs along the bottom; the three rooms open onto it through one-tile doors.
-const ROOMS=Object.freeze([
+export const FARMSTEAD_ROOMS=Object.freeze([
  {x:1,y:1,w:8,h:9,type:'kitchen'},   // Stove, table, pantry chests.
  {x:10,y:1,w:9,h:9,type:'hayloft'},  // Hay beds to nap in, a haystack.
  {x:20,y:1,w:3,h:9,type:'outhouse'}, // A narrow corridor with the outhouse at its far end.
  {x:1,y:11,w:22,h:4,type:'hall'}     // Entry hall with the warp pad back out to the fields.
 ]);
-const DOORS=Object.freeze([{x:4,y:10},{x:14,y:10},{x:21,y:10},{x:9,y:5}]); // Kitchen, hayloft, outhouse corridor, and kitchen<->hayloft.
+export const FARMSTEAD_DOORS=Object.freeze([{x:4,y:10},{x:14,y:10},{x:21,y:10},{x:9,y:5}]); // Kitchen, hayloft, outhouse corridor, and kitchen<->hayloft.
 export const FARMSTEAD_PAD=Object.freeze({x:12,y:14}); // Warp pad in the hall, bottom centre.
 
 export function generateFarmstead(data,edition,depth=1){
  const c=data.config;
  const f={route:c.route,edition,depth,theme:c.theme,generatorVersion:1,contentVersion:data.version,dressingVersion:data.dressing_version,foodVersion:data.food_version,width:W,height:H,
   walls:Array.from({length:H},()=>Array(W).fill(1)),props:Array.from({length:H},()=>Array(W).fill(0)),rooms:[],enemies:[],chests:[],pickups:[],decorations:[]};
- for(const r of ROOMS){for(let y=r.y;y<r.y+r.h;y++)for(let x=r.x;x<r.x+r.w;x++)f.walls[y][x]=0;f.rooms.push({...r});} // Carve every room.
- for(const d of DOORS)f.walls[d.y][d.x]=0; // Punch the doorways.
+ for(const r of FARMSTEAD_ROOMS){for(let y=r.y;y<r.y+r.h;y++)for(let x=r.x;x<r.x+r.w;x++)f.walls[y][x]=0;f.rooms.push({...r});} // Carve every room.
+ for(const d of FARMSTEAD_DOORS)f.walls[d.y][d.x]=0; // Punch the doorways.
  const place=(sprite,x,y,span_w=1,span_h=1,extra={})=>{const d={sprite,span_w,span_h,solid:true,x,y,...extra};for(let dy=0;dy<span_h;dy++)for(let dx=0;dx<span_w;dx++)f.props[y+dy][x+dx]=1;f.decorations.push(d);return d;};
  // Kitchen.
  place('sprFarmStove',1,1);place('sprTownEnvBarrel',2,1);place('sprFarmTable',3,4,2,1);place('sprTownEnvBench',3,5);place('sprTownEnvBench',4,5);place('sprTownEnvCrateStack',8,1);

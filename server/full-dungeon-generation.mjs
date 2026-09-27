@@ -158,7 +158,7 @@ export function generateFullDungeon(data,edition,depth=1){
  if(f.puzzles.length!==1)throw Error('Could not reserve the required campaign puzzle');
  if(c.theme==='hospital')fixture({id:'token-admission-form',kind:'token',content:'admission_form',name:'Admission Form',sprite:'sprItem'});
  // Required services and campaign residents are placed before optional clutter.
- fixture({id:'objNPCMerchant',kind:'shop',shop:'objNPCMerchant',name:'Mira',sprite:'sprFriendly'});
+ fixture({id:'objNPCMerchant',kind:'shop',shop:'objNPCMerchant',name:'Mira',sprite:'sprNPCBarmaid'}); // Mira's avatar art (avatars.json objNPCMerchant); sprFriendly is only a green placeholder square.
  fixture({id:'quest-board',kind:'quest_board',name:'Quest Board',...data.service_profiles.board});
  for(let i=0;i<(source.guaranteed_fixtures?.adult_toilets??2);i++)fixture({id:'toilet-'+i,kind:'toilet',style:'porcelain',name:'Toilet',...data.service_profiles.toilet});
  for(let i=0;i<(source.guaranteed_fixtures?.potty_chairs??3);i++)fixture({id:'potty-'+i,kind:'toilet',style:'potty',name:'Potty Chair',...data.service_profiles.potty});
@@ -177,7 +177,7 @@ export function generateFullDungeon(data,edition,depth=1){
  for(const [i,r] of f.rooms.entries()){
   if(r===start)continue;
   const pool=(data.room_enemies[r.type]??(r.is_atrium?data.room_enemies.atrium:undefined)??(c.theme==='dungeon'?fallback:[])).filter(id=>!bossTypes.has(id));
-  const chance=c.theme==='dungeon'?source.spawn_chances.enemy_chance:r.is_atrium?(s.atrium_patrol_chance??25):100;
+  const chance=c.theme==='dungeon'?source.spawn_chances.enemy_chance:r.is_atrium?(s.atrium_patrol_chance??25):(c.room_enemy_chance??50); // Castle: its campaign enemy_chance (46%). Nursery/School/Hospital rooms used to be guarded 100% of the time; room_enemy_chance (config) thins them out.
   if(pool.length&&rnd(100)<chance)for(let n=0;n<c.enemies_per_room;n++){const p=free(r);if(p)spawn(pool[rnd(pool.length)],p,`enemy-${i}-${n}`);}
   if(rnd(100)<(source.spawn_chances?.bonus_item_chance??s.bonus_item_chance??70)){const p=free(r);if(p)f.chests.push({id:'chest-'+i,...p,trapped:rnd(100)<(s.chest_trap_chance??source.spawn_chances?.chest_trap_chance??25)});}
   for(const kind of ['food','potion','treasure']){const p=free(r);if(p)f.pickups.push({id:`${kind}-${i}`,kind,...p,sprite:'sprItem',room_type:r.type,...(kind==='treasure'&&data.room_items[r.type]?.length?{loot_pool:data.room_items[r.type]}:{})});}

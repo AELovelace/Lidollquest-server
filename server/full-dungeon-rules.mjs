@@ -72,7 +72,8 @@ export function applyDungeonEffects(effects,c,s,context){
    if(s.run)fail('Finish the current encounter first.');s.run={enemy:{exp:amount},log:[],hp:p.playerHealth,maxHp:p.playerHealthMax};awardExperience(s,roll);s.run=null; // XP uses a temporary combat context; walking snapshots must retain the explicit idle field.
   }else if(type==='spawn_enemy'){
    if(!floor)throw Error('An encounter effect needs a dungeon floor');
-   const candidates=Object.keys(data.enemies).filter(k=>!data.config.bosses.some(b=>b.enemy_id===k)),target=e.enemy_id??e.enemy??candidates[roll(candidates.length)];
+   const native=new Set([...(data.campaign?.enemy_types??[]).map(t=>t.enemy_id),...Object.values(data.room_enemies??{}).flat()]),candidates=[...native].filter(k=>data.enemies[k]&&!data.config.bosses.some(b=>b.enemy_id===k)),target=e.enemy_id??e.enemy??candidates[roll(Math.max(1,candidates.length))]; // Only this dungeon's own monsters: data.enemies also carries every published monster (world-content resolve), which let the Plains' Harvest Matron ambush Castle Dungeon players.
+   if(!target||!data.enemies[target])continue; // No native monster to send: the event simply doesn't ambush.
    for(let n=0;n<Math.min(6,Math.max(1,amount));n++){
     const at=s.dive.position,positions=[];for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){const x=at.x+dx,y=at.y+dy;if(Math.abs(dx)+Math.abs(dy)<2||!walkable(floor,x,y)||floor.enemies.some(v=>v.x===x&&v.y===y)||floor.safeRooms.some(r=>inside(r,x,y)))continue;positions.push({x,y});}
     if(!positions.length)break;const point=positions[roll(positions.length)];floor.enemies.push({id:'event-enemy-'+randomUUID(),type:target,...point,spawn:{...point},roaming:true,engaged:null,respawnAt:0,manual:true,respawning:false});

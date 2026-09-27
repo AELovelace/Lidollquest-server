@@ -334,7 +334,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    if(input.action==='heartbeat'){
     const lease=presence(i,c,input.controller);if(now()-lease.seen>=HEARTBEAT_WRITE_INTERVAL)db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);return response(i,c); /* Presence stays fresh for 30 s, so a heartbeat only needs to touch the row every few seconds; the other heartbeats commit nothing and cost no disk write. */
    }
-   if((!JSON.parse(c.state).run?.sharedEncounter||!['turn_ready','attack','cast','charm','allure','use_item','flee','submit','stand','row'].includes(input.action))&&(!Number.isSafeInteger(input.revision)||input.revision!==c.revision))fail(409,'Character changed; refresh before choosing another action.');
+   if((!JSON.parse(c.state).run?.sharedEncounter||!['turn_ready','attack','cast','charm','allure','use_item','flee','submit','stand','row','revive'].includes(input.action))&&(!Number.isSafeInteger(input.revision)||input.revision!==c.revision))fail(409,'Character changed; refresh before choosing another action.');
    const state=JSON.parse(c.state);let p,rpId;
    if(state.godMode&&i.gamemaster!==true)delete state.godMode; // GM god mode ends with the next command once the account loses the gamemaster role.
    if(input.action==='enter'){state.followerVersion=input.follower_version===1?1:0;state.contentVersion=input.content_version===1?1:0;state.questVersion=input.quest_version===1?1:0;state.fullDungeonVersion=input.full_dungeon_version===1?1:0;}

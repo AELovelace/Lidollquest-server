@@ -123,6 +123,8 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  }
  function back(c,state,destination){
   if(state.pendingDefeat){state.pendingDefeat.returnToHub=true;return;} // Weekly reset may retire the floor, but never interrupts its unread defeat scene.
+  const linked=destination?hubRooms.find(r=>r.routeExit?.route===zoneId&&r.routeExit.via===destination):null; // A route exit that now opens into a safe hub room (the Plains barn pad -> the Farmstead, farmhouse-room.mjs).
+  if(linked){const arrival={...linked.spawn};db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(linked.id,arrival.x,arrival.y,now(),c.id);state.hubVisit=linked.id;state.dive=null;state.diveReturned=linked.id;state.diveReturnedPosition=arrival;return;} // Stand just inside its door; hubVisit restores the room on reconnect.
   if(destination&&travel(c,state,zoneId,destination))return; // Linked wilderness travel preserves the loadout and personal progress inside the same transaction.
   const origin=destination?routeHome(destination,zoneId,{returnZone:state.dive?.returnZone??'',gate:state.dive?.gate===true}):(state.dive?.returnZone??state.dive?.origin??'honeydew-lantern'); // Crossing to another hub lands in whichever of its rooms hosts this route's opening (Rose: the garden itself; Lantern: its Dive Hall); legacy lobby pad entries still return to lobbies.
   const destinationRoom=resolveHub([...hubRooms,...hubCatalog].find(z=>z.id===origin)); // Full dungeon entrances live in the resolved monthly map.
@@ -295,7 +297,15 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    } // A browser suspended across reset resumes in its lobby instead of retrying a retired floor forever.
    if(state.run&&state.run.kind!=='dive')fail('Finish your arena run before diving.');
    if(state.dive&&!owns(state.dive))fail('Leave your current dungeon before entering another route.');
-   if(!state.dive){const hall=hubRooms.find(r=>r.id===p?.zone&&(r.kind==='dives'||config.full_dungeon_version)),host=hall??hubCatalog.find(h=>h.id===p?.zone);if(!p||!host||p.seen<=now()-30000||p.controller!==input.controller||p.grant_id!==i.id)fail('Enter from an online dungeon entrance.');
+   const linked=!state.dive?hubRooms.find(r=>r.id===p?.zone&&r.routeExit?.route===zoneId):null; // Leaving a hub room whose door opens onto this route (the Farmstead -> Autumnal Plains).
+   if(linked){
+    if(p.seen<=now()-30000||p.controller!==input.controller||p.grant_id!==i.id)fail('Enter from an online dungeon entrance.');
+    const door=linked.exit;if(!inHubGap({x:door.x-1,y:door.y-1,w:(door.w??1)+2,h:(door.h??1)+2},p.x,p.y))fail('Walk through the door.'); // Standing on or beside the door.
+    if(input.loadout)state.loadout=importLoadout(input.loadout);if(!state.loadout)fail('Import your character first.');
+    const record=current(),origin=linked.routeExit.via;if(!record)fail('The weekly floor is not ready.'); // origin: the barn pad's id, so entry() puts you just south of the barn.
+    state.dive={route,zone:zoneId,edition:record.edition,depth:1,origin,hubOrigin:linked.parent,hubEntryZone:zoneId,returnZone:linked.id,gate:false,position:{...entry(record.floor,origin)},safeUntil:now()+10*seconds};state.diveReturned=null;delete state.diveReturnedPosition;delete state.hubVisit; // hubEntryZone: walking north home to Honeydew arrives inside its south gate.
+   }
+   else if(!state.dive){const hall=hubRooms.find(r=>r.id===p?.zone&&(r.kind==='dives'||config.full_dungeon_version)),host=hall??hubCatalog.find(h=>h.id===p?.zone);if(!p||!host||p.seen<=now()-30000||p.controller!==input.controller||p.grant_id!==i.id)fail('Enter from an online dungeon entrance.');
     const portal=routePortals(resolveHub(host)).find(v=>v.target===zoneId); // The Castle is an annex; towns have their own full dungeon doorsteps.
     const beside=portal?.style==='gap'?inHubGap({x:portal.x-1,y:portal.y-1,w:(portal.w??1)+2,h:(portal.h??1)+2},p.x,p.y):portal&&Math.abs(p.x-portal.x)+Math.abs(p.y-portal.y)<=1; // Wall openings span two tiles; pads are one.
     if(!portal||(hall||config.full_dungeon_version)&&!beside)fail(portal?.style==='gap'?'Walk through the wall opening.':config.full_dungeon_version?'Stand on or beside that dungeon entrance portal.':'Stand on or beside that glowing portal.');

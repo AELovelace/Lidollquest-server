@@ -201,7 +201,8 @@
         "marigold",
         "pacifier",
         "bottle",
-        "arrows"
+        "arrows",
+        "healing_poultice"
       ]
     },
     {
@@ -5286,6 +5287,20 @@
         },
         "traits": {}
       }
+    },
+    "healing_poultice": {
+      "item_id": "healing_poultice",
+      "category": "medicine",
+      "name": "Healing Poultice",
+      "desc": "A warm cloth pad packed with crushed herbs and honey. Press it to a knocked-out party member in battle and they come round with a gasp, back on their feet at 30% HP. Uses your turn.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 25,
+      "childish": 0,
+      "stackable": true,
+      "revive_pct": 30,
+      "rarity": "uncommon"
     }
   },
   "equipment": {

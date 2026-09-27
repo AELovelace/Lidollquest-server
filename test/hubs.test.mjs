@@ -75,7 +75,7 @@ test('every lobby connects to its shared annexes with 50x50 districts, six beds 
     else {place(10,9);assert.equal(act('hub_visit',{zone:lobby.id}).zone,lobby.id);}
    }
   }
-  assert.equal(hubRooms.length,25); // Four town temples (Orin, Nyx, Sula, Orthain); Sable's is inside The Castle. Utopia: Nap Pods, Artificer's Workshop and Arcanum Tower. Arcadia: Boarding House, Rail Depot and Clockmakers' Guildhall. Rose: Castle, market, hall. Honeydew: Inn and Community Hall. LittleBigCity: Inn, Coliseum and eight stores (both towns are their own garden and market).
+  assert.equal(hubRooms.length,26); // The Farmstead behind the Plains barn (a safe hub room since 2026-09-27). Four town temples (Orin, Nyx, Sula, Orthain); Sable's is inside The Castle. Utopia: Nap Pods, Artificer's Workshop and Arcanum Tower. Arcadia: Boarding House, Rail Depot and Clockmakers' Guildhall. Rose: Castle, market, hall. Honeydew: Inn and Community Hall. LittleBigCity: Inn, Coliseum and eight stores (both towns are their own garden and market).
  }finally{db.close();}
 });
 

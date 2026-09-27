@@ -10,6 +10,7 @@ import {generateDesert,validateDesert} from '../server/desert-generation.mjs';
 import {openExitGaps,addLandmark} from '../server/wilderness-links.mjs';
 import {computeTask} from '../server/compute-tasks.mjs';
 import {TOWN_PORTALS,wildernessGates} from '../server/hubs.mjs';
+import {FARMSTEAD_ROOM_ID} from '../server/farmhouse-room.mjs';
 import {routeLevelFor} from '../server/scaling.mjs';
 
 const HONEYDEW='honeydew-lantern';
@@ -189,13 +190,19 @@ test('a nap on a hay bed restores stamina, wakes you needing the outhouse, then 
  assert.throws(()=>restInHay(f,{x:12,y:13},loadout,features,999999,cool),/Lie down beside a hay bed/);
 });
 
-test('online: walk through the barn door into the Farmstead, nap, and come back out beside the barn',()=>{const f=fixture();try{
+test('online: the barn door opens into the Farmstead, a SAFE hub room: rest in the hay, then walk back out beside the barn',()=>{const f=fixture();try{
  f.player('alice');f.place('alice',{x:24,y:48});f.act('alice','move',{direction:'south',world_step:true});
- const plains=f.floor('alice'),pad=plains.exits.find(e=>e.zone===FARMSTEAD_ZONE);assert.ok(pad);
+ const plains=f.floor('alice'),pad=plains.exits.find(e=>e.zone===FARMSTEAD_ZONE);assert.ok(pad); // The Plains pad still names overworld-farmstead, so saved floors keep working.
  f.place('alice',{x:pad.x,y:pad.y+1});const inside=f.act('alice','dive_exit',{zone:FARMSTEAD_ZONE});
- assert.equal(inside.zone,FARMSTEAD_ZONE);assert.deepEqual(inside.position,{x:12,y:13});
- const room=f.floor('alice');assert.equal(room.theme,'farmstead');const bed=room.decorations.find(d=>d.rest);
- f.place('alice',{x:bed.x,y:bed.y+1});const nap=f.act('alice','dive_rest');assert.match(nap.character.dive.lootNotice,/hay/);
- f.place('alice',{x:12,y:13});const out=f.act('alice','dive_exit',{zone:AUTUMNAL_PLAINS_ZONE});
+ assert.equal(inside.zone,FARMSTEAD_ROOM_ID);assert.deepEqual(inside.position,{x:12,y:13}); // Just inside the hall door.
+ assert.equal(inside.character.dive,null);assert.equal(inside.zoneCategory,'safe'); // Hub rules: no Dive state, no mist, no fog, no duels.
+ const room=f.floor('alice');assert.equal(room.farmstead,true);assert.ok(!room.mist);
+ const bed=room.fixtures.find(x=>x.kind==='bed');assert.equal(bed.bed,'objBedCot'); // Hay beds are hub beds with the Cot's rest rules.
+ assert.ok(room.fixtures.some(x=>x.kind==='toilet'&&x.style==='outhouse'));assert.ok(room.fixtures.some(x=>x.kind==='cauldron'));
+ f.place('alice',{x:bed.x,y:bed.y+1});f.act('alice','hub_rest',{fixture:bed.id,loadout:f.snap('alice').character.loadout}); // Resting is the ordinary hub bed turn.
+ f.place('alice',{x:12,y:13});const out=f.act('alice','move',{direction:'south'}); // Step onto the door.
  assert.equal(out.zone,AUTUMNAL_PLAINS_ZONE);assert.deepEqual(out.position,{x:pad.x,y:pad.y+1}); // Just outside the barn door.
+ const home=wildernessGates(HONEYDEW).find(g=>g.target===AUTUMNAL_PLAINS_ZONE),trail=f.floor('alice').exits.find(e=>e.zone===HONEYDEW); // Walking home from here still arrives at Honeydew's south gate.
+ f.place('alice',{x:trail.x,y:trail.y+1});const back=f.act('alice','move',{direction:'north'});
+ assert.equal(back.zone,HONEYDEW);assert.ok(Math.abs(back.position.x-home.x)<=2&&Math.abs(back.position.y-home.y)<=2);
 }finally{f.close();}});

@@ -1,6 +1,7 @@
 import {isRouteZoneId} from './zone-categories.mjs'; // Wilderness gates lead onto Dive-engine zones (dive- or overworld- ids).
 import {GODS,godsData,FAITH_SETTINGS,templeGod,dedicate,combatFaith,blessingValue} from './faith.mjs'; // The gods: temple annexes, dedication and Orin's Cursebreaker discount.
 import {templeRoom} from './temple-rooms.mjs';
+import {farmsteadRoom,FARMSTEAD_ROOM_ID} from './farmhouse-room.mjs'; // The Farmstead behind the Plains barn: a safe hub room since 2026-09-27.
 import {removeCursedGear} from './curse-removal.mjs';
 import {districtData,districtZone,shopFixtures,marketServices,storeSlug,cauldronFixture,reagentFixture,toiletFixture,changerFixture} from './hub-districts.mjs';
 import {districtSize} from './district-layouts.mjs';
@@ -105,18 +106,20 @@ export const hubRooms=[...hubCatalog.flatMap(root=>annexKinds(root).map(kind=>({
  ...(root.id==='utopia-arcanum'?utopiaInteriors[kind]:{}), // Utopia's Nap Pods, Artificer's Workshop and Arcanum Tower (utopia-rooms.mjs).
  ...(root.id==='arcadia-foundry'?arcadiaInteriors[kind]:{}), // Arcadia's Boarding House, Rail Depot and Clockmakers' Guildhall (arcadia-rooms.mjs).
  ...(kind==='temple'?templeInteriors[root.id]:{}), // The god's temple: altar, holy person and pews (temple-rooms.mjs).
-}))),...storeRooms.map(({slug,shop,room})=>({id:'littlebig-clockwork-store-'+slug,parent:'littlebig-clockwork',kind:'shops',hub:'littlebig_city',theme:'clockwork',name:shop.name+"'s Store",...room}))]; // Each hub has its own presence/chat scope; fixtures are presentation data, never campaign NPCs. LittleBigCity's eight stores are tiny shop rooms entered from their storefront doorsteps.
+}))),...storeRooms.map(({slug,shop,room})=>({id:'littlebig-clockwork-store-'+slug,parent:'littlebig-clockwork',kind:'shops',hub:'littlebig_city',theme:'clockwork',name:shop.name+"'s Store",...room})),
+ {id:FARMSTEAD_ROOM_ID,parent:'honeydew-lantern',kind:'farmstead',hub:'town',theme:'lantern',name:'Farmstead',...farmsteadRoom()}]; // The farmhouse behind the Autumnal Plains barn: Honeydew's room family (shared chat scope), but its door leads out to the Plains (routeExit). // Each hub has its own presence/chat scope; fixtures are presentation data, never campaign NPCs. LittleBigCity's eight stores are tiny shop rooms entered from their storefront doorsteps.
 export const hubPortals=lobby=>{const parent=typeof lobby==='string'?lobby:lobby.id,resolved=typeof lobby==='string'?null:lobby; // Pass the resolved zone where you can: LittleBigCity's storefront doorsteps live in this month's map.
  return parent==='princess-rose'?GARDEN_PORTALS.map(p=>p.target===parent+'-garden'?{...p,name:districtData.districts.find(d=>d.hub===parent)?.name??p.name}:{...p}):parent==='honeydew-lantern'?lobbyPortals(town,resolved):parent==='littlebig-clockwork'?lobbyPortals(city,resolved):parent==='utopia-arcanum'?lobbyPortals(utopia,resolved):parent==='arcadia-foundry'?lobbyPortals(arcadia,resolved):[{x:0,y:5,w:1,h:2,name:districtData.districts.find(d=>d.hub===parent)?.name??'District',target:parent+'-garden',style:'gap',side:'left'},{x:19,y:5,w:1,h:2,name:'Beds',target:parent+'-beds',style:'gap',side:'right'},{x:15,y:8,name:'Shops',target:parent+'-shops',style:'stairs'},{x:9,y:0,w:2,h:1,name:'Dungeon Dive',target:parent+'-dives',style:'gap',side:'top'}];}; // Rose's castle gate (left wall) and Tundra gap (right wall, the old Beds door) replace the old District / Beds openings; the 20x12 default court no longer exists but stays as the fallback shape.
 export const inHubGap=(gap,x,y)=>x>=gap.x&&x<gap.x+(gap.w??1)&&y>=gap.y&&y<gap.y+(gap.h??1);
 export const contactPortal=p=>p.style==='gap'||p.style==='door'; // Both transfer on contact: a wall opening, or a village building's doorstep (and the door back out of it).
-export const hubGaps=z=>[...(z.fullDungeonPortals??[]),...(z.parent?[...(z.exit&&contactPortal(z.exit)?[{...z.exit,target:z.parent}]:[]),...(z.kind==='dives'?dungeonPortals(z.parent).filter(contactPortal):[])]:hubPortals(z).filter(contactPortal))]; // Full dungeon stairs also transfer on contact.
+export const hubGaps=z=>[...(z.fullDungeonPortals??[]),...(z.parent?[...(z.exit&&contactPortal(z.exit)?[{...z.exit,target:z.exit.target??z.parent}]:[]),...(z.kind==='dives'?dungeonPortals(z.parent).filter(contactPortal):[])]:hubPortals(z).filter(contactPortal))]; // Full dungeon stairs also transfer on contact.
 for(const [kind,room] of Object.entries(villageRooms))validateCourtyard(room,kind==='dives'?dungeonPortals('honeydew-lantern'):[]); // Boot fails if a bed, a pad, the innkeeper or the door is walled in or unreachable inside the campaign rooms.
 validateCourtyard(lbcInn,[]); // Boot fails if a bed, the concierge, the cauldron, the toilet or the exit is walled in.
 for(const [kind,room] of Object.entries(utopiaInteriors))validateCourtyard(room,kind==='dives'?dungeonPortals('utopia-arcanum'):[]); // Every pod, pad, changer and resident in Utopia's interiors is reachable.
 for(const room of Object.values(templeInteriors))validateCourtyard(room,[]); // Every pew, the altar and the priest are reachable in each temple.
 for(const room of Object.values(arcadiaInteriors))validateCourtyard(room,[]); // Every bunk, bench, counter, cauldron and the pay toilet in Arcadia's interiors is reachable (the Rail Depot has no pads yet).
-for(const {room} of storeRooms)validateCourtyard(room,[]); // Every store keeps its keeper reachable through the counter gap and its door open.
+for(const {room} of storeRooms)validateCourtyard(room,[]);
+validateCourtyard(farmsteadRoom(),[]); // Every hay bed, the outhouse, the cauldron and the door are reachable in the Farmstead. // Every store keeps its keeper reachable through the counter gap and its door open.
 export const LOBBY_EXIT=Object.freeze({x:1,y:10,style:'stairs'}); // Bottom-left stairs back to the singleplayer campaign. // Only declared wall openings are traversable; all other perimeter cells remain walls.
 export const hubBlocked=(z,x,y)=>z.fixtures?.some(f=>f.solid!==false&&x>=f.x&&y>=f.y&&x<f.x+(f.span_w??1)&&y<f.y+(f.span_h??1))??false;
 import {stackable,slotsUsed,addToInventory} from './loadout.mjs'; // Stack-aware capacity and purchases.

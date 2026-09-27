@@ -9,6 +9,7 @@ import {beginRound,clearEffects,readyTurn,combatAction,enemyAction,tickEnemyEffe
 import {levelEnemy,encounterLevel,routeLevelFor,pickTarget,rowSwapCostsTurn} from './scaling.mjs';
 import {isCrawling} from './crawl.mjs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
+import {reviveDowned} from './revive.mjs'; // Healing Poultices: stand a knocked-out ally back up mid-fight.
 
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'encounter_conflict'});};
 const clone=structuredClone;
@@ -128,6 +129,12 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
    if(costs)reset(a,state);
   }
   else if(['flee','submit'].includes(input.action)){out(e,a,e.enemies.find(v=>v.data.hp>0)?.data??e.enemies[0].data,input.action);}
+  else if(input.action==='revive'){ // Healing Poultice (revive.mjs): spend this turn standing a knocked-out ally back up.
+   if(now()<a.readyAt)fail('Your action gauge is still filling.');
+   if(!a.prepared)fail('Finish this action cycle’s needs first.');
+   try{reviveDowned(e,row,rows.find(v=>v.a.id===input.target),{now,message,reset});}catch(error){fail(error.message);}
+   reset(a,state); // The poultice took this member's turn.
+  }
   else {
    if(now()<a.readyAt)fail('Your action gauge is still filling.');
    if(input.action==='turn_ready'){
