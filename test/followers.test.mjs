@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {createFollowers,followerData,HIRE_MS,followerStats} from '../server/followers.mjs';
+import {createFollowers,followerData,HIRE_MS,followerStats,BATTLE_GRACE_MS} from '../server/followers.mjs';
 import {createFollowerChat,mentionsFollower} from '../server/follower-chat.mjs';
 import {createDiveEncounters} from '../server/dive-encounters.mjs';
 import {followerAction,guardianTarget} from '../server/follower-combat.mjs';
@@ -48,6 +48,20 @@ test('expiry survives restart, waits for battle settlement, and progression is p
   const saved=restarted.progression(a.npc);restarted.settle(a,'battle',160);assert.deepEqual(restarted.progression(a.npc),saved);assert.equal(saved.hp,Math.ceil(followerStats(followerData[a.npc],3).hp/4));
   f.active(f.bob);assert.equal(f.followers.progression(a.npc).level,3);assert.equal(f.followers.progression(a.npc).hp,followerStats(followerData[a.npc],3).hp);
   f.advance(HIRE_MS+1);restarted.tick();assert.equal(restarted.get('bob'),undefined,'A disconnected hire expires without a battle');
+ }finally{f.close();}
+});
+
+test('a finished contract sends the companion home, even when its last battle never settled',()=>{
+ const f=fixture();try{
+  const npc='sorceress_arcana',home=followerData[npc].online.home_zone,spot=f.followers.placement(npc,home,f.geometry);
+  f.active(f.alice,npc);f.followers.move(f.alice,JSON.parse(f.alice.state),null,{zone:'honeydew-lantern',x:9,y:9},'honeydew-lantern'); // Alice took her companion into town.
+  f.followers.actors([f.alice],'stuck-battle'); // A fight that never settles (its floor was retired mid-battle).
+  f.advance(HIRE_MS+1);f.followers.tick();assert.ok(f.followers.get('alice'),'a fresh battle lock still holds them while the fight could settle');
+  f.advance(BATTLE_GRACE_MS);f.followers.tick();assert.equal(f.followers.get('alice'),undefined,'15 minutes later the stale lock no longer holds them');
+  assert.equal(f.followers.occupied(npc),undefined,'free to be hired again');
+  const view=f.followers.view(null,{zone:home},f.geometry,null),back=view.entities.find(e=>e.npc===npc);
+  assert.ok(back&&back.available,'back at their recruiting spot');assert.deepEqual({x:back.x,y:back.y},spot);
+  assert.match(JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get('alice').state).lastResult.log[0],/contract is up/);
  }finally{f.close();}
 });
 

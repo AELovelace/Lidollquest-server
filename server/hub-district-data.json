@@ -692,7 +692,9 @@
           "y": 27
         },
         "gates": {
-          "south": "overworld-taiga"
+          "south": "overworld-taiga",
+          "west": "dungeon-regression-hospital",
+          "east": "dungeon-auto-nursery"
         },
         "changers": 5,
         "buildings": [

@@ -5,9 +5,14 @@ export const fullDungeonQuestIds=new Set(Object.keys(fullDungeonContent.quests).
 export const fullDungeonLinks=zone=>fullDungeons.flatMap(d=>d.config.endpoints.filter(e=>e.zone===zone).map(e=>({target:d.config.zone_id,name:d.config.name,style:zone==='princess-rose-garden'||zone==='arcadia-foundry'?'stairs':'door',fullDungeon:true})));
 export const fullDungeonHome=(destination,route)=>fullDungeons.some(d=>d.config.zone_id===route&&d.config.endpoints.some(e=>e.zone===destination));
 
-export function addFullDungeonEntrances(f,zone,visitors=[]){
- const links=fullDungeonLinks(zone);if(!links.length)return false;
+export function addFullDungeonEntrances(f,zone,visitors=[],gated=[]){ // gated: dungeon ids this lobby reaches through its own wall gates (Utopia: hospital west, nursery east), so no entrance building.
+ const links=fullDungeonLinks(zone).filter(l=>!gated.includes(l.target));
  f.fullDungeonPortals??=[];let changed=false;
+ if(f.fullDungeonPortals.some(p=>gated.includes(p.target))){ // A saved month built before the gates: take the old entrance building and its door away.
+  f.fullDungeonPortals=f.fullDungeonPortals.filter(p=>!gated.includes(p.target));
+  f.fixtures=f.fixtures.filter(x=>!gated.some(t=>x.id==='entrance-'+t));changed=true;
+ }
+ if(!links.length){if(changed)f.district.entranceVersion=(f.district.entranceVersion??0)+1;return changed;}
  const blocked=(x,y)=>!f.walls[y]||f.walls[y][x]!==0||f.fixtures.some(p=>p.solid!==false&&x>=p.x&&y>=p.y&&x<p.x+(p.span_w??1)&&y<p.y+(p.span_h??1));
  const occupied=(x,y)=>visitors.some(p=>p.x===x&&p.y===y)||f.fixtures.some(p=>x>=p.x&&y>=p.y&&x<p.x+(p.span_w??1)&&y<p.y+(p.span_h??1)); // Additive upgrades cannot build over a visitor, passable resident, or objective fixture.
  const flood=()=>{const q=[f.spawn],seen=new Set();for(let i=0;i<q.length;i++){const p=q[i],k=p.x+','+p.y;if(seen.has(k)||blocked(p.x,p.y))continue;seen.add(k);for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]])q.push({x:p.x+dx,y:p.y+dy});}return seen;};

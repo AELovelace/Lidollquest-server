@@ -20,7 +20,7 @@ const covers=(p,x,y)=>x>=p.x&&y>=p.y&&x<p.x+(p.span_w??1)&&y<p.y+(p.span_h??1);
 test('Utopia is a 60x60 magitek lobby town with a south gate to the Taiga and five reachable changers every month',()=>{
  const root=hubCatalog.find(h=>h.id===UTOPIA_ZONE);
  assert.equal(root.name,'Utopia');assert.equal(root.hub,'utopia');assert.equal(root.town,true);assert.equal(root.width,60);assert.equal(root.height,60);
- assert.deepEqual(wildernessGates(UTOPIA_ZONE).map(g=>[g.target,g.side]),[[TAIGA_ZONE,'bottom']]); // The only road out runs south into the Frostveil Taiga.
+ assert.deepEqual(wildernessGates(UTOPIA_ZONE).map(g=>[g.target,g.side]),[['dungeon-regression-hospital','left'],['dungeon-auto-nursery','right'],[TAIGA_ZONE,'bottom']]); // South into the Frostveil Taiga; since 2026-09-27 the west path leads to the Regression Research Hospital and the east path to the Auto-Nursery (no entrance buildings).
  assert.deepEqual(hubRooms.filter(r=>r.parent===UTOPIA_ZONE).map(r=>[r.kind,r.name]),[['beds','Nap Pods'],['dives',"Artificer's Workshop"],['tower','Arcanum Tower'],['temple',"Sula's Cradle"]]);
  for(const month of ['2026-09','2026-10','2026-11','2027-01']){
   const f=generateDistrict(utopia,{edition:month,ends:0});assert.ok(reachableDistrict(f));
@@ -68,7 +68,7 @@ test('walking to Utopia: Taiga north trail in, doorsteps into all three rooms, t
    const room=act('hub_visit',{zone:UTOPIA_ZONE+'-'+kind});assert.equal(room.zone,UTOPIA_ZONE+'-'+kind);
    const exit=zoneOf(room).exit;place(exit.x+1,exit.y);const out=act('move',{direction:'west',world_step:true});assert.equal(out.zone,UTOPIA_ZONE,kind+' walks back out');
   }
-  const gate=wildernessGates(UTOPIA_ZONE)[0];place(gate.x,gate.y-1);
+  const gate=wildernessGates(UTOPIA_ZONE).find(g=>g.target===TAIGA_ZONE);place(gate.x,gate.y-1);
   const taiga=act('move',{direction:'south',world_step:true});assert.equal(taiga.zone,TAIGA_ZONE);assert.equal(c.dive.gate,true);assert.equal(c.dive.returnZone,UTOPIA_ZONE);
   const north=zoneOf(taiga).exits.find(e=>e.zone===UTOPIA_ZONE);assert.ok(north,'the Taiga has its north trail');
   assert.ok(Math.abs(taiga.position.x-north.x)<=2&&taiga.position.y<=3,'arrivals from Utopia stand at the top of the Taiga');

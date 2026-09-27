@@ -50,9 +50,10 @@ test('district travel, monthly persistence, talks, shared chat and safe live rol
    act('chat',{text:'Meeting in '+def.name});const saved=JSON.stringify(map);
    setup();assert.equal(JSON.stringify(act('enter',{zone:def.hub}).zones.find(z=>z.id===id)),saved,'restart retains the materialized monthly edition');
    assert.equal(c.loadout.inventory.length,1);const size=districtSize(def,districtData),cy=Math.floor(size.height/2);
-   if(def.lobby?.gates?.east){place(size.width-2,cy);assert.equal(act('move',{direction:'east',world_step:true}).zone,def.lobby.gates.east);assert.deepEqual(act('dive_exit').position,{x:size.width-2,y:cy});} /* A lobby town's east gap is a wilderness gate; leaving lands back beside it. */
-   else if(def.lobby?.gates?.west){place(1,cy);assert.equal(act('move',{direction:'west',world_step:true}).zone,def.lobby.gates.west);assert.deepEqual(act('dive_exit').position,{x:1,y:cy});}
-   else if(def.lobby?.gates?.north&&!def.lobby?.gates?.west&&!def.lobby?.gates?.east){const g=wildernessGates(def.hub).find(x=>x.side==='top');place(g.x,1);assert.equal(act('move',{direction:'north',world_step:true}).zone,def.lobby.gates.north);assert.deepEqual(act('dive_exit').position,{x:g.x,y:1});} // Arcadia's only road out is its north gate onto the Plains.
+   const wild=side=>{const t=def.lobby?.gates?.[side];return t&&!t.startsWith('dungeon-')?t:null;}; // Utopia's side paths lead into full dungeons (their own travel tests), so walk its south gate here.
+   if(wild('east')){place(size.width-2,cy);assert.equal(act('move',{direction:'east',world_step:true}).zone,def.lobby.gates.east);assert.deepEqual(act('dive_exit').position,{x:size.width-2,y:cy});} /* A lobby town's east gap is a wilderness gate; leaving lands back beside it. */
+   else if(wild('west')){place(1,cy);assert.equal(act('move',{direction:'west',world_step:true}).zone,def.lobby.gates.west);assert.deepEqual(act('dive_exit').position,{x:1,y:cy});}
+   else if(def.lobby?.gates?.north&&!wild('west')&&!wild('east')){const g=wildernessGates(def.hub).find(x=>x.side==='top');place(g.x,1);assert.equal(act('move',{direction:'north',world_step:true}).zone,def.lobby.gates.north);assert.deepEqual(act('dive_exit').position,{x:g.x,y:1});} // Arcadia's only road out is its north gate onto the Plains.
    else if(def.lobby?.gates?.south){const g=wildernessGates(def.hub).find(x=>x.side==='bottom');place(g.x,size.height-2);assert.equal(act('move',{direction:'south',world_step:true}).zone,def.lobby.gates.south);assert.deepEqual(act('dive_exit').position,{x:g.x,y:size.height-2});} // Utopia's only road out is its south gate onto the Taiga.
    else {place(size.width-2,cy);assert.equal(act('move',{direction:'east'}).zone,def.hub);}
    act('leave');

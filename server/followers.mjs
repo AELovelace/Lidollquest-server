@@ -6,6 +6,7 @@ import {importLoadout} from './loadout.mjs';
 export const followerData=JSON.parse(readFileSync(new URL('./followers-data.json',import.meta.url),'utf8')).companions;
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'follower_conflict'});};
 export const HIRE_MS=3600000;
+export const BATTLE_GRACE_MS=15*60000; // How long a finished contract waits for its battle to settle before the companion goes home anyway.
 
 export function followerStats(def,level){
  const p=def.stat_profile,l=Math.max(1,Math.min(p.level_cap,level)),stat=k=>p[k+'_base']+Math.floor((l-1)/p[k+'_step']);
@@ -29,7 +30,15 @@ export function createFollowers(db,{now=Date.now,enabled=envFlag('QUEST_FOLLOWER
  const progression=id=>db.prepare('SELECT * FROM quest_followers WHERE id=?').get(id);
  const slots=ids=>ids.length+ids.filter(id=>get(id)).length;
  function assertSlots(ids){const unique=[...new Set(ids)];if(unique.filter(id=>get(id)).length>1)fail('A party may hire only one companion. Dismiss a follower first.');if(slots(unique)>3)fail('Players and companions share three party slots. Dismiss a follower first.');}
- function tick(){db.prepare("UPDATE quest_follower_hires SET status='expired' WHERE status='active' AND expires<=? AND battle IS NULL").run(now());} // Battle locks grant only the current encounter a departure grace period.
+ function tick(){ // Contracts that are up send the companion home: the hire ends and view() shows them back at their recruiting spot (placement) in their home zone.
+  const t=now(),ended=db.prepare("SELECT id,npc,character_id FROM quest_follower_hires WHERE status='active' AND expires<=? AND (battle IS NULL OR expires<=?)").all(t,t-BATTLE_GRACE_MS); // A battle lock only holds them until that fight settles; one still set 15 minutes after the contract is from a fight that never settled (retired floor, restart) and is ignored.
+  for(const row of ended){
+   db.prepare("UPDATE quest_follower_hires SET status='expired',battle=NULL WHERE id=?").run(row.id);
+   const character=db.prepare('SELECT state FROM quest_characters WHERE id=?').get(row.character_id);if(!character)continue;
+   const state=JSON.parse(character.state);if(state.pendingDefeat||state.lastResult?.defeatScene||state.run)continue; // Never overwrite an unread defeat scene or a fight in progress; the companion still goes home.
+   state.lastResult={log:[catalog[row.npc].name+"'s contract is up. They head back to where you found them."]};db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),row.character_id);
+  }
+ } // Battle locks grant only the current encounter a departure grace period.
  function placement(id,zone,geometry){
   const def=catalog[id];if(!def||def.online.home_zone!==zone||!geometry)return null;
   const origin=geometry.entrance??geometry.spawn;if(!origin)return null;

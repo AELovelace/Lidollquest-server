@@ -90,6 +90,7 @@ export function addCastleTemple(f,def){ // Sable's Veiled Sanctum: a fixed room 
  if(!f.rooms.some(r=>r.kind==='temple'))f.rooms.push({x:tp.x,y:tp.y,w:tp.w,h:tp.h,cx:mid,cy:tp.y+Math.floor(tp.h/2),kind:'temple',god:god.id}); // Sable's changing-room rule reads this.
  return true;
 }
+export const gateTargets=def=>Object.values(def?.lobby?.gates??{}).filter(t=>typeof t==='string'&&t.startsWith('dungeon-')); // Full dungeons a lobby town reaches through its own walls (no entrance building needed).
 export function addLobbyBuildings(f,def){ // Plaza buildings added to hub-district-data after a month was saved (the gods' temples: Orin's Unbound Hearth, Nyx, Sula, Orthain) gain their facade in place. Their doors already worked (lobbyPortals reads the data), only the solid sprite was missing.
  let added=false;
  for(const b of def.lobby?.buildings??[]){
@@ -170,7 +171,7 @@ export function generateDistrict(definition,window,data=districtData){
  if(f.fixtures.filter(p=>p.kind==='scenery').length<12)throw Error('District scenery is too sparse');
  if(lobby){addOuthouses(f,definition,data);addChangers(f,definition,data);addPayToilets(f,definition,data);} // On their own seeds after every fixed roll, and before the wanderers, so residents never change where they stand.
  addArcadiaAir(f,definition); // Arcadia: smog over the smokestack yards and the shift whistle's schedule (client online_arcadia_step).
- addFullDungeonEntrances(f,districtZone(definition)); // Reserve entrance footprints before placing passable wanderers, keeping fixed geometry independent of resident upgrades.
+ addFullDungeonEntrances(f,districtZone(definition),[],gateTargets(definition)); // Reserve entrance footprints before placing passable wanderers, keeping fixed geometry independent of resident upgrades.
  addDistrictResidents(f,definition,data); // Add wanderers after scenery so the original four residents and geometry keep their seeded positions.
  return f;
 } // Host-specific geometry replaces the old universal path lattice; ordinary movement and monthly resets remain shared.
@@ -199,6 +200,12 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
   }
   return added;
  };
+ const addSideGate=(f,def,side)=>{ // West/east lobby gates added after a month was saved (Utopia's hospital and nursery paths, 2026-09-27): every lobby already has the road and clear strip inside both side walls, so only the wall opening is missing.
+  if(!def.lobby?.gates?.[side])return false;
+  const x=side==='west'?0:f.width-1,inner=side==='west'?1:f.width-2,cy=Math.floor(f.height/2);if(!f.walls[cy-1][x]&&!f.walls[cy][x])return false; // Already open.
+  for(const y of [cy-1,cy]){f.walls[y][x]=0;f.floors[y][x]=f.floors[y][inner];if(f.wallTiles?.[y])f.wallTiles[y][x]=0;} // Rows cy-1..cy, like the generated gate (lobbyGates).
+  return true;
+ };
  const addEdgeGate=(f,def,side)=>{ // Months generated before Honeydew's north (Woods) or south (Autumnal Plains) gate existed gain it in place: no reroll, nobody sent back to the entrance.
   if(!def.lobby?.gates?.[side])return false;
   const cx=Math.floor(f.width/2),row=side==='south'?f.height-1:0;if(!f.walls[row][cx-1]&&!f.walls[row][cx])return false; // Already open.
@@ -206,7 +213,7 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
   f.fixtures=f.fixtures.filter(x=>x.kind!=='scenery'||buildings.has(x.id)||!Array.from({length:(x.span_w??1)*(x.span_h??1)},(_,i)=>(x.x+i%(x.span_w??1))+','+(x.y+Math.floor(i/(x.span_w??1)))).some(k=>cells.has(k))); // Loose scenery sitting on the new road is cleared; plaza buildings and people stay.
   return true;
  };
- const upgrade=(id,f,def)=>{const gate=addEdgeGate(f,def,'north')|addEdgeGate(f,def,'south')|(def.lobby?addOuthouses(f,def,data)|addChangers(f,def,data)|addPayToilets(f,def,data):false)|addArcadiaAir(f,def)|addCastleTemple(f,def)|addLobbyBuildings(f,def),pot=addCauldron(f,def)||gate;if(((f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)))||pot)persist(id,f);};
+ const upgrade=(id,f,def)=>{const gate=addEdgeGate(f,def,'north')|addEdgeGate(f,def,'south')|addSideGate(f,def,'west')|addSideGate(f,def,'east')|(def.lobby?addOuthouses(f,def,data)|addChangers(f,def,data)|addPayToilets(f,def,data):false)|addArcadiaAir(f,def)|addCastleTemple(f,def)|addLobbyBuildings(f,def),pot=addCauldron(f,def)||gate;if(((f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)))||pot)persist(id,f);};
  const persist=(id,f)=>db.prepare('UPDATE hub_district_editions SET content=? WHERE zone=? AND edition=?').run(JSON.stringify(f),id,f.district.layoutKey);
  function ensure(def){
   const id=districtZone(def),window=windowFor(id),layoutKey=`${window.edition}:v${data.version}`,cached=cache.get(id);if(cached?.district.layoutKey===layoutKey){upgrade(id,cached,def);return cached;}
@@ -216,7 +223,7 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
   if(prior&&prior.edition!==layoutKey){const old=db.prepare('SELECT content FROM hub_district_editions WHERE zone=? AND edition=?').get(id,prior.edition);try{beforeActivate(id,f);}catch(error){if(old)return JSON.parse(old.content);throw error;}}
   if(!row)db.prepare('INSERT INTO hub_district_editions VALUES (?,?,?)').run(id,layoutKey,JSON.stringify(f));
   else upgrade(id,f,def); // A resident-only update does not replace the layout or send visitors back to the entrance.
-  if(addFullDungeonEntrances(f,id,visitors(id)))persist(id,f); // Add doors to a saved month without replacing content or covering a connected visitor.
+  if(addFullDungeonEntrances(f,id,visitors(id),gateTargets(def)))persist(id,f); // Add doors to a saved month without replacing content or covering a connected visitor.
   const current=db.prepare('SELECT edition FROM hub_district_current WHERE zone=?').get(id);
   if(current?.edition!==layoutKey){
    db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE zone=?').run(f.spawn.x,f.spawn.y,now(),id);
