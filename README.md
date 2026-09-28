@@ -1320,6 +1320,26 @@ swaps (different rooms, full bag) are recorded rather than thrown so both confir
 Snapshots carry `trade` and `tradeSupport`. State lives in `quest_trades`; stale tables refund
 after 10 minutes or when a trader leaves. Run `node --test test/trades.test.mjs`.
 
+### Guilds (2026-09-28)
+
+`server/guilds.mjs`: persistent per-character groups. `guild_create {name,tag}` reserves the name and
+tag and opens a `hub_purchases` charter row (`item.guild_purchase='create'`, fee `guild_create_fee`);
+`purchaseHooks.guild` (= `guilds.settle`) activates or removes the pending guild once the wallet answers.
+`guild_invite {member|name}`, `guild_accept/decline {invitation}`, `guild_apply {guild|name|tag}`,
+`guild_withdraw`, `guild_approve/reject {application}`, `guild_leave`, `guild_kick/promote/demote/transfer
+{member}`, `guild_disband`, `guild_motd {text}`, `guild_settings {mode}`, `guild_crest {value}`,
+`guild_donate {amount}` (another `hub_purchases` row, credited to the treasury), `guild_upgrade
+{kind:cap|motd|crest}` (treasury only) and `guild_chat {text}`. The `guild_*` branch runs **without**
+`presence()` so the omo-trainer companion applet can act with no zone lease; `companion:true` in the
+body selects the slim companion reply. In-game clients chat with `chat {channel:'guild'}`; both paths use
+the shared `speak()` helper. Weekly goals (`quest_guild_weeks`, UTC-Monday weeks from `weeklyWindow`)
+gain points from first Dive boss clears, online quest turn-ins and public accidents; `guilds.tick()` pays
+finished weeks once per member account through `adjust()`. Snapshot keys `guild`, `guildInvitations`,
+`guildApplications`, `guildChat`, `guildLeaderboard`, `guildRules`, `guildSupport`, `peers[].tag`. Tuning
+keys `guild_*` (loot store, /gm Loot tab); moderation on the /gm Guilds tab (`GET /gm/guilds`, actions
+`guild_rename`, `guild_disband`, `guild_transfer`, `guild_motd_clear`, `guild_treasury`). Run
+`node --test test/guilds.test.mjs`.
+
 ### RPP per level, mage picks every third level (2026-09-23)
 
 Every level gained online owes one RPP (`state.rppOwed`); `rpp.settleLevels` mints it on the next

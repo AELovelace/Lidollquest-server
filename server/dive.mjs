@@ -37,7 +37,7 @@ const clone=structuredClone;
 const seconds=1000,minutes=60000;
 
 const WALK_DIRECTIONS={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}; // Direction names shared by move and walk.
-export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,measure=(_name,work)=>work(),upgradeFloor=()=>false,travel=()=>false,enchantments=null,loot=null,alchemyStore=null,compute=null,live=null,resolveHub=z=>z,purchases=null}){
+export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=generateFloor,log=console.warn,parties,measure=(_name,work)=>work(),upgradeFloor=()=>false,travel=()=>false,enchantments=null,loot=null,alchemyStore=null,compute=null,live=null,resolveHub=z=>z,purchases=null,guilds=null}){ // guilds: a member's first boss clear of an edition counts toward the guild weekly goal.
  const baseline=structuredClone(data);if(live){live.register(baseline);data=live.resolve(baseline);} // Each engine keeps mutable configuration isolated from shipped exports.
  const config=data.config,route=config.route,zoneId=config.zone_id??DIVE_ZONE,theme=config.theme??'princess_quarters',name=config.name??"Princess' Quarters - Dungeon Dive",bossId=(config.boss_id??'iris')||'world_boss';
  const category=routeCategory(config); // 'dive' for instanced boss routes, 'overworld' for open wilderness; fails fast on bad authored data.
@@ -142,7 +142,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    recordDungeonVictories(data,c,state,record,[run.encounter],progress,saveProgress);
    awardExperience(state,roll);state.wins++;
    if(foe){foe.dead=true;foe.diedAt=now();foe.engaged=null;foe.respawnAt=now()+(foe.id===bossId?config.boss_respawn_seconds:config.enemy_respawn_seconds)*seconds;foe.x=foe.spawn.x;foe.y=foe.spawn.y;}
-   if(run.encounter===bossId){const p=progress(c,run.edition);p.completed=true;saveProgress(c,run.edition,p);}
+   if(run.encounter===bossId){const p=progress(c,run.edition);if(!p.completed)guilds?.progress(c.id,'dive');p.completed=true;saveProgress(c,run.edition,p);} // Only the first clear of this edition scores guild points.
   }else{
    if(foe){foe.engaged=null;foe.respawnAt=0;foe.x=foe.spawn.x;foe.y=foe.spawn.y;}
    if(['defeat','charm_backfire'].includes(outcome))run.hp=Math.max(1,Math.ceil(run.maxHp/4));

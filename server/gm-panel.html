@@ -123,6 +123,7 @@ tr.sel td{background:#2c1e3d}
   <button type="button" role="tab" id="tab-loot" aria-controls="panel-loot" aria-selected="false" tabindex="-1">Loot</button>
   <button type="button" role="tab" id="tab-alchemy" aria-controls="panel-alchemy" aria-selected="false" tabindex="-1">Alchemy</button>
   <button type="button" role="tab" id="tab-tutor" aria-controls="panel-tutor" aria-selected="false" tabindex="-1">Tutor NPC</button>
+  <button type="button" role="tab" id="tab-guilds" aria-controls="panel-guilds" aria-selected="false" tabindex="-1">Guilds</button>
   <button type="button" role="tab" id="tab-moderation" aria-controls="panel-moderation" aria-selected="false" tabindex="-1">Moderation</button>
   <button type="button" role="tab" id="tab-performance" aria-controls="panel-performance" aria-selected="false" tabindex="-1">Performance</button>
 <button type="button" role="tab" id="tab-monsters" aria-controls="panel-monsters" aria-selected="false" tabindex="-1">Monsters</button>
@@ -456,6 +457,24 @@ tr.sel td{background:#2c1e3d}
     <div class="row"><label for="tutorGreeting">Greeting</label><input id="tutorGreeting" class="grow" maxlength="300"><button class="go" id="tutorSave">Save tutor</button><button id="tutorLoad">Refresh</button></div>
     <h2>Latest questions</h2>
     <div id="tutorLog" class="log"></div>
+  </section>
+</div>
+<div class="tab-panel" id="panel-guilds" role="tabpanel" aria-labelledby="tab-guilds" tabindex="0" hidden>
+  <section class="wide">
+    <h2>Guilds</h2>
+    <p class="note">Player guilds are persistent groups with a roster, a [TAG] shown beside members' names, a message of the day, a coin treasury and a shared weekly goal. Search by name or tag and open one to see its roster, ledger and goal history. Rename or retag an offensive guild, hand leadership to another member, clear its MOTD, correct the treasury or disband it; every action is audited. Fees, caps and goal numbers are the guild_* keys on the Loot tab.</p>
+    <div class="row"><label for="guildSearch">Search</label><input id="guildSearch" class="grow" maxlength="40" placeholder="Guild name or tag"><button class="go" id="guildLoad">Search</button></div>
+    <p id="guildTuning" class="note" role="status"></p>
+    <div id="guildList" class="log"></div>
+    <div id="guildDetail" hidden>
+      <h2 id="guildTitle"></h2>
+      <p id="guildSummary" class="note"></p>
+      <div class="row"><label for="guildNewName">Name</label><input id="guildNewName" maxlength="24" style="width:200px"><label for="guildNewTag">Tag</label><input id="guildNewTag" maxlength="4" style="width:70px"><label for="guildReason">Reason</label><input id="guildReason" class="grow" maxlength="240" placeholder="Why (goes in the audit log)"><button class="go" id="guildRename">Rename / retag</button></div>
+      <div class="row"><label for="guildTransferTo">New leader</label><select id="guildTransferTo"></select><button id="guildTransfer">Transfer leadership</button><button id="guildMotdClear">Clear MOTD</button><label for="guildAdjust">Treasury</label><input id="guildAdjust" type="number" step="1" style="width:120px" placeholder="+/- coins"><button id="guildAdjustGo">Adjust</button><button id="guildDisband">Disband guild</button></div>
+      <h2>Roster</h2><div id="guildRoster" class="log"></div>
+      <h2>Ledger</h2><div id="guildLedger" class="log"></div>
+      <h2>Weekly goals</h2><div id="guildWeeks" class="log"></div>
+    </div>
   </section>
 </div>
 <div class="tab-panel" id="panel-moderation" role="tabpanel" aria-labelledby="tab-moderation" tabindex="0" hidden>
@@ -823,6 +842,47 @@ tr.sel td{background:#2c1e3d}
   $("tutorSave").disabled=true;
   api("/gm/action",{method:"POST",body:body}).then(function(response){say("ok","Tutor saved: "+(response.result.enabled?"on":"off")+", named "+response.result.name+".");loadTutor();}).catch(function(error){say("err",error.message);}).finally(function(){$("tutorSave").disabled=false;});
  });
+ var guildEpoch=0,guildSelected="";
+ function loadGuilds(){
+  var epoch=++guildEpoch,session=perfEpoch,q=$("guildSearch").value.trim();
+  return api("/gm/guilds?q="+encodeURIComponent(q)+(guildSelected?"&id="+encodeURIComponent(guildSelected):"")).then(function(data){
+   if(epoch!==guildEpoch||session!==perfEpoch||!token)return;
+   var t=data.tuning||{};
+   $("guildTuning").textContent="Charter fee "+t.guild_create_fee+" coins · base cap "+t.guild_member_cap+" members · weekly goal "+t.guild_goal_target+" points pays "+t.guild_goal_reward+" coins per member account · points: Dive boss "+t.guild_goal_points_dive+", quest "+t.guild_goal_points_quest+", accident "+t.guild_goal_points_accident+" (retune on the Loot tab)";
+   clear($("guildList"));
+   (data.guilds||[]).forEach(function(g){
+    var line=el("p"),open=el("button",null,"Open");
+    line.appendChild(el("strong",null,"["+g.tag+"] "+g.name+(g.status==="pending"?" (charter pending)":"")));
+    line.appendChild(document.createTextNode(" · leader "+g.leaderName+" · "+g.members+"/"+g.memberCap+" members · treasury "+g.balance+" · "+g.points+" pts this week · founded "+new Date(g.created).toLocaleDateString()+" "));
+    open.addEventListener("click",function(){guildSelected=g.id;loadGuilds();});
+    line.appendChild(open);$("guildList").appendChild(line);
+   });
+   if(!(data.guilds||[]).length)$("guildList").appendChild(el("p","note","No guilds match."));
+   var d=data.detail;$("guildDetail").hidden=!d;if(!d)return;
+   $("guildTitle").textContent="["+d.tag+"] "+d.name;
+   $("guildSummary").textContent=d.status+" · "+d.members.length+"/"+d.memberCap+" members · treasury "+d.treasury.balance+" coins · goal "+d.goal.points+"/"+d.goal.target+" pts · MOTD: "+(d.motd||"(none)");
+   if(document.activeElement!==$("guildNewName"))$("guildNewName").value=d.name;
+   if(document.activeElement!==$("guildNewTag"))$("guildNewTag").value=d.tag;
+   clear($("guildTransferTo"));d.members.forEach(function(m){var o=el("option",null,m.name+" ("+m.rank+")");o.value=m.id;if(m.rank==="leader")o.disabled=true;$("guildTransferTo").appendChild(o);});
+   clear($("guildRoster"));d.members.forEach(function(m){$("guildRoster").appendChild(el("p",null,m.rank+" · "+m.name+(m.online?" · online in "+m.zone:" · offline")+" · donated "+m.donated+" · joined "+new Date(m.joined).toLocaleDateString()));});
+   clear($("guildLedger"));(d.treasury.ledger||[]).forEach(function(r){$("guildLedger").appendChild(el("p",null,new Date(r.at).toLocaleString()+" · "+r.kind+" · "+r.name+" · "+(r.amount>0?"+":"")+r.amount+(r.note?" · "+r.note:"")));});
+   if(!(d.treasury.ledger||[]).length)$("guildLedger").appendChild(el("p","note","No ledger entries yet."));
+   clear($("guildWeeks"));(d.weeks||[]).forEach(function(w){$("guildWeeks").appendChild(el("p",null,new Date(w.week).toISOString().slice(0,10)+" · "+w.points+"/"+w.target+" pts (dives "+w.dives+", quests "+w.quests+", accidents "+w.accidents+") · reward "+w.reward+(w.paid?" · closed":" · open")));});
+   if(!(d.weeks||[]).length)$("guildWeeks").appendChild(el("p","note","No goal progress recorded yet."));
+  }).catch(function(error){say("err",error.message);});
+ } // Guilds tab: search list plus one opened guild's roster, ledger and weekly goal rows.
+ function guildAction(action,extra,done){
+  if(!guildSelected)return say("err","Open a guild first.");
+  var body={action:action,id:guildSelected,reason:$("guildReason").value.trim()};Object.keys(extra||{}).forEach(function(k){body[k]=extra[k];});
+  api("/gm/action",{method:"POST",body:body}).then(function(response){say("ok",done(response.result));loadGuilds();}).catch(function(error){say("err",error.message);});
+ } // One audited POST per moderation button.
+ $("tab-guilds").addEventListener("click",loadGuilds);$("guildLoad").addEventListener("click",function(){guildSelected="";loadGuilds();});
+ $("guildSearch").addEventListener("keydown",function(e){if(e.key==="Enter"){guildSelected="";loadGuilds();}});
+ $("guildRename").addEventListener("click",function(){guildAction("guild_rename",{name:$("guildNewName").value.trim(),tag:$("guildNewTag").value.trim()},function(r){return "Guild is now ["+r.to.tag+"] "+r.to.name+".";});});
+ $("guildTransfer").addEventListener("click",function(){guildAction("guild_transfer",{character_id:$("guildTransferTo").value},function(){return "Leadership transferred.";});});
+ $("guildMotdClear").addEventListener("click",function(){guildAction("guild_motd_clear",{},function(){return "MOTD cleared.";});});
+ $("guildAdjustGo").addEventListener("click",function(){guildAction("guild_treasury",{amount:Number($("guildAdjust").value)},function(r){$("guildAdjust").value="";return "Treasury now "+r.balance+" coins.";});});
+ $("guildDisband").addEventListener("click",function(){if(!confirm("Disband this guild? Members lose it immediately and the treasury is forfeited."))return;guildAction("guild_disband",{},function(r){guildSelected="";return "Disbanded ["+r.tag+"] "+r.name+" ("+r.members+" members).";});});
  $("rppGift").addEventListener("click",function(){
   if(rppBusy)return;
   if(!pendingGift){var amount=Number($("rppAmount").value),reason=$("rppReason").value.trim();if(!$("rppCharacter").value||!Number.isSafeInteger(amount)||amount<1||amount>1000000||!reason){$("rppStatus").textContent="Choose a character, positive whole amount and review note.";return;}pendingGift={action:"rpp_gift",character_id:$("rppCharacter").value,amount:amount,reason:reason,request_id:crypto.randomUUID()};}

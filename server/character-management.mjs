@@ -55,7 +55,7 @@ export function createCharacterManagement(db,{walletClient,cloud,sprites,now=Dat
     const state=JSON.parse(c.state),payload=JSON.parse(row.payload);let result;
     if(row.action==='delete'){
      cloud.deleteCharacter(c.id);sprites?.deleteCharacter(c.id);
-     for(const table of ['quest_presence','quest_commands','quest_bank','quest_item_origins','dive_progress'])db.prepare(`DELETE FROM ${table} WHERE character_id=?`).run(c.id);
+     for(const table of ['quest_presence','quest_commands','quest_bank','quest_item_origins','dive_progress','quest_guild_members','quest_guild_applications'])db.prepare(`DELETE FROM ${table} WHERE character_id=?`).run(c.id);db.prepare('DELETE FROM quest_guild_invites WHERE target=? OR sender=?').run(c.id,c.id); // Guild rows go with the character; guilds.tick() repair() hands a deleted leader's guild to the senior officer.
      db.prepare('INSERT INTO quest_deleted_characters VALUES (?,?,?,?)').run(c.id,c.owner,c.creation_id,now());db.prepare('DELETE FROM quest_characters WHERE id=?').run(c.id);
      result={character_id:c.id,deleted:true}; // Keep shared friendships, wallet receipts, account reward caps and unpaid payouts intact.
     }else{

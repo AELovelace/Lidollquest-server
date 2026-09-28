@@ -181,6 +181,7 @@ export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWage
    if(item.duel_wager){hooks.duelWager?.(id,char,state,paid,row.price);} // Escrow for a duel: the duel module records the outcome; nothing lands in the bag.
    else if(item.trade_escrow){hooks.tradeEscrow?.(id,char,state,paid,row.price);} // Escrow for a trade, likewise.
    else if(item.companion_shop){hooks.companionShop?.(id,char,state,paid,row.price,item);} // A companion Atelier/Emporium roll: delivered to the bank, not the bag.
+   else if(item.guild_purchase){hooks.guild?.(id,char,state,paid,row.price,item);} // A guild charter fee or treasury donation (guilds.mjs settle): nothing lands in the bag.
    else if(item.hub_service==='curse_remove'){
     const previous=structuredClone(state);
     if(paid){state.loadout=item.loadout;origins.reconcile(char,state,previous);state.loadoutRevision=char.revision+1;}
@@ -192,7 +193,7 @@ export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWage
     if(paid)state.toiletPaid={fixture:item.fixture,at:now()};
     state.hubNotice=paid?`You drop ${row.price} LiDollCoins into the slot. The turnstile clunks round.`:'Not enough LiDollCoins. The turnstile will not budge, and you are still desperate.';
    }else if(paid)addToInventory(state.loadout.inventory,origins.mint(char.id,item,row.price)); // Resale never exceeds the actual paid price, even with discounted stock tuning; stackables merge into an existing stack.
-   delete state.pendingPurchase;if(!item.hub_service&&!item.duel_wager&&!item.trade_escrow&&!item.companion_shop)state.hubNotice=paid?`Bought ${item.name??item.item_id} for ${row.price} LiDollCoins.${state.littleTaxNote??''}`:'Not enough LiDollCoins. Nothing was purchased.';delete state.littleTaxNote;state.hubNoticeAt=now();
+   delete state.pendingPurchase;if(!item.hub_service&&!item.duel_wager&&!item.trade_escrow&&!item.companion_shop&&!item.guild_purchase)state.hubNotice=paid?`Bought ${item.name??item.item_id} for ${row.price} LiDollCoins.${state.littleTaxNote??''}`:'Not enough LiDollCoins. Nothing was purchased.';delete state.littleTaxNote;state.hubNoticeAt=now();
    db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),char.id);
    db.prepare('UPDATE hub_purchases SET status=? WHERE id=?').run(paid?'delivered':'declined',id);db.exec('COMMIT');
   }catch(error){db.exec('ROLLBACK');throw error;}

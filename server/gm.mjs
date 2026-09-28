@@ -66,9 +66,10 @@ export function buildAllowList(text){ // Comma-separated addresses and CIDR bloc
  return list;
 } // Rejected loudly at construction so a typo cannot silently admit the whole network.
 
-export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn,helpOptions={}}={}){
+export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=null,guilds=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn,helpOptions={}}={}){
  const help=createGmHelp(helpOptions); // Separate read-only service; staff authentication stays in this router.
  const announcementStore=()=>typeof announcements==='function'?announcements():announcements; // Passed lazily by service.mjs because the zones module is created after the panel.
+ const guildStore=()=>{const store=typeof guilds==='function'?guilds():guilds;if(!store)fail(409,'Guilds are not available on this server.','gm_unknown_action');return store;}; // guilds.mjs, likewise lazy.
  const rp=createRoleplay(db,{now}); // RP journals use the same live staff authorization as every moderation tool.
  const rpp=createRpp(db,{now}); // Staff-only RPP gifts and purchase history never touch premium currencies.
  db.exec(`CREATE TABLE IF NOT EXISTS gm_sanctions(owner TEXT NOT NULL,kind TEXT NOT NULL,until INTEGER NOT NULL,reason TEXT NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(owner,kind));
@@ -268,6 +269,11 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    if(ended)record(actor,'announce_end','everyone',{text:ended.text,reason:clean(input.reason,240)});
    return {ended};
   },
+  guild_rename(input,actor){const r=guildStore().gm.rename(String(input.id??''),{name:input.name,tag:input.tag});record(actor,'guild_rename',r.id,{...r,reason:clean(input.reason,240)});return r;}, // Moderation: rename or retag an offensive guild (guilds.mjs validates and keeps names unique).
+  guild_disband(input,actor){const r=guildStore().gm.disband(String(input.id??''));record(actor,'guild_disband',r.id,{...r,reason:clean(input.reason,240)});return r;}, // Members lose the guild immediately; the treasury is forfeited; the ledger stays.
+  guild_transfer(input,actor){const r=guildStore().gm.transfer(String(input.id??''),String(input.character_id??''));record(actor,'guild_transfer',r.id,{...r,reason:clean(input.reason,240)});return r;}, // Hand leadership to another member (for example when the leader vanished).
+  guild_motd_clear(input,actor){const r=guildStore().gm.motdClear(String(input.id??''));record(actor,'guild_motd_clear',r.id,{...r,reason:clean(input.reason,240)});return r;},
+  guild_treasury(input,actor){const r=guildStore().gm.adjust(String(input.id??''),input.amount,input.note??input.reason);record(actor,'guild_treasury',r.id,{amount:input.amount,balance:r.balance,reason:clean(input.reason,240)});return r;}, // Signed treasury correction; never touches any player's wallet.
   enchant_tune(input,actor){
    const values=enchantStore().tune(input.tuning,actor);
    record(actor,'enchant_tune','enchantments',{values,reason:clean(input.reason,240)});
@@ -468,6 +474,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    if(url.pathname==='/gm/asset'&&req.method==='GET')return send(200,live.asset(url.searchParams.get('id')));
    if(url.pathname==='/gm/enchantments'&&req.method==='GET')return send(200,enchantView()); // Content tuning, behind the same staff identity as every moderation tool.
    if(url.pathname==='/gm/loot'&&req.method==='GET')return send(200,lootView()); // Adjective + Item + Rarity tuning and affix authoring.
+   if(url.pathname==='/gm/guilds'&&req.method==='GET'){const store=guildStore(),id=url.searchParams.get('id');return send(200,{guilds:store.gm.list(url.searchParams.get('q')??''),detail:id?store.gm.detail(id):null,tuning:store.gm.tuning()});} // Player guilds (guilds.mjs): search, one guild's roster/ledger/weeks, and the live guild_* tuning values.
    if(url.pathname==='/gm/tutor'&&req.method==='GET')return send(200,tutor?tutor.gmView():{configured:false,settings:null,recent:[]}); // Pip's switch, npc-rag health and the latest questions/answers.
    if(url.pathname==='/gm/alchemy'&&req.method==='GET')return send(200,alchemyView()); // Chest odds and brewing rules (alchemy-store.mjs).
    if(url.pathname==='/gm/rp'&&req.method==='GET')return send(200,rp.journal(Object.fromEntries(url.searchParams)));

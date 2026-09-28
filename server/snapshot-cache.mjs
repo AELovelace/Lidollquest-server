@@ -8,7 +8,7 @@
 // and is sent in full. Clients that never send `known` get the classic response.
 import {createHash} from 'node:crypto';
 
-export const CACHED_SECTIONS=Object.freeze(['avatars','rpp','questNpcLinks','dungeons','dignityTuning','alchemy']); // Top-level snapshot keys that rarely change and that no client code edits in place.
+export const CACHED_SECTIONS=Object.freeze(['avatars','rpp','questNpcLinks','dungeons','dignityTuning','alchemy','guildLeaderboard']); // Top-level snapshot keys that rarely change and that no client code edits in place.
 const KEY=/^[0-9a-f]{16}$/,MAX_KNOWN=128; // 16 hex chars of SHA-1; a client holds ~40 pieces at most.
 
 export function cacheKey(value){return createHash('sha1').update(JSON.stringify(value)).digest('hex').slice(0,16);} // Same content -> same key, on every server and after restarts.

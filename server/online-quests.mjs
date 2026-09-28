@@ -13,7 +13,7 @@ import {currentTuning} from './combat.mjs';
 const clone=structuredClone,fail=(message,status=409)=>{throw Object.assign(Error(message),{status,code:'online_quest_conflict'});};
 const digest=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 const period=(mode,time)=>mode==='daily'?Math.floor(time/86400000):mode==='weekly'?Math.floor((time+3*86400000)/604800000):0;
-export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,roll,parties}){
+export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,roll,parties,guilds=null}){ // guilds: a turned-in quest counts toward the member's guild weekly goal.
  db.exec(`CREATE TABLE IF NOT EXISTS online_quests(id TEXT PRIMARY KEY,character_id TEXT NOT NULL,quest TEXT NOT NULL,revision TEXT NOT NULL,definition TEXT NOT NULL,state TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE INDEX IF NOT EXISTS online_quest_owner ON online_quests(character_id,quest);
  CREATE TABLE IF NOT EXISTS online_quest_events(instance TEXT NOT NULL,event TEXT NOT NULL,PRIMARY KEY(instance,event));
@@ -116,7 +116,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
   if(r.rpp){const balance=db.prepare('SELECT balance FROM quest_rpp_wallets WHERE character_id=?').get(c.id)?.balance??0;if(balance+r.rpp>1000000000)fail('Spend some RPP before claiming this reward.');db.prepare('INSERT INTO quest_rpp_wallets VALUES (?,?) ON CONFLICT(character_id) DO UPDATE SET balance=balance+excluded.balance').run(c.id,r.rpp);db.prepare('INSERT INTO quest_rpp_ledger(request_id,fingerprint,owner,character_id,kind,amount,balance,actor,reason,created) VALUES (?,?,?,?,?,?,?,?,?,?)').run('quest:'+q.id,q.revision,c.owner,c.id,'quest',r.rpp,balance+r.rpp,'quest',q.definition.name,now());}
   const day=Math.floor(now()/86400000),spent=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(c.owner,day)?.coins??0,paid=Math.min(r.coins,Math.max(0,dailyCoinCap()-spent));
   if(paid){adjust(c.owner,'coins',paid,'quest-'+q.id,'Quest: '+q.definition.name);db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=coins+excluded.coins').run(c.owner,day,paid);}
-  const result={quest:key,name:q.definition.name,coins:paid,cappedCoins:r.coins-paid,xp:r.xp,rpp:r.rpp,items:r.items};db.prepare('INSERT INTO online_quest_claims VALUES (?,?,?,?,?)').run(q.id,c.id,key,now(),JSON.stringify(result));q.state.status='claimed';q.state.reward=result;save(q);Object.assign(s,next);s.questReward=result;
+  const result={quest:key,name:q.definition.name,coins:paid,cappedCoins:r.coins-paid,xp:r.xp,rpp:r.rpp,items:r.items};db.prepare('INSERT INTO online_quest_claims VALUES (?,?,?,?,?)').run(q.id,c.id,key,now(),JSON.stringify(result));q.state.status='claimed';q.state.reward=result;save(q);Object.assign(s,next);s.questReward=result;guilds?.progress(c.id,'quest');
  } // The caller's transaction owns the claim, inventory, progression, currency outbox, and command receipt.
  function gm(c,s,op,key){ // Gamemaster test shortcuts. They move quest state only; rewards still come from the normal turn-in.
   const published=live.published().quests[key],current=active(c,key);
