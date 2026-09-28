@@ -32,7 +32,8 @@ export function mageScaling(loadout){ // Match scrSpellSystem's childish/shame a
  const affinity=mage?0.3*clamp(num(loadout.childish)/10,0,1)+0.3*clamp(1-num(p.shame,1024)/1024,0,1):0;
  const practice=hasAbility(loadout,'arcane_practice')?1.1:1,magicBase=mage?mageBalance.magic:1;
  const piousMagic=1+loadoutBlessing(loadout,'magic_pct')/100,piousPhysical=1+(loadoutBlessing(loadout,'melee_pct')+loadoutBlessing(loadout,'physical_pct'))/100; // Sula's magic; Orthain's melee and Nyx's physical strikes.
- return {magic:magicBase*(1+affinity)*practice*piousMagic,physical:(mage?mageBalance.physical*Math.max(0.4,1-affinity):1)*(hasAbility(loadout,'sure_strike')?1.1:1)*piousPhysical,flat:mage?Math.floor((Math.max(0,num(p.diaper_wet_absorbed))+Math.max(0,num(p.diaper_tum_absorbed)))*magicBase*practice):0}; // The base magic boost also multiplies absorbed fullness; affinity keeps its existing shape.
+ const surePious=(hasAbility(loadout,'sure_strike')?1.1:1)*piousPhysical; // Sure Strike and piety boost every weapon hit
+ return {magic:magicBase*(1+affinity)*practice*piousMagic,physical:(mage?mageBalance.physical*Math.max(0.4,1-affinity):1)*surePious,ranged:surePious,flat:mage?Math.floor((Math.max(0,num(p.diaper_wet_absorbed))+Math.max(0,num(p.diaper_tum_absorbed)))*magicBase*practice):0}; // The base magic boost also multiplies absorbed fullness; affinity keeps its existing shape.
 }
 
 export function beginRound(state,z,roll,authoredEnemy=null){ // Arena rounds and authored dungeon encounters share turn/effect initialization.
@@ -179,8 +180,8 @@ export function combatAction(state,input,z,roll,supportTarget=state){
    const cost=Math.max(0,Math.floor(num(w.item?.mp_cost,4)));if(l.player_mp<cost)fail('Not enough MP to fire. Choose Magic or swap weapons.');
    l.player_mp-=cost;const m=mageScaling(l);raw=Math.floor((num(w.item?.power,10)+p.int*3)*m.magic)+m.flat;verb='fire at';
   }else{
-   raw=Math.floor(p.str*2*mageScaling(l).physical); // STR x2, class-scaled.
-   if(w.cls==='bow'){if(takeFromStack(l.inventory,isArrow,1)){raw=Math.floor(raw*Math.max(0.1,num(t.reach_damage_mult,0.75)));verb='shoot';}else{reach=false;r.log.push('No arrows left; you swing the bow instead.');}} // Reach costs an arrow and some power; an empty quiver makes it a club.
+   const ms=mageScaling(l);raw=Math.floor(p.str*2*ms.physical); // STR x2, class-scaled (the mage melee penalty applies to swings).
+   if(w.cls==='bow'){if(takeFromStack(l.inventory,isArrow,1)){raw=Math.floor(Math.floor(p.str*2*ms.ranged)*Math.max(0.1,num(t.reach_damage_mult,0.75)));verb='shoot';}else{reach=false;r.log.push('No arrows left; you swing the bow instead.');}} // Reach costs an arrow and some power; an empty quiver makes it a club.
    else if(w.cls==='wand'){raw=Math.floor(raw*Math.max(0.1,num(t.reach_damage_mult,0.75)));verb='flick your wand at';}
    raw=Math.floor(raw*rowMeleeDealt(t,r.row,reach)); // Back-row melee is halved; reach is not.
   }

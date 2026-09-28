@@ -49,7 +49,7 @@ test('every player spell resolves with its campaign MP cost and one enemy turn',
  for(const id of playerSpells){const s=battle();const mp=s.loadout.player_mp;combatAction(s,{action:'cast',spell:id},z,zero);assert.equal(s.loadout.player_mp,mp-combatData.spells[id].mp_cost,id);assert.equal(s.run.enemy.turn,1,id);assert.equal(s.run.turnReady,false,id);assert.deepEqual(s.loadout.player_info.companions,{friend:{hp:12}},id);}
 });
 test('mage affinity, physical weakness and absorbed-protection bonus match the base formulas',()=>{
- const s=battle();assert.deepEqual(mageScaling(s.loadout),{magic:1.3*1.5,physical:0.35,flat:0});
+ const s=battle();assert.deepEqual(mageScaling(s.loadout),{magic:1.3*1.5,physical:0.35,ranged:1,flat:0}); // ranged: arrows skip the mage melee penalty
  combatAction(s,{action:'attack'},z,zero);assert.equal(s.run.enemy.hp,994);assert.equal(s.run.hp,75,'normal attacks use enemy STR-1, shaved by player DEF as a percentage (6 x 100/104)');
  next(s);s.loadout.player_info.diaper_wet_absorbed=3;s.loadout.player_info.diaper_tum_absorbed=2;
  combatAction(s,{action:'cast',spell:'fireball'},z,zero);assert.equal(s.run.enemy.hp,994-(Math.floor((combatData.spells.fireball.power+24)*1.3*1.5)+7));
