@@ -30,6 +30,16 @@ Check flags evaluates All set, Any set, and None set and has `match` and `no_mat
 
 Use a Check flags near the beginning of a repeatable flow to route already-completed players away from one-time rewards. See [Flags](flags.md) for empty-group behavior and engine-owned restrictions.
 
+## Piety check
+
+Choose **Piety check** from the block palette. Set **Piety threshold** to a whole number from 0 to the faith system's maximum (currently 100), choose **At least**, **At most**, or **Exactly**, and optionally choose a **Patron**. Connect both `match` and `no_match`.
+
+For example, select a patron, **At least**, and `50`: that patron's followers with 50 or more piety take `match`; lower piety and followers of other patrons take `no_match`. Leave Patron at **Any patron / no patron** when only the number matters. A character without a patron counts as 0, so an unrestricted ?Exactly 0? check includes them. With a specific patron selected, a character without that patron never matches.
+
+The block reads current server-owned character faith when reached. It does not grant piety, change a patron, test equipment conformity, or read a client-supplied loadout value. Its authored threshold stays pinned for an active run while current character piety can change. Put a new check at each point where you need a fresh decision.
+
+In Player preview, expand **Simulated conditions** and choose **Simulated patron** and **Simulated piety**. Changing either restarts the preview through the check. Test one value below, exactly at, and one value above the threshold, then test another patron. These preview values do not change a real character. In an isolated in-game test, the copied character starts with its actual faith; use the existing in-game GM faith controls inside that test when testing other faith states. **Use current preview flags** copies flags only, not simulated piety.
+
 ## Quest operation
 
 Choose a canonical quest reference, then an operation:

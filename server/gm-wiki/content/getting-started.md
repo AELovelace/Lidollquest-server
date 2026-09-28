@@ -18,7 +18,9 @@ A **draft** is the latest saved work on a record. A **published definition** is 
 
 The selected flow has a revision. Shared records have their own revisions. The server refuses stale edits rather than allowing an older window to overwrite a newer save. When working with another GM, agree who owns the current edit to each shared asset.
 
-New content may need to be saved and reopened before all normalized default fields appear. Some dropdowns list published content, while the library also contains drafts. If a newly created NPC or quest is missing from a selector, save its draft, publish the prerequisite record through the advanced editor, and reload the workshop. Do not create a duplicate just to make it appear.
+New content may need to be saved and reopened before all normalized default fields appear. Workshop reference dropdowns include published records, saved drafts marked **[draft]**, and records being edited in the current bundle. **Refresh content** picks up content saved in another window without discarding the open flow. Referenced unpublished drafts and their unpublished prerequisites are included in the publication bundle, with revision checks and a confirmation listing included assets. Live map placement still requires published content.
+
+**New flow** creates a story sequence, not a journal quest. On a Quest operation or quest-wait block with an empty reference, choose **Create journal quest for this flow** to create and select a draft with the flow?s name and description. Review its giver, objectives and rewards before publishing. If the flow already has a battle, the helper suggests a kill objective for its first battle; this is a starting point to review, not a guarantee of the intended quest design.
 
 ## Names, record IDs, and block IDs
 

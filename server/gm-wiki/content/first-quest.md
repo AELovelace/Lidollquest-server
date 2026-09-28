@@ -82,6 +82,8 @@ Choose **Keep edits in bundle** and Save draft. Open the same NPC in **Advanced 
 
 ## 4. Create the journal quest
 
+**Why this is a separate step:** New flow created your sequence of story blocks. This step creates the journal task that Quest operation blocks reference. You can use **+ quest** as below, or select an empty Quest operation reference and click **Create journal quest for this flow** to create and link a matching draft. Saved drafts now appear with **[draft]** in reference dropdowns; **Refresh content** picks up edits from the other window. The explicit publishing steps below still work and also make the content available for live placement.
+
 1. In Story Workshop, click **+ quest**. Keep the generated ID as `QUEST_ID`.
 2. Name it **A Light for the Scout** and write a short description.
 3. Enter the settings below. Expand **givers** and use **Add givers** to add the actual `SCOUT_ID` from your worksheet.

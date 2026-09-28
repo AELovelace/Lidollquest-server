@@ -1,3 +1,4 @@
+import {validatePietyCheck} from './flow-faith.mjs';
 import {validateConditions} from './quest-content.mjs';
 import {validateFlagCondition,flagId} from './story-flags.mjs';
 const fail=message=>{throw Object.assign(Error(message),{status:400,code:'flow_invalid'});};
@@ -5,7 +6,7 @@ const id=v=>typeof v==='string'&&/^[a-z][a-z0-9_-]{0,79}$/.test(v)&&!['construct
 const text=(v='',max=4000)=>typeof v==='string'&&v.length<=max?v:fail('Text is too long.');
 const list=(v=[],max=256)=>Array.isArray(v)&&v.length<=max?v:fail('Too many entries.');
 export const FLOW_NODES={
- entry:['next'],dialogue:['next'],narrative:['next'],choice:[],condition:['match','no_match'],set_flag:['next'],clear_flag:['next'],quest:['next'],objective:['complete'],battle:['victory','defeat','retreat'],reward:['next'],effect:['next'],travel:['next'],spawn:['next'],end:[]
+ entry:['next'],dialogue:['next'],narrative:['next'],choice:[],condition:['match','no_match'],piety_check:['match','no_match'],set_flag:['next'],clear_flag:['next'],quest:['next'],objective:['complete'],battle:['victory','defeat','retreat'],reward:['next'],effect:['next'],travel:['next'],spawn:['next'],end:[]
 };
 export function flowPorts(node){return node.type==='choice'?node.choices.map(c=>c.id):FLOW_NODES[node.type]??[];}
 export function validateFlow(input,{catalog=null,flags=[],publish=false}={}){
@@ -15,6 +16,7 @@ export function validateFlow(input,{catalog=null,flags=[],publish=false}={}){
  for(const n of list(input.nodes)){
   if(!Object.hasOwn(FLOW_NODES,n.type))fail('Unknown flow block.');
   const node={id:id(n.id),type:n.type,asset_kind:["npc","orb","quest","monster","zone"].includes(n.asset_kind)?n.asset_kind:"",label:text(n.label,100),text:text(n.text,16000),sprite:text(n.sprite,100),ref:text(n.ref,160),operation:text(n.operation,40),branch:text(n.branch,80),flag:text(n.flag,120),conditions:validateFlagCondition(n.conditions),choices:[],effects:[],rewards:{},x:Number.isFinite(n.x??input.layout?.nodes?.[n.id]?.x)?Math.max(-100000,Math.min(100000,n.x??input.layout.nodes[n.id].x)):0,y:Number.isFinite(n.y??input.layout?.nodes?.[n.id]?.y)?Math.max(-100000,Math.min(100000,n.y??input.layout.nodes[n.id].y)):0};
+  if(node.type==='piety_check')node.piety=validatePietyCheck(n.piety);
   node.choices=list(n.choices,8).map(c=>({id:id(c.id),label:text(c.label,160),conditions:validateFlagCondition(c.conditions),requirements:validateConditions(c.requirements)}));
   if(new Set(node.choices.map(c=>c.id)).size!==node.choices.length)fail('Choice IDs must be unique.');
   node.effects=list(n.effects,16).map(e=>{if(!['heal','damage','wet','tum','shame_delta','stamina_drain','excitement_down','inco_down','give_item','force_equip_item','replace_diaper'].includes(e.type))fail('Choose a supported character effect.');if(!Number.isSafeInteger(e.amount??0)||Math.abs(e.amount??0)>10000)fail('Use a bounded whole-number effect.');return {type:e.type,amount:e.amount??0,item:text(e.item,100)};});
@@ -28,7 +30,7 @@ export function validateFlow(input,{catalog=null,flags=[],publish=false}={}){
   if(node.type==='quest'&&!['accept','claim','abandon','branch'].includes(node.operation))problem(node.id,'Choose a quest operation.');
   if(node.type==='objective'&&!['quest','flag'].includes(node.operation))problem(node.id,'Choose what this block waits for.');
   if(node.type==='quest'&&node.operation==='branch'&&!node.branch)problem(node.id,'Choose a quest branch.');
-  if(catalog){const groups={battle:'monsters',spawn:'monsters',quest:'quests',travel:'zones'};const group=node.type==='objective'&&node.operation==='quest'?'quests':groups[node.type];if(group&&!catalog[group]?.some(r=>r.id===node.ref&&!r.retired))problem(node.id,'Choose a published '+group+' reference.');if(node.sprite&&!catalog.sprites?.includes(node.sprite))problem(node.id,'Choose available artwork.');for(const item of [...node.rewards.items,...node.effects.filter(e=>e.item).map(e=>({id:e.item}))])if(!catalog.items?.some(i=>i.id===item.id))problem(node.id,'Choose an existing item: '+item.id);}
+  if(catalog){const groups={battle:'monsters',spawn:'monsters',quest:'quests',travel:'zones'};const group=node.type==='objective'&&node.operation==='quest'?'quests':groups[node.type];if(group&&!catalog[group]?.some(r=>r.id===node.ref&&!r.retired))problem(node.id,'Choose a published '+group+' reference or include its draft in the publication bundle.');if(node.sprite&&!catalog.sprites?.includes(node.sprite))problem(node.id,'Choose available artwork.');for(const item of [...node.rewards.items,...node.effects.filter(e=>e.item).map(e=>({id:e.item}))])if(!catalog.items?.some(i=>i.id===item.id))problem(node.id,'Choose an existing item: '+item.id);}
   flow.nodes.push(node);
  }
  if(new Set(flow.nodes.map(n=>n.id)).size!==flow.nodes.length)fail('Block IDs must be unique.');

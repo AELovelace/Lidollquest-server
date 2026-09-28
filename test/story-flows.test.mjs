@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {createStoryFlows} from '../server/story-flows.mjs';
+import {flowFaithCatalog,pietyMatches} from '../server/flow-faith.mjs';
 import {validateFlow} from '../server/flow-content.mjs';
 import {storyFlagsMatch,setStoryFlag} from '../server/story-flags.mjs';
 const flag={id:'story_rescued',name:'Rescued the scout',description:''};
@@ -21,3 +22,23 @@ test('imported choice requirements reject undefined authored flags',()=>{const d
 test('an open NPC offer cannot switch to a newly published story',()=>{const f=fixture();try{f.publish();const review=f.flows.review(f.c,f.s,'npc','scout');assert.ok(review);f.publish(story(),1);assert.throws(()=>f.flows.start(f.c,f.s,'npc','scout',review),/offer changed/);assert.equal(f.flows.active(f.c),null);}finally{f.close();}});
 
 test('changed flag reaction invalidates an NPC offer without starting another branch',()=>{const f=fixture();try{f.p.npcs.scout.story_reactions=[{conditions:{all:[flag.id]},entry:'hello'}];f.publish();const review=f.flows.review(f.c,f.s,'npc','scout');f.s.fullDungeon.flags[flag.id]=true;assert.throws(()=>f.flows.start(f.c,f.s,'npc','scout',review),/offer changed/);assert.equal(f.flows.active(f.c),null);}finally{f.close();}});
+
+const pietyStory=(piety={op:'gte',value:50,god:''})=>({id:'rescue',name:'Piety gate',nodes:[n('entry','entry'),n('intro','dialogue',{text:'Approach the shrine.'}),n('piety','piety_check',{piety}),n('match','dialogue',{text:'Welcome, faithful traveler.'}),n('no_match','dialogue',{text:'Return when you are ready.'}),n('end','end')],edges:[e('entry','next','intro'),e('intro','next','piety'),e('piety','match','match'),e('piety','no_match','no_match'),e('match','next','end'),e('no_match','next','end')],bindings:[{kind:'npc',ref:'scout',entry:'entry'}]});
+test('piety gates use current authoritative faith and both inclusive threshold branches',()=>{
+ const god=flowFaithCatalog.gods[0].id;
+ for(const [faith,expected] of [[undefined,'no_match'],[{god,piety:49},'no_match'],[{god,piety:50},'match'],[{god,piety:100},'match']]){const f=fixture();try{f.publish(pietyStory());f.flows.start(f.c,f.s,'npc','scout');f.s.faith=faith;f.s.loadout={faith:{god,piety:100},player_info:{piety:100}};f.choose();assert.equal(f.flows.snapshot(f.c,f.s).node,expected);assert.deepEqual(f.s.faith,faith);}finally{f.close();}}
+ assert.equal(pietyMatches({}, {op:'eq',value:0,god:''}),true);
+ assert.equal(pietyMatches({faith:{god,piety:20}},{op:'lte',value:20,god}),true);
+ assert.equal(pietyMatches({faith:{god:flowFaithCatalog.gods[1].id,piety:100}},{op:'gte',value:50,god}),false);
+ assert.equal(pietyMatches({}, {op:'lte',value:100,god}),false);
+});
+test('piety validation rejects forged patrons, thresholds and automatic loops',()=>{
+ for(const piety of [{god:'constructor'},{god:'missing'},{value:-1},{value:101},{value:1.5},{value:'50'},{op:'run'}])assert.throws(()=>validateFlow(pietyStory(piety),{publish:true}),/piety threshold/);
+ const d=pietyStory();d.edges.find(v=>v.from==='piety'&&v.port==='match').to='piety';assert.throws(()=>validateFlow(d,{publish:true}),/loop/);
+});
+test('piety preview is isolated and an active run pins the authored threshold across restart',()=>{
+ const f=fixture(),god=flowFaithCatalog.gods[0].id;try{const d=pietyStory({op:'gte',value:50,god});f.publish(d);const before=JSON.stringify(f.s);
+ const preview=faith=>f.flows.gm({action:'flow_preview',entry:d,node:'piety',faith},'gm');assert.equal(preview({god,piety:50}).node.id,'match');assert.equal(preview({god,piety:49}).node.id,'no_match');assert.equal(JSON.stringify(f.s),before);
+ f.flows.start(f.c,f.s,'npc','scout');f.publish(pietyStory({op:'gte',value:90,god}),1);f.restart();f.s.faith={god,piety:60};f.choose();assert.equal(f.flows.snapshot(f.c,f.s).node,'match');
+ }finally{f.close();}
+});

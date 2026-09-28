@@ -6,7 +6,7 @@
 
 The left pane contains a searchable block palette and content library. The center is the story canvas. The right pane edits the selected block or the overall story. **Player preview** opens a collapsible presentation pane over the canvas. **Zone map & placements** opens the world placement tools.
 
-The toolbar contains New flow, Save draft, Validate, Publish, Rollback, Undo, Redo, Duplicate, Delete, Fit, Arrange, zoom controls, Flag library, Player preview, and In-game test. The saved-flow dropdown selects an existing draft.
+The toolbar contains New flow, Refresh content, Save draft, Validate, Publish, Rollback, Undo, Redo, Duplicate, Delete, Fit, Arrange, zoom controls, Flag library, Player preview, and In-game test. The saved-flow dropdown selects an existing draft. Refresh content updates the catalog while preserving your flow and pending bundle edits.
 
 ## Add and edit a block
 
@@ -71,6 +71,8 @@ Open an item in the content library or click a block's **Reference** button. The
 Choose **Keep edits in bundle**, then **Save draft** on the flow. These edits are part of the current bundle, not an unrelated copy of the content. Publishing that bundle changes the shared asset for future users of the asset, including other stories.
 
 Some canonical fields use technical labels such as `next`, `target`, `mode`, or `sharing`. Their supported values are documented in the relevant chapters. No JSON editor is required. If a specialized control is absent from the generic form, use the existing advanced editor for that same record, then reload to obtain its current revision.
+
+Quest references include **[draft]** journal records and unsaved bundle records. Newly referenced unpublished dependencies are included in the flow?s publication bundle; existing published assets are not replaced by their separate draft edits unless you explicitly edit them in the bundle. A flow itself is not a quest reference: use **Create journal quest for this flow** on an empty quest reference to start a linked journal record. See [Piety check](blocks.md#piety-check) for the new faith branch block.
 
 ## Validate, recover, and resolve conflicts
 

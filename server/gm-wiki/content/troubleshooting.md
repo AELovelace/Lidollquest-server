@@ -9,10 +9,18 @@
 | Workshop says to sign in | Sign in on `/gm` at the same hostname, then reload. The account must still have the GM role. |
 | Pop-out does not open | Use the normal Open Story Workshop link or open `/gm/flow-editor` directly. |
 | Publish is disabled | The server rollout switch is off. Drafts and preview are still available; ask the operator about rollout. |
-| New asset is absent from a selector | Save it, publish prerequisite content through the advanced editor if needed, then reload the catalog. Some selectors list published records. |
+| New asset is absent from a selector | Click Refresh content to load saves from another window. Workshop references include [draft] records; live map placement still lists published content. |
 | “This flow changed” or stale revision | Another edit won. Preserve your text, reload current records, and reapply the change. |
 | Recovered draft is older than the server | Compare before saving. Recovery is local to the tab, not authoritative server history. |
 | Map click appears to do nothing | Read the status/error message. Wait for regeneration, reload the map revision, and choose a reachable unoccupied tile. |
+
+## My story is missing from a quest reference
+
+A saved **New flow** record is the story sequence. A **Quest operation** reference selects a journal quest with stages, objectives and rewards; publishing a flow does not turn it into that separate record.
+
+If you already made the journal quest, use **Refresh content** and find it by name and ID. Saved but unpublished quests now appear with **[draft]**. On an older server version, publish the quest in the Quests editor and refresh the workshop to make it appear.
+
+If you only made the flow, select a Quest operation block, leave Content reference empty, and choose **Create journal quest for this flow**. The helper creates and selects a matching draft. Review its objectives, giver and reward; keep edits in the bundle, save, validate and publish. The original flow stays intact. You do not need to type or copy the new quest ID to link that block.
 
 ## The NPC does not offer the story
 

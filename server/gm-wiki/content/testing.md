@@ -8,7 +8,7 @@ Use both preview and an in-game test. Preview answers “does this story read an
 
 Save your work, then choose **Player preview**. The preview displays dialogue or narrative text, optional artwork, and choice buttons. It highlights the current block on the canvas. Use the offered battle outcomes to inspect victory, defeat and retreat continuations.
 
-Expand simulated flags to test requirements. Imported numeric choice requirements can also expose simulated values. These controls affect preview state only. Restart returns to the starting route; check the current simulated flags when comparing paths, since a previous simulated Set flag may have changed them.
+Expand **Simulated conditions** to test flags and, for Piety check blocks, simulated patron and piety. Try below, equal to and above the threshold, a different patron, and no patron. Imported numeric choice requirements can also expose simulated values. These controls affect preview state only. Restart returns to the starting route; check the current simulated flags when comparing paths, since a previous simulated Set flag may have changed them.
 
 Preview does not grant real rewards, create real encounters, deliver items, move the character, or update a real quest. A simulated wait or battle outcome is an author-supplied result. Passing preview is not proof that an objective target, monster balance, inventory claim or zone destination is correct.
 
@@ -22,6 +22,8 @@ Preview does not grant real rewards, create real encounters, deliver items, move
 6. Open **GM → Powers → Test a story** and submit `/storytest CODE`, replacing CODE with the copied value.
 
 The character must be out of combat, mandatory defeat scenes, conflicting stories and pending purchases. A code belongs to its creating GM and, once used, its selected character. Codes expire after 30 minutes; the server limits each GM to five unexpired sessions. A test can recover through a server restart while its code remains valid.
+
+**Pasting on desktop:** Test a story prefills `/storytest ` in the chat box. Paste only the copied code with **Ctrl+V** or **Shift+Insert**, then press **Enter**. In the browser on Mac, use **Cmd+V**. Pasting appends to the draft; it does not submit. Escape keeps the draft, and clicking the chat field or pressing T restores focus. These shortcuts require the updated game client with the clipboard-input fix; reloading an older build will not add them.
 
 The test starts the draft flow directly. It is useful before you publish a live binding or placement. It does not by itself prove that a normal NPC offer or orb approach starts the story correctly; test those entry interactions separately in a controlled environment after publication.
 

@@ -24,7 +24,7 @@ If an existing published asset must remain unchanged for its other uses, create 
 
 ## Publish
 
-Choose **Publish**, read the confirmation, and review the flow and shared assets in the bundle. Related edits commit atomically: an invalid bundle does not partially publish the NPC while leaving the flow invalid.
+Choose **Publish**, read the confirmation, and review the flow and shared assets in the bundle. Referenced unpublished drafts and their unpublished prerequisites appear in the included-assets confirmation and are published with the flow. Existing published assets keep their live definitions unless explicitly edited in the bundle. Related edits commit atomically: an invalid bundle does not partially publish the NPC while leaving the flow invalid.
 
 Entry bindings make the flow discoverable through the selected NPC, orb, zone or quest-completion trigger. A single trigger cannot belong to two different active published flows. Move alternatives into one branching flow, or retire/rebind the old owner deliberately.
 
