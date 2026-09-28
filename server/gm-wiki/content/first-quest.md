@@ -4,13 +4,32 @@
 
 This walkthrough makes **A Light for the Scout**. An NPC asks the player to clear a danger. Accepting starts a journal quest and a battle. Victory completes and claims the quest, then records `story_scout_rescued`. Future visits get a grateful greeting. A nearby orb becomes readable and presents a short epilogue.
 
-Use a development server or controlled test area while learning. Saving or previewing a flow does not place anything; map placement is a separate live operation.
+**Work through one numbered section at a time.** Each section ends with a checkpoint so you can stop and come back. Pictures are captures of the real tools on a temporary tutorial server. Yellow numbers point to the controls described below them. Click or tap any picture to enlarge it; choose **Show actual size** if the text is still too small.
+
+Use a development server or controlled test area while learning. Map placement is a live action. Screenshot record IDs and the example monster are illustrative: use your own generated record IDs and a suitable published monster.
 
 ## 1. Choose the ingredients
 
 Choose an existing zone and an already published, modestly tuned monster. Do not create a new monster for this first pass. Record its ID and the zone ID.
 
-Create a new flow, give it the name **A Light for the Scout**, add Entry and End, connect Entry's `next` to End, and Save draft. Keep the generated flow ID. Set **Repeatable** on: refusal or a lost battle must not permanently consume the interaction. A flag check will prevent repeated victory rewards.
+### Find the three panes
+
+![Story Workshop with the block palette marked 1, the canvas marked 2, and story settings marked 3.](../assets/tutorial/01-workspace.png "1: choose blocks. 2: arrange and connect them. 3: edit the selected block or story settings.")
+
+1. Open **Story Workshop** and click **New flow**.
+2. In the right pane, change **Name** to **A Light for the Scout**. Keep the generated Stable ID.
+3. Tick **Repeatable**. This lets the player return after refusing or losing; you will add a success guard later.
+4. In the left pane, click **Entry**, then **End**. Drag the cards apart so you can see both.
+5. Click a card's body to select it. Change its **Label** in the right pane: Entry becomes **Start rescue**; End becomes **Finish**.
+
+### Make your first connection
+
+![Close view of Start rescue and Finish: the next output is marked 1 and the destination Input is marked 2.](../assets/tutorial/02-connect.png "Click 1 (next), then 2 (Input). A green wire means the connection exists.")
+
+6. Click **next** on Start rescue, then **Input** on Finish.
+7. Click **Save draft** in the top toolbar.
+
+**Checkpoint:** two cards, one green wire, and a successful draft-save message. Stop here if yours does not match; the rest uses this same connect-and-save pattern.
 
 Use this worksheet as you create the records:
 
@@ -33,17 +52,27 @@ Do not type the uppercase symbols into fields. Substitute the corresponding actu
 4. Describe it: “Set after the scout rescue quest is claimed; unlocks the grateful greeting and epilogue orb.”
 5. Click **Create flag**.
 
-No player has been marked rescued. The flag definition exists; a missing character value still means false.
+![The completed New flag ID, Readable name, Description, and Create flag fields.](../assets/tutorial/03-flag.png "Scroll past the existing flag list to reach these creation fields. Use this exact flag ID throughout your story.")
+
+**Checkpoint:** the library now lists **Rescued the scout**. Close the dialog. No player has been marked rescued: a missing character value still means false.
 
 ## 3. Create and publish the scout
 
-Click **+ npc** in the content library. Keep the generated ID and record it as `SCOUT_ID`. Set the name to **Lantern Scout**, choose a sprite, and keep wander radius at 0 for the initial test.
+### Create the record first
+
+1. Scroll down the left pane to **Content library**, then click **+ npc**.
+2. Keep its generated ID and copy it into your worksheet as `SCOUT_ID`.
+3. Change **name** to **Lantern Scout**, choose a sprite, and keep **wander radius** at `0`.
+4. Click **Keep edits in bundle**, then **Save draft** in the workshop toolbar.
+5. Open **Advanced GM tools / Sign in**, choose the **NPCs** tab, and open **Lantern Scout**. Choose its **Dialogue** section. This dedicated page editor is easier to use for your first conversation.
+
+![Lantern Scout in the advanced NPC Dialogue section, showing the greeting and thanks pages, Text, Continue to, and Add page controls.](../assets/tutorial/04-npc-dialogue.png "This is the advanced NPC editor, not the canvas. Select a page on the left; edit its text on the right. Add page creates the second page.")
 
 Keep the `greeting` page and change its text to:
 
 > My lantern went dark when the path guardian appeared. Could you clear the way so I can get home?
 
-Set its next page to `close`. Add a second dialogue page with ID `thanks`, next `close`, no actions, and this text:
+Set **Continue to** to **End conversation** (stored as `close`). Click **Add page**, set **Page ID** to `thanks`, leave its actions empty, and write:
 
 > You cleared the path! I left a little memory by the entrance for you. Thank you for helping me home.
 
@@ -53,7 +82,9 @@ Choose **Keep edits in bundle** and Save draft. Open the same NPC in **Advanced 
 
 ## 4. Create the journal quest
 
-Click **+ quest**. Keep its generated ID as `QUEST_ID`. Name it **A Light for the Scout** and describe the request and destination in player-facing language.
+1. In Story Workshop, click **+ quest**. Keep the generated ID as `QUEST_ID`.
+2. Name it **A Light for the Scout** and write a short description.
+3. Enter the settings below. Expand **givers** and use **Add givers** to add the actual `SCOUT_ID` from your worksheet.
 
 Set these fields:
 
@@ -79,36 +110,72 @@ Create one stage named **Clear the path**. Keep its generated stage ID, set mode
 | zone | `ZONE_ID` if the task should only count there |
 | token | False |
 
+![The quest editor Stages and objectives section showing a kill objective, a monster Target ID, count 1, and Personal credit.](../assets/tutorial/05-quest-objective.png "The same saved quest in Advanced GM tools ? Quests ? Stages and objectives. Your monster ID may differ; it must also be the monster used by the Battle block.")
+
 Set a small reward appropriate for your test, for example **10 XP** and **0 coins**, with no items or permanent stat changes. This is an example amount, not a balance recommendation for every zone. The monster may also award its normal combat rewards.
 
 Keep edits in bundle and Save draft. Publish the same quest through **Advanced GM tools → Quests**. Reload the workshop. The published scout already satisfies the giver reference. You may later add this quest to the NPC's quest list if you also want its ordinary quest-offer menu; the flow's explicit accept operation is enough for this tutorial.
 
 ## 5. Assemble the rescue flow
 
-Open the rescue flow. Replace the initial Entry-to-End connection with the graph below. Give blocks these labels so you can recognize them; block IDs can stay generated.
+Build this in four small passes. Use the **Label** field to name each block as shown. Keep the generated block IDs.
 
-| Block label | Type and settings | Connections |
+### A. Ask whether the player wants to help
+
+1. Click the wire from Start rescue to Finish, then press Delete. Keep both cards.
+2. Add a **Check flags** block. Label it **Already rescued?** and select **All set ? Rescued the scout**.
+3. Add a **Dialogue** block labeled **Welcome back**. Text: ?The path is safe. Thank you again.?
+4. Add a **Player choice** block labeled **Ask for help**. Put the scout's request in Player-facing text.
+5. In that block's choices, use ID `help`, label ?I'll help you?; add another choice with ID `later`, label ?Maybe later.?
+6. Add a Dialogue labeled **Maybe later**. Text: ?Of course. Come back when you're ready.?
+
+Connect these routes:
+
+| From | Output | To |
 | --- | --- | --- |
-| Start rescue | Entry | `next` → Already rescued? |
-| Already rescued? | Check flags: All set `story_scout_rescued` | `match` → Welcome back; `no_match` → Ask for help |
-| Welcome back | Dialogue: “The path is safe. Thank you again.” | `next` → Finish |
-| Ask for help | Player choice with the offer text | `help` → Accept rescue; `later` → Maybe later |
-| Accept rescue | Quest operation: `accept`, reference `QUEST_ID` | `next` → Path guardian |
-| Path guardian | Battle, reference `MONSTER_ID` | `victory` → Check journal; `defeat` → Recover first; `retreat` → Try again later |
-| Check journal | Wait for objective: `quest`, reference `QUEST_ID` | `complete` → Claim rescue |
-| Claim rescue | Quest operation: `claim`, reference `QUEST_ID` | `next` → Remember rescue |
-| Remember rescue | Set flag: `story_scout_rescued` | `next` → Thank the player |
-| Thank the player | Dialogue describing the cleared path and orb | `next` → Finish |
-| Maybe later | Dialogue: “Of course. Come back when you're ready.” | `next` → Finish |
-| Recover first | Dialogue: “Rest first. We can try the path again.” | `next` → Finish |
-| Try again later | Dialogue: “The path is still guarded. Come back when you're ready.” | `next` → Finish |
-| Finish | End | None |
+| Start rescue | next | Already rescued? |
+| Already rescued? | match | Welcome back |
+| Welcome back | next | Finish |
+| Already rescued? | no_match | Ask for help |
+| Ask for help | later | Maybe later |
+| Maybe later | next | Finish |
 
-In **Ask for help**, edit the default choice or replace it with two choices: ID `help`, label “I'll help you,” and ID `later`, label “Maybe later.” Connect both outputs. Write player-facing text on every Dialogue and Player choice block.
+**Checkpoint:** the ?already helped? and ?not now? paths both reach Finish. Leave the help output unconnected just until the next pass.
 
-Do not add a separate Reward block for the same 10 XP. The Quest claim already grants the quest reward. The victory flag belongs after successful claim so a failed claim cannot announce that the whole rescue is complete.
+### B. Accept the quest and start the battle
 
-Connect defeat and retreat explicitly. Those branches do not set the rescue flag. Mandatory game defeat processing occurs before the defeat continuation. The quest remains available to finish; abandoning and reaccepting a quest does not promise a fresh timer or erased progress.
+1. Add **Quest operation**. Label: **Accept rescue**. Operation: `accept`. Content reference: **A Light for the Scout**.
+2. Add **Battle**. Label: **Path guardian**. Content reference: the **same monster** used in the quest's kill target.
+3. Connect Ask for help's `help` output to Accept rescue, then Accept rescue's `next` to Path guardian.
+4. Add two Dialogue blocks: **Recover first** (?Rest first. We can try again.?) and **Try again later** (?The path is still guarded. Come back when you're ready.?).
+5. Connect the battle's `defeat` to Recover first and `retreat` to Try again later. Connect both dialogues' `next` to Finish.
+
+![Battle block with three outputs marked 1, and its content and connection dropdowns in the properties pane marked 2.](../assets/tutorial/06-battle-outputs.png "1: every battle needs victory, defeat, and retreat routes. 2: you can set destinations using these dropdowns instead of clicking ports. The victory destination is added next.")
+
+**Checkpoint:** accepting starts the correct quest before the battle. Both failure paths end without setting a success flag.
+
+### C. Finish the successful path
+
+Add these blocks in order, then connect each one to the next:
+
+| Label | Block type | What to enter |
+| --- | --- | --- |
+| Check journal | Wait for objective | Wait for `quest`; reference **A Light for the Scout** |
+| Claim rescue | Quest operation | Operation `claim`; reference **A Light for the Scout** |
+| Remember rescue | Set flag | **Rescued the scout** |
+| Thank the player | Dialogue | ?You cleared the path! The scout will remember your help.? |
+
+Connect Path guardian's `victory` to Check journal. Connect Check journal's `complete` to Claim rescue. Use `next` for the remaining connections, ending with Thank the player ? Finish.
+
+The Claim block grants the quest's 10 XP. **Do not add a second Reward block for the same payout.** Remember rescue runs after a successful claim, so a failed claim cannot mark the whole task complete.
+
+### D. Check the graph
+
+1. Click **Fit** to see all your cards. Use **Arrange** if you want a starting layout, then drag cards into a readable order.
+2. Click **Validate**. Fix missing connections and blank text using the message beside each affected card.
+3. Click **Save draft**.
+
+**Checkpoint:** validation has no errors. There are three ways through the battle, and only victory reaches Claim rescue and Remember rescue. Refusal, defeat, and retreat allow another visit because the flow is repeatable.
 
 ## 6. Bind the NPC
 
@@ -119,6 +186,10 @@ Click **Story settings / bindings**, then **Add entry binding**:
 - Entry block: Start rescue.
 - Conditions: leave empty; the first Check flags block handles returning characters.
 
+![Story settings pane showing Repeatable selected and an npc binding to Lantern Scout with entry Start rescue.](../assets/tutorial/07-npc-binding.png "Match Trigger, Content, and Entry block to this example. Your generated Stable ID will be different.")
+
+**Checkpoint:** your binding points to the scout and Start rescue, not Finish or the battle.
+
 The normal NPC interaction will offer **Continue personal story**. It will still have its normal greeting and applicable quest/service options. The flow is repeatable so a refusal is not permanent; the top flag check makes repeat visits harmless after success.
 
 Validate. Fix every missing output, blank text, missing reference, or incorrect operation before continuing. Save draft.
@@ -127,13 +198,30 @@ Validate. Fix every missing output, blank text, missing reference, or incorrect 
 
 Use **Player preview** and follow every choice and battle outcome. Switch the rescue flag on and off. Preview skips real gameplay effects, so use it to check wording and routing, not whether the kill objective actually counts.
 
-Next create an **In-game test** code and start it with `/storytest CODE`. If your real character has already completed the test quest, use a clean test character: the sandbox starts from a copy of that character's current quest progress. Clearing a flag alone does not remove a claimed quest.
+![Player preview showing the scout request with I'll help you and Maybe later choices.](../assets/tutorial/08-preview.png "At the first offer, both choices should be readable. Try refusal first, then restart and try acceptance.")
+
+1. Save the draft, then click **In-game test**.
+2. In the dialog below, click **Create test code** and copy the result.
+3. In the game, submit `/storytest CODE`, replacing CODE with the copied code.
+
+![Isolated in-game test dialog with Use current preview flags and Create test code.](../assets/tutorial/09-test-code.png "Leave the override unchecked for a first test from your copied character's current state. Check it only when you deliberately want the preview's flag values.") If your real character has already completed the test quest, use a clean test character: the sandbox starts from a copy of that character's current quest progress. Clearing a flag alone does not remove a claimed quest.
 
 Verify that acceptance creates the journal quest, the real battle awards its kill objective, the claim completes, and the rescue flag becomes true. Exit with `/storytest stop`. The real character must be unchanged. See the full [testing checklist](testing.md).
 
 ## 8. Publish and place the entry point
 
-When publication is enabled, review and publish the flow. Open **Zone map & placements**, select `ZONE_ID`, expand the map's published-content list, and drag the scout onto a reachable free tile near a convenient entrance. Leave space around portals and occupants. Use a persistent lifetime if the NPC should survive map regeneration.
+1. In the workshop, open Lantern Scout's shared draft once more and choose **Keep edits in bundle**, so its grateful reaction is included in this publication.
+2. Click **Publish** and review the flow and NPC changes. If publication is disabled, stop here and ask the server operator about rollout.
+3. Click **Zone map & placements**. Set Zone to your chosen `ZONE_ID`, Placement kind to `npc`, and Lifetime to `persistent`.
+
+![The map dialog's Zone, Placement kind, Content/objective ID, and Lifetime fields.](../assets/tutorial/10-placement.png "Choose your own zone here. Persistent keeps the NPC available across map editions.")
+
+4. Expand **Drag published content onto this map**, then click **Lantern Scout**. This selects its content ID for you.
+5. Scroll to the map and click a free reachable tile near an entrance. You can also drag the scout from the list onto a tile. Leave space around portals and occupants.
+
+![Generated dungeon map in the placement dialog, with walls and existing fixtures visible.](../assets/tutorial/11-placement-map.png "Your generated map will look different. Place the scout on an open walkable tile; the server rejects occupied, blocked, or unreachable spots.")
+
+**Checkpoint:** the placed scout appears in the selected zone and a nearby character can speak to it.
 
 Placement is a live action. On a production server, schedule this step after the content has been reviewed. Enter with a compatible client, stand beside the scout, and talk. Check refusal, acceptance, and the grateful greeting on a return visit.
 

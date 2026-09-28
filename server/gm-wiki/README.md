@@ -16,3 +16,9 @@ The browser fetches Markdown and renders it using the vendored Marked and DOMPur
 The static handbook is readable before sign-in, like the GM panel shell, behind the same configured TLS/address/enable restrictions. It contains no live character data, credentials or staff records. All GM editing APIs retain staff authentication. The route uses a fixed asset allowlist; arbitrary repository files are not exposed.
 
 The `server/` directory already belongs to the deployment package, so no separate upload step or Python/Node documentation service is required. Publication of playable flows remains controlled by `QUEST_FLOWS_ENABLED`; reading the wiki does not enable it.
+
+## Tutorial pictures
+
+The first-quest tutorial includes real editor captures in `assets/tutorial/`, referenced from ordinary Markdown as `![Meaningful alt text](../assets/tutorial/01-workspace.png "Caption")`. Register every served picture in `illustrations.json`; the route exposes only that allowlist. Screenshots enlarge in a keyboard-accessible dialog with actual-size and original-image controls. Keep essential steps in text too.
+
+Regenerate pictures from the game checkout with `node python/tests/fixtures/gm_tutorial_screenshots.mjs`. This boots an ephemeral local server with synthetic tutorial records, uses the actual GM screens, and writes PNGs to the server checkout (`QUEST_SERVER_ROOT` can override its path). Yellow numbered outlines are documentation callouts placed over the browser UI before capture. No production content or account data is used. Inspect regenerated pictures and update captions if the controls change.

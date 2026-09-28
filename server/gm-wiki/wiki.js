@@ -23,6 +23,32 @@
   const normalize = value => value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
   const slugify = value => value.toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/ /g, '-');
 
+  const pictureDialog = element('dialog', 'picture-dialog');
+  pictureDialog.setAttribute('aria-label', 'Tutorial picture');
+  const pictureTools = element('div', 'picture-tools');
+  const pictureClose = element('button', '', 'Close picture');
+  const pictureZoom = element('button', '', 'Show actual size');
+  const pictureOriginal = element('a', '', 'Open original');
+  pictureOriginal.target = '_blank'; pictureOriginal.rel = 'noopener noreferrer';
+  const pictureViewport = element('div', 'picture-viewport');
+  const picture = element('img');
+  const pictureCaption = element('p');
+  pictureTools.append(pictureClose, pictureZoom, pictureOriginal);
+  pictureViewport.append(picture); pictureDialog.append(pictureTools, pictureCaption, pictureViewport);
+  document.body.append(pictureDialog);
+  pictureClose.onclick = () => pictureDialog.close();
+  pictureZoom.onclick = () => {
+    const actual = pictureViewport.classList.toggle('actual-size');
+    pictureZoom.textContent = actual ? 'Fit picture' : 'Show actual size';
+    pictureZoom.setAttribute('aria-pressed', String(actual));
+  }; // Native dialog provides Escape handling and returns focus to the screenshot button.
+  function openPicture(src, caption) {
+    picture.src = src; picture.alt = caption; pictureCaption.textContent = caption;
+    pictureOriginal.href = src; pictureViewport.classList.remove('actual-size');
+    pictureZoom.textContent = 'Show actual size'; pictureZoom.setAttribute('aria-pressed', 'false');
+    pictureDialog.showModal(); pictureClose.focus();
+  }
+
   async function fetchMarkdown(page) {
     if (!contentCache.has(page.slug)) {
       const request = fetch(`content/${page.slug}.md`, { cache: 'no-cache' }).then(response => {
@@ -62,6 +88,20 @@
         link.rel = 'noopener noreferrer';
       }
     }); // Original .md links become client-side routes, including their heading anchors.
+    fragment.querySelectorAll('img').forEach(img => {
+      const base = new URL('./', location.href);
+      const src = new URL(img.getAttribute('src') || '', new URL('content/' + page.slug + '.md', base));
+      if (src.origin !== base.origin || !src.pathname.startsWith(base.pathname + 'assets/tutorial/') || !/\.(png|svg)$/.test(src.pathname)) {
+        img.replaceWith(element('p', '', img.alt || 'Picture unavailable.')); return;
+      }
+      const caption = img.title || img.alt;
+      const figure = element('figure', 'tutorial-picture');
+      const button = element('button', 'picture-trigger');
+      button.type = 'button'; button.setAttribute('aria-label', 'Enlarge: ' + img.alt);
+      button.addEventListener('click', () => openPicture(src.href, caption));
+      img.src = src.href; img.loading = 'lazy'; img.decoding = 'async';
+      img.replaceWith(figure); button.append(img); figure.append(button, element('figcaption', '', caption + ' Click or tap to enlarge.'));
+    }); // Markdown stays portable; screenshots resolve relative to its content folder and receive an accessible viewer.
     fragment.querySelectorAll('table').forEach(table => {
       const wrapper = element('div', 'table-scroll');
       wrapper.tabIndex = 0;

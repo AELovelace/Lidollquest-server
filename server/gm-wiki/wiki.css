@@ -120,6 +120,19 @@ tr:last-child td { border-bottom: 0; }
 .search-tip { border-top: 1px solid var(--line); padding-top: 12px; }
 #page-status { padding: 18px; border: 1px solid var(--line); border-radius: 16px; font-size: 14px; background: var(--panel-deep); }
 .retry-button { border: 1px solid #cf8db0; border-radius: 12px; color: #66334e; background: #f6c8dd; padding: 7px 12px; font-weight: 700; }
+.tutorial-picture { margin: 22px 0 30px; }
+.picture-trigger { display: block; max-width: 100%; padding: 0; margin: 0 auto; border: 2px solid var(--line); border-radius: 12px; overflow: hidden; background: #221730; cursor: zoom-in; }
+.picture-trigger img { display: block; max-width: 100%; height: auto; }
+.picture-trigger:focus-visible { outline: 3px solid var(--pink); outline-offset: 4px; }
+.tutorial-picture figcaption { margin-top: 10px; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.picture-dialog { width: min(1500px, 96vw); max-width: 96vw; max-height: 94vh; padding: 18px; border: 2px solid var(--line); border-radius: 16px; background: var(--page); color: var(--ink); }
+.picture-dialog::backdrop { background: #21132de0; }
+.picture-tools { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.picture-tools button { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); cursor: pointer; }
+.picture-dialog > p { font-size: 14px; }
+.picture-viewport { max-height: 70vh; overflow: auto; }
+.picture-viewport img { display: block; max-width: 100%; height: auto; margin: auto; }
+.picture-viewport.actual-size img { max-width: none; margin: 0; }
 @media (max-width: 1190px) {
   .wiki-layout { grid-template-columns: 225px minmax(0, 1fr); } .on-this-page { display: none; }
   .topbar { gap: 16px; padding-right: 20px; padding-left: 20px; } .brand { min-width: 210px; font-size: 21px; }

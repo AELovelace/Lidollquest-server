@@ -5,6 +5,7 @@ import {createQuestService} from '../server/service.mjs';
 
 const root=new URL('../server/gm-wiki/',import.meta.url);
 const pages=JSON.parse(readFileSync(new URL('pages.json',root),'utf8'));
+const illustrations=JSON.parse(readFileSync(new URL('illustrations.json',root),'utf8'));
 const content=new Map(pages.map(p=>[p.source,readFileSync(new URL('content/'+p.slug+'.md',root),'utf8')]));
 const slug=value=>value.toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu,'').replace(/ /g,'-');
 
@@ -14,9 +15,10 @@ test('GM handbook chapters and Markdown cross-references resolve',()=>{
  for(const p of pages){
   assert.equal(p.source,p.slug+'.md');const body=content.get(p.source);
   assert.match(body,/^# .+/);assert.doesNotMatch(body,/\b(singleplayer|single-player)\b/i);
-  for(const match of body.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)){
-   if(/^https?:/.test(match[1]))continue;
-   const [target,anchor]=match[1].split('#'),destination=content.get(target||p.source);
+  for(const match of body.matchAll(/(!?)\[[^\]]+\]\((\S+?)(?:\s+"[^"]*")?\)/g)){
+   if(match[1]){const asset=match[2].replace(/^\.\.\//,'');assert.ok(illustrations.includes(asset),'Unserved illustration: '+asset);assert.ok(readFileSync(new URL(asset,root)).length>0);continue;}
+   if(/^https?:/.test(match[2]))continue;
+   const [target,anchor]=match[2].split('#'),destination=content.get(target||p.source);
    assert.ok(destination,`${p.source}: missing chapter ${target}`);
    if(anchor)assert.ok([...destination.matchAll(/^#{1,6} (.+)$/gm)].some(m=>slug(m[1])===anchor),`${p.source}: missing section ${match[1]}`);
   }
@@ -33,8 +35,9 @@ test('GM wiki serves local source/assets with GM perimeter checks and no editing
   assert.equal((await fetch(base+'/gm/wiki/')).status,403,'Transport guard applies to the handbook');
   const redirected=await get('/gm/wiki',{redirect:'manual'});assert.equal(redirected.status,308);assert.equal(redirected.headers.get('location'),'/gm/wiki/');
   const page=await get('/gm/wiki/');assert.equal(page.status,200);assert.match(page.headers.get('content-security-policy'),/script-src 'self'/);assert.match(await page.text(),/GM wiki/);
-  for(const file of ['pages.json','wiki.css','wiki.js','vendor/marked.min.js','vendor/purify.min.js','assets/little-log-logo.svg',...pages.map(p=>'content/'+p.slug+'.md')]){
+  for(const file of ['pages.json','wiki.css','wiki.js','vendor/marked.min.js','vendor/purify.min.js','assets/little-log-logo.svg',...illustrations,...pages.map(p=>'content/'+p.slug+'.md')]){
    const response=await get('/gm/wiki/'+file);assert.equal(response.status,200,file);assert.equal(response.headers.get('x-content-type-options'),'nosniff');
+   if(file.endsWith('.png')){assert.equal(response.headers.get('content-type'),'image/png');const bytes=Buffer.from(await response.arrayBuffer());assert.equal(bytes.subarray(1,4).toString(),'PNG');}
    if(file.endsWith('.md')){assert.match(response.headers.get('content-type'),/^text\/markdown/);assert.match(await response.text(),/^# /);}
   }
   assert.equal((await get('/gm/wiki/content/first-quest.md',{method:'HEAD'})).status,200);
