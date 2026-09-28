@@ -61,12 +61,12 @@ test('unavailable, unaffordable and forged unlocks cannot spend or grant RPP abi
 });
 test('mage balance stacks with affinity and fullness, doubles only mage mana, and purchased passives apply',()=>{
  const mage=importLoadout(loadout()),fighter=importLoadout(loadout('fighter')),diplomat=importLoadout(loadout('diplomat'));
- assert.deepEqual(mageScaling(mage),{magic:1.5,physical:0.5,flat:0});assert.deepEqual(mageScaling(fighter),{magic:1,physical:1,flat:0});
+ assert.deepEqual(mageScaling(mage),{magic:1.5,physical:0.5,ranged:1,flat:0});assert.deepEqual(mageScaling(fighter),{magic:1,physical:1,ranged:1,flat:0}); // Ranged attacks retain their own multiplier instead of inheriting the mage melee penalty.
  assert.equal(mage.player_mp_max,120);assert.equal(fighter.player_mp_max,60);assert.equal(diplomat.player_mp_max,60);assert.equal(mage.player_mp,45);
  assert.equal(importLoadout(mage).player_mp_max,120,'Re-importing never doubles twice');
  mage.childish=10;mage.player_info.shame=0;mage.player_info.diaper_wet_absorbed=8;mage.player_info.diaper_tum_absorbed=4;
- const m=mageScaling(mage);assert.ok(Math.abs(m.magic-2.4)<1e-9);assert.equal(m.physical,0.2);assert.equal(m.flat,18);
- mage.player_info.rpp_abilities=['arcane_practice','sure_strike','deep_reserves'];const boosted=mageScaling(mage);assert.ok(boosted.magic>m.magic);assert.ok(boosted.physical>m.physical);assert.equal(boosted.flat,19);assert.equal(manaCapacity(mage),160);
+ const m=mageScaling(mage);assert.ok(Math.abs(m.magic-2.4)<1e-9);assert.equal(m.physical,0.2);assert.equal(m.ranged,1);assert.equal(m.flat,18);
+ mage.player_info.rpp_abilities=['arcane_practice','sure_strike','deep_reserves'];const boosted=mageScaling(mage);assert.ok(boosted.magic>m.magic);assert.ok(boosted.physical>m.physical);assert.equal(boosted.ranged,1.1);assert.equal(boosted.flat,19);assert.equal(manaCapacity(mage),160); // Sure Strike boosts both weapon channels while Arcane Practice and fullness remain magical bonuses.
 });
 
 test('free mage choices accumulate, debit once, preserve RPP and survive stale imports',()=>{
