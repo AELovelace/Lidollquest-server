@@ -1,3 +1,4 @@
+import {serveGmWiki} from './gm-wiki.mjs';
 import {createEnchanter,describeItem} from './enchantment.mjs';
 import {createLootRoller,describeLoot,DEFAULT_TUNING} from './loot.mjs';
 import {BlockList,isIPv4,isIPv6} from 'node:net';
@@ -423,6 +424,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
   const caller=client(req);
   if(requireTls&&!overTls(req))return send(403,{error:'gm_insecure_transport',error_description:'The gamemaster panel requires HTTPS.'}); // A grant must never cross the network in cleartext.
   if(!permitted(caller))return send(403,{error:'gm_forbidden_address'}); // Refused before the page is served and before any identity is considered.
+  if(serveGmWiki(req,res,url))return true; // Static handbook shares the panel's transport and address restrictions.
   if(['/gm','/gm/flow-editor'].includes(url.pathname)){
    if(req.method!=='GET')return send(405,{error:'gm_method_not_allowed'});
    res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Frame-Options':'DENY','Referrer-Policy':'no-referrer',

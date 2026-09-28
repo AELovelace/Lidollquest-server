@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#fff5fa">
+  <meta name="description" content="The LiDollQuest GM wiki: visual quest creation, NPC dialogue, flags, battles, maps, testing and publication.">
+  <title>GM Wiki · LiDollQuest</title>
+  <link rel="stylesheet" href="wiki.css">
+  <link rel="icon" type="image/svg+xml" href="assets/little-log-logo.svg">
+  <script src="vendor/marked.min.js" defer></script>
+  <script src="vendor/purify.min.js" defer></script>
+  <script src="wiki.js" defer></script>
+</head>
+<body class="home">
+  <a class="skip-link" href="#main">Skip to guide</a>
+  <header class="topbar">
+    <a class="brand" href="#/" aria-label="LiDollQuest wiki home"><img class="brand-logo" src="assets/little-log-logo.svg" width="46" height="46" alt=""><span>LiDOLL QUEST<small>GM wiki &middot; Online</small></span></a>
+    <button class="search-trigger" type="button" hidden><span aria-hidden="true">⌕</span> Search the guide <kbd>/</kbd></button>
+    <a class="play-link" href="/gm/flow-editor" target="lidollquest-flow">Story Workshop <span aria-hidden="true">↗</span></a>
+  </header>
+  <div class="wiki-layout">
+    <aside class="sidebar">
+      <details class="guide-nav" open><summary>Browse the guide <span aria-hidden="true">⌄</span></summary><nav id="chapters" aria-label="Wiki chapters"></nav></details>
+      <div class="sidebar-note"><img src="assets/little-log-logo.svg" width="42" height="42" alt=""><p>Write a story.<br>Bring the kingdom to life.</p><span class="online-badge"><i aria-hidden="true"></i> LiDollQuest Online</span></div>
+    </aside>
+    <main id="main" tabindex="-1">
+      <div class="breadcrumb"><a href="#/">GM wiki</a><span aria-hidden="true">/</span><span id="breadcrumb-label">Welcome</span></div>
+      <header class="page-heading">
+        <div class="eyebrow">LiDollQuest Online <span aria-hidden="true">✦</span> <span id="page-kicker">The GM authoring guide</span></div>
+        <h1 id="page-title">Your guide to<br>creating quests</h1>
+        <p class="lede" id="page-description">Build personal stories with quests, dialogue, battles and lasting character memories.</p>
+        <div id="hero" hidden><div class="hero-actions"><a class="button-primary" href="#/first-quest">Build your first quest <span aria-hidden="true">→</span></a><a class="text-link" href="#/workshop">Learn the workspace</a></div><div class="hero-sigil" aria-hidden="true"><img src="assets/little-log-logo.svg" width="132" height="132" alt=""><span>A story to share</span></div></div>
+        <div class="page-meta"><span id="reading-time">GM authoring guide</span><a id="markdown-link" href="content/index.md">View Markdown</a></div>
+      </header>
+      <section id="chapter-cards" class="chapter-grid" aria-label="Browse the guide" hidden></section>
+      <p id="page-status" role="status">Loading the GM authoring guide…</p>
+      <article id="article" class="prose" aria-label="GM authoring guide"></article>
+      <noscript><p>This wiki renders Markdown in your browser. Enable JavaScript to read and search the guide, or <a href="content/index.md">open its Markdown source</a>.</p></noscript>
+      <nav id="pagination" class="chapter-pagination" aria-label="Chapter navigation"></nav>
+      <footer class="page-footer"><span>LiDollQuest · The online GM authoring guide</span><a id="back-to-top" href="#main">Back to top ↑</a></footer>
+    </main>
+    <aside class="on-this-page" aria-label="On this page"><p class="nav-group">On this page</p><nav id="toc" class="toc"></nav><div class="help-note">A little stuck?<a href="#/troubleshooting">Find an answer →</a></div></aside>
+  </div>
+  <dialog class="search-dialog" aria-labelledby="search-title">
+    <div class="search-header"><label id="search-title" for="wiki-search">Search the GM wiki</label><button class="search-close" type="button" aria-label="Close search">Esc <span aria-hidden="true">×</span></button></div>
+    <input id="wiki-search" type="search" placeholder="Try “diapers”, “party”, or “bank”…" autocomplete="off" spellcheck="false" aria-controls="search-results" aria-describedby="search-status">
+    <p id="search-status" role="status" aria-live="polite">Search across all chapters.</p>
+    <ul id="search-results"></ul>
+    <p class="search-tip">Tab to a result, then Enter to read. Escape closes search.</p>
+  </dialog>
+</body>
+</html>

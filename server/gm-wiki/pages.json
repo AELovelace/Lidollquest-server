@@ -1,0 +1,114 @@
+[
+  {
+    "slug": "index",
+    "source": "index.md",
+    "title": "Welcome to the GM wiki",
+    "kicker": "Start here",
+    "description": "A practical handbook for making online quests and personal stories.",
+    "group": "Start creating"
+  },
+  {
+    "slug": "getting-started",
+    "source": "getting-started.md",
+    "title": "Access & authoring basics",
+    "kicker": "First session",
+    "description": "Open the tools, understand shared records, and plan a small story.",
+    "group": "Start creating"
+  },
+  {
+    "slug": "workshop",
+    "source": "workshop.md",
+    "title": "Using Story Workshop",
+    "kicker": "Workspace",
+    "description": "Canvas controls, content forms, connections, recovery, and navigation.",
+    "group": "Start creating"
+  },
+  {
+    "slug": "first-quest",
+    "source": "first-quest.md",
+    "title": "Build your first quest",
+    "kicker": "Worked tutorial",
+    "description": "Create a rescue quest from an NPC offer to a battle, remembered victory, and epilogue orb.",
+    "group": "Start creating"
+  },
+  {
+    "slug": "quests",
+    "source": "quests.md",
+    "title": "Quest stages & objectives",
+    "kicker": "Quest reference",
+    "description": "Track objectives, branches, timers, rewards, and repeat eligibility.",
+    "group": "Authoring reference"
+  },
+  {
+    "slug": "npcs",
+    "source": "npcs.md",
+    "title": "NPCs & dialogue",
+    "kicker": "Conversations",
+    "description": "Create dialogue pages, keep quest services available, and author ordered story reactions.",
+    "group": "Authoring reference"
+  },
+  {
+    "slug": "flags",
+    "source": "flags.md",
+    "title": "Player story flags",
+    "kicker": "Character memory",
+    "description": "Define, check, set, clear, inspect, and test persistent personal flags.",
+    "group": "Authoring reference"
+  },
+  {
+    "slug": "blocks",
+    "source": "blocks.md",
+    "title": "Flow block reference",
+    "kicker": "Playable stories",
+    "description": "Every executable block, its settings, outputs, and practical uses.",
+    "group": "Authoring reference"
+  },
+  {
+    "slug": "orbs-art",
+    "source": "orbs-art.md",
+    "title": "Orbs, narratives & artwork",
+    "kicker": "Presentation",
+    "description": "Place memories, link narrative scenes, import pages, and select approved art.",
+    "group": "Authoring reference"
+  },
+  {
+    "slug": "monsters-rewards",
+    "source": "monsters-rewards.md",
+    "title": "Battles, rewards & effects",
+    "kicker": "Game systems",
+    "description": "Connect combat safely, budget rewards, and use supported character effects.",
+    "group": "Authoring reference"
+  },
+  {
+    "slug": "maps",
+    "source": "maps.md",
+    "title": "Zones & placements",
+    "kicker": "World editing",
+    "description": "Place content on valid tiles and work with spawn settings and map regeneration.",
+    "group": "Authoring reference"
+  },
+  {
+    "slug": "testing",
+    "source": "testing.md",
+    "title": "Preview & isolated tests",
+    "kicker": "Try every path",
+    "description": "Simulate a story, test it in the game, and check flags, failure paths, and recovery.",
+    "group": "Test and release"
+  },
+  {
+    "slug": "publishing",
+    "source": "publishing.md",
+    "title": "Save, publish & rollback",
+    "kicker": "Release workflow",
+    "description": "Manage drafts, references, conflicts, pinned runs, and rollout.",
+    "group": "Test and release"
+  },
+  {
+    "slug": "troubleshooting",
+    "source": "troubleshooting.md",
+    "title": "Troubleshooting & recipes",
+    "kicker": "Find an answer",
+    "description": "Diagnose missing options, stalled stories, dark orbs, and repeat-play issues.",
+    "group": "Test and release"
+  }
+]

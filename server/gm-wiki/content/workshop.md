@@ -1,0 +1,81 @@
+# Using Story Workshop
+
+[Wiki home](index.md)
+
+## The workspace
+
+The left pane contains a searchable block palette and content library. The center is the story canvas. The right pane edits the selected block or the overall story. **Player preview** opens a collapsible presentation pane over the canvas. **Zone map & placements** opens the world placement tools.
+
+The toolbar contains New flow, Save draft, Validate, Publish, Rollback, Undo, Redo, Duplicate, Delete, Fit, Arrange, zoom controls, Flag library, Player preview, and In-game test. The saved-flow dropdown selects an existing draft.
+
+## Add and edit a block
+
+Click a palette button to create a block, or drag it onto the canvas. Select its card to show its properties. Give it a label that explains its job, such as “Offer the rescue,” “Victory only,” or “Return after helping.” Labels are for authors; **Player-facing text** is what the player reads.
+
+Dialogue, Narrative and Player choice blocks also offer **Portrait / artwork**. Choose an existing approved asset or compiled sprite. See [Artwork](orbs-art.md#artwork).
+
+Dragging a library record onto the canvas creates an appropriate reference block: a monster becomes Battle, a quest becomes Quest operation, a zone becomes Travel, an NPC becomes Dialogue, and an orb becomes Narrative. Inspect the result: this does not automatically create a placement, entry binding, complete conversation, or all related quest steps.
+
+## Connect execution ports
+
+1. Click an output port on the source card.
+2. Click **Input** on the destination card.
+3. Check the labeled wire.
+
+For example, connect a Battle's `victory` output to Set flag and its `defeat` and `retreat` outputs to different explanatory pages. Each output has one destination. Several outputs can converge on the same block.
+
+Select an already-connected output and choose another input to reconnect it. Select a wire and press Delete to remove that connection. You can also choose destinations in the right pane's **Connect next**, **Connect victory**, or other output fields.
+
+Solid execution wires mean “run this next.” A dashed reference button opens shared content. A content reference does not execute that asset as a separate story or put it on the map.
+
+## Move around and organize
+
+| Action | Control |
+| --- | --- |
+| Move a card | Drag the card body |
+| Select several cards | Shift-click cards |
+| Select all cards | Ctrl+A outside a text field |
+| Duplicate selection | Duplicate or Ctrl+D |
+| Delete selection or selected wire | Delete |
+| Undo / redo canvas edits | Ctrl+Z / Ctrl+Shift+Z, or toolbar buttons |
+| Move selected cards precisely | Arrow keys while navigating the canvas |
+| Pan | Drag empty canvas |
+| Zoom | Mouse wheel over the canvas, or − / + |
+| Show the complete graph | Fit |
+| Lay out connected blocks | Arrange |
+| Save | Save draft or Ctrl+S |
+
+Duplicate copies selected blocks and connections between those selected blocks. Check incoming and outgoing connections to blocks outside the selection afterward. Arrange changes visual positions; it does not choose the correct story order for you.
+
+Cards and controls can receive keyboard focus. Avoid using graph shortcuts while typing in a text field. Click empty canvas or **Story settings / bindings** to return the right pane to flow settings.
+
+## Story settings and bindings
+
+Set a stable flow ID, name, description, and Repeatable setting. Use **Add entry binding** to choose a trigger kind, referenced content, entry block, and optional flag requirements.
+
+| Trigger | Meaning |
+| --- | --- |
+| `npc` | Offers the personal story through that NPC's conversation |
+| `orb` | Starts when the character reads that placed orb |
+| `zone` | Starts from the supported zone-entry path |
+| `objective` | Uses completion of the referenced quest instance: ready or claimed |
+
+The objective binding is a quest-level completion trigger, not a free-form individual objective ID. For stage-by-stage behavior, use quest stages and branches, then explicit waits or choices in the flow.
+
+A published trigger belongs to one active flow. Put alternative flag-dependent routes inside that flow or use ordered NPC reactions; do not publish competing flows for the same NPC. See [NPC reactions](npcs.md#ordered-story-reactions).
+
+## Edit a shared record
+
+Open an item in the content library or click a block's **Reference** button. The shared record form opens in a dialog. Expand nested sections to edit them. Arrays have Add, Remove and Move up controls; their entries can also be dragged to reorder.
+
+Choose **Keep edits in bundle**, then **Save draft** on the flow. These edits are part of the current bundle, not an unrelated copy of the content. Publishing that bundle changes the shared asset for future users of the asset, including other stories.
+
+Some canonical fields use technical labels such as `next`, `target`, `mode`, or `sharing`. Their supported values are documented in the relevant chapters. No JSON editor is required. If a specialized control is absent from the generic form, use the existing advanced editor for that same record, then reload to obtain its current revision.
+
+## Validate, recover, and resolve conflicts
+
+Use **Validate** frequently. Errors identify affected blocks or missing connections; warnings can identify unreachable content. Incomplete drafts can be saved, but errors must be fixed before publishing or running a validated test.
+
+Unsaved flow work is stored for recovery in that browser tab under the signed-in owner. After a reload, accept the recovery prompt if it contains the work you want. This is not a server backup and does not follow you to another browser.
+
+If another window changes a record, copy any important unsaved prose, reload the current server draft, and apply your intended changes again. Repeatedly clicking Publish does not resolve a revision conflict. See [Publishing](publishing.md).

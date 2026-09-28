@@ -1415,3 +1415,7 @@ Storage adds versioned flows/history, authored flag definitions, pinned characte
 GM test codes are owner-bound, last 30 minutes, and run in separate in-memory SQLite databases with persisted overlays and local wallet stubs. `/storytest CODE` enters the copy; `/storytest stop` returns to the real character. Test commands carry a session ID so expired commands cannot reach real progression. Combat still uses the normal party/follower limits.
 
 Run `node --test test/story-flows.test.mjs test/flow-integration.test.mjs`, the existing quest/GM/world suites, and the game checkout's `python/tests/fixtures/gm_flow_browser.mjs`. See the game's `GM_FLOW_EDITOR_GUIDE.md` for the complete authoring workflow. No changes are required in `npc-rag`.
+
+### GM quest-creation wiki
+
+Open `/gm/wiki/` or the **GM wiki / Quest creation guide** links in the GM panel and Story Workshop. Fourteen Markdown chapters cover the worked rescue quest, every flow block, canonical quests/NPCs/monsters/orbs, persistent flags, map placements, testing, publication and troubleshooting. Sources are in `server/gm-wiki/content/`; the existing server serves them and local JavaScript renders/searches them in the browser. No documentation build or separate service is required. See [wiki maintenance](server/gm-wiki/README.md). The handbook shares the GM surface's enabled/TLS/address restrictions and contains no live staff data; editing APIs still require staff authentication.
