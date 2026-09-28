@@ -89,3 +89,7 @@ After a successful claim, set a completion flag. Require that flag in an orb's s
 ## What to include in a bug report
 
 Record the server/build, flow ID and published revision, node label/ID, related quest and NPC IDs, map edition, character ID, exact action, expected result, actual error, and whether you were in an isolated test. Include relevant flag names and quest status. Do not include sign-in grants, tokens or private credentials.
+
+## Ask the GM wiki assistant
+
+Open **Ask the GM wiki assistant** from Story Workshop or the GM panel for a separate chat window. It uses your staff sign-in and can show matching handbook sections and pictures. See [Using the GM assistant](ai-help.md) for follow-ups, image controls and troubleshooting.

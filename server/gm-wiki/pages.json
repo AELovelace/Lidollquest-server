@@ -24,6 +24,14 @@
     "group": "Start creating"
   },
   {
+    "slug": "ai-help",
+    "source": "ai-help.md",
+    "title": "Ask the GM wiki assistant",
+    "kicker": "Help while authoring",
+    "description": "Ask questions in the editor, follow linked sources, and enlarge relevant wiki pictures.",
+    "group": "Start creating"
+  },
+  {
     "slug": "first-quest",
     "source": "first-quest.md",
     "title": "Build your first quest",

@@ -61,3 +61,7 @@ Creating a flag definition changes the flag library. It does not set the flag on
 4. Inspect one existing NPC, quest and monster to learn the form structure.
 5. Follow the [worked tutorial](first-quest.md).
 6. Use [isolated tests](testing.md) before placing a live entry point near players.
+
+## Ask the GM wiki assistant
+
+Open **Ask the GM wiki assistant** from Story Workshop or the GM panel for a separate chat window. It uses your staff sign-in and can show matching handbook sections and pictures. See [Using the GM assistant](ai-help.md) for follow-ups, image controls and troubleshooting.

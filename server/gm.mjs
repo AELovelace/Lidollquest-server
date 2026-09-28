@@ -1,3 +1,4 @@
+import {createGmHelp} from './gm-help.mjs';
 import {serveGmWiki} from './gm-wiki.mjs';
 import {createEnchanter,describeItem} from './enchantment.mjs';
 import {createLootRoller,describeLoot,DEFAULT_TUNING} from './loot.mjs';
@@ -14,6 +15,7 @@ const KINDS=Object.freeze(['mute','suspend']); // The only two sanctions a gamem
 const CONTROL=/[\x00-\x1f\x7f]/g; // Stripped from every stored string so no reason or announcement can smuggle in line breaks.
 const SIGNIN_SCOPE='wallet:read'; // The panel needs identity alone: no balance changes, saves, social data or character access.
 const flowPage=readFileSync(new URL('./gm-flow-editor.html',import.meta.url),'utf8').replace('/* FLOW_EDITOR */',()=>readFileSync(new URL('./gm-flow-editor.js',import.meta.url),'utf8'));
+const helpPage=readFileSync(new URL('./gm-help.html',import.meta.url),'utf8').replace('/* GM_HELP */',()=>readFileSync(new URL('./gm-help.js',import.meta.url),'utf8'));
 const panelPage=readFileSync(new URL('./gm-panel.html',import.meta.url),'utf8').replace('<!-- GM_GUIDE -->',()=>readFileSync(new URL('./gm-guide.html',import.meta.url),'utf8')).replace('/* GM_GUIDE_SCRIPT */',()=>readFileSync(new URL('./gm-guide.js',import.meta.url),'utf8')).replace('/* WORLD_PANEL */',()=>readFileSync(new URL('./gm-world-panel.js',import.meta.url),'utf8').replace('/* MONSTER_EDITOR */',()=>readFileSync(new URL('./gm-monster-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-quest-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-orb-editor.js',import.meta.url),'utf8'))); // Read once at boot so a moderation click never touches the disk.
 
 export const gmZones=Object.freeze([
@@ -64,7 +66,8 @@ export function buildAllowList(text){ // Comma-separated addresses and CIDR bloc
  return list;
 } // Rejected loudly at construction so a typo cannot silently admit the whole network.
 
-export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn}={}){
+export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn,helpOptions={}}={}){
+ const help=createGmHelp(helpOptions); // Separate read-only service; staff authentication stays in this router.
  const announcementStore=()=>typeof announcements==='function'?announcements():announcements; // Passed lazily by service.mjs because the zones module is created after the panel.
  const rp=createRoleplay(db,{now}); // RP journals use the same live staff authorization as every moderation tool.
  const rpp=createRpp(db,{now}); // Staff-only RPP gifts and purchase history never touch premium currencies.
@@ -425,11 +428,11 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
   if(requireTls&&!overTls(req))return send(403,{error:'gm_insecure_transport',error_description:'The gamemaster panel requires HTTPS.'}); // A grant must never cross the network in cleartext.
   if(!permitted(caller))return send(403,{error:'gm_forbidden_address'}); // Refused before the page is served and before any identity is considered.
   if(serveGmWiki(req,res,url))return true; // Static handbook shares the panel's transport and address restrictions.
-  if(['/gm','/gm/flow-editor'].includes(url.pathname)){
+  if(['/gm','/gm/flow-editor','/gm/help'].includes(url.pathname)){
    if(req.method!=='GET')return send(405,{error:'gm_method_not_allowed'});
    res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Frame-Options':'DENY','Referrer-Policy':'no-referrer',
     'Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; form-action 'none'; base-uri 'none'"});
-   res.end(url.pathname==='/gm/flow-editor'?flowPage:panelPage);return true; // The shell carries no player data: every figure on it arrives through an authenticated fetch below.
+   res.end(url.pathname==='/gm/help'?helpPage:url.pathname==='/gm/flow-editor'?flowPage:panelPage);return true; // The shell carries no player data: every figure on it arrives through an authenticated fetch below.
   }
   const origin=req.headers.origin;
   if(origin&&origin!=='http://'+req.headers.host&&origin!=='https://'+req.headers.host)return send(403,{error:'gm_bad_origin'}); // The panel's own writes are same-origin, and a forged page could not attach the bearer header anyway.
@@ -450,6 +453,11 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
     return send(200,{access_token:granted.access_token,expires_in:granted.expires_in??2592000,owner:identity.owner});
    }
    const who=await actor(req); // Every remaining route requires a live gamemaster identity.
+   if(url.pathname==='/gm/help/chat'&&req.method==='POST'){
+    const reply=await help(who,await body(req,64*1024));
+    await actor(req); // Recheck a role revoked while a slow answer was being generated.
+    return send(200,reply);
+   }
    if(url.pathname==='/gm/whoami'&&req.method==='GET')return send(200,{owner:who,serverTime:now()});
    if(url.pathname==='/gm/overview'&&req.method==='GET')return send(200,{...overview(),actor:who});
    if(url.pathname==='/gm/performance'&&req.method==='GET')return send(200,performanceSnapshot()); // Reuses the live role, address, origin and TLS checks above; never exposed by /health.

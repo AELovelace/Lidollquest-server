@@ -5,12 +5,28 @@ import {inside} from './dive-generation.mjs';
 const zones={dungeon:'dungeon-castle-dungeon',auto_nursery:'dungeon-auto-nursery',auto_school:'dungeon-regression-school',regression_hospital:'dungeon-regression-hospital',haunted_forest:'overworld-haunted-woods'};
 export const dungeonDataFor=zone=>fullDungeons.find(d=>d.config.zone_id===zone);
 const npcKey=name=>{for(const d of fullDungeons)for(const [id,npc] of Object.entries(d.npcs))if(npc.name===name)return d.config.zone_id+':npc-'+id;throw Error('Missing online quest NPC '+name);};
+const roomName=target=>String(target).replace(/^full-room:|^nursery_/g,'').replace(/_/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase()); // "nursery_intake" / "full-room:intake" -> "Intake"
+const taskLine=description=>String(description??'').split('\n').filter(Boolean).pop()??''; // campaign descriptions read "who wants it\n what to do"
+function objectiveLabel(q,type,target){ // One short journal line per objective instead of the whole description on every row.
+ if(type==='visit'&&String(target).startsWith('full-room:')&&target!=='full-room:deep_nursery')return 'Visit the '+roomName(target)+' room'; // explore_all: one line per room type
+ if(type==='visit'&&q.zone_hint)return 'Reach '+q.zone_hint.replace(/^The /,'the ');
+ if(type==='kill')return 'Defeat '+(q.goal>1?q.goal:'the')+' '+(q.target_label??target); // "Defeat 3 NannyBots" / "Defeat the Nursery Witch"
+ if(type==='collect'&&q.target_label)return 'Find the '+q.target_label;
+ if(type==='collect'&&q.type==='delivery')return 'Collect the letter';
+ if(type==='deliver')return 'Deliver the letter to '+q.deliver_to;
+ return taskLine(q.description); // state quests already end on a clear instruction line
+}
+let labelCache=null; // questId:objectiveId -> label, built once from the shipped pack
+export function fullDungeonObjectiveText(questId,o){ // Relabels accepted instances whose frozen definitions still copy the description onto every objective.
+ labelCache??=new Map(fullDungeonQuestPack().flatMap(q=>q.stages.flatMap(st=>st.objectives.map(v=>[q.id+':'+st.id+':'+v.id,v.text]))));
+ return labelCache.get(questId+':'+o.stage+':'+o.id)??taskLine(o.text);
+}
 
 export function fullDungeonQuestPack(){
  return Object.entries(fullDungeonContent.quests).map(([key,raw])=>{
   const q={...raw,...fullDungeons[0].adaptations?.quest_text?.[key]};
   const reward=q.rewards??{},giver=npcKey(q.giver_npc),objectives=[],stages=[];
-  const objective=(type,target,count=1,extra={})=>({id:'objective_'+objectives.length,type,target,count,text:q.description,sharing:'personal',...extra});
+  const objective=(type,target,count=1,extra={})=>({id:'objective_'+objectives.length,type,target,count,text:objectiveLabel(q,type,target),sharing:'personal',...extra}); // per-objective line, not the whole description
   if(q.type==='kill')objectives.push(objective('kill',q.target_enemy,q.goal,{zone:zones[q.target_zone]}));
   else if(q.type==='explore')objectives.push(objective('visit',q.target_zone==='dungeon_deep'?'full-room:deep_nursery':zones[q.target_zone]));
   else if(q.type==='explore_all')for(const target of q.target_zones)objectives.push(objective('visit','full-room:'+target.replace(/^nursery_/,''),1,{zone:'dungeon-auto-nursery'}));

@@ -85,3 +85,7 @@ If another window changes a record, copy any important unsaved prose, reload the
 ## Shared asset publication controls
 
 NPC and quest forms now have a fixed toolbar for **Save asset drafts**, **Publish asset bundle...**, **Keep edits in bundle**, and **Remove from bundle**. Errors stay visible inside the form. Saved shared edits remain in the current flow bundle until publication, including after tab recovery. Library labels show draft-only records and unpublished changes. The [publishing guide](publishing.md#publish-an-npc-or-quest-without-a-flow) explains the distinction between these buttons and the canvas Publish button.
+
+## Ask the GM wiki assistant
+
+Open **Ask the GM wiki assistant** from Story Workshop or the GM panel for a separate chat window. It uses your staff sign-in and can show matching handbook sections and pictures. See [Using the GM assistant](ai-help.md) for follow-ups, image controls and troubleshooting.
