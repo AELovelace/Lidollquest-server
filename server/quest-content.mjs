@@ -1,4 +1,5 @@
 // Declarative online content: neither dialogue nor objective conditions can contain executable code.
+import {validateFlagCondition} from './story-flags.mjs';
 export const objectiveTypes=['talk','visit','interact','collect','deliver','kill','equipment','state','timer'];
 export const questStats=['str','def','dex','int','cha','playerHealthMax'];
 export const stateFields=['shame','wet','tum','health','incontinence','excitement','stamina','childish','forced_inco_turns','had_wet_accident','had_tum_accident'];
@@ -9,13 +10,16 @@ const num=(v,min=0,max=1000000)=>Number.isSafeInteger(v)&&v>=min&&v<=max?v:fail(
 const list=(v,max=64)=>Array.isArray(v)&&v.length<=max?v:fail(`Use at most ${max} entries.`);
 const choose=(v,values)=>values.includes(v)?v:fail('Unknown quest option: '+v);
 const unique=rows=>{if(new Set(rows.map(r=>r.id)).size!==rows.length)fail('IDs must be unique.');return rows;};
-export function validateConditions(value=[]){return list(value,16).map(c=>({field:choose(c.field,stateFields),op:choose(c.op??'gte',['gte','lte','eq']),value:num(c.value,-1000000),...(c.item?{item:id(c.item)}:{})}));}
+export function validateConditions(value=[]){return list(value,16).map(c=>c.flags?{flags:validateFlagCondition(c.flags)}:{field:choose(c.field,stateFields),op:choose(c.op??'gte',['gte','lte','eq']),value:num(c.value,-1000000),...(c.item?{item:id(c.item)}:{})});}
 export function validateQuestContent(kind,v,{assetRef,spells,equipment}){
  const out={id:id(v.id),name:text(v.name??'',100),description:text(v.description??''),retired:!!v.retired};
  if(kind==='npc'){
   out.sprite=assetRef(v.sprite??'');out.battle_sprite=assetRef(v.battle_sprite??'');out.wander_radius=num(v.wander_radius??0,0,8);
   out.quests=list(v.quests??[],32).map(id);out.dialogue=unique(list(v.dialogue??[]).map((p,i)=>({id:id(p.id??'page_'+i),text:text(p.text??''),next:p.next??'close',actions:list(p.actions??[],8).map(a=>({label:text(a.label??'',160),next:a.next??'close',effect:choose(a.effect??'none',['none','offer','turn_in','branch']),...(a.quest?{quest:id(a.quest)}:{}),...(a.branch?{branch:id(a.branch)}:{}),conditions:validateConditions(a.conditions)}))})));
   const names=new Set(out.dialogue.map(p=>p.id));for(const p of out.dialogue)for(const link of [p,...p.actions]){if(Number.isInteger(link.next))link.next=out.dialogue[link.next]?.id;if(link.next!=='close'&&!names.has(link.next))fail('Dialogue points to an unknown page.');if(link.effect&&link.effect!=='none'&&!link.quest)fail('Choose a quest for this dialogue action.');}
+  out.story_reactions=list(v.story_reactions??[],32).map(r=>({conditions:validateFlagCondition(r.conditions),page:r.page?id(r.page):'',entry:r.entry?id(r.entry):''}));
+  out.story_default=v.story_default?id(v.story_default):out.dialogue[0]?.id??'';if(out.story_default&&!names.has(out.story_default))fail('Choose an existing default greeting.');
+  if(out.story_reactions.some(r=>r.page?!names.has(r.page):!r.entry))fail('Choose an existing dialogue page for each story reaction.');
  }else{
   if(v.offer_line!==undefined)out.offer_line=text(v.offer_line);if(v.complete_line!==undefined)out.complete_line=text(v.complete_line); // Preserve authored side-quest offer and outcome dialogue in pinned definitions.
   out.prerequisites=list(v.prerequisites??[],32).map(id);out.conditions=validateConditions(v.conditions);

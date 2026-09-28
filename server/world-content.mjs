@@ -1,3 +1,4 @@
+import {validateFlagCondition} from './story-flags.mjs';
 import {validateQuestContent,checkQuestReferences,objectiveTypes,stateFields,questStats} from './quest-content.mjs';
 import {validateWorldPng} from './world-png.mjs';
 import {createHash} from 'node:crypto';
@@ -37,7 +38,9 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  }
  function rows(){return db.prepare('SELECT * FROM world_content').all();}
  function effective(value){const out=clone(value);if(!out.defeat&&defaultSceneRefs[out.enemy_id??out.id]){out.defeat_ref=defaultSceneRefs[out.enemy_id??out.id];out.defeat_inherited=true;}return out;} // Map definitions retain immutable references instead of copying every page into every room.
+ let publicationOverlay=null;
  function published(){
+  if(publicationOverlay)return publicationOverlay;
   if(cache)return cache;const monsters=Object.fromEntries([...baselines.monster].map(([k,v])=>[k,clone(v)])),zones=Object.fromEntries([...baselines.zone].map(([k,v])=>[k,clone(v)]));let revision=0;const npcs={},orbs={},quests=Object.fromEntries([...baselines.quest].map(([k,v])=>[k,clone(v)])); // A shipped quest pack is live on boot; a saved row still overlays it, so the panel can edit or retire any one of them.
   for(const row of rows()){if(row.published)({monster:monsters,zone:zones,npc:npcs,quest:quests,orb:orbs}[row.kind])[row.id]=JSON.parse(row.published);}
   for(const key of Object.keys(monsters))monsters[key]=effective(monsters[key]);
@@ -74,6 +77,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
    const colour=typeof value.colour==='string'&&/^#[0-9a-fA-F]{6}$/.test(value.colour)?value.colour.toLowerCase():fail('Pick the orb colour as #rrggbb.');
    const requires=value.requires??'';if(requires!==''&&(!id(requires)||requires===value.id))fail('Choose another orb that must be read first, or none.');
    const out={id:value.id,title:text(value.title??'',100).trim()||fail('Give the orb a title.'),colour,bg_color:[...rgb],type_speed:integer(value.type_speed??2,1,10),repeatable:!!value.repeatable,requires,retired:!!value.retired,note:text(value.note??'',400),pages:beats(value.pages??[])};
+   out.story_conditions=validateFlagCondition(value.story_conditions);
    if(!out.pages.length||out.pages.some(p=>!p.text.trim()))fail('Write at least one page, and no empty pages.');
    if(Buffer.byteLength(JSON.stringify(out))>64*1024)fail('Keep one orb story below 64 KiB.');
    return out;
@@ -85,7 +89,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
   return out;
  }
  function checkReferences(kind,body){
-  const live=published();
+  const live=published();storyReferenceCheck?.(kind,body);
   if(['npc','quest'].includes(kind)){checkQuestReferences(kind,body,live);referenceCheck?.(kind,body);}
   if(kind==='zone'){for(const key of [...body.pool.map(e=>e.enemy_id),body.boss_enemy_id].filter(Boolean))if(!live.monsters[key]||live.monsters[key].retired)fail('Publish every referenced monster first.');}
   if(['monster','npc'].includes(kind)&&body.retired)for(const quest of Object.values(live.quests))if(!quest.retired&&(kind==='npc'&&(quest.givers.includes(body.id)||quest.turn_in.npc===body.id)||quest.stages.some(s=>s.objectives.some(o=>(kind==='monster'?o.type==='kill':o.type==='talk')&&o.target===body.id))))fail('Update or retire the quests referencing this definition first.');
@@ -105,6 +109,15 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
   const encoded=JSON.stringify(body);db.prepare('INSERT INTO world_content VALUES (?,?,?,?,?) ON CONFLICT(kind,id) DO UPDATE SET revision=excluded.revision,draft=excluded.draft,published=excluded.published').run(kind,key,revision,encoded,publish?encoded:row?.published??null);
   if(publish)db.prepare('INSERT INTO world_content_history VALUES (?,?,?,?,?,?)').run(kind,key,revision,encoded,actor,now());cache=null;return entry(kind,key);
  }
+ function bundle(assets,actor,publish){
+  const seen=new Set();for(const a of assets){const key=a.kind+':'+a.id;if(seen.has(key))fail('A bundle contains duplicate assets.');seen.add(key);change({...a,action:'content_save'},actor);}
+  if(!publish)return;
+  const candidate=clone(published()),groups={monster:'monsters',zone:'zones',npc:'npcs',quest:'quests',orb:'orbs'};
+  for(const a of assets)candidate[groups[a.kind]][a.id]=entry(a.kind,a.id).draft;
+  publicationOverlay=candidate;
+  try{for(const a of assets)checkReferences(a.kind,candidate[groups[a.kind]][a.id]);for(const a of assets)change({...a,revision:a.revision+1,action:'content_publish'},actor);}
+  finally{publicationOverlay=null;cache=null;}
+ } // Validate interdependent definitions together; the GM transaction commits all revisions or none.
  function view(){const live=published();return {revision:live.revision,enabled:live.enabled,npcs:rows().filter(r=>r.kind==='npc').map(r=>entry('npc',r.id)),orbs:rows().filter(r=>r.kind==='orb').map(r=>entry('orb',r.id)),quests:[...new Set([...baselines.quest.keys(),...rows().filter(r=>r.kind==='quest').map(r=>r.id)])].map(key=>entry('quest',key)),questCatalog:{objectiveTypes,stateFields,questStats},monsters:[...new Set([...baselines.monster.keys(),...rows().filter(r=>r.kind==='monster').map(r=>r.id)])].map(key=>entry('monster',key)),zones:[...routes.keys()].map(key=>entry('zone',key)),compiledSprites:[...compiledSprites],spells:Object.keys(spells),equipment:Object.entries(equipment).map(([id,v])=>({id,name:v.name})),assets:db.prepare('SELECT id,frames,width,height FROM world_assets').all()};}
  function resolve(data){ // Preserve route-specific shipped stats until a DM publishes an override for that monster ID.
   const out=clone(data),live=published(),zone=out.config.zone_id??'dive-quarters',t=live.zones[zone];
@@ -127,7 +140,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
   if(typeof input.request_id!=='string'||! /^[A-Za-z0-9_-]{8,100}$/.test(input.request_id))fail('A request ID is required.');const fingerprint=JSON.stringify(input),prior=db.prepare('SELECT * FROM world_commands WHERE actor=? AND id=?').get(actor,input.request_id);
   if(prior){if(prior.fingerprint!==fingerprint)fail('Request ID was already used.',409);return JSON.parse(prior.result);}const result=work();db.prepare('INSERT INTO world_commands VALUES (?,?,?,?)').run(actor,input.request_id,fingerprint,JSON.stringify(result));return result;
  }
- let referenceCheck=null;
+ let referenceCheck=null,storyReferenceCheck=null;
  registerQuestPack(questPack); // Before any caller reads published(), so the first snapshot already carries the pack.
- return {mapReady:null,questEvent:null,placementPositions:null,setReferenceCheck(fn){referenceCheck=fn;},register,registerQuestPack,published,entry,change,view,resolve,putAsset,asset,assetRef,once,invalidate(){cache=null;}}; // Placements share the editor's compiled/immutable artwork validation.
+ return {mapReady:null,questEvent:null,placementPositions:null,setReferenceCheck(fn){referenceCheck=fn;},setStoryReferenceCheck(fn){storyReferenceCheck=fn;},register,registerQuestPack,published,entry,change,bundle,view,resolve,putAsset,asset,assetRef,once,invalidate(){cache=null;}}; // Placements share the editor's compiled/immutable artwork validation.
 }

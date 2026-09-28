@@ -68,6 +68,7 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
  function reset(a,s){a.cycle++;a.prepared=false;a.rowSwapped=false;a.duration=actionDelay(s.loadout.player_info.dex);a.readyAt=now()+a.duration;a.run.turn=a.cycle;a.run.turnReady=false;}
  function out(e,a,enemy,outcome){a.status=outcome;a.defeatEnemy=clone(enemy);a.prepared=false;a.downedAt=now();for(const ally of e.followers??[])if(ally.hirer===a.id&&ally.status==='active')ally.status='owner_out';message(e,a.name+' '+(outcome==='defeat'?'is down.':outcome==='flee'?'retreats from the fight.':'is out of the fight.'));} // Recovery time starts when this member goes down, not when the survivors finish fighting.
  function start(c,state,record,foe){
+  if(foe.storyOwner&&foe.storyOwner!==c.id)fail('This encounter belongs to another character.');
   const members=parties?.members(c.id)??[],people=members.length?members:[c];
   const eligible=(s,other)=>context?context.eligible(s,other,record):s.dive?.edition===record.edition&&s.dive?.route===route;
   const rows=people.map(other=>({c:other,s:other.id===c.id?state:JSON.parse(other.state)})).filter(({s,c:other})=>!s.pendingDefeat&&eligible(s,other)); // Downed or elsewhere members retain membership but do not enter this encounter.
@@ -75,11 +76,11 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
   if(rows.some(v=>parties?.followers?.get(v.c.id)?.status==='pending'))fail('Finish the companion payment before entering combat.');
   if(!rows.some(row=>row.c.id===c.id))fail('Finish recovering before entering combat.');
   for(const {c:other,s} of rows){
-   if(s.run||s.dungeonScene||s.worldTurnDue||s.pendingPurchase||!s.loadout||s.loadout.player_info.playerHealth<=0||!eligible(s,other))fail(other.name+' must finish preparing before the party can fight.'); // A durable dungeon scene must finish before this member enters combat.
+   if((other.id!==foe.storyOwner&&live?.flowBlocking?.(other))||s.run||s.dungeonScene||s.worldTurnDue||s.pendingPurchase||!s.loadout||s.loadout.player_info.playerHealth<=0||!eligible(s,other))fail(other.name+' must finish preparing before the party can fight.'); // A durable dungeon scene must finish before this member enters combat.
   }
   const e={id:randomUUID(),edition:record.edition,zone,route,origin:{x:foe.x,y:foe.y},created:now(),sequence:0,events:[],players:[],followers:[],enemies:[]};
   const tuning=currentTuning(),fightLevel=encounterLevel(tuning,routeLevelFor(tuning,route,record.depth),rows.map(row=>row.s.loadout.player_info.level)); // Floor band, raised toward the strongest party member (party_level_slack); hub events use the default band.
-  for(const selected of (context?[foe]:selectEncounterEnemies({...record.floor,enemies:record.floor.enemies.filter(v=>!gone(v))},foe,data,roll,now()))){selected.engaged=e.id;const enemy=pinDefeat(clone(selected.definition??data.enemies[selected.type]));enemy.maxHp=enemy.hp;enemy.turn=0;
+  for(const selected of (context||foe.storyOwner?[foe]:selectEncounterEnemies({...record.floor,enemies:record.floor.enemies.filter(v=>!gone(v)&&!v.storyOwner)},foe,data,roll,now()))){selected.engaged=e.id;const enemy=pinDefeat(clone(selected.definition??data.enemies[selected.type]));enemy.maxHp=enemy.hp;enemy.turn=0;
    levelEnemy(tuning,enemy,fightLevel,{boss:selected.type===data.config.boss_id||enemy.tier==='boss'||enemy.boss===true}); // str/def/exp by the loot level curve, HP by turns-to-kill for the tier.
    const duration=enemyActionDelay(enemy.dex??0,roll)+e.enemies.length*encounterTuning.enemy_initial_stagger_ms;
    e.enemies.push({id:selected.id,data:enemy,duration,readyAt:now()+duration,dots:[],debuffs:[]});
@@ -111,6 +112,7 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
    s.lastResult={outcome,coins,rounds:1,zone,log:[...e.events.map(v=>v.text),...outfitLog,...dignity],...defeatPresentation(a.run,outcome),...(equipment?{defeatEquipment:equipment}:{})};s.wins=(s.wins??0)+(win?1:0);s.run=null;
    if(s.dive||context)relocate(c,s,win&&!s.lastResult.defeatScene?e.origin:entry(record.floor,s.dive?.origin),s.lastResult.defeatScene,a.downedAt); // A defeated member returns to their own gate even when the survivors win.
    if(!['flee','abandoned'].includes(outcome))for(const enemy of e.enemies.filter(v=>v.data.hp<=0))live?.questEvent?.(c,s,{id:'kill:'+e.id+':'+enemy.id,type:'kill',target:enemy.data.enemy_id??enemy.data.id,zone,created:e.created});
+   live?.flowBattleSettled?.(c,s,e.id,outcome); // Only the owning story consumes this settlement.
    if(force)back(c,s);
   }saveFloor(record);return true;
  } // All participants, enemy locks and reward entitlements settle in the caller's single database transaction.
@@ -178,6 +180,6 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
    if(forced||changed){settle(e,rows,record,forced);persist(e,rows);}
   }restarted=false;
  } // Process at most one action per enemy per tick; restart never replays a backlog of missed attacks.
- function snapshot(state){const e=fetch(state?.run?.sharedEncounter);if(!e||e.finished)return null;return {id:e.id,sequence:e.sequence,events:e.events,players:roster(e).map(({a,s})=>({id:a.id,name:a.name,npc:a.npc??null,hirer:a.hirer??null,row:a.row??'front',hp:a.run.hp,maxHp:a.run.maxHp,mp:s.loadout?.player_mp??0,maxMp:s.loadout?.player_mp_max??0,status:a.status,readyAt:a.readyAt,duration:a.duration,cycle:a.cycle,prepared:a.prepared,connected:!!a.npc||(db.prepare('SELECT seen FROM quest_presence WHERE character_id=?').get(a.id)?.seen??0)>now()-30000})),enemies:e.enemies.map(v=>({id:v.id,...publicEnemy(v.data),readyAt:v.readyAt,duration:v.duration}))};} // players carry row for the party cards. // Publish current committed mana, including ally casting, without duplicating it in encounter state.
+ function snapshot(state){const e=fetch(state?.run?.sharedEncounter);if(!e||e.finished)return null;return {id:e.id,sequence:e.sequence,events:e.events,players:roster(e).map(({a,s})=>({id:a.id,name:a.name,npc:a.npc??null,hirer:a.hirer??null,row:a.row??'front',hp:a.run.hp,maxHp:a.run.maxHp,mp:s.loadout?.player_mp??0,maxMp:s.loadout?.player_mp_max??0,status:a.status,readyAt:a.readyAt,duration:a.duration,cycle:a.cycle,prepared:a.prepared,connected:!!a.npc||(db.prepare('SELECT seen FROM quest_presence WHERE character_id=?').get(a.id)?.seen??0)>now()-30000})),enemies:e.enemies.map(v=>({...publicEnemy(v.data),id:v.id,readyAt:v.readyAt,duration:v.duration}))};} // players carry row for the party cards. // Publish current committed mana, including ally casting, without duplicating it in encounter state.
  return {start,act,tick,snapshot};
 }

@@ -1,3 +1,4 @@
+import {gameContext} from './game-context.mjs';
 import {isCrawling,syncCrawl,standBlockReason,setCrawling} from './crawl.mjs';
 import {readFileSync} from 'node:fs';
 import {applyRunLoadout,syncRunHealth} from './loadout.mjs';
@@ -10,8 +11,8 @@ import {mitigate,healScale,playerHpDelta,staminaDelta,rowSwapCostsTurn,rowDamage
 import {takeFromStack} from './loadout.mjs';
 
 let tuningSource=()=>DEFAULT_TUNING; // zones.mjs points this at the live loot store; tests and standalone callers get the shipped defaults.
-export function useTuning(fn){tuningSource=typeof fn==='function'?fn:()=>DEFAULT_TUNING;}
-export function currentTuning(){return tuningSource()??DEFAULT_TUNING;} // Every formula below reads its numbers through here.
+export function useTuning(fn){if(gameContext()){gameContext().tuning=fn;return;}tuningSource=typeof fn==='function'?fn:()=>DEFAULT_TUNING;}
+export function currentTuning(){return (gameContext()?.tuning??tuningSource)()??DEFAULT_TUNING;} // Every formula below reads its numbers through here.
 
 export const combatData=JSON.parse(readFileSync(new URL('./combat-data.json',import.meta.url),'utf8'));
 const clamp=(n,lo,hi)=>Math.max(lo,Math.min(hi,n));

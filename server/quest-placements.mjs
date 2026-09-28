@@ -24,8 +24,13 @@ export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQues
  function act(input){
   const map=view(input.zone);if(input.revision!==map.revision||input.edition!==map.edition)fail('The map changed. Refresh before placing content.');
   if(input.action==='world_place'&&map.placements.some(p=>Math.abs(p.x-input.x)+Math.abs(p.y-input.y)<=1))fail('Choose a tile away from NPCs and quest objectives.');
-  if(!['world_place_content','world_remove_content','world_scatter_orbs'].includes(input.action))return base.act({...input,revision:map.baseRevision});
+  if(!['world_place_content','world_update_content','world_remove_content','world_scatter_orbs'].includes(input.action))return base.act({...input,revision:map.baseRevision});
   if(map.job)fail('Wait for regeneration to finish.');
+  if(input.action==='world_update_content'){
+   const old=rows(input.zone).find(p=>p.id===input.placement);if(!old)fail('This placement no longer exists.');const x=input.x??old.x,y=input.y??old.y;
+   if(!tiles(map.floor).some(t=>t.x===x&&t.y===y)||[...obstacles(map.floor),...map.placements.filter(p=>p.id!==old.id),...map.players].some(p=>Math.abs(p.x-x)+Math.abs(p.y-y)<=1))fail('Choose a reachable tile away from entrances, fixtures and occupants.');
+   const updated={...old,x,y,lifetime:input.lifetime==='temporary'?'temporary':'persistent',edition:map.edition};db.prepare('UPDATE world_placements SET body=? WHERE id=?').run(JSON.stringify(updated),old.id);return view(input.zone);
+  } // Moving or changing lifetime keeps stable placement identity and quest references.
   if(input.action==='world_scatter_orbs'){ // The orb generator: spread an ordered chain across the map, first orb nearest the entrance and the last deepest in, like the campaign's orb sequences.
    const list=Array.isArray(input.orbs)?input.orbs:[];if(!list.length||list.length>32||new Set(list).size!==list.length)fail('Choose one to 32 different orbs to scatter.');
    if(rows(input.zone).length+list.length>128)fail('This zone would exceed 128 managed placements.');

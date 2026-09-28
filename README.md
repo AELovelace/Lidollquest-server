@@ -1402,3 +1402,16 @@ write Pip's reply.
 Seven globally exclusive companions can be hired for one diamond per real-time hour. One rental per player account and one per party, including pending payments; every NPC consumes one of three allied slots. Rentals remain attached to the hiring character. Enable new hires with QUEST_FOLLOWERS_ENABLED=true only after deploying the follower_version:1 game client. Server-owned rental receipts, persistent NPC XP, automatic PvE actors and asynchronous area-chat replies are stored in additive quest_follower_* tables. Existing rentals remain valid when new hiring is disabled.
 
 Export server/followers-data.json from the game registry with python/export_online_followers.py. Classifier requests use 192.168.1.188:9091, casual character replies use :9090, and grounded game answers use npc-rag at :9092. Configure QUEST_FOLLOWER_CLASSIFIER_URL, QUEST_FOLLOWER_LLM_URL, QUEST_FOLLOWER_AGENT_URL and optional QUEST_FOLLOWER_AGENT_KEY on the server only. Run node --test test/followers.test.mjs test/followers-http.test.mjs and the full suite. Detailed deployment, editing and browser checks are in the game checkout's ONLINE_FOLLOWERS_GUIDE.md.
+
+
+## Online Story Workshop
+
+`/gm/flow-editor` is the local, authenticated pop-out visual editor for personal online stories. Launch it from `/gm`; the normal browser link also works when pop-ups are blocked. The same staff grant, origin/TLS/address checks, audit log and optimistic revisions protect `/gm/flows` and `flow_*` actions on `/gm/action`.
+
+Set `QUEST_FLOWS_ENABLED=false` during the additive server/client rollout. Draft authoring, validation, preview and isolated tests remain available. Set `LIDOLLQUEST_GM_PUBLIC_URL=https://your-public-server/gm` for the in-game launcher, rebuild compatible clients, then enable publication with `QUEST_FLOWS_ENABLED=true`. No destructive flag migration or local-save import is required.
+
+Storage adds versioned flows/history, authored flag definitions, pinned character runs and isolated GM test sessions. Character flag values remain in server-owned `fullDungeon.flags`. Author IDs start with `story_`; engine achievement flags are read-only to story blocks. Flow steps use existing quest, combat, travel and effect services plus stable reward receipts. Flow pages require `flow_version:1` and commands include `flow_run` and `flow_step`.
+
+GM test codes are owner-bound, last 30 minutes, and run in separate in-memory SQLite databases with persisted overlays and local wallet stubs. `/storytest CODE` enters the copy; `/storytest stop` returns to the real character. Test commands carry a session ID so expired commands cannot reach real progression. Combat still uses the normal party/follower limits.
+
+Run `node --test test/story-flows.test.mjs test/flow-integration.test.mjs`, the existing quest/GM/world suites, and the game checkout's `python/tests/fixtures/gm_flow_browser.mjs`. See the game's `GM_FLOW_EDITOR_GUIDE.md` for the complete authoring workflow. No changes are required in `npc-rag`.

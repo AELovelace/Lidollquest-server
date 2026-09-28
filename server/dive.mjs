@@ -1,3 +1,4 @@
+import {storyFoe} from './story-encounter.mjs';
 import {movementDelay,moveBurst,paceStep} from './crawl.mjs';
 import {createDiveControls} from './world-dive.mjs';
 import {createDiveEncounters} from './dive-encounters.mjs';
@@ -175,6 +176,12 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   beginRound(state,{theme,attack:0},roll,enemy); // Keep authored encounter stats rather than the arena's progressive template.
   saveFloor(record);
  }
+ function storyEncounter(c,s,monster,receipt,fight=true){
+  if(s.diveCombatVersion!==3)fail('Update the game before entering a story encounter.');
+  const record=getFloor(s.dive?.edition);if(!record)fail('Enter this dungeon first.');
+  const foe=storyFoe(record.floor,c,s.dive.position,monster,receipt);saveFloor(record);
+  if(fight){start(c,s,record,foe);return s.run.sharedEncounter;}return foe.id;
+ } // Story foes pin their published stats and use the normal party/follower combat roster.
  function sweepDue(){return now()>=nextSweep;} // The sweep schedules itself from the soonest real deadline it saw, so recovery still lands on its exact second.
  function maintain(){
   if(live&&data.contentRevision!==live.published().revision){const fresh=live.resolve(baseline);Object.assign(config,fresh.config);data.enemies=fresh.enemies;data.enemy_types=fresh.enemy_types;data.contentRevision=fresh.contentRevision;}
@@ -442,5 +449,5 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   reveal(c,state,f,position.x,position.y); // Personal fog and claims for this edition are reused, never reset.
  }
  const parentZone=config.parent_zone??config.endpoints?.find(e=>isRouteZoneId(e.zone))?.zone??null; // GM visits may follow a declared wilderness endpoint (Caldera -> Tundra) when no parent override exists; normal Escape still uses config.parent_zone.
- return {category,tick,snapshot,handles,act,chatArea,arrive,gmPlace,parentZone,controls,floor:()=>current()?.floor??null,prepare:ensure,close(){closed=true;controls?.close();},available:()=>Boolean(config.enabled&&enabledQuery.get(route)),encounterSnapshot:state=>encounters.snapshot(state)};
+ return {category,tick,snapshot,handles,act,chatArea,arrive,gmPlace,storyEncounter,parentZone,controls,floor:()=>current()?.floor??null,prepare:ensure,close(){closed=true;controls?.close();},available:()=>Boolean(config.enabled&&enabledQuery.get(route)),encounterSnapshot:state=>encounters.snapshot(state)};
 } // All mutations run inside the zone command transaction; scheduled simulation owns its own transaction.

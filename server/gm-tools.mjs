@@ -64,6 +64,11 @@ export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new 
   const above=diveVisit(parent,prefer);
   return {origin:parent,hubOrigin:above.hubOrigin,returnZone:above.returnZone,hubEntryZone:parent}; // Arrive on the trail from the parent, exactly as walking in would.
  }
+ function storyTravel(c,state,to){
+  movable(state,'You',true);const p=fresh(c.id);if(!p)fail(409,'Enter an online area first.');
+  const z=warpable(to);if(z){leaveDive(state);place(c.id,c.owner,state,z,landing(z,(z.spawn??HUB_SPAWN).x,(z.spawn??HUB_SPAWN).y));}
+  else {const visit=diveVisit(to,homeHub(state,p));leaveDive(state);dives.get(to).gmPlace(c,state,visit);}
+ } // Only a validated published flow calls this shared placement helper; it grants no staff powers.
  function leaveDive(state){ // Same end state as walking out: personal loot claims and fog stay saved per edition.
   if(!state.dive)return;
   state.dive=null;state.diveReturned=null;delete state.diveReturnedPosition;
@@ -192,5 +197,5 @@ export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new 
   fail(400,'Unknown GM action.','gm_unknown_action');
  }
 
- return {requireGm,catalog,act};
+ return {requireGm,catalog,act,storyTravel};
 }

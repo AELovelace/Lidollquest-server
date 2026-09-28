@@ -116,6 +116,22 @@ test('AI uses classifier, personal chat and RAG endpoints; only owner mentions e
  }finally{chat?.close();f.close();}
 });
 
+test('a down AI hop falls through to the next one, and each outage is logged once a minute',async()=>{
+ const f=fixture();let chat;try{
+  f.active();const down=new Set(),calls=[],logs=[];
+  const refused=()=>Object.assign(new TypeError('fetch failed'),{cause:{code:'ECONNREFUSED'}}); // What fetch throws when a port is closed (server-2 stopped, 2026-09-27).
+  chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,log:line=>logs.push(line),fetcher:async url=>{const port=String(url).match(/:(\d+)\//)[1];calls.push(port);if(down.has(port))throw refused();
+   return Response.json(port==='9091'?{choices:[{message:{content:'GAME'}}]}:port==='9092'?{reply:'Ask the grounded wiki.'}:{choices:[{message:{content:'Still here with you!'}}]});}});
+  const say=async(text,seq)=>{f.advance(11000);f.db.prepare('UPDATE quest_presence SET seen=?').run(f.now());chat.enqueue(f.alice,text,seq,'room');chat.kick();await wait(chat.idle);return f.db.prepare('SELECT text FROM quest_chat ORDER BY seq DESC').get()?.text;};
+  down.add('9091');assert.equal(await say('Astra where is the bank?',1),'Ask the grounded wiki.','classifier down: the agent still answers');
+  down.add('9092');assert.equal(await say('Astra where is the inn?',2),'Still here with you!','classifier and agent down: the persona model answers in character');
+  assert.ok(logs.some(l=>/classifier .*:9091.*ECONNREFUSED/.test(l))&&logs.some(l=>/agent .*:9092/.test(l)),'each unreachable hop is named in the server log: '+JSON.stringify(logs));
+  const before=logs.length;chat.enqueue(f.alice,'Astra hello again',3,'room');f.advance(11000);chat.kick();await wait(chat.idle);
+  down.add('9090');assert.match(await say('Astra, anyone home?',4),new RegExp(followerData.sorceress_arcana.online.fallback.slice(0,12)),'everything down: the authored fallback line');
+  assert.ok(logs.filter(l=>/classifier/.test(l)).length<=2,'an ongoing outage is not logged on every message');assert.ok(logs.length>before);
+ }finally{chat?.close();f.close();}
+});
+
 test('late AI replies after a zone change are discarded; failures give bounded authored fallback',async()=>{
  const f=fixture();let chat,release;try{
   f.active();const gate=new Promise(r=>release=r);chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,fetcher:async()=>{await gate;throw Error('offline');}});

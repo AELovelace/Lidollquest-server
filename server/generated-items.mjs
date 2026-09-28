@@ -1,3 +1,4 @@
+import {gameContext} from './game-context.mjs';
 import {readFileSync} from 'node:fs';
 import {createBaseGenerator} from './loot.mjs';
 
@@ -10,9 +11,10 @@ import {createBaseGenerator} from './loot.mjs';
 const shipped=(()=>{try{return JSON.parse(readFileSync(new URL('./dive-data.json',import.meta.url),'utf8')).bases??null;}catch{return null;}})();
 let store=null,cache={revision:undefined,items:{}},merged=new WeakMap();
 
-export function configureGeneratedItems(value){store=value??null;cache={revision:undefined,items:{}};merged=new WeakMap();} // zones.mjs hands over the live loot store, as it does for shop stock.
+export function configureGeneratedItems(value){if(gameContext()){gameContext().generated={store:value,revision:null,items:null};return;}store=value??null;cache={revision:undefined,items:{}};merged=new WeakMap();} // zones.mjs hands over the live loot store, as it does for shop stock.
 
 export function generatedItems(){
+ const local=gameContext()?.generated;if(local){const revision=local.store?.revision();if(!local.items||local.revision!==revision){local.revision=revision;local.items=createBaseGenerator(local.store?local.store.applyBases(shipped):shipped).catalog();}return local.items;}
  const revision=store?store.revision():'shipped';
  if(revision!==cache.revision)cache={revision,items:createBaseGenerator(store?store.applyBases(shipped):shipped).catalog()};
  return cache.items;

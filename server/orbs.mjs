@@ -4,6 +4,7 @@
 //  - an orb that `requires` another stays dark (dormant) until that one is read (the campaign's ordered sequences),
 //  - reading is purely narrative: pages are visual only, so an orb never grants items, stats or quests.
 // A read also reports an 'interact' quest event targeting the orb's ID, so quests can say "read the orb".
+import {storyFlagsMatch} from './story-flags.mjs';
 const fail=(message,status=409)=>{throw Object.assign(Error(message),{status,code:'orb_unavailable'});};
 const SCENE_TTL=10*60*1000; // An unread scene stays offered for ten minutes, then drops out of snapshots.
 
@@ -22,7 +23,7 @@ export function createOrbs(db,{live,now=Date.now,placements,world,event=()=>{}})
    if(p.kind!=='orb')return [p];
    const def=orbs[p.content];if(!def||def.retired)return []; // A retired story leaves its pin in the editor but not in the world.
    const state=status(def,seen);if(state==='spent')return [];
-   return [{...p,name:def.title,colour:def.colour,dormant:state==='dormant'}];
+   return [{...p,name:def.title,colour:def.colour,dormant:state==='dormant'||!storyFlagsMatch(c?.state?JSON.parse(c.state):{},def.story_conditions)}];
   });
  }
  function position(c,s){const p=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);if(!p)return null;return {...p,edition:s.dive?.edition??world.map(p.zone).edition};} // Same instance rule as online quests.
@@ -39,8 +40,10 @@ export function createOrbs(db,{live,now=Date.now,placements,world,event=()=>{}})
   const state=status(def,reads(c));
   if(state==='spent')fail('You already know this story.');
   if(state==='dormant')fail('The orb is still dark. Another story comes first.');
+  if(!storyFlagsMatch(s,def.story_conditions))fail('This story is not available yet.');
+  const flowed=live.flowStart?.(c,s,'orb',def.id); // The same proximity and prerequisite checks protect visual and playable orbs.
   db.prepare('INSERT INTO orb_reads VALUES (?,?,?,?,1) ON CONFLICT(character_id,orb) DO UPDATE SET last=excluded.last,count=count+1').run(c.id,def.id,now(),now());
-  s.orbScene={id:input.request_id,orb:def.id,at:now()}; // Only the reference is saved on the character; pages are read from the published story.
+  if(!flowed)s.orbScene={id:input.request_id,orb:def.id,at:now()}; // A bound flow presents its own pages instead of opening two readers.
   event(c,s,{id:'orb:'+input.request_id,type:'interact',target:def.id,zone:p.zone}); // Quests may target an orb's ID with an ordinary interact objective.
  }
  function scene(s){ // The scene waiting to be played, resolved against the published story.

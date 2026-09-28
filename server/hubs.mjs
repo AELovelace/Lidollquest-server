@@ -1,3 +1,4 @@
+import {gameContext} from './game-context.mjs';
 import {isRouteZoneId} from './zone-categories.mjs'; // Wilderness gates lead onto Dive-engine zones (dive- or overworld- ids).
 import {GODS,godsData,FAITH_SETTINGS,templeGod,dedicate,combatFaith,blessingValue} from './faith.mjs'; // The gods: temple annexes, dedication and Orin's Cursebreaker discount.
 import {templeRoom} from './temple-rooms.mjs';
@@ -29,8 +30,9 @@ const c=hubData.config;
 const shopLootData=(()=>{try{return JSON.parse(readFileSync(new URL('./dive-data.json',import.meta.url),'utf8'));}catch{return {};}})();
 const shopLootTable=shopLootData.loot??null,shopLootBases=shopLootData.bases??null;
 let shopLoot={store:null,revision:null,roller:createLootRoller(shopLootTable,shopLootBases)};
-export function configureShopLoot(store){shopLoot={store,revision:null,roller:createLootRoller(store?store.apply(shopLootTable):shopLootTable,store?store.applyBases(shopLootBases):shopLootBases)};}
+export function configureShopLoot(store){if(gameContext()){gameContext().shopLoot={store,revision:null,roller:null};return;}shopLoot={store,revision:null,roller:createLootRoller(store?store.apply(shopLootTable):shopLootTable,store?store.applyBases(shopLootBases):shopLootBases)};}
 export function shopRoller(){
+ const context=gameContext();if(context?.shopLoot){const local=context.shopLoot,revision=local.store?.revision();if(!local.roller||local.revision!==revision){local.revision=revision;local.roller=createLootRoller(local.store?local.store.apply(shopLootTable):shopLootTable,local.store?local.store.applyBases(shopLootBases):shopLootBases);}return local.roller;}
  if(!shopLoot.store)return shopLoot.roller;
  const revision=shopLoot.store.revision();
  if(revision!==shopLoot.revision)shopLoot={...shopLoot,revision,roller:createLootRoller(shopLoot.store.apply(shopLootTable),shopLoot.store.applyBases(shopLootBases))};

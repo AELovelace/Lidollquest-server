@@ -1,3 +1,4 @@
+import {storyFoe} from './story-encounter.mjs';
 import {randomUUID} from 'node:crypto';
 import {createDiveEncounters} from './dive-encounters.mjs';
 import {mapRevision} from './world-dive.mjs';
@@ -29,6 +30,12 @@ export function createHubEncounters(db,{now,roll,parties,live,definition,ids}){
     r.floor.enemies.push({id:'dm-'+randomUUID(),type:input.monster,definition:structuredClone(monster),x,y,spawn:{x,y},manual:true,respawning:!!input.respawning,roaming:!!input.aggressive,engaged:null,respawnAt:0});
    }saveFloor(r);return view();
   }
+  function storyEncounter(c,s,monster,receipt,fight=true){
+   if(s.diveCombatVersion!==3||s.contentVersion!==1)fail('Update the game before entering a story encounter.');
+   const r=record(),p=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);if(p?.zone!==zone)fail('Enter this area first.');
+   const foe=storyFoe(r.floor,c,p,monster,receipt);saveFloor(r);
+   if(fight){encounters.start(c,s,r,foe);return s.run.sharedEncounter;}return foe.id;
+  } // Uses shared encounter settlement while keeping story initiation personal.
   function recover(c,s){if(s.pendingDefeat?.hub===zone&&s.pendingDefeat.sceneComplete&&now()>=s.pendingDefeat.readyAt){const p=s.pendingDefeat.position;delete s.pendingDefeat;relocate(c,s,p);return true;}return false;}
   function act(c,s,input,p){const r=record();
    if(input.action==='defeat_complete'){if(s.pendingDefeat?.hub!==zone||s.pendingDefeat.id!==input.scene)fail('This defeat scene changed.');s.pendingDefeat.sceneComplete=true;recover(c,s);return;}
@@ -49,7 +56,7 @@ export function createHubEncounters(db,{now,roll,parties,live,definition,ids}){
     }
    }r.floor.enemies=r.floor.enemies.filter(e=>!e.remove);if(changed)saveFloor(r);
   }
-  const api={view,place,act,tick,snapshot:s=>encounters.snapshot(s),monsters:()=>record().floor.enemies.filter(e=>!e.dead).map(e=>({...e,definition:undefined,name:e.definition.name,sprite:e.definition.sprite}))};engines.set(zone,api);return api;
+  const api={view,place,act,tick,storyEncounter,snapshot:s=>encounters.snapshot(s),monsters:()=>record().floor.enemies.filter(e=>!e.dead).map(e=>({...e,definition:undefined,name:e.definition.name,sprite:e.definition.sprite}))};engines.set(zone,api);return api;
  }
  const idleUntil=new Map(); // zone -> when an empty hub gets its next catch-up tick.
  return {engine,tick(){for(const row of db.prepare('SELECT zone FROM world_hub_maps').all()){if(!ids.includes(row.zone))continue; // Skip maps saved for rooms a later deployment retired, so boot never crash-loops on old DM monsters.
