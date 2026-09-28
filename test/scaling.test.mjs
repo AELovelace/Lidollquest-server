@@ -48,7 +48,7 @@ test('the /gm Loot tab can edit every scaling key inside its bounds',()=>{
  assert.throws(()=>validateTuning({hp_late_from:35.5}),/whole number/);
  assert.throws(()=>validateTuning({def_mitigation_k:5}),/between 10 and 1000/);
  assert.throws(()=>validateTuning({enemy_ttk_mob:0}),/between 0.5 and 20/);
- for(const key of ['hp_base','hp_per_level','hp_per_level_late','hp_late_from','hp_def_share','def_mitigation_k','enemy_hp_reference','enemy_ttk_mob','enemy_ttk_elite','enemy_ttk_boss','avg_str_base','avg_str_per_level','heal_reference_hp','party_level_slack'])assert.ok(key in DEFAULT_TUNING,key+' has a shipped default');
+ for(const key of ['hp_base','hp_per_level','hp_per_level_late','hp_late_from','hp_def_share','def_mitigation_k','enemy_hp_reference','enemy_ttk_mob','enemy_ttk_elite','enemy_ttk_boss','avg_str_base','avg_str_per_level','heal_reference_hp','mana_reference_mp','party_level_slack'])assert.ok(key in DEFAULT_TUNING,key+' has a shipped default');
 });
 
 test('stamina curve: 100 base, +2 per level, half a point per DEX; level-ups and DEX points add the difference',()=>{

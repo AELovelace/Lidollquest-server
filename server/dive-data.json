@@ -1377,11 +1377,11 @@
       "item_id": "mystery_potion_12",
       "category": "drink",
       "name": "Silver Mystery Potion",
-      "desc": "A silvery draught that crackles over your tongue like moonlight. It restores a little magic and clears your head in one bright flash.",
+      "desc": "A silvery draught that crackles over your tongue like moonlight. It restores a good gulp of magic and clears your head in one bright flash.",
       "atk": 0,
       "def": 0,
       "hp_restore": 0,
-      "mp_restore": 10,
+      "mp_restore": 40,
       "value": 22,
       "childish": 5,
       "thirst_restore": 125,
@@ -22786,7 +22786,7 @@
           "bad": false,
           "weight": 7,
           "add": {
-            "mp_restore": 10
+            "mp_restore": 20
           },
           "desc": "Little stars fizz on your tongue."
         },
@@ -22897,7 +22897,7 @@
         "blue": {
           "effects": {
             "hp_restore": 45,
-            "mp_restore": 10
+            "mp_restore": 25
           },
           "desc": "A cool blue potion that heals body and mind."
         },
@@ -22916,13 +22916,13 @@
         },
         "purple": {
           "effects": {
-            "mp_restore": 40
+            "mp_restore": 60
           },
           "desc": "A humming purple potion that refills your magic."
         },
         "silver": {
           "effects": {
-            "mp_restore": 20,
+            "mp_restore": 40,
             "grossout_reset": true
           },
           "desc": "A bright silver potion that clears your head."
@@ -23194,7 +23194,7 @@
       {
         "id": "silver",
         "name": "Silver",
-        "family": "A little magic, clarity"
+        "family": "Magic, clarity"
       },
       {
         "id": "gold",

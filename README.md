@@ -1264,7 +1264,7 @@ separate file would add a second commit per send, not remove one.
 enemy HP, heal scaling and the encounter level rule. Every number is a loot tuning key
 (`hp_base`, `hp_per_level`, `hp_per_level_late`, `hp_late_from`, `hp_def_share`,
 `def_mitigation_k`, `enemy_hp_reference`, `enemy_ttk_mob/elite/boss`, `avg_str_base`,
-`avg_str_per_level`, `heal_reference_hp`, `party_level_slack`, `stamina_base`,
+`avg_str_per_level`, `heal_reference_hp`, `mana_reference_mp` (MP potions are written for a 100 MP bar), `party_level_slack`, `stamina_base`,
 `stamina_per_level`, `stamina_dex_share`), editable live in the /gm
 Loot tab and shipped in `dive-data.json` -> `loot`. combat.mjs reads them through
 `currentTuning()`; zones.mjs binds that to the loot store. Enemies gain `level` and

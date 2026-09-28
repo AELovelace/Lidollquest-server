@@ -138,8 +138,8 @@ export function shopOffers(zone,shop,time,level=1,{copy=true}={}){ // `level`: t
 function rollOffers(zone,shop,day,level,roller){ // The actual daily roll behind shopOffers.
  const rnd=seeded(`${zone}:${shop.id}:${day}`),pool=[...shop.pool],offers=[];
  const hub=hubRooms.find(r=>r.id===zone)?.parent??zone; // Annex shops use their parent hub's level band.
- // Always stocked: a meal at the general merchant and apothecary, arrows wherever arrows are sold (Grog's bows need them).
- const guaranteed=['adult_food','arrows'].filter(id=>pool.includes(id));for(const id of guaranteed)pool.splice(pool.indexOf(id),1);
+ // Always stocked: a meal at the general merchant and apothecary, arrows wherever arrows are sold (Grog's bows need them), mage MP potions wherever they are sold (Mana Drop at Mira and Fern, Mana Tonic at Fern).
+ const guaranteed=['adult_food','arrows','mana_drop','mana_tonic'].filter(id=>pool.includes(id));for(const id of guaranteed)pool.splice(pool.indexOf(id),1);
  const shelf=Number.isInteger(shop.stock_size)&&shop.stock_size>=1&&shop.stock_size<=24?shop.stock_size:c.stock_size; // a merchant's own shelf size (Bramble keeps a small rotating one), else the hub's
  for(let slot=0;slot<shelf&&(slot<guaranteed.length||pool.length);slot++){
   const id=slot<guaranteed.length?guaranteed[slot]:pool.splice(rnd(pool.length),1)[0];let item=structuredClone(hubData.items[id]);
