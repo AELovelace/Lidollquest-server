@@ -33,6 +33,24 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
  });
  const placements=createQuestPlacements(db,{live,now,base:world,affected:p=>db.prepare('SELECT * FROM online_quests').all().map(unpack).filter(q=>['active','choice','ready'].includes(q.state.status)&&references(q.definition,p.content)&&!placements.rows(p.zone).some(other=>other.id!==p.id&&other.content===p.content&&(!p.replacementEdition||other.lifetime==='persistent'||other.edition===p.replacementEdition))),failQuests:rows=>{for(const q of rows){q.state.status='failed';q.state.failure='A required world placement was removed by a gamemaster.';save(q);}}});
  function references(d,key){return d.turn_in.npc===key||d.stages.some(s=>s.objectives.some(o=>o.target===key||o.npc===key));}
+ function tokenNeeded(q,s,n,zone){ // Only a still-incomplete token objective can spend this placement's collection receipt.
+  if(q.state.status!=='active')return false;
+  const stage=q.definition.stages.find(stage=>stage.id===q.state.stage);
+  return stage?.objectives.some(o=>o.type==='collect'&&o.token&&o.target===n.content&&(!o.zone||o.zone===zone)&&(q.state.progress[stage.id+':'+o.id]??0)<o.count&&conditions(s,o.conditions))??false;
+ }
+ function collectToken(c,s,n,zone){
+  const matching=instances(c).filter(q=>tokenNeeded(q,s,n,zone)).map(q=>q.quest);
+  if(matching.length)event(c,s,{id:'interact:'+n.id,type:'collect',target:n.content,zone,quests:matching});
+ } // Walking, clicking and E share a stable receipt, so crossing and clicking cannot double-award a token.
+ function visiblePlacements(c,s,rows){
+  if(!c||!rows.some(n=>n.kind==='token'))return rows;
+  const quests=instances(c),receipts=new Map(quests.map(q=>[q.id,new Set(db.prepare("SELECT event FROM online_quest_events WHERE instance=? AND instr(event, ':interact:')>0").all(q.id).map(r=>r.event))]));
+  return rows.filter(n=>{
+   if(n.kind!=='token')return true;
+   const suffix=':interact:'+n.id;
+   return quests.some(q=>tokenNeeded(q,s,n,n.zone)&&!receipts.get(q.id).has(q.state.stage+suffix));
+  }); // Tokens appear only for an eligible active objective; another quest/stage can make a collected token available again.
+ }
  function position(c,s){const p=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);if(!p)return null;return {...p,edition:s.dive?.edition??world.map(p.zone).edition};}
  function field(s,key){const p=s.loadout?.player_info??{};return key==='childish'?s.loadout?.childish??0:key==='health'?p.playerHealth??0:Number(p[key]??0);}
  function conditions(s,list=[]){return list.every(c=>{if(c.flags)return storyFlagsMatch(s,c.flags);const value=field(s,c.field);return c.op==='eq'?value===c.value:c.op==='lte'?value<=c.value:value>=c.value;});}
@@ -82,7 +100,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
   }
   const met=o=>(progress[stage.id+':'+o.id]??0)>=o.count;if(stage.mode==='any'?stage.objectives.some(met):stage.objectives.every(met)){if(stage.branches.length)q.state.status='choice';else transition(q,stage.next);}save(q);
  }
- function event(c,s,e){if(!db.prepare("SELECT 1 FROM online_quests WHERE character_id=? AND json_extract(state,'$.status')='active' LIMIT 1").get(c.id)&&!(parties.members(c.id).length))return;const p=position(c,s);e={...e,zone:e.zone??p?.zone,quests:e.quests??instances(c).filter(q=>q.state.status==='active').map(q=>q.quest)};for(const q of instances(c)){if(q.state.status!=='active'||(e.stage&&e.stage!==q.state.stage)||(e.shared&&e.quests&&!e.quests.includes(q.quest))||q.created>(e.created??now()))continue;if(!db.prepare('INSERT OR IGNORE INTO online_quest_events VALUES (?,?)').run(q.id,q.state.stage+':'+e.id).changes)continue;evaluate(q,c,s,e);}
+ function event(c,s,e){if(!db.prepare("SELECT 1 FROM online_quests WHERE character_id=? AND json_extract(state,'$.status')='active' LIMIT 1").get(c.id)&&!(parties.members(c.id).length))return;const p=position(c,s);e={...e,zone:e.zone??p?.zone,quests:e.quests??instances(c).filter(q=>q.state.status==='active').map(q=>q.quest)};for(const q of instances(c)){if(q.state.status!=='active'||(e.stage&&e.stage!==q.state.stage)||(e.quests&&!e.quests.includes(q.quest))||q.created>(e.created??now()))continue;if(!db.prepare('INSERT OR IGNORE INTO online_quest_events VALUES (?,?)').run(q.id,q.state.stage+':'+e.id).changes)continue;evaluate(q,c,s,e);}
   if(e.shared||e.type==='kill'||!p)return;for(const other of parties.members(c.id)){if(other.id===c.id)continue;const state=JSON.parse(other.state),op=position(other,state);if(op&&op.seen>now()-30000&&op.zone===p.zone&&op.edition===p.edition&&Math.abs(op.x-p.x)+Math.abs(op.y-p.y)<=8)event(other,state,{...e,shared:true});}
  } // Each durable gameplay event can affect an accepted instance at most once, including after restart.
  function advance(c,s,key,branch){const q=active(c,key);if(!q||q.state.status!=='choice')fail('This quest is not awaiting a choice.');const b=q.definition.stages.find(v=>v.id===q.state.stage).branches.find(b=>b.id===branch);if(!b||!conditions(s,b.conditions))fail('That branch is unavailable.');q.state.branch.push(b.id);transition(q,b.to);save(q);}
@@ -144,7 +162,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
  function busy(s){if(s.run||s.dungeonScene||s.pendingDefeat||s.worldTurnDue||s.pendingPurchase)fail('Finish the current action before continuing this quest.');}
  function conversation(c,s,input){const row=db.prepare('SELECT * FROM online_conversations WHERE character_id=?').get(c.id);if(!row||row.id!==input.conversation||row.expires<=now())fail('This conversation has ended. Speak to the NPC again.');nearby(c,s,row.placement,row.edition);return {...row,definition:JSON.parse(row.definition)};}
  function act(c,s,input){busy(s);if(input.action==='quest_accept')fail('Speak to the designated NPC and choose a quest in their conversation.');if(input.quest){const q=active(c,input.quest),definition=live.published().quests[input.quest],revision=q?.revision??(definition?digest(definition):null);if(typeof input.quest_revision!=='string'||input.quest_revision!==revision)fail('This quest changed. Refresh before choosing an action.');}if(input.action==='npc_talk'||input.action==='quest_interact'){
-   if(typeof input.edition!=='string')fail('Refresh the map before interacting.');const {p,map,n,key}=nearby(c,s,input.placement,input.edition);if(input.action==='quest_interact'){if(n.kind==='npc')fail('Speak to this NPC.');if(n.kind==='orb')fail('Touch the orb to read its story.');event(c,s,{id:'interact:'+(n.kind==='token'?n.id:input.request_id),type:n.kind==='token'?'collect':'interact',target:key,zone:p.zone});return;}
+   if(typeof input.edition!=='string')fail('Refresh the map before interacting.');const {p,map,n,key}=nearby(c,s,input.placement,input.edition);if(input.action==='quest_interact'){if(n.kind==='npc')fail('Speak to this NPC.');if(n.kind==='orb')fail('Touch the orb to read its story.');if(n.kind==='token')collectToken(c,s,{...n,content:key},p.zone);else event(c,s,{id:'interact:'+input.request_id,type:'interact',target:key,zone:p.zone});return;}
    if(n.kind!=='npc')fail('Choose an NPC.');
    const definition=clone(npcDefinition(key,n,c,s)),cid=randomUUID(),reaction=(definition.story_reactions??[]).find(r=>storyFlagsMatch(s,r.conditions)),page=reaction?.page||definition.story_default||definition.dialogue[0]?.id||'close';definition.id=key;prepareConversation(c,s,definition,page);
    if(live.flowAvailable?.(c,s,'npc',key)){const root=definition.dialogue.find(p=>p.id===page);if(!root.actions.length)root.actions.push({label:'Continue conversation',next:root.next??'close',effect:'none'});root.actions.unshift({label:'Continue personal story',next:'close',effect:'story_flow',story_review:live.flowReview?.(c,s,'npc',key)});} // Existing mandatory greetings, services and quest options remain accessible.
@@ -192,7 +210,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
  }} // Zone-qualified timer objectives count accumulated connected presence; unqualified timers retain their existing quest-clock behavior.
  function after(c,s,input){if(!db.prepare("SELECT 1 FROM online_quests WHERE character_id=? AND json_extract(state,'$.status') IN ('active','choice') LIMIT 1").get(c.id))return;tickCharacter(c,s);const p=position(c,s);if(p){event(c,s,{id:'zone:'+input.request_id,type:'visit',target:p.zone,zone:p.zone});const map=placements.view(p.zone);
   const points=input.walkPath?.length?input.walkPath.map((q,n,all)=>({at:{...p,x:q.x,y:q.y},id:input.request_id+(n===all.length-1?'':':'+n),step:{...input,action:'move'}})):[{at:p,id:input.request_id,step:input}]; // A queued walk counts every tile it crossed; its last tile keeps the plain request id a single move would use.
-  for(const {at,id,step} of points){fullDungeonQuestMovement(c,s,{...step,request_id:id},at,map,event);for(const place of map.placements)if(place.kind==='location'&&at.x===place.x&&at.y===place.y)event(c,s,{id:'location:'+id,type:'visit',target:place.content,zone:p.zone});}
+  for(const {at,id,step} of points){fullDungeonQuestMovement(c,s,{...step,request_id:id},at,map,event);for(const place of map.placements){if(at.x!==place.x||at.y!==place.y)continue;if(place.kind==='location')event(c,s,{id:'location:'+id,type:'visit',target:place.content,zone:p.zone});else if(place.kind==='token'&&step.action==='move')collectToken(c,s,place,p.zone);}} // Validated movement collects walk-on tokens, including intermediate batch tiles.
  }}
  // Reset online clock checkpoints on boot: time while the service was stopped never counts as connected play.
  for(const row of db.prepare('SELECT * FROM online_quests').all()){const q=unpack(row);if(q.definition.timer.mode==='online'||q.definition.stages.some(s=>s.objectives.some(o=>o.type==='timer'&&o.zone))){q.state.last_tick=now();q.state.timer_zone='';q.state.timer_seen=0;save(q);}}
@@ -204,7 +222,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
   else {const q=active(c,n.ref);if(q){q.state.abandoned_status=q.state.status;q.state.status='abandoned';save(q);}}
  } // Flow operations retain ordinary prerequisites, progress and reward receipts.
  function flowObjective(c,key){return instances(c).some(q=>q.quest===key&&['ready','claimed'].includes(q.state.status));}
- return {placements,act,after,event,flow,flowObjective,snapshot,conditions,gm,gmCatalog,detail(c,s,id){const q=instances(c).find(q=>q.id===id||q.quest===id);if(!q)fail('Quest not found.',404);return publicQuest(q,s);},tick(){const full=now()>=nextQuestSweep;if(full)nextQuestSweep=now()+30000; // Offline characters' online timers cannot advance (elapsed stops at seen+30 s), so they only need the 30 s sweep; after() still ticks them on their next action.
+ return {placements,visiblePlacements,act,after,event,flow,flowObjective,snapshot,conditions,gm,gmCatalog,detail(c,s,id){const q=instances(c).find(q=>q.id===id||q.quest===id);if(!q)fail('Quest not found.',404);return publicQuest(q,s);},tick(){const full=now()>=nextQuestSweep;if(full)nextQuestSweep=now()+30000; // Offline characters' online timers cannot advance (elapsed stops at seen+30 s), so they only need the 30 s sweep; after() still ticks them on their next action.
   const rows=full?db.prepare("SELECT DISTINCT c.* FROM quest_characters c JOIN online_quests q ON q.character_id=c.id WHERE json_extract(q.state,'$.status') IN ('active','choice')").all():db.prepare("SELECT DISTINCT c.* FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id JOIN online_quests q ON q.character_id=c.id WHERE p.seen>? AND json_extract(q.state,'$.status') IN ('active','choice')").all(now()-30000); // Every second: only characters seen in the last 30 s.
   for(const c of rows)tickCharacter(c,JSON.parse(c.state));placements.tick();}};
 }

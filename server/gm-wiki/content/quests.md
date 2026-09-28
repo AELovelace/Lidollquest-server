@@ -83,3 +83,9 @@ Turn-in mode `journal` permits journal-style completion. Mode `npc` names a desi
 Rewards can include XP, coins, RPP, items, spells, supported permanent stat changes, and equipment changes. Set conservative values and inspect the full reward summary. The player must have inventory capacity for applicable rewards. Coins remain subject to account reward limits.
 
 Claim once through the quest system. Add an explicit flow Reward only when it is a separate, intentional reward. [Battles, rewards and effects](monsters-rewards.md) explains the overlapping reward sources.
+
+## Placed quest token visibility and pickup
+
+GM-placed `token` objects appear in the game only for an active, incomplete `collect` objective with token enabled and a matching target ID. Any zone restriction and objective conditions must also match. Accept the quest first. Walk onto the token, click it while beside it, or press **E** beside it. Walking through it in a confirmed movement batch also collects it. A placement grants at most one token per accepted quest stage; clicking after walking cannot grant another. Collection hides that placement for the collecting character and leaves it available to other eligible characters. Abandoning or finishing the collection stage hides tokens that are no longer needed.
+
+The GM map retains every authored placement. If it is visible there but absent in the game, check the accepted quest's current stage, exact target ID, token checkbox, conditions and zone. Published changes do not rewrite already accepted quest definitions; test a changed quest with a fresh eligible character or fresh isolated test state. For count greater than one, place distinct tokens with the same content ID.

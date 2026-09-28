@@ -58,9 +58,9 @@ Do not use kind `interact` for this token: that emits an interaction event rathe
 
 ## 5. Play the complete route
 
-Accept the quest **before** touching the token. Touch it and check that the journal advances from find to deliver. Return to Fern, open the conversation, choose the delivery action, then claim the ready quest through its designated turn-in interaction. Confirm the reward appears once and the token is consumed.
+Accept the quest **before** looking for the token. A placed token appears only for a character with an active, incomplete collection objective matching its target ID, zone restriction and conditions. Walk onto it, click it from beside it, or stand beside it and press **E**. Check that the journal advances from find to deliver; the collected placement disappears for your character. Other eligible characters keep their own copy. Return to Fern, open the conversation, choose the delivery action, then claim the ready quest through its designated turn-in interaction. Confirm the reward appears once and the token is consumed.
 
-Also check a premature visit to Fern, a repeated token click, another character's independent attempt, and reconnecting after collection. Do not remove a required placement from a live quest without reviewing the affected accepted quests.
+Also check a premature visit to Fern, token invisibility before acceptance and after abandoning, a repeated token click, another character's independent attempt, and reconnecting after collection. The GM placement map always shows the authored token for editing, even when your player character cannot see it. Do not remove a required placement from a live quest without reviewing the affected accepted quests.
 
 ## Variation: deliver ordinary supplies
 

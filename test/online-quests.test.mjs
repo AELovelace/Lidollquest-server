@@ -44,6 +44,66 @@ test('managed placements reject stale maps and blocked tiles; conversations vali
 
 function place(f,kind,content,lifetime='persistent',zone='honeydew-lantern',extra={}){const map=f.api.world.map(zone);for(let y=2;y<map.floor.height-2;y++)for(let x=2;x<map.floor.width-2;x++)try{return f.api.world.act({action:'world_place_content',zone,edition:map.edition,revision:map.revision,placement_kind:kind,content,x,y,lifetime,...extra});}catch(e){if(!/reachable tile/.test(e.message))throw e;}throw Error('No placement');}
 function beside(f,p){f.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(p.x+1,p.y,f.c.id);}
+
+test('walking collects placed tokens once, hides them personally, and keeps uncollected tokens available',()=>{const f=fixture();try{
+ const first=place(f,'token','parcel').placements.find(p=>p.kind==='token');
+ const map=place(f,'token','parcel'),second=map.placements.find(p=>p.kind==='token'&&p.id!==first.id);
+ const stepOn=token=>{beside(f,token);f.advance(1000);return f.act('move',{direction:'west'});};
+ stepOn(first);assert.ok(!f.last.worldPlacements.some(p=>p.id===first.id),'Tokens are hidden before accepting their quest');
+ f.publish('quest',quest({stages:[{id:'find',objectives:[{id:'parcel',type:'collect',target:'parcel',token:true,count:2}],next:'deliver'},{id:'deliver',objectives:[{id:'give',type:'deliver',target:'parcel',token:true,count:2,npc:npc.id}],next:'complete'}]}));acceptQuest(f,{quest:'first_quest'});
+ // A nearby heartbeat alone must not collect: walking must actually touch the token tile.
+ beside(f,first);f.act('heartbeat');assert.equal(JSON.parse(f.db.prepare('SELECT state FROM online_quests').get().state).tokens.parcel,undefined);
+ f.advance(1000);const move=f.command('move',{direction:'west'});f.send(move);f.send(move);
+ let state=JSON.parse(f.db.prepare('SELECT state FROM online_quests').get().state);assert.equal(state.tokens.parcel,1);assert.equal(state.progress['find:parcel'],1);
+ assert.ok(!f.last.worldPlacements.some(p=>p.id===first.id));assert.ok(f.last.worldPlacements.some(p=>p.id===second.id));
+ f.act('quest_interact',{placement:first.id,edition:map.edition});stepOn(first);
+ assert.equal(JSON.parse(f.db.prepare('SELECT state FROM online_quests').get().state).tokens.parcel,1,'Clicks and subsequent movement share the placement receipt');
+ f.restart();assert.ok(!f.api.read('',f.c.id).worldPlacements.some(p=>p.id===first.id),'Collection display survives restart');
+ assert.equal(f.api.world.map(map.id).placements.filter(p=>p.kind==='token').length,2,'Shared world content is retained for other players');
+ stepOn(second);state=JSON.parse(f.db.prepare('SELECT state FROM online_quests').get().state);assert.equal(state.tokens.parcel,2);assert.equal(state.stage,'deliver');
+ assert.ok(!f.last.worldPlacements.some(p=>p.kind==='token'));
+ }finally{f.close();}});
+
+test('a condition-blocked token interaction does not consume the later collection receipt',()=>{const f=fixture();try{
+ const map=place(f,'token','parcel'),token=map.placements[0];
+ f.publish('quest',quest({stages:[{id:'find',objectives:[{id:'parcel',type:'collect',target:'parcel',token:true,conditions:[{field:'shame',op:'gte',value:10}]}],next:'complete'}]}));acceptQuest(f,{quest:'first_quest'});
+ beside(f,token);f.act('quest_interact',{placement:token.id,edition:map.edition});
+ assert.ok(!f.last.worldPlacements.some(p=>p.id===token.id));assert.equal(f.db.prepare('SELECT COUNT(*) n FROM online_quest_events WHERE event=?').get('find:interact:'+token.id).n,0);
+ const loadout=structuredClone(f.c.loadout);loadout.player_info.shame=10;f.act('loadout',{loadout});
+ f.act('quest_interact',{placement:token.id,edition:map.edition});assert.equal(f.last.onlineQuests.instances[0].status,'ready');assert.ok(!f.last.worldPlacements.some(p=>p.id===token.id));
+ }finally{f.close();}});
+
+test('a batched walk collects its intermediate token tile and ignores forged paths',()=>{const f=fixture();try{
+ f.publish('quest',quest({stages:[{id:'find',objectives:[{id:'parcel',type:'collect',target:'parcel',token:true}],next:'complete'}]}));acceptQuest(f,{quest:'first_quest'});
+ const map=f.api.world.map('honeydew-lantern'),floor=map.floor;
+ const open=(x,y)=>floor.walls[y]?.[x]===0&&![...(floor.fixtures??[]),...(floor.portals??[]),...map.placements].some(p=>Math.abs(p.x-x)+Math.abs(p.y-y)<=1);
+ let placed;
+ for(let y=3;y<floor.height-3&&!placed;y++)for(let x=3;x<floor.width-3&&!placed;x++)if(open(x-1,y)&&open(x,y)&&open(x+1,y)){
+  try{placed=f.api.world.act({action:'world_place_content',zone:map.id,edition:map.edition,revision:map.revision,placement_kind:'token',content:'parcel',x,y});}catch(error){if(!/reachable tile/.test(error.message))throw error;}
+ }
+ assert.ok(placed,'A token can be placed on a clear three-tile strip');const token=placed.placements.find(p=>p.kind==='token');
+ f.db.prepare('UPDATE quest_presence SET x=?,y=?,moved=0 WHERE character_id=?').run(token.x-1,token.y,f.c.id);
+ assert.throws(()=>f.act('heartbeat',{walkPath:[{x:token.x,y:token.y}]}),/Unsupported zone input/);
+ f.advance(2000);const command=f.command('walk',{steps:['east','east'],loadout:structuredClone(f.c.loadout)});f.send(command);f.send(command);
+ assert.deepEqual(f.last.position,{x:token.x+1,y:token.y});assert.equal(f.last.onlineQuests.instances[0].status,'ready');
+ assert.equal(JSON.parse(f.db.prepare('SELECT state FROM online_quests').get().state).tokens.parcel,1);
+ assert.ok(!f.last.worldPlacements.some(p=>p.id===token.id));
+ }finally{f.close();}});
+
+test('token visibility follows each character active stage and returns after resuming an uncollected quest',()=>{const f=fixture();try{
+ const map=place(f,'token','parcel'),token=map.placements[0];
+ f.publish('quest',quest({stages:[{id:'find',objectives:[{id:'parcel',type:'collect',target:'parcel',token:true}],next:'complete'}]}));
+ assert.ok(!f.api.read('',f.c.id).worldPlacements.some(p=>p.id===token.id));acceptQuest(f,{quest:'first_quest'});
+ assert.ok(f.last.worldPlacements.some(p=>p.id===token.id));
+ const other='token-other',original=f.db.prepare('SELECT * FROM quest_characters WHERE id=?').get(f.c.id);
+ f.db.prepare('INSERT INTO quest_characters VALUES (?,?,?,?,?,?,?)').run(other,'bob','Bob',0,0,original.state,'bob-token-create');
+ f.db.prepare('INSERT INTO quest_presence(owner,character_id,zone,grant_id,controller,x,y,seen,moved) VALUES (?,?,?,?,?,?,?,?,?)').run('bob',other,map.id,'bob','bob',token.x+1,token.y,Date.parse('2026-09-19T12:00:00Z'),0);
+ const view=()=>f.api.quests.visiblePlacements({id:other},JSON.parse(original.state),f.api.world.map(map.id).placements);assert.ok(!view().some(p=>p.id===token.id),'Another character without the quest cannot see it');
+ const q=f.db.prepare('SELECT * FROM online_quests').get();f.db.prepare('INSERT INTO online_quests VALUES (?,?,?,?,?,?,?)').run('bob-token-quest',other,q.quest,q.revision,q.definition,q.state,q.created);
+ assert.ok(view().some(p=>p.id===token.id));
+ f.act('quest_abandon',{quest:'first_quest'});assert.ok(!f.last.worldPlacements.some(p=>p.id===token.id));acceptQuest(f,{quest:'first_quest'});assert.ok(f.last.worldPlacements.some(p=>p.id===token.id));
+ beside(f,token);f.act('quest_interact',{placement:token.id,edition:map.edition});assert.ok(!f.last.worldPlacements.some(p=>p.id===token.id));assert.ok(view().some(p=>p.id===token.id),'Another eligible character keeps their own token');
+ }finally{f.close();}});
 test('quest tokens are personal, non-farmable and consumed once by explicit delivery',()=>{const f=fixture();try{
  f.publish('npc',npc);const n=place(f,'npc',npc.id).placements[0],map=place(f,'token','parcel'),token=map.placements.find(p=>p.kind==='token');
  f.publish('quest',quest({stages:[{id:'collecting',objectives:[{id:'parcel',type:'collect',target:'parcel',token:true}],next:'delivery'},{id:'delivery',objectives:[{id:'hand_over',type:'deliver',target:'parcel',token:true,npc:npc.id}],next:'complete'}]}));acceptQuest(f,{quest:'first_quest'});
@@ -130,7 +190,7 @@ test('token and object artwork accepts shipped icons and immutable uploads, reje
  let map=place(f,'token','quest_parcel','persistent','honeydew-lantern',{sprite:icon});const token=map.placements.find(p=>p.content==='quest_parcel');assert.equal(token.sprite,icon);
  const asset=f.live.putAsset({png:'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAN0lEQVR4nO3QQREAMAgDQYofTCKxhspUBZ+NgcvsudUvFpebcQcIECBAgAABAgQIECBAgACBTzBf6ALAS4QDIwAAAABJRU5ErkJggg==',frames:1});map=place(f,'interact','quest_switch','persistent',map.id,{sprite:asset.id});assert.equal(map.placements.find(p=>p.content==='quest_switch').sprite,asset.id);
  for(const sprite of ['missing_sprite','managed-missing','https://invalid.test/image.png'])assert.throws(()=>place(f,'token','bad_sprite','persistent',map.id,{sprite}),/artwork|Artwork/);
- f.publish('npc',npc);assert.equal(f.api.read('',f.c.id).worldPlacements.find(p=>p.id===token.id).sprite,icon);f.restart();assert.equal(f.api.world.map(map.id).placements.find(p=>p.id===token.id).sprite,icon);assert.equal(f.api.quests.placements.realize(map.id,'replacement',map.floor).find(p=>p.content==='quest_switch').sprite,asset.id);
+ f.publish('npc',npc);assert.ok(!f.api.read('',f.c.id).worldPlacements.some(p=>p.id===token.id));assert.equal(f.api.world.map(map.id).placements.find(p=>p.id===token.id).sprite,icon);f.restart();assert.equal(f.api.world.map(map.id).placements.find(p=>p.id===token.id).sprite,icon);assert.equal(f.api.quests.placements.realize(map.id,'replacement',map.floor).find(p=>p.content==='quest_switch').sprite,asset.id);
  }finally{f.close();}});
 
 test('acceptance requires an offered dialogue choice beside the giver, with replay and restart protection',()=>{const f=fixture();try{
