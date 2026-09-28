@@ -4,6 +4,8 @@
 
 A story flag is a true-or-false fact about one online character. It survives travel, logout, reconnection, and server restarts. It is not account-wide and is not shared with the character's party.
 
+![The flag library lists authored definitions, references and separate engine-owned achievements.](../assets/tutorial/reference-flag-library.png)
+
 ## Define a flag
 
 Open **Flag library**. Enter a stable ID beginning with `story_`, a readable name, and a description. For example:
@@ -17,6 +19,8 @@ Open **Flag library**. Enter a stable ID beginning with `story_`, a readable nam
 Use lowercase letters, digits and underscores after the prefix. Treat the ID as permanent once content references it. The library's references list helps locate published checks and changes. Change the readable name or description when wording improves; do not rename the underlying ID casually.
 
 A new definition does not create true values on characters. A missing value is false. You do not need to add Clear flag blocks at the start of every story.
+
+Requirement forms include **Filter flags by name or ID**. Selected flags stay visible while filtering so a hidden search result cannot conceal an existing requirement.
 
 ## Set, clear, and check
 

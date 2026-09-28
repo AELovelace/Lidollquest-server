@@ -59,6 +59,26 @@ test('inventory overflow keeps rewards pending; caps and spell unlocks survive c
 test('online clocks pause after presence expires and across restart; real-time deadlines do not',()=>{const f=fixture();try{
  for(const mode of ['online','realtime'])f.publish('quest',quest({id:'clock_'+mode,timer:{mode,seconds:40},stages:[{id:'waiting',objectives:[{id:'wait',type:'timer',count:100}],next:'complete'}]}));for(const mode of ['online','realtime'])acceptQuest(f,{quest:'clock_'+mode});f.advance(30000);f.api.tick();f.advance(60000);f.restart();f.api.tick();const states=f.api.read('',f.c.id).onlineQuests.instances;assert.equal(states.find(q=>q.quest==='clock_online').status,'active');assert.equal(states.find(q=>q.quest==='clock_realtime').status,'failed');
  }finally{f.close();}});
+
+test('zone timers count only connected destination intervals and preserve credit across travel and restart',()=>{const f=fixture();try{
+ f.publish('quest',quest({timer:{mode:'realtime',seconds:0},stages:[{id:'stay',objectives:[{id:'watch',type:'timer',count:90,zone:'honeydew-lantern'}],next:'complete'}]}));acceptQuest(f,{quest:'first_quest'});
+ const progress=()=>f.api.quests.detail(f.c,f.c,'first_quest').objectives[0].progress;
+ const presence=(zone='honeydew-lantern')=>f.db.prepare('UPDATE quest_presence SET zone=?,seen=? WHERE character_id=?').run(zone,Date.parse('2026-09-19T12:00:00Z')+time,f.c.id);
+ let time=0;const step=ms=>{time+=ms;f.advance(ms);};f.api.tick();step(10000);presence();f.api.tick();assert.equal(progress(),10);
+ f.api.tick();assert.equal(progress(),10,'Duplicate ticks do not repeat credit');
+ presence('littlebig-clockwork');f.api.tick();step(20000);presence('littlebig-clockwork');f.api.tick();assert.equal(progress(),10,'Other zones do not count');
+ presence();f.api.tick();step(10000);presence();f.api.tick();assert.equal(progress(),20,'Returning continues accumulated time');
+ step(30000);f.api.tick();const disconnected=progress();step(300000);presence();f.api.tick();assert.equal(progress(),disconnected,'A refreshed lease cannot backfill offline time');
+ step(300000);f.restart();f.api.tick();assert.equal(progress(),disconnected,'Server downtime does not count even with a realtime quest clock');
+ presence();f.api.tick();step(10000);presence();f.api.tick();assert.equal(progress(),disconnected+10);
+ }finally{f.close();}});
+
+test('zone timer upgrade preserves previously recorded objective credit without granting offline time',()=>{const f=fixture();try{
+ f.publish('quest',quest({stages:[{id:'stay',objectives:[{id:'watch',type:'timer',count:120,zone:'honeydew-lantern'}],next:'complete'}]}));acceptQuest(f,{quest:'first_quest'});
+ const row=f.db.prepare('SELECT id,state FROM online_quests').get(),state=JSON.parse(row.state);delete state.objective_elapsed;state.progress['stay:watch']=45;
+ f.db.prepare('UPDATE online_quests SET state=? WHERE id=?').run(JSON.stringify(state),row.id);f.advance(300000);f.restart();f.api.tick();
+ assert.equal(f.api.quests.detail(f.c,f.c,'first_quest').objectives[0].progress,45);
+ }finally{f.close();}});
 test('repeat policies use claim time, and accepted reward revisions survive publication and rollback',()=>{const f=fixture();try{
  f.publish('quest',quest({repeat:'cooldown',cooldown_seconds:2}));acceptQuest(f,{quest:'first_quest'});f.act('quest_claim',{quest:'first_quest'});assert.throws(()=>acceptQuest(f,{quest:'first_quest'}),/not available again/);f.advance(2100);acceptQuest(f,{quest:'first_quest'});f.publish('quest',quest({repeat:'cooldown',cooldown_seconds:2,rewards:{coins:99}}));assert.equal(f.last.onlineQuests.instances.find(q=>q.status==='ready').rewards.coins,10);f.act('quest_claim',{quest:'first_quest'});assert.equal(f.paid.length,2);
  }finally{f.close();}});

@@ -2,6 +2,10 @@
 
 [Wiki home](index.md)
 
+![The shared monster form edits the canonical combat definition.](../assets/tutorial/reference-monster-editor.png)
+
+![Quest rewards belong to the journal claim; avoid duplicating them in a flow Reward.](../assets/tutorial/reference-quest-rewards.png)
+
 ## Select or edit a monster
 
 For a first story, reference an already published monster suitable for the area. Use **+ monster** only when you need a distinct enemy: it begins from an existing monster definition, so review every inherited setting before publishing.

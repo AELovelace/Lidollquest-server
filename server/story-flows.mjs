@@ -101,6 +101,12 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
   if(body.retired&&list().some(f=>f.published&&!f.published.retired&&JSON.stringify(f.published).includes(JSON.stringify(body.id))))fail('Update or retire flows referencing this asset first.');
  }); // Advanced editors use the same flag and dependency checks as the workshop.
  function gm(input,actor){
+  if(['flow_assets_save','flow_assets_publish'].includes(input.action)){
+   const assets=input.assets,publish=input.action==='flow_assets_publish';
+   if(publish&&!enabled)fail('Workshop publication is disabled during rollout.');
+   if(!Array.isArray(assets)||!assets.length||assets.length>64)fail('Choose between 1 and 64 shared assets.',400);
+   live.bundle(assets,actor,publish);return {assets:assets.map(a=>({kind:a.kind,id:a.id})),published:publish};
+  } // The GM transaction, audit and request receipts also cover asset-only publication; no placeholder flow is needed.
   if(['flow_save','flow_publish','flow_rollback'].includes(input.action))return save(input,actor);
   if(input.action==='flow_validate')return definition(input.entry,false,input.assets??[]);
   if(input.action==='flow_references')return references(input.id);

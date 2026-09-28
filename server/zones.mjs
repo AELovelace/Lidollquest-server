@@ -13,6 +13,7 @@ import {createOrbs} from './orbs.mjs';
 import {createHubEncounters} from './world-hubs.mjs';
 import {createDuels,DUEL_ACTIONS,DUEL_FIGHT_ACTIONS} from './duels.mjs';
 import {createTrades,TRADE_ACTIONS} from './trades.mjs';
+import {createFieldMagic,FIELD_CAST_ACTIONS} from './field-magic.mjs'; // Heal/Cure/Buff spells on a nearby party member outside battle (2026-09-28).
 import {publicCombatState} from './defeat-scenes.mjs';
 import {movementDelay,moveDelays,moveBurst,paceStep} from './crawl.mjs';
 import {createParties} from './parties.mjs';
@@ -209,6 +210,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  const duels=createDuels(db,{now,roll,parties,adjust,saveCharacter:saveOther,pvpAllowed,origins,getReadyPosted:(author,partners,since)=>partners.length>0&&!!db.prepare('SELECT 1 FROM quest_rp_posts p JOIN quest_rp_partners q ON q.post_id=p.id WHERE p.author=? AND p.created>? AND q.character_id IN ('+partners.map(()=>'?').join(',')+') LIMIT 1').get(author,since,...partners)}); // RP battles need a get-ready post naming an opponent within the last half hour.
  purchaseHooks.duelWager=(id,char,state,paid,amount)=>duels.fund(id,char,state,paid,amount);
  const trades=createTrades(db,{now,adjust,saveCharacter:saveOther,origins,capacity:hubData.config.inventory_capacity??99}); // Player-to-player trades: items and coins, escrowed like shop debits.
+ const fieldMagic=createFieldMagic(db,{now,parties,saveCharacter:saveOther,onScreen}); // Field casts reach party members inside the area-chat screen rectangle.
  purchaseHooks.tradeEscrow=(id,char,state,paid,amount)=>trades.fund(id,char,state,paid,amount); // In-game staff commands; the role check lives inside every entry point.
  const engine=id=>engines.get(id)??quarters; // No active visit still exposes the legacy Quarters summary.
  const dive={tick(){measure('tick.parties',()=>atomic(()=>parties.tick()));for(const route of engines.values())route.tick();},
@@ -349,7 +351,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     const lease=presence(i,c,input.controller);if(now()-lease.seen>=HEARTBEAT_WRITE_INTERVAL)db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);return response(i,c); /* Presence stays fresh for 30 s, so a heartbeat only needs to touch the row every few seconds; the other heartbeats commit nothing and cost no disk write. */
    }
    if((!JSON.parse(c.state).run?.sharedEncounter||!['turn_ready','attack','cast','charm','allure','use_item','flee','submit','stand','row','revive'].includes(input.action))&&(!Number.isSafeInteger(input.revision)||input.revision!==c.revision))fail(409,'Character changed; refresh before choosing another action.');
-   const state=JSON.parse(c.state);let p,rpId;
+   const state=JSON.parse(c.state);let p,rpId,fieldCastResult;
    if(state.godMode&&i.gamemaster!==true)delete state.godMode; // GM god mode ends with the next command once the account loses the gamemaster role.
    if(input.action==='enter'){state.flowVersion=input.flow_version===1?1:0;state.followerVersion=input.follower_version===1?1:0;state.contentVersion=input.content_version===1?1:0;state.questVersion=input.quest_version===1?1:0;state.fullDungeonVersion=input.full_dungeon_version===1?1:0;}
    if(state.flowVersion!==1&&flows?.active(c))fail(409,'Update the game to resume this personal story.','client_update_required');
@@ -481,6 +483,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     }
     db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);
    }else if(TRADE_ACTIONS.includes(input.action)){p=presence(i,c,input.controller);trades.act(i,c,state,input,p);} // Player-to-player trades.
+   else if(FIELD_CAST_ACTIONS.includes(input.action)){p=presence(i,c,input.controller);fieldCastResult=fieldMagic.act(c,state,input,p);} // Casting a support spell on a nearby party member; the result rides on the receipt.
    else if(DUEL_ACTIONS.includes(input.action)||state.run?.kind==='duel'&&DUEL_FIGHT_ACTIONS.includes(input.action)){ // Player-versus-player: lobby, stakes, the fight itself and the RP aftermath.
     p=presence(i,c,input.controller);duels.act(i,c,state,input,p);
    }else if(hubEvents&&divePresence&&!isDungeon(divePresence.zone)&&(state.run?.kind==='hub_event'&&!['enter','chat'].includes(input.action)||input.action==='hub_encounter'||input.action==='defeat_complete'&&state.pendingDefeat?.hub)){
@@ -672,7 +675,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    stampHearers(); // Speech, /me, RP notices and activity lines written by this command learn who was on screen for them.
    if(JSON.stringify(state.loadout)!==JSON.stringify(JSON.parse(c.state).loadout))state.loadoutRevision=c.revision+1;
    c.revision++;c.state=JSON.stringify(state);db.prepare('UPDATE quest_characters SET revision=?,state=? WHERE id=?').run(c.revision,c.state,c.id);
-   const receipt={request_id:input.request_id,revision:c.revision,action:input.action,result:state.lastResult,...(rpId?{rpId}: {})};
+   const receipt={request_id:input.request_id,revision:c.revision,action:input.action,result:state.lastResult,...(rpId?{rpId}: {}),...(fieldCastResult?{fieldCast:fieldCastResult}:{})};
    db.prepare('INSERT INTO quest_commands VALUES (?,?,?,?,?)').run(c.id,input.request_id,c.revision,fingerprint,JSON.stringify(receipt));
    db.prepare('DELETE FROM quest_commands WHERE character_id=? AND revision<?').run(c.id,c.revision-128);
    onPresence(c,afterPresence,arrival); // Publish only committed, authenticated presence; a failed command rolls its event back too.

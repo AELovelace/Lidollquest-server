@@ -8,6 +8,16 @@
 
 Flag definition changes and map operations have their own saves/actions. Do not assume they are held until the next flow save. Keep those operations in your release notes alongside the flow.
 
+## Publish an NPC or quest without a flow
+
+Open the shared record from the library. Its top toolbar offers **Save asset drafts**, **Publish asset bundle...**, **Keep edits in bundle**, and **Remove from bundle**. The first two act on the listed shared assets and their required unpublished dependencies, independently of the canvas flow. A blank canvas is allowed for these actions. Use this for ordinary journal quests and NPC dialogue that do not need a personal story.
+
+Review the names under **Publication bundle** and the final confirmation. Related NPCs and quests can be published together even when they reference one another. Other already-published assets keep their live versions unless you explicitly include edits. Opening an unchanged published asset alone does not republish it. Remove from bundle drops local inclusion; it does not delete its saved canonical draft.
+
+Validation and revision-conflict errors appear inside the asset form, where you can correct them. Failed publication is atomic. Save does not make an asset available to players; sidebar labels distinguish **[draft]**, **[published]** and **[unpublished changes]**. New NPCs still need a map placement after publication.
+
+When saving the flow first, its explicit shared edits remain in the tab's bundle with their new revisions. Publishing afterward includes them. Reload recovery restores that bundle; deliberately switching to another flow starts a different bundle. Reopen saved assets marked unpublished changes if you need to include them in a new tab. Refresh content does not overwrite local edits or bypass revision conflicts.
+
 ## Validate the complete story
 
 Choose **Validate** and resolve errors. The server checks references, flag permissions, supported operations, destinations, required outputs and executable structure. Existing quest validators continue to reject invalid stages, unknown objective references and quest cycles.
@@ -21,6 +31,8 @@ An asset opened for editing belongs to the canonical library. Publishing it can 
 Do not interpret “no affected flows” as “no player can be affected.” An NPC may be placed in the world, a monster may be in a zone pool, or an accepted quest may have captured the record. Inspect those uses in the relevant advanced editor or map too.
 
 If an existing published asset must remain unchanged for its other uses, create a deliberately separate record and update the intended references. A new record needs its own publication and placements; changing a label alone does not fork an asset.
+
+![The asset form shows draft status, the publication bundle, Save asset drafts and Publish asset bundle.](../assets/tutorial/reference-publish-bundle.png)
 
 ## Publish
 

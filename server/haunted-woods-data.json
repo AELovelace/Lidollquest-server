@@ -1669,6 +1669,51 @@
       "value": 16,
       "childish": 6,
       "rarity": "rare"
+    },
+    "arcane_pistol": {
+      "item_id": "arcane_pistol",
+      "category": "weapon",
+      "name": "Arcane Pistol",
+      "desc": "A brass pistol with a crystal chamber that channels a mage's own magic into a shot. Fires from either row at full spell-level power for 4 MP a shot. Only a mage can use it.",
+      "weapon_class": "gun",
+      "mp_cost": 4,
+      "power": 20,
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 120,
+      "childish": 2,
+      "rarity": "rare"
+    },
+    "star_rifle": {
+      "item_id": "star_rifle",
+      "category": "weapon",
+      "name": "Star Rifle",
+      "desc": "A long silver rifle etched with constellations. Each shot pulls 7 MP straight from the mage and lands like a heavy spell, from any row. Only a mage can use it.",
+      "weapon_class": "gun",
+      "mp_cost": 7,
+      "power": 40,
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 300,
+      "childish": 4,
+      "rarity": "epic"
+    },
+    "mana_cannon": {
+      "item_id": "mana_cannon",
+      "category": "weapon",
+      "name": "Mana Cannon",
+      "desc": "A shoulder-mounted crystal cannon that channels a mage's magic into a heavy shot. Fires from either row for 10 MP. Only a mage can use it.",
+      "weapon_class": "gun",
+      "mp_cost": 10,
+      "power": 60,
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 600,
+      "childish": 3,
+      "rarity": "epic"
     }
   },
   "item_pool": [
@@ -1743,7 +1788,10 @@
     "permanent_incontinence_potion",
     "bottle",
     "nanny_juice_box",
-    "formula_bottle_an"
+    "formula_bottle_an",
+    "arcane_pistol",
+    "star_rifle",
+    "mana_cannon"
   ],
   "food_pool": [
     "adult_food",

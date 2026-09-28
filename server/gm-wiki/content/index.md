@@ -10,6 +10,18 @@ Follow [Build your first quest](first-quest.md) to make a scout who asks for hel
 
 If this is your first GM session, read [Access and authoring basics](getting-started.md) and [Using Story Workshop](workshop.md) first. Keep the workshop in one window and this guide in another.
 
+## Choose an advanced tutorial
+
+Each guide has real editor pictures, field-by-field instructions, a publication path, and checks for the failure cases. Click a picture to enlarge it. IDs in pictures are examples: copy your own generated asset IDs when following along.
+
+- [A three-quest chain](tutorial-chain.md): Unlock three journal quests in order with prerequisites and separate claims.
+- [A piety-gated quest](tutorial-piety.md): Check patron and piety, protect acceptance, and remember completion.
+- [Find and deliver a parcel](tutorial-delivery.md): Place quest tokens, collect them, deliver them, and claim the reward.
+- [Advanced conversations](tutorial-conversations.md): Create topic loops, conditional choices, and remembered NPC reactions.
+- [Visit and spend time in a zone](tutorial-zone-stay.md): Require arrival, connected time in the destination, and a return report.
+- [Unlock a secret memory orb](tutorial-secret-orb.md): Use a personal flag to open a placed story orb and build a memory trail.
+- [A repeatable daily patrol](tutorial-daily-patrol.md): Author repeat eligibility, modest rewards, and a complete return route.
+
 ## The authoring workflow
 
 1. **Plan the player experience.** Write the offer, the task, the possible outcomes, and what the world should remember.

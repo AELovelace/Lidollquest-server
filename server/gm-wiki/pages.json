@@ -32,6 +32,62 @@
     "group": "Start creating"
   },
   {
+    "slug": "tutorial-chain",
+    "source": "tutorial-chain.md",
+    "title": "A three-quest chain",
+    "kicker": "Advanced worked tutorial",
+    "description": "Unlock three journal quests in order with prerequisites and separate claims.",
+    "group": "Advanced tutorials"
+  },
+  {
+    "slug": "tutorial-piety",
+    "source": "tutorial-piety.md",
+    "title": "A piety-gated quest",
+    "kicker": "Advanced worked tutorial",
+    "description": "Check patron and piety, protect acceptance, and remember completion.",
+    "group": "Advanced tutorials"
+  },
+  {
+    "slug": "tutorial-delivery",
+    "source": "tutorial-delivery.md",
+    "title": "Find and deliver a parcel",
+    "kicker": "Advanced worked tutorial",
+    "description": "Place quest tokens, collect them, deliver them, and claim the reward.",
+    "group": "Advanced tutorials"
+  },
+  {
+    "slug": "tutorial-conversations",
+    "source": "tutorial-conversations.md",
+    "title": "Advanced conversations",
+    "kicker": "Advanced worked tutorial",
+    "description": "Create topic loops, conditional choices, and remembered NPC reactions.",
+    "group": "Advanced tutorials"
+  },
+  {
+    "slug": "tutorial-zone-stay",
+    "source": "tutorial-zone-stay.md",
+    "title": "Visit and spend time in a zone",
+    "kicker": "Advanced worked tutorial",
+    "description": "Require arrival, connected time in the destination, and a return report.",
+    "group": "Advanced tutorials"
+  },
+  {
+    "slug": "tutorial-secret-orb",
+    "source": "tutorial-secret-orb.md",
+    "title": "Unlock a secret memory orb",
+    "kicker": "Advanced worked tutorial",
+    "description": "Use a personal flag to open a placed story orb and build a memory trail.",
+    "group": "Advanced tutorials"
+  },
+  {
+    "slug": "tutorial-daily-patrol",
+    "source": "tutorial-daily-patrol.md",
+    "title": "A repeatable daily patrol",
+    "kicker": "Advanced worked tutorial",
+    "description": "Author repeat eligibility, modest rewards, and a complete return route.",
+    "group": "Advanced tutorials"
+  },
+  {
     "slug": "quests",
     "source": "quests.md",
     "title": "Quest stages & objectives",

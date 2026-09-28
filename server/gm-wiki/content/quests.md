@@ -4,6 +4,10 @@
 
 A quest tracks a character's task in the journal. A flow controls the interactions around that task. Use Quest operation blocks to accept, claim, abandon, or choose a quest branch; use Wait for objective when the story should pause until the referenced quest is ready or claimed.
 
+![The shared quest form exposes stage objectives and delivery fields.](../assets/tutorial/advanced-delivery-deliver.png)
+
+For full examples, try the [three-quest chain](tutorial-chain.md), [parcel delivery](tutorial-delivery.md), [zone stay](tutorial-zone-stay.md), or [daily patrol](tutorial-daily-patrol.md).
+
 ## Create and organize a quest
 
 Use **+ quest** in the workshop library or the existing Quests editor under Advanced GM tools. Edit the same record in either place, and reload after saving it elsewhere to avoid stale revisions.
@@ -46,7 +50,7 @@ Set next to another stage ID, `complete`, or `failed`. Every stage must be reach
 | `kill` | Authoritative victory credit against the specified monster | Published monster ID; optional zone restriction must match the battle location. |
 | `equipment` | Having the specified item equipped | Item ID and optional slot; this is a current-state check. |
 | `state` | Meeting a numeric character condition | Field, comparison and value, such as health `gte` 10. |
-| `timer` | Enough quest time has elapsed in this stage | Count is the required seconds. |
+| `timer` | Enough stage time, or connected time in the selected zone, has elapsed | Count is seconds. Blank zone uses the quest clock; an explicit zone uses accumulated connected presence there. |
 
 Each objective also has a stable ID, descriptive text, count, optional zone, conditions, and sharing mode. Use unique IDs within a stage. Two different items with similar names still have different IDs.
 
@@ -65,6 +69,8 @@ A branch has an ID, label, destination stage or terminal result, and conditions.
 A Player choice block and a quest branch are separate things. To make one player choice select a quest branch, connect that choice output to a Quest operation configured for `branch`. Do not connect directly to later prose and assume the journal advanced too.
 
 ## Timers and sharing
+
+A timer objective with an explicit **zone** pauses outside that zone and resumes on return. Offline gaps and service downtime are not backfilled; the existing presence timeout can credit the last part of a lost connection. Progress is accumulated, not an uninterrupted-stay streak. Previously recorded objective credit is preserved when upgrading; subsequent credit follows the zone restriction. The quest-level deadline remains a separate clock and can still fail the quest. See the [zone-stay tutorial](tutorial-zone-stay.md) for the three-stage pattern and required server version.
 
 Timer seconds `0` disables the overall deadline. `online` measures connected quest time; `realtime` uses wall-clock time and includes absence. Write explicit time limits into the quest's player-facing text.
 

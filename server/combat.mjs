@@ -41,6 +41,19 @@ export function beginRound(state,z,roll,authoredEnemy=null){ // Arena rounds and
  r.charmFailures=0;r.charmLimit=1+roll(5);r.charmPressure=0;
  Object.assign(r.enemy,authoredEnemy?pinDefeat(authoredEnemy):{str:z.attack+r.stage+1,def:Math.floor((r.stage-1)/2),exp:r.stage*5,enemy_id:'goblin',enemy_spells:r.stage>=3?[z.theme==='clockwork'?'assessment_scan':'haunting_urge']:[],spell_cast_chance:0.35});
  applyRunLoadout(r,state.loadout);
+ applyFieldBuffs(state); // Buffs primed outside battle (field-magic.mjs / spell_cast_overworld) start now and are reverted by clearEffects.
+}
+
+export function applyFieldBuffs(state){ // player_info.field_buffs: [{spell_id,stat_key,amount,turns}] → ordinary timed run buffs, then the primer is used up.
+ const r=state.run,p=state.loadout?.player_info,list=p?.field_buffs;
+ if(!r||!Array.isArray(list)||!list.length)return;
+ for(const b of list){
+  const key=String(b?.stat_key??''),amount=Math.floor(num(b?.amount));if(!['str','def','dex','int','cha'].includes(key)||amount<=0)continue; // only positive primary-stat buffs can be primed
+  const spell=combatData.spells[b.spell_id]??{};addBuff(r,p,{spell_id:String(b.spell_id??'field_buff'),stat_effect:key,dot_turns:Math.max(1,num(b.turns,num(spell.dot_turns,3)))},amount);
+  if(key==='int')refreshIntMana(state.loadout);
+  (r.log??=[]).push((spell.name??'A primed spell')+' kicks in: +'+amount+' '+key.toUpperCase()+'.');
+ }
+ p.field_buffs=[];
 }
 
 export function clearEffects(state){ // Remove temporary player modifiers on every victory, escape, submission and defeat.
@@ -113,7 +126,7 @@ function charm(state,action,roll){
 
 function enemySpell(state,s){ // Enemy spell effects share the player's serialized modifier timers.
  const r=state.run,p=state.loadout.player_info,defense=blessedDef(state.loadout)-r.handicaps.filter(h=>h==='Reduced armor').length;r.log.push(r.enemy.name+' casts '+s.name+'.');
- if(s.type==='enemy_stat'&&s.stat_effect==='crawling'){if(s.stat_amount>0){setCrawling(state.loadout,true);r.log.push('Knocked down! Physical damage -25%; Stand Up costs one action.');}}
+ if(s.type==='enemy_stat'&&s.stat_effect==='crawling'){if(s.stat_amount>0){setCrawling(state.loadout,true);r.log.push(loadoutCrawlFree(state.loadout)?"Knocked down! Sula preserves your speed and physical damage; Stand Up costs one action.":'Knocked down! Physical damage -25%; Stand Up costs one action.');}} // Report the blessing already used by movementDelay and physical attacks.
  else if(s.type==='enemy_stat')enemyStat(p,s.stat_effect,s.stat_amount);
  if(s.type==='enemy_damage')r.hp=Math.max(0,r.hp-mitigate(currentTuning(),s.power,defense)); // Player DEF shaves a percentage off enemy spells.
  if(s.type==='enemy_debuff')addBuff(r,p,s,s.stat_amount);

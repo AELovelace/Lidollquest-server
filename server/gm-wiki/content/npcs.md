@@ -8,7 +8,11 @@ An NPC record defines who the character is, how they look, what they say, and wh
 
 Use **+ npc**, keep the generated ID, and edit name, description, sprite, battle sprite, wander radius, dialogue, quests, story default, and story reactions. Select approved artwork from the available assets. Start with a stationary NPC while testing proximity and placement.
 
-Choose **Keep edits in bundle** and Save draft. For specialized artwork or dialogue editing, open the same record in the advanced NPC editor. Its sections include Basics, Artwork, Dialogue, Quest links, and Review. After using another editor, reload the workshop before saving the record there again.
+Choose **Save asset drafts** to save the NPC independently, or **Keep edits in bundle** followed by the canvas **Save draft** to save it with a flow. **Publish asset bundle...** publishes the reviewed shared records without requiring a flow. For specialized artwork or dialogue editing, open the same record in the advanced NPC editor. Its sections include Basics, Artwork, Dialogue, Quest links, and Review. After using another editor, reload the workshop before saving the record there again.
+
+![Dialogue pages and actions in the shared NPC editor.](../assets/tutorial/reference-npc-dialogue.png)
+
+The [advanced conversation tutorial](tutorial-conversations.md) connects topics, personal flags and ordered return greetings.
 
 ## Dialogue pages
 

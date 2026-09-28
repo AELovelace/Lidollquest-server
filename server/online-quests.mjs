@@ -75,7 +75,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
    if(o.type==='state')count=conditions(s,[o])?o.count:0;
    if(o.type==='equipment'){count=0;const p=s.loadout?.player_info??{};if(o.slot?p['equipped_'+o.slot]===o.target:Object.entries(p).some(([k,v])=>k.startsWith('equipped_')&&v===o.target))count=o.count;}
    if(o.type==='collect'&&!o.token)count=(s.loadout?.inventory??[]).filter(i=>i.item_id===o.target).length;
-   if(o.type==='timer')count=Math.floor((q.state.elapsed-(q.state.stage_started??0))/1000);
+   if(o.type==='timer')count=Math.floor((o.zone?(q.state.objective_elapsed?.[key]??(progress[key]??0)*1000):q.state.elapsed-(q.state.stage_started??0))/1000);
    if(event&&o.token&&o.type==='collect'&&event.type==='collect'&&event.target===o.target&&(!o.zone||o.zone===event.zone)&&(!event.shared||o.sharing==='party')&&!grantedTokens.has(o.target)){q.state.tokens[o.target]=(q.state.tokens[o.target]??0)+1;grantedTokens.add(o.target);}
    if(event&&(!event.shared||o.sharing==='party')&&(!o.zone||o.zone===event.zone)&&event.type===o.type&&(!o.target||o.target===event.target)&&(!event.objective||event.objective===o.id))count+=event.count??1;
    progress[key]=Math.min(o.count,count);
@@ -179,13 +179,23 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
   return {instances:instances(c).filter(q=>['active','choice','ready'].includes(q.state.status)).map(q=>publicQuest(q,s)).concat(instances(c).filter(q=>!['active','choice','ready'].includes(q.state.status)).slice(-32).map(q=>({...publicQuest(q,s),objectives:[],description:q.definition.description.slice(0,512)}))),available:[],conversation};
  }
  let nextQuestSweep=0; // When tick() next includes offline characters (realtime deadlines, the last seconds before a timeout).
- function tickCharacter(c,s){const p=position(c,s);for(const q of instances(c)){if(!['active','choice','ready'].includes(q.state.status))continue;const timer=q.definition.timer,elapsed=timer.mode==='realtime'?now()-q.created:q.state.elapsed+Math.max(0,Math.min(now(),(p?.seen??0)+30000)-(q.state.last_tick??now()));q.state.elapsed=elapsed;q.state.last_tick=now();if(timer.seconds&&elapsed>=timer.seconds*1000&&q.state.status!=='ready'){q.state.status='failed';q.state.failure=q.definition.failure_text;}save(q);evaluate(q,c,s);}}
+ function tickCharacter(c,s){const p=position(c,s),at=now();for(const q of instances(c)){if(!['active','choice','ready'].includes(q.state.status))continue;
+  const timer=q.definition.timer,last=q.state.last_tick??at,elapsed=timer.mode==='realtime'?at-q.created:q.state.elapsed+Math.max(0,Math.min(at,(p?.seen??0)+30000)-last);
+  if(q.state.status==='active')for(const o of q.definition.stages.find(v=>v.id===q.state.stage).objectives){
+   if(o.type!=='timer'||!o.zone)continue;const key=q.state.stage+':'+o.id;
+   // Require both interval endpoints in the destination and cap credit at the previous presence lease; reconnects cannot backfill absence.
+   const ms=p?.zone===o.zone&&q.state.timer_zone===o.zone&&conditions(s,o.conditions)?Math.max(0,Math.min(at,(q.state.timer_seen??0)+30000,(p?.seen??0)+30000)-last):0;
+   q.state.objective_elapsed??={};q.state.objective_elapsed[key]=Math.min(o.count*1000,(q.state.objective_elapsed[key]??(q.state.progress[key]??0)*1000)+ms);
+  }
+  q.state.timer_zone=p?.zone??'';q.state.timer_seen=p?.seen??0;q.state.elapsed=elapsed;q.state.last_tick=at;
+  if(timer.seconds&&elapsed>=timer.seconds*1000&&q.state.status!=='ready'){q.state.status='failed';q.state.failure=q.definition.failure_text;}save(q);evaluate(q,c,s);
+ }} // Zone-qualified timer objectives count accumulated connected presence; unqualified timers retain their existing quest-clock behavior.
  function after(c,s,input){if(!db.prepare("SELECT 1 FROM online_quests WHERE character_id=? AND json_extract(state,'$.status') IN ('active','choice') LIMIT 1").get(c.id))return;tickCharacter(c,s);const p=position(c,s);if(p){event(c,s,{id:'zone:'+input.request_id,type:'visit',target:p.zone,zone:p.zone});const map=placements.view(p.zone);
   const points=input.walkPath?.length?input.walkPath.map((q,n,all)=>({at:{...p,x:q.x,y:q.y},id:input.request_id+(n===all.length-1?'':':'+n),step:{...input,action:'move'}})):[{at:p,id:input.request_id,step:input}]; // A queued walk counts every tile it crossed; its last tile keeps the plain request id a single move would use.
   for(const {at,id,step} of points){fullDungeonQuestMovement(c,s,{...step,request_id:id},at,map,event);for(const place of map.placements)if(place.kind==='location'&&at.x===place.x&&at.y===place.y)event(c,s,{id:'location:'+id,type:'visit',target:place.content,zone:p.zone});}
  }}
  // Reset online clock checkpoints on boot: time while the service was stopped never counts as connected play.
- for(const row of db.prepare('SELECT * FROM online_quests').all()){const q=unpack(row);if(q.definition.timer.mode==='online'){q.state.last_tick=now();save(q);}}
+ for(const row of db.prepare('SELECT * FROM online_quests').all()){const q=unpack(row);if(q.definition.timer.mode==='online'||q.definition.stages.some(s=>s.objectives.some(o=>o.type==='timer'&&o.zone))){q.state.last_tick=now();q.state.timer_zone='';q.state.timer_seen=0;save(q);}}
  function flow(c,s,n,pinned){
   const d=pinned.assets.quests[n.ref];if(!d)fail('This story quest is missing.');
   if(n.operation==='accept'){if(!active(c,n.ref))accept(c,s,n.ref,d.givers[0],d);}

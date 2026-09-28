@@ -81,3 +81,7 @@ Use **Validate** frequently. Errors identify affected blocks or missing connecti
 Unsaved flow work is stored for recovery in that browser tab under the signed-in owner. After a reload, accept the recovery prompt if it contains the work you want. This is not a server backup and does not follow you to another browser.
 
 If another window changes a record, copy any important unsaved prose, reload the current server draft, and apply your intended changes again. Repeatedly clicking Publish does not resolve a revision conflict. See [Publishing](publishing.md).
+
+## Shared asset publication controls
+
+NPC and quest forms now have a fixed toolbar for **Save asset drafts**, **Publish asset bundle...**, **Keep edits in bundle**, and **Remove from bundle**. Errors stay visible inside the form. Saved shared edits remain in the current flow bundle until publication, including after tab recovery. Library labels show draft-only records and unpublished changes. The [publishing guide](publishing.md#publish-an-npc-or-quest-without-a-flow) explains the distinction between these buttons and the canvas Publish button.

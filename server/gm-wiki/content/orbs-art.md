@@ -4,6 +4,10 @@
 
 Use an orb for a discoverable memory in the world. Use a Narrative block for an illustrated or text-based scene in a playable flow. They can share subject matter while retaining different authoring responsibilities.
 
+![A shared orb record has its own pages, appearance and story conditions.](../assets/tutorial/advanced-orb-condition.png)
+
+Work through [Unlock a secret memory orb](tutorial-secret-orb.md) to connect an NPC decision to personal reading access.
+
 ## Create an orb
 
 Click **+ orb** or open the advanced orb editor. Keep its stable ID, enter a title, select a glow color, and write at least one nonempty page. Save the record and reopen it if you need the normalized optional fields.
@@ -55,3 +59,9 @@ Use the advanced artwork tools when you need to upload, generate, review, approv
 Test text over the actual artwork on a small screen. Keep important faces and objects away from the dialogue text area. Check long paragraphs, empty artwork, and a temporarily unavailable image; the story instructions should still be understandable.
 
 Do not put behavior into image filenames or narrative prose. A picture of a reward does not add an item; a page saying “your wounds heal” needs the corresponding Character effect if actual healing is intended.
+
+## Illustrated page controls
+
+![The orb page list contains narrative text, artwork and next-page destinations.](../assets/tutorial/reference-orb-pages.png)
+
+Use exact page IDs for destinations and close for the final page. The [secret-orb tutorial](tutorial-secret-orb.md) shows the separate personal access requirement.

@@ -4,6 +4,8 @@
 
 Content becomes discoverable when it is placed in the world. Story Workshop uses the existing zone-map, placement and regeneration services. It does not paint terrain or construct new zones.
 
+![The map tools keep content kind, content ID, lifetime and the generated map together.](../assets/tutorial/reference-map-placement.png)
+
 ## Open the map
 
 Choose **Zone map & placements**, select an existing zone, and wait for its map. The dialog shows the map edition and current status. From a selected block, **Show on map** highlights matching content in the map view; choose the relevant zone if it is not the one already shown.

@@ -18,6 +18,8 @@ Text and artwork are presentation. Merely writing “you receive a potion” doe
 
 ## Player choice
 
+![Choice properties give each response its own ID, label, requirements and connection.](../assets/tutorial/advanced-conversation-choices.png)
+
 Write the prompt and add up to eight choices. Each choice has a unique choice ID, visible label, and optional story requirements. The choice ID becomes its output port. Connect all choices, including refusal.
 
 The server checks current requirements when the player chooses. Imported dialogue choices can retain numeric requirements as well as flags. Unavailable choices should not be the only way out of a scene: supply a fallback option unless you deliberately want the player to wait for an external change.
@@ -29,6 +31,10 @@ Changing a choice ID removes the meaning of the old connection. Recheck the grap
 Check flags evaluates All set, Any set, and None set and has `match` and `no_match` outputs. Set flag and Clear flag choose an active authored flag and continue through `next` after committing the value.
 
 Use a Check flags near the beginning of a repeatable flow to route already-completed players away from one-time rewards. See [Flags](flags.md) for empty-group behavior and engine-owned restrictions.
+
+![Piety properties show the patron, threshold and both destinations.](../assets/tutorial/advanced-piety-check.png)
+
+Follow [A piety-gated quest](tutorial-piety.md) for a complete admission path, including protection against ordinary NPC offers bypassing the check.
 
 ## Piety check
 
