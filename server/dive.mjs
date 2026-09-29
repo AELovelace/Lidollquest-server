@@ -246,9 +246,10 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    measure('simulation.apply.'+zoneId,()=>{
     db.exec('BEGIN IMMEDIATE');try{
      const row=floorQuery.get(route,active.edition),currentPlayers=roamingPlayers();
-     if(controls?.draining()||latest()!==active.edition||!config.static&&!active.edition.startsWith(weeklyWindow(now()).edition)||!row||row.content!==active.content||row.updated!==active.updated||positions(currentPlayers)!==expectedPositions||now()-scheduledAt>seconds){measure('worker.stale.paths',()=>{});db.exec('COMMIT');return;}
+     if(controls?.draining()||config.roaming===false||live&&data.contentRevision!==live.published().revision||latest()!==active.edition||!config.static&&!active.edition.startsWith(weeklyWindow(now()).edition)||!row||row.content!==active.content||row.updated!==active.updated||positions(currentPlayers)!==expectedPositions){measure('worker.stale.paths',()=>{});db.exec('COMMIT');return;} // Changed world state invalidates a path; elapsed time alone does not make an unchanged path unsafe.
      const plans=new Map(starts.map((start,index)=>[start.id,new Map(currentPlayers.map((p,target)=>[p.character_id,paths[index][target]]))]));
-     roam({...row,floor:JSON.parse(row.content)},currentPlayers,plans,scheduledAt);db.exec('COMMIT');
+     const delayed=now()-scheduledAt>seconds;if(delayed)measure('worker.delayed.paths',()=>{});
+     roam({...row,floor:JSON.parse(row.content)},currentPlayers,plans,delayed?now():scheduledAt);db.exec('COMMIT'); // A late valid result moves once at delivery, with no catch-up burst or repeated timeout freeze.
     }catch(error){db.exec('ROLLBACK');throw error;}
    });
   }).catch(error=>{if(!closed)log('dive_pathfinding_failed',zoneId,String(error));}).finally(()=>{roamingPending=null;});

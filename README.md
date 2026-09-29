@@ -1170,8 +1170,11 @@ No database reset or GameMaker rebuild is needed.
 
 Workers generate seeded floors and calculate batches of pursuit paths. One
 coordinator owns SQLite, timers, purchases and combat. Before applying paths it
-rechecks edition, exact floor contents, player identities/positions and age
-(at most one second), then uses fresh character/party state. Stale results wait
+rechecks edition, exact floor contents/update stamp, published content revision
+and player identities/positions, then uses fresh character/party state. A valid
+result delivered after more than one second still moves enemies once, using its
+delivery time to prevent catch-up bursts. `worker.delayed.paths` counts these
+batches; elapsed time alone must not freeze an otherwise unchanged map. Stale results wait
 for another tick. Generation failures retry after a minute; pursuit failures
 retry on later ticks. The pool has a 64-job waiting queue and a 60-second job
 timeout. Crashed workers are replaced on demand. Shutdown cancels pending work

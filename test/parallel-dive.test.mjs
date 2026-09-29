@@ -7,13 +7,18 @@ import {createQuestZones} from '../server/zones.mjs';
 import {generateFloor,enemyRoams,pathTo,walkable,inside} from '../server/dive-generation.mjs';
 import {diveData} from '../server/dive.mjs';
 import {computeTask} from '../server/compute-tasks.mjs';
+import {createWorldContent} from '../server/world-content.mjs';
+import {combatData} from '../server/combat.mjs';
+import {hubData} from '../server/hubs.mjs';
 
-function fixture(){
+function fixture({published=false}={}){
  const db=new DatabaseSync(':memory:');let time=Date.parse('2026-09-17T12:00:00Z'),character,pending;const measures=[];
+ const live=published?createWorldContent(db,{now:()=>time,spells:combatData.spells,equipment:{...hubData.equipment,...combatData.defeat_items},defeatEquipment:combatData.defeat_equipment}):null;
  const compute={submit(kind,input){assert.equal(kind,'paths');assert.equal(pending,undefined);return new Promise((resolve,reject)=>{pending={input:structuredClone(input),resolve,reject};});}};
- const api=createQuestZones(db,{now:()=>time,roll:()=>0,grant:()=>({owner:'alice',id:'a',client:'lidollquest'}),wallet:()=>({coins:0}),adjust:()=>{},measure:(name,work)=>{measures.push(name);return work();},diveOptions:{compute,generate:(...args)=>generateFloor(...args),log:()=>{}}});
+ const api=createQuestZones(db,{now:()=>time,roll:()=>0,live,grant:()=>({owner:'alice',id:'a',client:'lidollquest'}),wallet:()=>({coins:0}),adjust:()=>{},measure:(name,work)=>{measures.push(name);return work();},diveOptions:{compute,generate:(...args)=>generateFloor(...args),log:()=>{}}});
+ if(live){const row=live.entry('zone','dive-quarters');live.change({action:'content_publish',kind:'zone',id:row.id,revision:row.revision,entry:row.draft},'gm');}
  const act=(action,extra={})=>{const result=api.act('',{action,request_id:randomUUID(),controller:'a',character_id:character?.id,revision:character?.revision,...extra});character=result.character;return result;};
- act('create',{name:'Walker'});act('enter',{zone:'princess-rose',loadout:{player_info:{playerHealth:100,playerHealthMax:100,str:4,def:4},inventory:[]},combat_version:2});act('dive_enter');
+ act('create',{name:'Walker'});act('enter',{zone:'princess-rose',loadout:{player_info:{playerHealth:100,playerHealthMax:100,str:4,def:4},inventory:[]},combat_version:2,content_version:1});act('dive_enter');
  const visit=character.dive,record=()=>db.prepare('SELECT * FROM dive_editions WHERE route=? AND edition=?').get(visit.route,visit.edition);
  const saveFloor=f=>db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=?').run(JSON.stringify(f),visit.route,visit.edition);
  const f=JSON.parse(record().content),foe=f.enemies.find(e=>enemyRoams(diveData,e));let path;
@@ -28,7 +33,7 @@ function fixture(){
  const saveState=s=>db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(s),character.id);
  const target=path.at(-1),s=state();s.dive.position=target;s.dive.safeUntil=0;saveState(s);
  db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(target.x,target.y,character.id);
- return {db,api,path,foe,character,state,saveState,record,saveFloor,measures,
+ return {db,api,live,path,foe,character,state,saveState,record,saveFloor,measures,
   tick(ms=1100){time+=ms;api.tick();},advance:ms=>time+=ms,
   async finish(){assert.ok(pending);const job=pending;pending=undefined;job.resolve(computeTask('paths',job.input));await setImmediate();},
   close(){api.close();db.close();}};
@@ -42,6 +47,13 @@ test('parallel pursuit matches synchronous movement and starts exactly one encou
    if(step<2)assert.deepEqual({x:foe.x,y:foe.y},h.path[step]);
   }
   assert.equal(h.state().run?.encounter,h.foe.id);assert.equal(JSON.parse(h.record().content).enemies.filter(e=>e.engaged===h.character.id).length,1);
+ }finally{h.close();}
+});
+
+test('published Quarters keeps roaming when pathfinding runs in workers',async()=>{
+ const h=fixture({published:true});try{
+  h.tick();await h.finish();const foe=JSON.parse(h.record().content).enemies.find(e=>e.id===h.foe.id);
+  assert.deepEqual({x:foe.x,y:foe.y},h.path[0]);
  }finally{h.close();}
 });
 test('parallel pursuit creates one current-protocol shared encounter',async()=>{
@@ -61,13 +73,33 @@ test('worker delivery latency preserves the one-second pursuit cadence',async()=
   const foe=JSON.parse(h.record().content).enemies.find(e=>e.id===h.foe.id);assert.deepEqual({x:foe.x,y:foe.y},h.path[1]);
  }finally{h.close();}
 });
-for(const change of ['position','floor','edition'])test('parallel pursuit discards stale '+change+' results',async()=>{
+
+test('slow worker delivery still advances unchanged Quarters once without catch-up movement',async()=>{
+ const h=fixture();try{
+  h.tick(1000);h.advance(1500);await h.finish();
+  let foe=JSON.parse(h.record().content).enemies.find(e=>e.id===h.foe.id);
+  assert.deepEqual({x:foe.x,y:foe.y},h.path[0],'a delayed but still valid path must not freeze every enemy');
+  const applied=h.record().updated;h.tick(1000);h.advance(1500);await h.finish();
+  foe=JSON.parse(h.record().content).enemies.find(e=>e.id===h.foe.id);assert.deepEqual({x:foe.x,y:foe.y},h.path[1]);
+  assert.equal(h.record().updated,applied+2500,'slow deliveries move once each, without replaying missed seconds');
+  assert.equal(h.measures.filter(name=>name==='worker.delayed.paths').length,2);
+ }finally{h.close();}
+});
+for(const delay of [0,1500])for(const change of ['position','floor','edition'])test('parallel pursuit discards stale '+change+' results after '+delay+' ms',async()=>{
  const h=fixture();try{
   h.tick();
   if(change==='position')h.db.prepare('UPDATE quest_presence SET x=x+1 WHERE character_id=?').run(h.character.id);
   if(change==='floor'){const f=JSON.parse(h.record().content);f.enemies[0].engaged='another-character';h.saveFloor(f);}
   if(change==='edition'){const row=h.record();h.db.prepare('INSERT INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(row.route,'newer-edition',row.starts+1,row.ends+1,row.content,row.updated);}
-  const before=h.record().content;await h.finish();assert.equal(h.record().content,before);assert.equal(h.state().run,null);assert.ok(h.measures.includes('worker.stale.paths'));
+  const before=h.record().content;h.advance(delay);await h.finish();assert.equal(h.record().content,before);assert.equal(h.state().run,null);assert.ok(h.measures.includes('worker.stale.paths'));
+ }finally{h.close();}
+});
+
+test('a roaming switch published while a worker is busy rejects its pending movement',async()=>{
+ const h=fixture({published:true});try{
+  h.tick();const before=h.record().content,row=h.live.entry('zone','dive-quarters');
+  h.live.change({action:'content_publish',kind:'zone',id:row.id,revision:row.revision,entry:{...row.draft,enemies_roam:false}},'gm');
+  h.advance(1500);await h.finish();assert.equal(h.record().content,before);assert.ok(h.measures.includes('worker.stale.paths'));
  }finally{h.close();}
 });
 test('parallel pursuit starts combat using fresh inventory and character revision',async()=>{
