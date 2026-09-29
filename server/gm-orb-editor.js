@@ -24,7 +24,7 @@ function editOrb(row){
 }
 function newOrb(){
  const id='orb_'+Date.now();
- editOrb({id,revision:0,history:[],draft:{id,title:'A glowing orb',colour:'#ffdc3c',bg_color:[10,14,8],type_speed:2,repeatable:false,requires:'',retired:false,note:'',pages:[{id:'p1',text:'Write what the player finds here.',next:'close'}]}});
+ editOrb({id,revision:0,history:[],draft:{id,title:'A glowing orb',colour:'#ffdc3c',bg_color:[10,14,8],type_speed:2,repeatable:false,hidden_until_revealed:false,requires:'',retired:false,note:'',pages:[{id:'p1',text:'Write what the player finds here.',next:'close'}]}});
 }
 function orbDirty(){orbEdit.dirty=true;const s=$('orbSaveState');if(s)s.textContent='Unsaved changes';renderOrbPreview();}
 function renderOrb(){
@@ -38,6 +38,7 @@ function renderOrb(){
  const bg=worldField(grid,'Story box background',orbHex(d.bg_color),'color');bg.oninput=()=>{d.bg_color=orbRgb(bg.value);orbDirty();};
  const speed=worldField(grid,'Typewriter speed (1 slow - 10 fast)',d.type_speed,'number');speed.min=1;speed.max=10;speed.oninput=()=>{d.type_speed=Number(speed.value);orbDirty();};
  const repeat=worldField(grid,'Repeatable (stays lit after reading)',d.repeatable,'checkbox');repeat.onchange=()=>{d.repeatable=repeat.checked;orbDirty();};
+ const hidden=worldField(grid,'Hidden until revealed by a story block',!!d.hidden_until_revealed,'checkbox');hidden.onchange=()=>{d.hidden_until_revealed=hidden.checked;orbDirty();}; // Visibility is personal; map placements stay editable.
  const others=[{id:'',name:'Nothing - always lit'},...orbPublished().filter(r=>r.id!==d.id).map(r=>({id:r.id,name:r.published.title}))];
  const requires=worldSelect(grid,'Must read first (stays dark until then)',others,d.requires??'');requires.onchange=()=>{d.requires=requires.value;orbDirty();};
  const retired=worldField(grid,'Retired (hidden from the world)',d.retired,'checkbox');retired.onchange=()=>{d.retired=retired.checked;orbDirty();};

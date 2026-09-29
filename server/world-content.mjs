@@ -76,7 +76,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
    const rgb=value.bg_color??[10,14,8];if(!Array.isArray(rgb)||rgb.length!==3||rgb.some(n=>!Number.isInteger(n)||n<0||n>255))fail('Use a background colour of three 0-255 numbers.');
    const colour=typeof value.colour==='string'&&/^#[0-9a-fA-F]{6}$/.test(value.colour)?value.colour.toLowerCase():fail('Pick the orb colour as #rrggbb.');
    const requires=value.requires??'';if(requires!==''&&(!id(requires)||requires===value.id))fail('Choose another orb that must be read first, or none.');
-   const out={id:value.id,title:text(value.title??'',100).trim()||fail('Give the orb a title.'),colour,bg_color:[...rgb],type_speed:integer(value.type_speed??2,1,10),repeatable:!!value.repeatable,requires,retired:!!value.retired,note:text(value.note??'',400),pages:beats(value.pages??[])};
+   const out={id:value.id,title:text(value.title??'',100).trim()||fail('Give the orb a title.'),colour,bg_color:[...rgb],type_speed:integer(value.type_speed??2,1,10),repeatable:!!value.repeatable,hidden_until_revealed:!!value.hidden_until_revealed,requires,retired:!!value.retired,note:text(value.note??'',400),pages:beats(value.pages??[])};
    out.story_conditions=validateFlagCondition(value.story_conditions);
    if(!out.pages.length||out.pages.some(p=>!p.text.trim()))fail('Write at least one page, and no empty pages.');
    if(Buffer.byteLength(JSON.stringify(out))>64*1024)fail('Keep one orb story below 64 KiB.');

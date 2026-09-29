@@ -99,6 +99,12 @@ Choose an existing destination zone. Output is `next`. The server uses the exist
 
 Explain the transition before it happens. Test the arrival location and any following encounter or interaction in the destination. A travel into another story's trigger should not be used to create conflicting simultaneous stories.
 
+## Reveal orb / Hide orb
+
+Select an orb under **Content reference**, or drag it from the library onto the block. Each action has a `next` output and changes visibility for the story owner at every placement of that orb ID. Place the orb on a map first. Enable **Hidden until revealed** in its Settings to start invisible; Hide orb can also conceal an initially visible orb.
+
+Connect these actions after dialogue, a battle outcome, a flag entry or an objective entry. They persist across reconnects and do not change other characters. Reveal does not bypass reading requirements or revive a spent one-time orb. GM map pins remain visible. Preview shows the simulated state under Simulated conditions; isolated play tests actual appearance.
+
 ## Spawn monster
 
 Choose a monster reference. Output is `next`. This creates a personal story-owned, nonroaming, nonrespawning monster near the owner on a valid reachable tile; it does not automatically start the battle.

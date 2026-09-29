@@ -7,7 +7,7 @@ const id=v=>typeof v==='string'&&/^[a-z][a-z0-9_-]{0,79}$/.test(v)&&!['construct
 const text=(v='',max=4000)=>typeof v==='string'&&v.length<=max?v:fail('Text is too long.');
 const list=(v=[],max=256)=>Array.isArray(v)&&v.length<=max?v:fail('Too many entries.');
 export const FLOW_NODES={
- entry:['next'],flag_entry:['next'],objective_entry:['next'],dialogue:['next'],narrative:['next'],choice:[],condition:['match','no_match'],piety_check:['match','no_match'],set_flag:['next'],clear_flag:['next'],quest:['next'],objective:['complete'],battle:['victory','defeat','retreat'],reward:['next'],effect:['next'],travel:['next'],spawn:['next'],end:[]
+ entry:['next'],flag_entry:['next'],objective_entry:['next'],dialogue:['next'],narrative:['next'],choice:[],condition:['match','no_match'],piety_check:['match','no_match'],set_flag:['next'],clear_flag:['next'],quest:['next'],objective:['complete'],battle:['victory','defeat','retreat'],reward:['next'],effect:['next'],travel:['next'],spawn:['next'],reveal_orb:['next'],hide_orb:['next'],end:[]
 };
 export function flowPorts(node){return node.type==='choice'?node.choices.map(c=>c.id):FLOW_NODES[node.type]??[];}
 export function battleMonsters(node){return node.monsters??(node.ref?[node.ref]:[]);} // Old single-monster stories remain valid without migrating saved runs.
@@ -39,7 +39,7 @@ export function validateFlow(input,{catalog=null,flags=[],publish=false}={}){
   if(node.type==='quest'&&!['accept','claim','abandon','branch'].includes(node.operation))problem(node.id,'Choose a quest operation.');
   if(node.type==='objective'&&!['quest','flag'].includes(node.operation))problem(node.id,'Choose what this block waits for.');
   if(node.type==='quest'&&node.operation==='branch'&&!node.branch)problem(node.id,'Choose a quest branch.');
-  if(catalog){const groups={battle:'monsters',spawn:'monsters',quest:'quests',travel:'zones'};const group=node.type==='objective'&&node.operation==='quest'?'quests':groups[node.type];if(group&&!catalog[group]?.some(r=>r.id===node.ref&&!r.retired))problem(node.id,'Choose a published '+group+' reference or include its draft in the publication bundle.');if(node.sprite&&!catalog.sprites?.includes(node.sprite))problem(node.id,'Choose available artwork.');for(const item of [...node.rewards.items,...node.effects.filter(e=>e.item).map(e=>({id:e.item}))])if(!catalog.items?.some(i=>i.id===item.id))problem(node.id,'Choose an existing item: '+item.id);}
+  if(catalog){const groups={reveal_orb:'orbs',hide_orb:'orbs',battle:'monsters',spawn:'monsters',quest:'quests',travel:'zones'};const group=node.type==='objective'&&node.operation==='quest'?'quests':groups[node.type];if(group&&!catalog[group]?.some(r=>r.id===node.ref&&!r.retired))problem(node.id,'Choose a published '+group+' reference or include its draft in the publication bundle.');if(node.sprite&&!catalog.sprites?.includes(node.sprite))problem(node.id,'Choose available artwork.');for(const item of [...node.rewards.items,...node.effects.filter(e=>e.item).map(e=>({id:e.item}))])if(!catalog.items?.some(i=>i.id===item.id))problem(node.id,'Choose an existing item: '+item.id);}
   if(node.type==='battle'&&catalog)for(const ref of node.monsters)if(!catalog.monsters?.some(r=>r.id===ref&&!r.retired))problem(node.id,'Choose an active monster or include its draft in the publication bundle: '+ref);
   flow.nodes.push(node);
  }

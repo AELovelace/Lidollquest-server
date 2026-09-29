@@ -1,5 +1,9 @@
 # Orbs, narratives and artwork
 
+## Visibility from story blocks
+
+Enable **Hidden until revealed** in the orb Settings and place it on the map. Connect **Reveal orb** after a cutscene or trigger, select this orb (or drag it onto the action), and connect `next`. Use **Hide orb** later to conceal it again. Visibility is saved per character and orb ID, covering every placement of that orb. The default keeps existing orbs visible. Reading prerequisites still apply after reveal; a spent one-time orb stays spent.
+
 [Wiki home](index.md)
 
 Use an orb for a discoverable memory in the world. Use a Narrative block for an illustrated or text-based scene in a playable flow. They can share subject matter while retaining different authoring responsibilities.

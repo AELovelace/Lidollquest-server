@@ -29,7 +29,7 @@ export function createFlowTests(db,{flows,now,build}){
    const copy={...c},state=JSON.parse(c.state);state.fullDungeon??={};state.fullDungeon.flags={...state.fullDungeon.flags,...body.flags};copy.state=JSON.stringify(state); // Overrides are written only to the sandbox copy.
    const tables={quest_characters:[copy],quest_presence:[{...present,grant_id:"flow-test",seen:now()}]};
    for(const name of ['world_content','world_content_history','world_assets','story_flag_definitions','world_placements','world_placement_maps','dive_editions','world_hub_maps','hub_district_editions','hub_district_current','hub_district_controls'])tables[name]=db.prepare('SELECT * FROM '+quote(name)).all();
-   for(const name of ['dive_progress','online_quests','online_quest_claims','quest_item_origins'])tables[name]=db.prepare('SELECT * FROM '+quote(name)+' WHERE character_id=?').all(c.id);
+   for(const name of ['dive_progress','online_quests','online_quest_claims','quest_item_origins','orb_reads','orb_visibility'])tables[name]=db.prepare('SELECT * FROM '+quote(name)+' WHERE character_id=?').all(c.id);
    for(const name of ['dive_editions','world_hub_maps'])for(const r of tables[name]){const map=JSON.parse(r.content);for(const foe of map.enemies??[])foe.engaged=null;r.content=JSON.stringify(map);}
    restore(test.db,tables);test.api.world.invalidate();test.api.world.testAssets(body.assets??[],identity.owner);test.api.world.flows.gm({action:'flow_publish',id:body.flow.id,revision:0,entry:body.flow},identity.owner);
    test.api.world.flows.beginTest(c.id,body.flow,body.entry);record.character_id=c.id;db.prepare('UPDATE story_flow_tests SET character_id=? WHERE id=?').run(c.id,record.id);persist(record,test);

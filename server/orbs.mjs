@@ -10,6 +10,10 @@ const SCENE_TTL=10*60*1000; // An unread scene stays offered for ten minutes, th
 
 export function createOrbs(db,{live,now=Date.now,placements,world,event=()=>{}}){
  db.exec(`CREATE TABLE IF NOT EXISTS orb_reads(character_id TEXT NOT NULL,orb TEXT NOT NULL,first INTEGER NOT NULL,last INTEGER NOT NULL,count INTEGER NOT NULL,PRIMARY KEY(character_id,orb));`);
+ db.exec('CREATE TABLE IF NOT EXISTS orb_visibility(character_id TEXT NOT NULL,orb TEXT NOT NULL,visible INTEGER NOT NULL,updated INTEGER NOT NULL,PRIMARY KEY(character_id,orb))');
+ const visibility=c=>new Map(c?db.prepare('SELECT orb,visible FROM orb_visibility WHERE character_id=?').all(c.id).map(r=>[r.orb,!!r.visible]):[]);
+ const visible=(def,overrides)=>overrides.get(def.id)??!def.hidden_until_revealed; // Existing orbs stay visible unless this character's story explicitly hides them.
+ function setVisibility(c,id,value){db.prepare('INSERT INTO orb_visibility VALUES (?,?,?,?) ON CONFLICT(character_id,orb) DO UPDATE SET visible=excluded.visible,updated=excluded.updated WHERE visible<>excluded.visible').run(c.id,id,value?1:0,now());} // Reveal/hide retries are idempotent and never change shared placements or read receipts.
  const readQuery=db.prepare('SELECT orb FROM orb_reads WHERE character_id=?');
  const reads=c=>new Set(readQuery.all(c.id).map(r=>r.orb)); // Every orb this character has read at least once.
  function status(def,seen){ // 'spent' (read once, not repeatable), 'dormant' (waiting on another orb) or 'lit'.
@@ -18,10 +22,10 @@ export function createOrbs(db,{live,now=Date.now,placements,world,event=()=>{}})
   return 'lit';
  }
  function decorate(c,rows){ // Shape the shared placement rows for one character: spent orbs vanish, dormant ones draw dim, retired stories hide.
-  const orbs=live.published().orbs??{},seen=c?reads(c):new Set();
+  const orbs=live.published().orbs??{},seen=c?reads(c):new Set(),overrides=visibility(c);
   return rows.flatMap(p=>{
    if(p.kind!=='orb')return [p];
-   const def=orbs[p.content];if(!def||def.retired)return []; // A retired story leaves its pin in the editor but not in the world.
+   const def=orbs[p.content];if(!def||def.retired||!visible(def,overrides))return []; // Hidden orbs leave their editor pins but send no world marker to this character.
    const state=status(def,seen);if(state==='spent')return [];
    return [{...p,name:def.title,colour:def.colour,dormant:state==='dormant'||!storyFlagsMatch(c?.state?JSON.parse(c.state):{},def.story_conditions)}];
   });
@@ -37,6 +41,7 @@ export function createOrbs(db,{live,now=Date.now,placements,world,event=()=>{}})
   const n=placements.view(p.zone).placements.find(v=>v.id===input.placement&&v.kind==='orb');
   if(!n||Math.abs(n.x-p.x)+Math.abs(n.y-p.y)>1)fail('Stand on or beside the orb.');
   const def=live.published().orbs?.[n.content];if(!def||def.retired)fail('This orb has faded.');
+  if(!visible(def,visibility(c)))fail('This orb is not visible yet.'); // Guessing a hidden placement ID cannot bypass its visibility gate.
   const state=status(def,reads(c));
   if(state==='spent')fail('You already know this story.');
   if(state==='dormant')fail('The orb is still dark. Another story comes first.');
@@ -52,5 +57,5 @@ export function createOrbs(db,{live,now=Date.now,placements,world,event=()=>{}})
   return {id:pending.id,orb:def.id,title:def.title,colour:def.colour,bg:def.bg_color,speed:def.type_speed,pages:def.pages};
  }
  const any=()=>Object.values(live.published().orbs??{}).some(o=>!o.retired); // Snapshots only carry world placements while something is published.
- return {act,decorate,scene,any,reads};
+ return {act,decorate,scene,any,reads,setVisibility};
 }

@@ -116,7 +116,9 @@ function contentProperties(){
  const a=contentAsset(),d=a.entry,host=$('properties'),g=contentGraph(),n=g.nodes.find(n=>selected.has(n.id))??g.nodes[0];host.replaceChildren();
  el('h2',blockNames[n.role],host);el('p',a.kind+' · '+a.id,host).className='hint';
  if(n.role==='root'){
+  if(a.kind==='orb'){field(host,'Hidden until revealed',d,'hidden_until_revealed','checkbox');el('p','Place this orb on the map, then use Reveal orb or Hide orb in a story flow to control its visibility for each character. Reading requirements still apply.',host).className='hint';}
   for(const key of Object.keys(d))if(!['stages','dialogue','pages','story_reactions','rewards','story_default'].includes(key)){
+   if(key==='hidden_until_revealed'&&a.kind==='orb')continue;
    if(key==='id'){field(host,'Stable ID',d,key).readOnly=true;continue;}
    if(['givers','quests','prerequisites'].includes(key)){
     const options=referenceOptions(key==='givers'?'npcs':'quests').filter(v=>key!=='prerequisites'||v.id!==a.id);

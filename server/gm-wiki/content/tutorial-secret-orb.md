@@ -16,6 +16,8 @@ Set the orb's **story conditions → All set** to `story_archive_open`. Leave **
 
 Save the orb draft. An unreadable orb can still be visible; the prerequisite gates access to reading it, not necessarily its appearance on the map.
 
+For an orb that is actually invisible before permission, enable **Hidden until revealed** in its Settings. Add **Reveal orb** after the permission scene's Set flag, selecting this orb. A later **Hide orb** can conceal it for that character again. Keep Set flag when the orb also requires that flag for reading; visibility and reading access are separate.
+
 ## 2. Give the archivist a choice
 
 Create Archivist Lark with a normal greeting. Make a repeatable flow and bind it to the NPC:

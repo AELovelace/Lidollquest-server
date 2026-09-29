@@ -10,6 +10,10 @@ Select **When flag is set** or **When objective completes**, then **Preview from
 
 Use a newly accepted quest when testing completion tracking. Objectives completed before this tracking existed do not gain retroactive receipts. Events defer during dialogue/combat and retry crowded starts without undoing collected parcels.
 
+## Orb visibility checks
+
+Place an orb with **Hidden until revealed**, then test **Reveal orb -> Dialogue -> Hide orb -> End**. Check the actual map and reconnect in each state. A second character must retain their own state, hidden reads must be rejected, and revealing a read-once orb must not reset its read receipt. Preview reports simulated visibility without touching live overrides; isolated tests copy the character's visibility and read history and keep later changes inside the test.
+
 ## Player preview
 
 Save your work, then choose **Player preview**. The preview displays dialogue or narrative text, optional artwork, and choice buttons. It highlights the current block on the canvas. Use the offered battle outcomes to inspect victory, defeat and retreat continuations.

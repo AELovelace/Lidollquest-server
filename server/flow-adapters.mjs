@@ -2,7 +2,7 @@ import {applyDungeonEffects} from './full-dungeon-rules.mjs';
 import {dailyCoinCap} from './hubs.mjs';
 import {battleMonsters} from './flow-content.mjs';
 
-export function createFlowAdapters(db,{quests,gmTools,engines,hubEvents,items,capacity=99,origins,adjust,roll,now}){
+export function createFlowAdapters(db,{quests,orbs,gmTools,engines,hubEvents,items,capacity=99,origins,adjust,roll,now}){
  const context={db,data:{items,config:{inventory_capacity:capacity}},origins,adjust,roll,now};
  const encounter=(c,s,n,pinned,receipt,fight)=>{
   const p=db.prepare('SELECT zone FROM quest_presence WHERE character_id=?').get(c.id);
@@ -13,6 +13,8 @@ export function createFlowAdapters(db,{quests,gmTools,engines,hubEvents,items,ca
   canStart:c=>!!db.prepare('SELECT 1 FROM quest_presence WHERE character_id=?').get(c.id), // Offline completion waits until the owner returns to a map.
   battle:(c,s,n,p,r)=>encounter(c,s,n,p,r,true),
   spawn:(c,s,n,p,r)=>encounter(c,s,n,p,r,false),
+  reveal_orb:(c,s,n)=>orbs.setVisibility(c,n.ref,true), // Visibility follows this story's owner across reconnects and map visits.
+  hide_orb:(c,s,n)=>orbs.setVisibility(c,n.ref,false),
   quest:(c,s,n,p)=>quests.flow(c,s,n,p),
   objective:(c,s,n)=>quests.flowObjective(c,n.ref),
   travel:(c,s,n)=>gmTools.storyTravel(c,s,n.ref),
