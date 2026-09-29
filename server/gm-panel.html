@@ -173,6 +173,13 @@ tr.sel td{background:#2c1e3d}
     <h2>Selected player</h2>
     <div id="detail"><p class="empty">Pick a player above to see their characters, sanctions and recent messages.</p></div>
   </section>
+
+  <section class="wide">
+    <h2>Test progress: flags, quests &amp; stories</h2>
+    <p class="note">For staff test accounts, so events can run twice. Set or clear story flags, start/complete/remove online quests, and let a finished personal story or read orb play again. Every change is audited and bumps the character's revision, so the game resyncs on its next command. Clearing <b>engine memory</b> lets campaign events replay. <b>Finish</b> marks a quest done without paying rewards.</p>
+    <div class="row"><label for="progressQuery">Character</label><input id="progressQuery" class="grow" maxlength="80" placeholder="Name, character ID or account (blank = newest 50)"><button id="progressSearch">Search</button><select id="progressCharacter" aria-label="Matching characters"></select><button id="progressLoad">Load</button></div>
+    <div id="progressDetail"><p class="empty">Search for a character, or press Progress beside a character under Selected player.</p></div>
+  </section>
 </div>
 <div class="tab-panel" id="panel-chat" role="tabpanel" aria-labelledby="tab-chat" tabindex="0" hidden>
   <section class="wide">
@@ -766,7 +773,7 @@ tr.sel td{background:#2c1e3d}
   });
 
   var table=el("table"),head2=el("thead"),hr=el("tr");
-  ["Character","Rev","Where","Run"].forEach(function(h){hr.appendChild(el("th",null,h));});
+  ["Character","Rev","Where","Run",""].forEach(function(h){hr.appendChild(el("th",null,h));});
   head2.appendChild(hr);table.appendChild(head2);
   var tbody=el("tbody");
   payload.characters.forEach(function(c){
@@ -775,6 +782,7 @@ tr.sel td{background:#2c1e3d}
    tr.appendChild(el("td",null,String(c.revision)));
    tr.appendChild(el("td",null,c.dive?("dive "+(c.dive.zone||"")):(c.hubVisit||"—")));
    tr.appendChild(el("td",null,c.run?("stage "+c.run.stage+" "+c.run.phase):"—"));
+   var cell=el("td"),open=el("button","sm","Progress");open.title="Flags, quests and story replays for "+c.name;open.addEventListener("click",function(){progressLoad(c.id);});cell.appendChild(open);tr.appendChild(cell); // Opens this character in Test progress below.
    tbody.appendChild(tr);
   });
   table.appendChild(tbody);box.appendChild(table);
@@ -799,6 +807,81 @@ tr.sel td{background:#2c1e3d}
   var zone=$("chatZone").value,limit=$("chatLimit").value;
   api("/gm/chat?limit="+encodeURIComponent(limit)+(zone?"&zone="+encodeURIComponent(zone):"")).then(renderChat).catch(function(error){say("err",error.message);});
  }
+
+ // ── Test progress (gm-progress.mjs): per-character flags, quests, story and orb replays ──
+ var progressDetail=null,progressEpoch=0;
+ function requestId(){return (window.crypto&&crypto.randomUUID)?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2,12);} // live.once() needs 8-100 of [A-Za-z0-9_-].
+ function progressSearch(){
+  var epoch=++progressEpoch;
+  api("/gm/progress?q="+encodeURIComponent($("progressQuery").value)).then(function(data){
+   if(epoch!==progressEpoch)return; // A newer search or load already answered.
+   var pick=$("progressCharacter");clear(pick);
+   data.characters.forEach(function(c){var o=el("option",null,c.name+" · "+short(c.owner)+" · "+c.id.slice(0,8));o.value=c.id;o.title=c.owner;pick.appendChild(o);});
+   if(!data.characters.length)say("err","No characters match that search.");
+   else if(data.characters.length===1)progressLoad(data.characters[0].id); // One match: open it straight away.
+  }).catch(function(error){say("err",error.message);});
+ }
+ function progressLoad(id){
+  if(!id)return;var epoch=++progressEpoch;
+  api("/gm/progress?character="+encodeURIComponent(id)).then(function(data){if(epoch===progressEpoch)renderProgress(data.detail);}).catch(function(error){say("err",error.message);});
+ }
+ function progressAct(action,payload,warning){
+  var d=progressDetail;if(!d)return;
+  if(warning&&!window.confirm(warning))return; // Cancel sends nothing.
+  var body=Object.assign({action:action,request_id:requestId(),character_id:d.character.id,revision:d.character.revision},payload);
+  api("/gm/action",{method:"POST",body:body}).then(function(response){say("ok",d.character.name+": "+response.result.message);renderProgress(response.result);})
+   .catch(function(error){say("err",error.message);if(error.status===409)progressLoad(d.character.id);}); // A newer game save wins; reload and try again.
+ }
+ function progressButton(parent,label,cls,handler){var b=el("button",cls?"sm "+cls:"sm",label);b.addEventListener("click",handler);parent.appendChild(b);return b;}
+ function progressTable(box,title,headers,rows,empty){
+  box.appendChild(el("h2",null,title));
+  if(!rows.length){box.appendChild(el("p","empty",empty));return;}
+  var wrap=el("div","scroll"),table=el("table"),head=el("thead"),hr=el("tr"),body=el("tbody");
+  headers.forEach(function(h){hr.appendChild(el("th",null,h));});head.appendChild(hr);table.appendChild(head);
+  rows.forEach(function(cells){var tr=el("tr");cells.forEach(function(c){var td=el("td");if(typeof c==="string")td.textContent=c;else td.appendChild(c);tr.appendChild(td);});body.appendChild(tr);});
+  table.appendChild(body);wrap.appendChild(table);box.appendChild(wrap);
+ }
+ function renderProgress(d){
+  progressDetail=d;var box=$("progressDetail");clear(box);if(!d)return;
+  box.appendChild(el("p","mono",d.character.name+" · "+d.character.id+" · account "+d.character.owner+" · rev "+d.character.revision));
+  var bar=el("div","row");progressButton(bar,"Reload","",function(){progressLoad(d.character.id);});box.appendChild(bar);
+  progressTable(box,"Story flags",["Flag","Value",""],d.flags.authored.map(function(f){
+   var cell=el("span"),name=el("span",null,f.name+" ("+f.id+")");name.title=f.description;
+   progressButton(cell,"Set true","",function(){progressAct("progress_flag_set",{flag:f.id,value:true});});
+   progressButton(cell,"Set false","",function(){progressAct("progress_flag_set",{flag:f.id,value:false});});
+   if(f.value!==null)progressButton(cell,"Clear","",function(){progressAct("progress_flag_clear",{flag:f.id,kind:"flag"});});
+   return [name,f.value===null?"unset (false)":String(f.value),cell];
+  }),"No authored story flags yet. Create them in the Story Workshop's Flag library.");
+  var engine=d.flags.engine.map(function(f){return {id:f.id,kind:"flag",label:"flag = "+f.value};}).concat(d.flags.once.map(function(k){return {id:k,kind:"once",label:"one-time event"};}));
+  progressTable(box,"Engine memory (clear only)",["Key","Kind",""],engine.map(function(f){
+   var cell=el("span");
+   progressButton(cell,"Clear","bad",function(){progressAct("progress_flag_clear",{flag:f.id,kind:f.kind},"Clear "+f.id+"? Campaign and dungeon events that check it can happen again for this character.");});
+   return [f.id,f.label,cell];
+  }),"No campaign or dungeon memory on this character.");
+  progressTable(box,"Online quests",["Quest","Status",""],d.quests.map(function(q){
+   var cell=el("span"),s=q.status,open=["active","choice","ready"].indexOf(s)>=0;
+   if(!open)progressButton(cell,"Start","",function(){progressAct("progress_quest",{quest:q.id,op:"start"});});
+   if(s==="active")progressButton(cell,"Advance stage","",function(){progressAct("progress_quest",{quest:q.id,op:"advance"});});
+   if(s==="active"||s==="choice")progressButton(cell,"Complete","",function(){progressAct("progress_quest",{quest:q.id,op:"complete"});});
+   if(s!=="claimed")progressButton(cell,"Finish (no rewards)","",function(){progressAct("progress_quest",{quest:q.id,op:"finish"});});
+   if(s)progressButton(cell,"Remove","bad",function(){progressAct("progress_quest",{quest:q.id,op:"remove"},"Remove "+q.name+" from "+d.character.name+"? Their progress, turn-in record and cooldown are erased so it can be taken again. Rewards already paid are not taken back.");});
+   return [q.name+" ("+q.id+")",s||"never taken",cell];
+  }),"No published online quests.");
+  progressTable(box,"Personal stories",["Story","Last run","Runs",""],d.stories.map(function(f){
+   var cell=el("span");
+   if(f.runs)progressButton(cell,"Let it play again","",function(){progressAct("progress_story_replay",{flow:f.id},"Forget "+d.character.name+"'s runs of "+f.name+"? A story in progress ends, and a story triggered by a flag that is still set may start again straight away.");});
+   return [f.name+(f.repeatable?" (repeatable)":""),f.status||"never played",String(f.runs),cell];
+  }),"No published personal stories.");
+  progressTable(box,"Story orbs",["Orb","Reads",""],d.orbs.map(function(o){
+   var cell=el("span");
+   if(o.reads)progressButton(cell,"Let it be read again","",function(){progressAct("progress_orb_forget",{orb:o.id});});
+   return [o.title+(o.repeatable?" (repeatable)":""),String(o.reads),cell];
+  }),"No published story orbs.");
+ }
+ $("progressSearch").addEventListener("click",progressSearch);
+ $("progressQuery").addEventListener("keydown",function(e){if(e.key==="Enter")progressSearch();});
+ $("progressLoad").addEventListener("click",function(){progressLoad($("progressCharacter").value);});
+ $("progressCharacter").addEventListener("change",function(){progressLoad($("progressCharacter").value);});
 
  var rppCharacters=[],pendingGift=null,rppBusy=false,rppEpoch=0;
  function loadRpp(){

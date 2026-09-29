@@ -10,6 +10,7 @@ import {removeCursedGear} from './curse-removal.mjs'; // Orin's faith_break_free
 import {inArcadia,arcadiaLook,littleTax,taxedPrice} from './arcadia-rules.mjs'; // Arcadia's little tax on displayed shop prices.
 import {createOnlineQuests} from './online-quests.mjs';
 import {createOrbs} from './orbs.mjs';
+import {createGmProgress} from './gm-progress.mjs';
 import {createHubEncounters} from './world-hubs.mjs';
 import {createDuels,DUEL_ACTIONS,DUEL_FIGHT_ACTIONS} from './duels.mjs';
 import {createTrades,TRADE_ACTIONS} from './trades.mjs';
@@ -206,6 +207,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  if(flows){world.flows=flows;world.invalidate=()=>live.invalidate();live.flowStart=flows.start;live.flowAvailable=flows.available;live.flowReview=flows.review;live.flowBlocking=flows.blocking;live.flowBattleSettled=flows.settled;}
  const flowTests=flows&&!flowTesting?createFlowTests(db,{flows,now,build:(memory,owner,testWallet,testAdjust)=>createQuestZones(memory,{flowTesting:true,now,roll,grant:()=>({owner,id:'flow-test',client:'lidollquest',gamemaster:true}),wallet:testWallet,adjust:testAdjust,live:createWorldContent(memory,{now,spells:combatData.spells,equipment:{...hubData.equipment,...combatData.defeat_items},defeatEquipment:combatData.defeat_equipment}),diveOptions:{log:()=>{}}})}):null;
  if(flowTests)world.flowTests=flowTests;if(flowTesting)world.testAssets=(assets,actor)=>live.bundle(assets,actor,true);
+ if(world)world.progress=createGmProgress(db,{live,quests,flows,now}); // GM panel Players tab: per-character flags, quests, story/orb replays for test accounts.
  function resumeStory(c){if(!flows?.enabled)return c;return atomic(()=>{const s=JSON.parse(c.state),before=JSON.stringify(s),old=flows.snapshot(c,s);flows.resume(c,s);flows.objectives(c,s);if(before!==JSON.stringify(s)||JSON.stringify(old)!==JSON.stringify(flows.snapshot(c,s))){c.revision++;c.state=JSON.stringify(s);db.prepare('UPDATE quest_characters SET state=?,revision=? WHERE id=?').run(c.state,c.revision,c.id);}return c;});}
  const saveOther=(oc,os)=>{const previous=JSON.parse(oc.state);if(JSON.stringify(os.loadout)!==JSON.stringify(previous.loadout))os.loadoutRevision=oc.revision+1;oc.revision++;oc.state=JSON.stringify(os);db.prepare('UPDATE quest_characters SET revision=?,state=? WHERE id=?').run(oc.revision,oc.state,oc.id);}; // Commit another participant's state inside the caller's transaction, as Dive encounters do.
  const pvpAllowed=id=>!isDungeon(id)||zoneCategory(id)===ZONE_CATEGORY.OVERWORLD; // Story overworlds (Desert, High Desert, Taiga, Tundra, Haunted Woods, Spooky Mansion) host duels; dungeon Dives do not.

@@ -62,7 +62,7 @@ An individual quest objective can set flags directly: select it in the quest can
 
 Put success flags on the confirmed victory or completion route. Put claimed-reward flags after a successful Claim operation when the flag means the request is completely resolved. Defeat and retreat should only change flags when that is part of the intended story.
 
-Clearing a flag does not undo a reward, quest claim, completed flow, or orb read. Those systems keep their own receipts. For example, clearing `story_scout_rescued` cannot make a once-only quest claimable again. If you need a repeatable event, design both the quest repeat policy and the flow's repeat guard accordingly.
+Clearing a flag does not undo a reward, quest claim, completed flow, or orb read. Those systems keep their own receipts. For example, clearing `story_scout_rescued` cannot make a once-only quest claimable again. If you need a repeatable event, design both the quest repeat policy and the flow's repeat guard accordingly. To replay an event on a **test account**, clear each receipt separately in the GM panel's [Test progress](flags.md#test-progress-in-the-gm-panel) section.
 
 Avoid mutually contradictory memories unless you deliberately model them. For a two-way faction choice, set the chosen flag and clear the competing authored flag in a committed path, then test both prior states.
 
@@ -71,6 +71,20 @@ Avoid mutually contradictory memories unless you deliberately model them. For a 
 In Flag library, enter the character ID and choose **Inspect current values**. The returned list shows authored values for that character. Clicking a value sets or clears it; this is a real, audited change, not a preview switch.
 
 Inspect again after a change or if the server reports that the character changed. Revision checks prevent you from overwriting newer progression. Use this tool for deliberate repairs and keep a note of the intended correction. Do not use a real character as a convenient preview state.
+
+## Test progress in the GM panel
+
+The main GM panel's **Players** tab has a **Test progress: flags, quests & stories** section for staff test accounts, so the same event can run twice. Search by character name, character ID or account (blank shows the 50 newest characters), or press **Progress** beside a character under Selected player.
+
+| Section | Buttons | What it does |
+| --- | --- | --- |
+| Story flags | Set true, Set false, Clear | Authored `story_` flags. Clear removes the value, so it reads as false. |
+| Engine memory | Clear | Campaign/dungeon memory (for example `visited:…`, `defeated:…`) and one-time campaign events. Clearing lets those campaign events happen again. |
+| Online quests | Start, Advance stage, Complete, Finish (no rewards), Remove | Complete marks the quest ready to turn in, and the reward is still claimed normally. Finish marks it claimed with no coins, XP or items, so later prerequisites treat it as done. Remove erases progress, the turn-in record and the cooldown, so the quest can be taken again. Rewards already paid are not taken back. |
+| Personal stories | Let it play again | Forgets this character's runs of a story, so a one-time story can start again. A run in progress ends. A flag- or objective-triggered story may start again straight away if its trigger still holds. |
+| Story orbs | Let it be read again | Forgets this character's read of an orb, so a spent orb lights up again. |
+
+To replay a one-time NPC story with a flag guard, press **Let it play again** on the story, then **Clear** its flag. Every change is a real, audited edit and bumps the character's revision. If the character is online, the game resyncs on its next command. If the panel reports that the character changed, it reloads; press the button again.
 
 ## Preview and isolated overrides
 

@@ -51,6 +51,10 @@ Use `/storytest stop` or the GM **End story test** action. Check that the charac
 
 Create a fresh code after changing the draft you want to test. Do not assume a running test automatically adopts new edits. Exit an old test before entering another.
 
+## Replay on a test account
+
+Isolated tests never touch the real character. To run a live event a second time on a real **test account**, use **Players → Test progress** in the GM panel. It can clear flags and engine memory, remove or finish quests, and let a finished story or read orb play again. See [Test progress in the GM panel](flags.md#test-progress-in-the-gm-panel). Do not use it to fix up ordinary players' progression unless you mean to.
+
 ## A practical test matrix
 
 | Case | Check |
