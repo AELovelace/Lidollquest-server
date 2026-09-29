@@ -64,6 +64,33 @@ test('walking collects placed tokens once, hides them personally, and keeps unco
  assert.ok(!f.last.worldPlacements.some(p=>p.kind==='token'));
  }finally{f.close();}});
 
+test('legacy unsuccessful token receipts do not hide or block an active collection after restart',()=>{const f=fixture();try{
+ const token=place(f,'token','parcel').placements[0],map=place(f,'token','parcel'),second=map.placements.find(p=>p.id!==token.id);
+ f.publish('quest',quest({stages:[{id:'find',objectives:[{id:'parcel',type:'collect',target:'parcel',token:true,count:2}],next:'complete'}]}));acceptQuest(f,{quest:'first_quest'});
+ const q=f.db.prepare('SELECT * FROM online_quests').get(),receipt='find:interact:'+token.id;
+ f.db.prepare('INSERT INTO online_quest_events VALUES (?,?)').run(q.id,receipt); // Older servers recorded unsuccessful interactions before checking the objective.
+ f.db.prepare('INSERT INTO online_quest_events VALUES (?,?)').run(q.id,'find:interact:'+second.id);
+ f.restart();assert.ok(f.api.read('',f.c.id).worldPlacements.some(p=>p.id===token.id),'An old receipt with zero collection progress is not a successful pickup');
+ beside(f,token);const command=f.command('quest_interact',{placement:token.id,edition:map.edition});f.send(command);f.send(command);
+ let state=JSON.parse(f.db.prepare('SELECT state FROM online_quests WHERE id=?').get(q.id).state);
+ assert.equal(state.tokens.parcel,1);assert.equal(state.progress['find:parcel'],1);assert.ok(!f.last.worldPlacements.some(p=>p.id===token.id));
+ assert.ok(f.last.worldPlacements.some(p=>p.id===second.id),'Recover all failed copies before the first pickup can make their old receipts look successful');
+ f.restart();assert.ok(!f.api.read('',f.c.id).worldPlacements.some(p=>p.id===token.id),'A successful partial collection remains hidden after restart');
+ beside(f,token);f.act('quest_interact',{placement:token.id,edition:map.edition});
+ state=JSON.parse(f.db.prepare('SELECT state FROM online_quests WHERE id=?').get(q.id).state);assert.equal(state.tokens.parcel,1);
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM online_quest_events WHERE instance=? AND event=?').get(q.id,receipt).n,1);
+ beside(f,second);f.act('quest_interact',{placement:second.id,edition:map.edition});assert.equal(f.last.onlineQuests.instances[0].status,'ready');
+ assert.equal(JSON.parse(f.db.prepare('SELECT state FROM online_quests WHERE id=?').get(q.id).state).tokens.parcel,2);
+ }finally{f.close();}});
+
+test('ineligible party token events leave no receipt and cannot block a later personal pickup',()=>{const f=fixture();try{
+ const map=place(f,'token','parcel'),token=map.placements[0];
+ f.publish('quest',quest({stages:[{id:'find',objectives:[{id:'parcel',type:'collect',target:'parcel',token:true,sharing:'personal'}],next:'complete'}]}));acceptQuest(f,{quest:'first_quest'});
+ f.api.quests.event(f.c,f.c,{id:'interact:'+token.id,type:'collect',target:token.content,tokenPlacement:token.id,zone:map.id,quests:['first_quest'],shared:true}); // A nearby owner's pickup must not reserve a personal objective's token.
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM online_quest_events WHERE event=?').get('find:interact:'+token.id).n,0);
+ beside(f,token);f.act('quest_interact',{placement:token.id,edition:map.edition});assert.equal(f.last.onlineQuests.instances[0].status,'ready');
+ }finally{f.close();}});
+
 test('a condition-blocked token interaction does not consume the later collection receipt',()=>{const f=fixture();try{
  const map=place(f,'token','parcel'),token=map.placements[0];
  f.publish('quest',quest({stages:[{id:'find',objectives:[{id:'parcel',type:'collect',target:'parcel',token:true,conditions:[{field:'shame',op:'gte',value:10}]}],next:'complete'}]}));acceptQuest(f,{quest:'first_quest'});

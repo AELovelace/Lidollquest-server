@@ -33,14 +33,27 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
  });
  const placements=createQuestPlacements(db,{live,now,base:world,affected:p=>db.prepare('SELECT * FROM online_quests').all().map(unpack).filter(q=>['active','choice','ready'].includes(q.state.status)&&references(q.definition,p.content)&&!placements.rows(p.zone).some(other=>other.id!==p.id&&other.content===p.content&&(!p.replacementEdition||other.lifetime==='persistent'||other.edition===p.replacementEdition))),failQuests:rows=>{for(const q of rows){q.state.status='failed';q.state.failure='A required world placement was removed by a gamemaster.';save(q);}}});
  function references(d,key){return d.turn_in.npc===key||d.stages.some(s=>s.objectives.some(o=>o.target===key||o.npc===key));}
- function tokenNeeded(q,s,n,zone){ // Only a still-incomplete token objective can spend this placement's collection receipt.
+ function tokenObjectives(q,n,zone){ // Match against the accepted definition, including its pinned zone restriction.
+  return q.definition.stages.find(stage=>stage.id===q.state.stage)?.objectives.filter(o=>o.type==='collect'&&o.token&&o.target===n.content&&(!o.zone||o.zone===zone))??[];
+ }
+ function tokenProgress(q,n,zone){ // An old interaction receipt alone cannot prove that the token was awarded.
+  return tokenObjectives(q,n,zone).some(o=>(q.state.progress[q.state.stage+':'+o.id]??0)>0);
+ }
+ function recoverTokenReceipts(q,token,zone,receipt){ // Recover every provably unused copy before the first successful pickup increases progress.
+  if(tokenProgress(q,token,zone))return;
+  const remove=db.prepare('DELETE FROM online_quest_events WHERE instance=? AND event=?');
+  remove.run(q.id,receipt);
+  for(const p of db.prepare("SELECT id,zone FROM world_placements WHERE json_extract(body,'$.kind')='token' AND json_extract(body,'$.content')=?").all(token.content)){
+   if(tokenObjectives(q,token,p.zone).length&&!tokenProgress(q,token,p.zone))remove.run(q.id,q.state.stage+':interact:'+p.id);
+  } // Preserve other targets, stages, quests and any collection with positive progress; their old receipts may represent real pickups.
+ }
+ function tokenNeeded(q,s,n,zone,shared=false){ // Only a still-incomplete eligible token objective can spend this placement's collection receipt.
   if(q.state.status!=='active')return false;
-  const stage=q.definition.stages.find(stage=>stage.id===q.state.stage);
-  return stage?.objectives.some(o=>o.type==='collect'&&o.token&&o.target===n.content&&(!o.zone||o.zone===zone)&&(q.state.progress[stage.id+':'+o.id]??0)<o.count&&conditions(s,o.conditions))??false;
+  return tokenObjectives(q,n,zone).some(o=>(q.state.progress[q.state.stage+':'+o.id]??0)<o.count&&conditions(s,o.conditions)&&(!shared||o.sharing==='party'));
  }
  function collectToken(c,s,n,zone){
   const matching=instances(c).filter(q=>tokenNeeded(q,s,n,zone)).map(q=>q.quest);
-  if(matching.length)event(c,s,{id:'interact:'+n.id,type:'collect',target:n.content,zone,quests:matching});
+  if(matching.length)event(c,s,{id:'interact:'+n.id,type:'collect',target:n.content,zone,quests:matching,tokenPlacement:n.id});
  } // Walking, clicking and E share a stable receipt, so crossing and clicking cannot double-award a token.
  function visiblePlacements(c,s,rows){
   if(!c||!rows.some(n=>n.kind==='token'))return rows;
@@ -48,7 +61,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
   return rows.filter(n=>{
    if(n.kind!=='token')return true;
    const suffix=':interact:'+n.id;
-   return quests.some(q=>tokenNeeded(q,s,n,n.zone)&&!receipts.get(q.id).has(q.state.stage+suffix));
+   return quests.some(q=>tokenNeeded(q,s,n,n.zone)&&(!receipts.get(q.id).has(q.state.stage+suffix)||!tokenProgress(q,n,n.zone)));
   }); // Tokens appear only for an eligible active objective; another quest/stage can make a collected token available again.
  }
  function position(c,s){const p=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);if(!p)return null;return {...p,edition:s.dive?.edition??world.map(p.zone).edition};}
@@ -100,7 +113,14 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
   }
   const met=o=>(progress[stage.id+':'+o.id]??0)>=o.count;if(stage.mode==='any'?stage.objectives.some(met):stage.objectives.every(met)){if(stage.branches.length)q.state.status='choice';else transition(q,stage.next);}save(q);
  }
- function event(c,s,e){if(!db.prepare("SELECT 1 FROM online_quests WHERE character_id=? AND json_extract(state,'$.status')='active' LIMIT 1").get(c.id)&&!(parties.members(c.id).length))return;const p=position(c,s);e={...e,zone:e.zone??p?.zone,quests:e.quests??instances(c).filter(q=>q.state.status==='active').map(q=>q.quest)};for(const q of instances(c)){if(q.state.status!=='active'||(e.stage&&e.stage!==q.state.stage)||(e.quests&&!e.quests.includes(q.quest))||q.created>(e.created??now()))continue;if(!db.prepare('INSERT OR IGNORE INTO online_quest_events VALUES (?,?)').run(q.id,q.state.stage+':'+e.id).changes)continue;evaluate(q,c,s,e);}
+ function event(c,s,e){if(!db.prepare("SELECT 1 FROM online_quests WHERE character_id=? AND json_extract(state,'$.status')='active' LIMIT 1").get(c.id)&&!(parties.members(c.id).length))return;const p=position(c,s);e={...e,zone:e.zone??p?.zone,quests:e.quests??instances(c).filter(q=>q.state.status==='active').map(q=>q.quest)};for(const q of instances(c)){if(q.state.status!=='active'||(e.stage&&e.stage!==q.state.stage)||(e.quests&&!e.quests.includes(q.quest))||q.created>(e.created??now()))continue;const receipt=q.state.stage+':'+e.id;
+   if(e.tokenPlacement){
+    const token={content:e.target};
+    if(!tokenNeeded(q,s,token,e.zone,e.shared))continue; // Party members must also qualify before a pickup can consume their receipt.
+    recoverTokenReceipts(q,token,e.zone,receipt); // The command transaction commits receipt recovery and the successful pickup together.
+   }
+   if(!db.prepare('INSERT OR IGNORE INTO online_quest_events VALUES (?,?)').run(q.id,receipt).changes)continue;evaluate(q,c,s,e);}
+
   if(e.shared||e.type==='kill'||!p)return;for(const other of parties.members(c.id)){if(other.id===c.id)continue;const state=JSON.parse(other.state),op=position(other,state);if(op&&op.seen>now()-30000&&op.zone===p.zone&&op.edition===p.edition&&Math.abs(op.x-p.x)+Math.abs(op.y-p.y)<=8)event(other,state,{...e,shared:true});}
  } // Each durable gameplay event can affect an accepted instance at most once, including after restart.
  function advance(c,s,key,branch){const q=active(c,key);if(!q||q.state.status!=='choice')fail('This quest is not awaiting a choice.');const b=q.definition.stages.find(v=>v.id===q.state.stage).branches.find(b=>b.id===branch);if(!b||!conditions(s,b.conditions))fail('That branch is unavailable.');q.state.branch.push(b.id);transition(q,b.to);save(q);}

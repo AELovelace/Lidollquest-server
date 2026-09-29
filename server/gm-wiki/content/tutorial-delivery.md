@@ -62,6 +62,8 @@ Accept the quest **before** looking for the token. A placed token appears only f
 
 Also check a premature visit to Fern, token invisibility before acceptance and after abandoning, a repeated token click, another character's independent attempt, and reconnecting after collection. The GM placement map always shows the authored token for editing, even when your player character cannot see it. Do not remove a required placement from a live quest without reviewing the affected accepted quests.
 
+If an existing character tried the token before the pickup fix and still has zero collection progress, the updated server recovers the failed pickup receipts automatically. Continue the accepted quest normally; resetting the quest or regenerating the map is unnecessary. See [token troubleshooting](troubleshooting.md#placed-quest-token-visibility-and-pickup) for other missing-token checks.
+
 ## Variation: deliver ordinary supplies
 
 For real inventory items, uncheck token on both objectives and use a supported item's actual ID. Collection checks what the character holds, including items obtained before acceptance; delivery consumes actual items. Explain the item name and quantity in the journal. Test with fewer than the required number, exact quantity, extra stock, and insufficient reward inventory space. Never use an invented item ID in place of a quest token.
