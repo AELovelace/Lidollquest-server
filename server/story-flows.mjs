@@ -100,7 +100,7 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
   if(!enabled||s.flowVersion!==1)return;triggers.observe(c,s);
   if(s.run||s.pendingDefeat||s.dungeonScene||s.worldTurnDue||s.pendingPurchase||adapters.canStart?.(c,s)===false)return;
   const parent=active(c);if(parent&&node(parent)?.type!=='objective')return; // A parent parked on a missing block counts as a page: no new trigger starts until it is left.
-  const event=triggers.pending(c);if(!event)return;
+  const event=triggers.pending(c,event=>{const definition=JSON.parse(event.definition),entry=definition.flow.nodes.find(n=>n.id===event.node);return adapters.entryReady?.(c,s,entry)!==false;});if(!event)return; // Location-scoped ambushes wait without suppressing unrelated stories.
   const before=structuredClone(s),character=structuredClone(c);db.exec('SAVEPOINT story_trigger_start');
   try{
    if(parent){parent.state.suspended=true;write(parent);} // Only exploration waits yield to sub-entrypoints; dialogue and fights stay uninterrupted.

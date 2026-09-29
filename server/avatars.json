@@ -606,6 +606,12 @@
     "walk": "sprNPCSageWalk"
   },
   {
+    "id": "objNPCProspector",
+    "name": "Old Gritt",
+    "sprite": "sprNPCProspector",
+    "walk": ""
+  },
+  {
     "id": "objNPCFarmer",
     "name": "Old Gus",
     "sprite": "sprNPCFarmer",

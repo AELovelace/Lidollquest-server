@@ -1,3 +1,4 @@
+import {recalculateWetClothing} from './clothing-conditions.mjs';
 import {createHash} from 'node:crypto';
 import {gearSlots} from './inspection.mjs';
 import {mageScaling} from './combat.mjs';
@@ -49,7 +50,7 @@ export function changeEquipment(loadout,input,catalog,capacity){
  } // Apply the same slot-specific bonuses as campaign inventory use, once per physical item.
  if(incoming&&!forced)bag.splice(input.slot,1); // Forced outfits never consume a pre-existing copy from the player's bag.
  for(const entry of removed){const {item,slot:key,dispose}=entry;bonuses(item,key,-1);
-  for(const s of item.category==='dress'?['torso','pants']:[key]){p['equipped_'+s]='';p['slot_wet_'+s]=false;delete p.equipped_item_data[s];}
+  for(const s of item.category==='dress'?['torso','pants']:[key]){p['equipped_'+s]='';p['slot_wet_'+s]=false;if(p.clothing_water)delete p.clothing_water[s];delete p.equipped_item_data[s];}
   if(key==='panties'){
    p.panties_bulk=0;
    if(!incoming&&item.is_diaper){p.wet=0;p.tum=0;}
@@ -57,17 +58,14 @@ export function changeEquipment(loadout,input,catalog,capacity){
   if(!dispose)bag.push(item);
  }
  if(incoming){bonuses(incoming,slot,1);
-  for(const s of incoming.category==='dress'?['torso','pants']:[slot]){p['equipped_'+s]=incoming.item_id;p.equipped_item_data[s]=structuredClone(incoming);p['slot_wet_'+s]=false;}
+  for(const s of incoming.category==='dress'?['torso','pants']:[slot]){p['equipped_'+s]=incoming.item_id;p.equipped_item_data[s]=structuredClone(incoming);p['slot_wet_'+s]=false;if(p.clothing_water)delete p.clothing_water[s];}
   if(slot==='panties')p.panties_bulk=num(incoming.bulk);
  }
  if(slot==='panties'){
   for(const key of ['accident_bulk','had_wet_accident','had_tum_accident','diaper_wet_absorbed','diaper_tum_absorbed','grossout_chance','wet_hold_attempts','tum_hold_attempts'])p[key]=0;
-  for(const key of ['panties','socks','shoes'])p['slot_wet_'+key]=false;
+  for(const key of ['panties','socks','shoes']){p['slot_wet_'+key]=false;if(p.clothing_water)delete p.clothing_water[key];}
  }
- const wet=new Set(['head','torso','pants','panties','socks','shoes'].filter(s=>p['slot_wet_'+s]&&!equippedItem(p,s,catalog)?.is_diaper).map(s=>p['equipped_'+s]).filter(Boolean));
- const penalty=Math.max(0,wet.size-2),delta=penalty-num(p.wet_clothing_penalty);
- for(const key of ['str','def','dex','int','cha'])p[key]=num(p[key])-delta;
- p.wet_clothing_penalty=penalty;
+ recalculateWetClothing(p,catalog);
  const worn=gearSlots.filter(s=>s!=='plug'&&!(s==='pants'&&equippedItem(p,s,catalog)?.category==='dress')).map(s=>equippedItem(p,s,catalog)).filter(item=>Number.isFinite(item?.childish));
  next.childish=worn.length?worn.reduce((sum,item)=>sum+item.childish,0)/worn.length:0;
  next.attack=Math.max(1,Math.floor(Math.max(1,p.str*2)*mageScaling(next).physical));syncCrawl(next);

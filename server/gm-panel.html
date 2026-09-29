@@ -830,7 +830,7 @@ tr.sel td{background:#2c1e3d}
   if(warning&&!window.confirm(warning))return; // Cancel sends nothing.
   var body=Object.assign({action:action,request_id:requestId(),character_id:d.character.id,revision:d.character.revision},payload);
   api("/gm/action",{method:"POST",body:body}).then(function(response){say("ok",d.character.name+": "+response.result.message);renderProgress(response.result);})
-   .catch(function(error){say("err",error.message);if(error.status===409)progressLoad(d.character.id);}); // A newer game save wins; reload and try again.
+   .catch(function(error){say("err",error.message);if(error.status===409)progressLoad(d.character.id);}); // Reload so the table matches the character again (e.g. a story battle blocks a replay).
  }
  function progressButton(parent,label,cls,handler){var b=el("button",cls?"sm "+cls:"sm",label);b.addEventListener("click",handler);parent.appendChild(b);return b;}
  function progressTable(box,title,headers,rows,empty){

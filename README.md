@@ -1389,6 +1389,38 @@ hub-return chain without changing ordinary Escape behavior or regenerating maps.
 The correction is server-only; authenticated entry, joining, refresh and physical
 exit regressions are in `test/gm-tools.test.mjs`.
 
+## Echo Gulch (2026-09-29)
+
+`overworld-echo-gulch` (route `echo-gulch`, band 35 +3) is an 80x80 red-rock badlands
+below Dustbreak Desert's new south trail, between the Autumnal Plains (west) and the
+Seafoam Coast (east).
+- **Rerouting:** the Plains and the Coast no longer meet directly.
+  - `WILDERNESS_LINKS` dropped `[PLAINS, COAST]`.
+  - On live editions, `retargetExit()` points the existing Plains east / Coast west
+    gaps at the Gulch in place. Rooms, loot and claims are untouched.
+- **Generation:** `generateDesert` gains `structure.wash` (the dry riverbed,
+  `floor.wash`) and `structure.slot_canyons` (1-wide maze basins, `room.slot`).
+- **`server/gulch-features.mjs`:**
+  - whisper stones (`dive_listen`: gossip, which costs Dignity when you are visibly
+    wet);
+  - `floodAt` (snapshot `dive.flood`);
+  - `echoReading` / `noticeAccident` (snapshot `dive.echo`; `roam()` only chases a
+    player within their own echo reach).
+- **The Prospector's Camp** (`server/prospector-camp.mjs`) is a safe hub room in
+  LittleBigCity's family behind the mine head's warp pad (`overworld-prospector-camp`,
+  redirected by `routeExit`). It has bunks, an outhouse, and Old Gritt's shop
+  (`hub-data.json prospector_shop`).
+- **Ship with it:**
+  - the new `gulch-data.json`;
+  - the re-exported `dive-data.json`, `hub-data.json`, `avatars.json`,
+    `combat-data.json` and `defeat-scenes.json`;
+  - `monster-artwork.json` as exported. It no longer carries the 121 purged TQ/DQ
+    images (`sprIcon_*` and the borrowed monster art). Do not merge them back from an
+    older copy.
+
+  The client needs the matching build (floods, echo HUD, whisper stones, camp
+  painter). Tests: `test/echo-gulch.test.mjs`.
+
 ## Tutor NPC (Pip)
 
 Pip is a guide standing two to eight steps from the spawn of every starting lobby (Rose Court, Honeydew Village,

@@ -472,6 +472,41 @@
     ],
     "stock_size": 8
   },
+  "prospector_shop": {
+    "id": "objNPCProspector",
+    "name": "Old Gritt",
+    "sprite": "sprNPCProspector",
+    "pool": [
+      "adult_food",
+      "trail_rations",
+      "dried_apple",
+      "water_bottle",
+      "desert_electrolyte",
+      "stamina_potion",
+      "temporary_continence_potion",
+      "boots",
+      "overalls",
+      "blue_jeans",
+      "knee_socks",
+      "ankle_socks",
+      "cotton_panties",
+      "training_pants",
+      "diaper",
+      "nighttime_diaper",
+      "baby_wipes",
+      "rust_filings",
+      "coffee_bean",
+      "charcoal"
+    ],
+    "stock_size": 10,
+    "greetings": [
+      "Old Gritt glares at you over the crates. \"Buyin' or gawkin'?\"",
+      "\"Wipe your boots. And don't you crinkle on my clean bunks.\" Old Gritt doesn't look up from his scale.",
+      "\"Prices are prices. Don't like 'em, walk back to the city.\" Old Gritt folds his arms.",
+      "Old Gritt sniffs the air, frowns at you, and slides a pack of diapers a little further forward on the counter.",
+      "\"Heard you comin' three bends away,\" grumbles Old Gritt. \"Whole canyon did.\""
+    ]
+  },
   "items": {
     "rattle_1": {
       "item_id": "rattle_1",
@@ -5423,6 +5458,19 @@
         },
         "traits": {}
       }
+    },
+    "temporary_continence_potion": {
+      "item_id": "temporary_continence_potion",
+      "name": "Temporary Continence Potion",
+      "category": "food",
+      "is_drink": true,
+      "desc": "Sets continence to 100% for 250 turns. Replaces any temporary incontinence potion; another dose refreshes the duration.",
+      "value": 75,
+      "hp_restore": 0,
+      "mp_restore": 0,
+      "continence_set": 0,
+      "continence_turns": 250,
+      "rarity": "rare"
     }
   },
   "equipment": {

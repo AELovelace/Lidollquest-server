@@ -146,6 +146,13 @@ export function enemyAction(state,z,roll){ // One enemy acts independently in sh
  syncCrawl(state.loadout);
  const r=state.run;r.enemy.turn++;
  if(godMode(state)){r.log.push(r.enemy.name+' cannot touch you. (GM god mode)');return 'continue';} // No hit, spell, debuff or knockdown lands; HP stays where it is.
+ if(r.enemy.enemy_id==='breakwater_hermit'){
+  r.enemy.cavernBaseDef??=r.enemy.def;const phase=(r.enemy.turn-1)%3;
+  r.enemy.def=Math.max(0,r.enemy.cavernBaseDef+(phase===2?-4:5));
+  if(phase===0){r.log.push('The Breakwater Hermit braces behind its shell. Its brine attack is building.');return 'continue';}
+  if(phase===1){r.log.push('The shell whistles. Brace for a brine strike on its next turn!');return 'continue';}
+  const hit=Math.max(1,mitigate(currentTuning(),r.enemy.str+6,r.defense??blessedDef(state.loadout)));r.hp=Math.max(0,r.hp-hit);r.log.push('The hermit releases its brine strike for '+hit+' damage, then exposes its soft underside.');syncRunHealth(state,r);return r.hp<=0?'defeat':'continue';
+ } // Turn-based warning and recovery never use the exploration tide clock.
  const spells=(r.enemy.enemy_spells??[]).filter(id=>combatData.spells[id]?.enemy_only);
  if(spells.length&&roll(10000)<r.enemy.spell_cast_chance*10000)enemySpell(state,combatData.spells[spells[roll(spells.length)]]);
  else{let hit=Math.max(1,r.enemy.str-1);if(z.theme==='clockwork'&&r.enemy.turn%3===0)hit+=5;hit=mitigate(currentTuning(),hit,r.defense??blessedDef(state.loadout));hit=Math.max(1,Math.floor(hit*rowDamageTaken(currentTuning(),r.row,r.rowAlone===true)));r.hp=Math.max(0,r.hp-hit);/* Back row takes half of a physical hit while someone holds the front. */r.log.push(r.enemy.name+' dealt '+hit+' damage.');} // Basic enemy hits are mitigated by the player's DEF (run.defense carries arena armor handicaps).

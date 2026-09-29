@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
 import {createQuestZones} from '../server/zones.mjs';
-import {paceStep} from '../server/crawl.mjs';
+import {paceStep,moveDelays,movementDelay} from '../server/crawl.mjs';
 import {campaignDives} from '../server/hubs.mjs';
 import {walkable} from '../server/dive-generation.mjs';
 
@@ -25,6 +25,15 @@ function harness(){
 }
 
 const refused=(fn,pattern)=>assert.throws(fn,error=>pattern.test(error.message));
+
+test('80% player pace applies to defaults, existing live overrides, crawling and malformed tuning',()=>{
+ assert.deepEqual(moveDelays(),{walk:187.5,crawl:375});
+ assert.deepEqual(moveDelays({move_delay_ms:200,crawl_move_delay_ms:400}),{walk:250,crawl:500});
+ assert.deepEqual(moveDelays({move_delay_ms:0,crawl_move_delay_ms:'broken'}),{walk:187.5,crawl:375});
+ assert.equal(movementDelay({world:{crawling:true}}),375);
+ assert.equal(paceStep(1000,1187,moveDelays().walk,1),null,'a step before the slower cooldown is refused');
+ assert.equal(paceStep(1000,1187.5,moveDelays().walk,1),1187.5);
+});
 
 test('the burst step clock keeps the old one-step rule at burst 1 and never beats the average pace',()=>{
  assert.equal(paceStep(0,1000,150,1),1000,'an idle player steps at once');

@@ -2,7 +2,8 @@ import {gameContext} from './game-context.mjs';
 import {isRouteZoneId} from './zone-categories.mjs'; // Wilderness gates lead onto Dive-engine zones (dive- or overworld- ids).
 import {GODS,godsData,FAITH_SETTINGS,templeGod,dedicate,combatFaith,blessingValue} from './faith.mjs'; // The gods: temple annexes, dedication and Orin's Cursebreaker discount.
 import {templeRoom} from './temple-rooms.mjs';
-import {farmsteadRoom,FARMSTEAD_ROOM_ID} from './farmhouse-room.mjs'; // The Farmstead behind the Plains barn: a safe hub room since 2026-09-27.
+import {farmsteadRoom,FARMSTEAD_ROOM_ID} from './farmhouse-room.mjs';
+import {prospectorCampRoom,PROSPECTOR_CAMP_ROOM_ID} from './prospector-camp.mjs'; // The Prospector's Camp behind Echo Gulch's mine head: a safe hub room since 2026-09-29. // The Farmstead behind the Plains barn: a safe hub room since 2026-09-27.
 import {removeCursedGear} from './curse-removal.mjs';
 import {districtData,districtZone,shopFixtures,marketServices,storeSlug,cauldronFixture,reagentFixture,toiletFixture,changerFixture} from './hub-districts.mjs';
 import {districtSize} from './district-layouts.mjs';
@@ -21,7 +22,7 @@ import {withGenerated} from './generated-items.mjs';
 import {fullDungeonHome,fullDungeons} from './full-dungeons.mjs';
 
 export const hubData=JSON.parse(readFileSync(new URL('./hub-data.json',import.meta.url),'utf8'));
-export const findShop=id=>hubData.shops.find(s=>s.id===id)??(hubData.reagent_shop?.id===id?hubData.reagent_shop:undefined); // the eight merchants, plus Bramble beside the cauldrons
+export const findShop=id=>hubData.shops.find(s=>s.id===id)??(hubData.reagent_shop?.id===id?hubData.reagent_shop:hubData.prospector_shop?.id===id?hubData.prospector_shop:undefined); // the eight merchants, plus Bramble beside the cauldrons and Old Gritt in the Prospector's Camp
 export const campaignDives=JSON.parse(readFileSync(new URL('./campaign-dives-data.json',import.meta.url),'utf8')).routes;
 const c=hubData.config;
 // Shop stock rolls through the same Adjective + Item + Rarity table as chests (shipped as `loot`
@@ -109,7 +110,8 @@ export const hubRooms=[...hubCatalog.flatMap(root=>annexKinds(root).map(kind=>({
  ...(root.id==='arcadia-foundry'?arcadiaInteriors[kind]:{}), // Arcadia's Boarding House, Rail Depot and Clockmakers' Guildhall (arcadia-rooms.mjs).
  ...(kind==='temple'?templeInteriors[root.id]:{}), // The god's temple: altar, holy person and pews (temple-rooms.mjs).
 }))),...storeRooms.map(({slug,shop,room})=>({id:'littlebig-clockwork-store-'+slug,parent:'littlebig-clockwork',kind:'shops',hub:'littlebig_city',theme:'clockwork',name:shop.name+"'s Store",...room})),
- {id:FARMSTEAD_ROOM_ID,parent:'honeydew-lantern',kind:'farmstead',hub:'town',theme:'lantern',name:'Farmstead',...farmsteadRoom()}]; // The farmhouse behind the Autumnal Plains barn: Honeydew's room family (shared chat scope), but its door leads out to the Plains (routeExit). // Each hub has its own presence/chat scope; fixtures are presentation data, never campaign NPCs. LittleBigCity's eight stores are tiny shop rooms entered from their storefront doorsteps.
+ {id:FARMSTEAD_ROOM_ID,parent:'honeydew-lantern',kind:'farmstead',hub:'town',theme:'lantern',name:'Farmstead',...farmsteadRoom()},
+ {id:PROSPECTOR_CAMP_ROOM_ID,parent:'littlebig-clockwork',kind:'camp',hub:'littlebig_city',theme:'clockwork',name:"Prospector's Camp",...prospectorCampRoom(hubData.prospector_shop)}]; // Dug into the canyon wall behind Echo Gulch's mine head: LittleBigCity's room family, but its door leads out to the Gulch (routeExit). // The farmhouse behind the Autumnal Plains barn: Honeydew's room family (shared chat scope), but its door leads out to the Plains (routeExit). // Each hub has its own presence/chat scope; fixtures are presentation data, never campaign NPCs. LittleBigCity's eight stores are tiny shop rooms entered from their storefront doorsteps.
 export const hubPortals=lobby=>{const parent=typeof lobby==='string'?lobby:lobby.id,resolved=typeof lobby==='string'?null:lobby; // Pass the resolved zone where you can: LittleBigCity's storefront doorsteps live in this month's map.
  return parent==='princess-rose'?GARDEN_PORTALS.map(p=>p.target===parent+'-garden'?{...p,name:districtData.districts.find(d=>d.hub===parent)?.name??p.name}:{...p}):parent==='honeydew-lantern'?lobbyPortals(town,resolved):parent==='littlebig-clockwork'?lobbyPortals(city,resolved):parent==='utopia-arcanum'?lobbyPortals(utopia,resolved):parent==='arcadia-foundry'?lobbyPortals(arcadia,resolved):[{x:0,y:5,w:1,h:2,name:districtData.districts.find(d=>d.hub===parent)?.name??'District',target:parent+'-garden',style:'gap',side:'left'},{x:19,y:5,w:1,h:2,name:'Beds',target:parent+'-beds',style:'gap',side:'right'},{x:15,y:8,name:'Shops',target:parent+'-shops',style:'stairs'},{x:9,y:0,w:2,h:1,name:'Dungeon Dive',target:parent+'-dives',style:'gap',side:'top'}];}; // Rose's castle gate (left wall) and Tundra gap (right wall, the old Beds door) replace the old District / Beds openings; the 20x12 default court no longer exists but stays as the fallback shape.
 export const inHubGap=(gap,x,y)=>x>=gap.x&&x<gap.x+(gap.w??1)&&y>=gap.y&&y<gap.y+(gap.h??1);
@@ -121,6 +123,7 @@ for(const [kind,room] of Object.entries(utopiaInteriors))validateCourtyard(room,
 for(const room of Object.values(templeInteriors))validateCourtyard(room,[]); // Every pew, the altar and the priest are reachable in each temple.
 for(const room of Object.values(arcadiaInteriors))validateCourtyard(room,[]); // Every bunk, bench, counter, cauldron and the pay toilet in Arcadia's interiors is reachable (the Rail Depot has no pads yet).
 for(const {room} of storeRooms)validateCourtyard(room,[]);
+validateCourtyard(prospectorCampRoom(hubData.prospector_shop),[]); // Every bunk, Old Gritt's counter gap, the outhouse and the door are reachable in the Prospector's Camp.
 validateCourtyard(farmsteadRoom(),[]); // Every hay bed, the outhouse, the cauldron and the door are reachable in the Farmstead. // Every store keeps its keeper reachable through the counter gap and its door open.
 export const LOBBY_EXIT=Object.freeze({x:1,y:10,style:'stairs'}); // Bottom-left stairs back to the singleplayer campaign. // Only declared wall openings are traversable; all other perimeter cells remain walls.
 export const hubBlocked=(z,x,y)=>z.fixtures?.some(f=>f.solid!==false&&x>=f.x&&y>=f.y&&x<f.x+(f.span_w??1)&&y<f.y+(f.span_h??1))??false;

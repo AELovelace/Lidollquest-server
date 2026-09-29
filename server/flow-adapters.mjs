@@ -10,6 +10,7 @@ export function createFlowAdapters(db,{quests,orbs,gmTools,engines,hubEvents,ite
   return (engines.get(p.zone)??hubEvents.engine(p.zone)).storyEncounter(c,s,fight?battleMonsters(n).map(id=>pinned.assets.monsters[id]):pinned.assets.monsters[n.ref],receipt,fight);
  }; // Combat keeps the existing server-controlled roster and settlement rules.
  return {
+  entryReady(c,s,n){if(!n?.start_zone)return true;const p=db.prepare('SELECT zone,x,y FROM quest_presence WHERE character_id=?').get(c.id);if(p?.zone!==n.start_zone)return false;if(!n.start_location)return true;return quests.placements.view(p.zone).placements.some(v=>v.content===n.start_location&&Math.abs(v.x-p.x)+Math.abs(v.y-p.y)<=3);}, // A queued entry never pulls the character into an ambush elsewhere.
   canStart:c=>!!db.prepare('SELECT 1 FROM quest_presence WHERE character_id=?').get(c.id), // Offline completion waits until the owner returns to a map.
   battle:(c,s,n,p,r)=>encounter(c,s,n,p,r,true),
   spawn:(c,s,n,p,r)=>encounter(c,s,n,p,r,false),

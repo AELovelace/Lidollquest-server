@@ -29,9 +29,11 @@ export const gmZones=Object.freeze([
  {id:'overworld-haunted-woods',category:ZONE_CATEGORY.OVERWORLD,name:'Haunted Woods',kind:'dive',warp:false},
  {id:'overworld-autumnal-plains',category:ZONE_CATEGORY.OVERWORLD,name:'Autumnal Plains',kind:'dive',warp:false},
  {id:'overworld-farmstead',category:ZONE_CATEGORY.OVERWORLD,name:'Farmstead',kind:'dive',warp:false},
+ {id:'dungeon-coastal-caverns',category:ZONE_CATEGORY.OVERWORLD,name:'Coastal Caverns',kind:'dive',warp:false},
  {id:'overworld-seafoam-coast',category:ZONE_CATEGORY.OVERWORLD,name:'Seafoam Coast',kind:'dive',warp:false},
  {id:'overworld-emberfall-caldera',category:ZONE_CATEGORY.OVERWORLD,name:'Emberfall Caldera',kind:'dive',warp:false},
  {id:'overworld-obsidian-spa',category:ZONE_CATEGORY.OVERWORLD,name:'Obsidian Spa',kind:'dive',warp:false},
+ {id:'overworld-echo-gulch',category:ZONE_CATEGORY.OVERWORLD,name:'Echo Gulch',kind:'dive',warp:false}, // 2026-09-29: badlands below Dustbreak, between the Plains and the Coast.
  {id:'overworld-spooky-mansion',category:ZONE_CATEGORY.OVERWORLD,name:'Spooky Mansion',kind:'dive',warp:false},
  {id:'overworld-tundra',category:ZONE_CATEGORY.OVERWORLD,name:'Frostveil Tundra',kind:'dive',warp:false},
  ...campaignDives.map(({config})=>({id:config.zone_id,name:config.name,kind:'dive',category:routeCategory(config),warp:false})),

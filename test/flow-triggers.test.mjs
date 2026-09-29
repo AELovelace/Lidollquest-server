@@ -5,6 +5,9 @@ import {createStoryFlows} from '../server/story-flows.mjs';
 import {validateFlow} from '../server/flow-content.mjs';
 const quest={id:'parcels',stages:[{id:'gather',objectives:[{id:'parcel'},{id:'other'}]}]};
 const definition=()=>({id:'delivery',name:'Delivery',nodes:[{id:'main',type:'entry'},{id:'wait',type:'objective',operation:'flag',conditions:{all:['story_finish']}},{id:'flag_entry',type:'flag_entry',flag:'story_parcel'},{id:'objective_entry',type:'objective_entry',ref:'parcels',stage:'gather',objective:'parcel'},{id:'flag_page',type:'dialogue',text:'Flag scene'},{id:'parcel_page',type:'dialogue',text:'Parcel scene'},{id:'end',type:'end'}],edges:[{from:'main',port:'next',to:'wait'},{from:'wait',port:'complete',to:'end'},{from:'flag_entry',port:'next',to:'flag_page'},{from:'objective_entry',port:'next',to:'parcel_page'},...['flag_page','parcel_page'].map(from=>({from,port:'next',to:'end'}))],bindings:[{kind:'npc',ref:'keeper',entry:'main'}]});
+test('an entry waiting for its location does not block another ready story',()=>{const f=fixture();try{
+ f.adapters.entryReady=(c,s,n)=>n.id!=='flag_entry';f.s.fullDungeon.flags.story_parcel=true;f.complete();f.check();assert.equal(f.flows.snapshot(f.c,f.s).text,'Parcel scene');f.continue();f.check();assert.equal(f.flows.active(f.c),null);f.restart();f.adapters.entryReady=()=>true;f.check();assert.equal(f.flows.snapshot(f.c,f.s).text,'Flag scene');
+}finally{f.close();}});
 function fixture(){
  const db=new DatabaseSync(':memory:');db.exec('CREATE TABLE quest_characters(id TEXT PRIMARY KEY,state TEXT,revision INTEGER DEFAULT 0);CREATE TABLE online_quests(id TEXT PRIMARY KEY,character_id TEXT,quest TEXT,state TEXT,created INTEGER)');
  const c={id:'alice'},s={flowVersion:1,fullDungeon:{flags:{}}};db.prepare('INSERT INTO quest_characters(id,state) VALUES (?,?)').run(c.id,JSON.stringify(s));

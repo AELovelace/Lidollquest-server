@@ -6,8 +6,9 @@
     "_comment": "Weekly High Desert branch; sole access is the north-center Dustbreak Desert trail at (50,1). Export with python/export_online_high_desert.py.",
     "enabled": true,
     "route": "dustbreak-high-desert",
-    "zone_id": "overworld-high-desert",
+    "zone_id": "overworld-high-desert",
     "zone_category": "overworld",
+    "static": false,
     "name": "Dustbreak High Desert",
     "theme": "high_desert",
     "width": 80,
@@ -111,7 +112,6 @@
   ],
   "enemies": {
     "dust_scavenger": {
-      "roaming": true,
       "enemy_id": "dust_scavenger",
       "name": "Dust Scavenger",
       "hp": 42,
@@ -122,10 +122,10 @@
       "enemy_spells": [],
       "spell_cast_chance": 0,
       "sprite": "sprDustScavenger",
-      "battle_sprite": "sprDustScavenger"
+      "battle_sprite": "sprDustScavenger",
+      "roaming": true
     },
     "canyon_raider": {
-      "roaming": true,
       "enemy_id": "canyon_raider",
       "name": "Canyon Raider",
       "hp": 58,
@@ -136,10 +136,10 @@
       "enemy_spells": [],
       "spell_cast_chance": 0,
       "sprite": "sprCanyonRaider",
-      "battle_sprite": "sprCanyonRaider"
+      "battle_sprite": "sprCanyonRaider",
+      "roaming": true
     },
     "scrap_trapper": {
-      "roaming": true,
       "enemy_id": "scrap_trapper",
       "name": "Scrap Trapper",
       "hp": 50,
@@ -152,10 +152,10 @@
       ],
       "spell_cast_chance": 0.3,
       "sprite": "sprScrapTrapper",
-      "battle_sprite": "sprScrapTrapper"
+      "battle_sprite": "sprScrapTrapper",
+      "roaming": true
     },
     "glowroach": {
-      "roaming": true,
       "enemy_id": "glowroach",
       "name": "Glowroach",
       "hp": 32,
@@ -168,10 +168,10 @@
       ],
       "spell_cast_chance": 0.3,
       "sprite": "sprGlowroach",
-      "battle_sprite": "sprGlowroach"
+      "battle_sprite": "sprGlowroach",
+      "roaming": true
     },
     "sand_stinger": {
-      "roaming": true,
       "enemy_id": "sand_stinger",
       "name": "Sand Stinger",
       "hp": 44,
@@ -184,10 +184,10 @@
       ],
       "spell_cast_chance": 0.35,
       "sprite": "sprSandStinger",
-      "battle_sprite": "sprSandStinger"
+      "battle_sprite": "sprSandStinger",
+      "roaming": true
     },
     "raider_chief": {
-      "roaming": true,
       "enemy_id": "raider_chief",
       "name": "Raider Chief",
       "hp": 85,
@@ -201,10 +201,10 @@
       ],
       "spell_cast_chance": 0.35,
       "sprite": "sprRaiderChief",
-      "battle_sprite": "sprRaiderChief"
+      "battle_sprite": "sprRaiderChief",
+      "roaming": true
     },
     "goblin": {
-      "roaming": true,
       "enemy_id": "goblin",
       "name": "Goblin",
       "hp": 30,
@@ -215,10 +215,10 @@
       "enemy_spells": [],
       "spell_cast_chance": 0,
       "sprite": "sprEnemyGeneric",
-      "battle_sprite": "sprGoblin"
+      "battle_sprite": "sprGoblin",
+      "roaming": true
     },
     "goblin_brute": {
-      "roaming": true,
       "enemy_id": "goblin_brute",
       "name": "Goblin Brute",
       "hp": 50,
@@ -231,10 +231,10 @@
       ],
       "spell_cast_chance": 0.2,
       "sprite": "sprGoblinBruteNew",
-      "battle_sprite": "sprGoblinBrute"
+      "battle_sprite": "sprGoblinBrute",
+      "roaming": true
     },
     "diaper_fairy": {
-      "roaming": true,
       "enemy_id": "diaper_fairy",
       "name": "Diaper Fairy",
       "hp": 25,
@@ -248,10 +248,10 @@
       ],
       "spell_cast_chance": 0.35,
       "sprite": "sprDiaperFairyNew",
-      "battle_sprite": "sprFairy"
+      "battle_sprite": "sprFairy",
+      "roaming": true
     },
     "shadow_fairy": {
-      "roaming": true,
       "enemy_id": "shadow_fairy",
       "name": "Shadow Diaper Fairy",
       "hp": 45,
@@ -265,10 +265,10 @@
       ],
       "spell_cast_chance": 0.35,
       "sprite": "sprShadowFairyNew",
-      "battle_sprite": "sprFairy"
+      "battle_sprite": "sprFairy",
+      "roaming": true
     },
     "bloated_slime": {
-      "roaming": true,
       "enemy_id": "bloated_slime",
       "name": "Bloated Bottle Slime",
       "hp": 70,
@@ -281,10 +281,10 @@
       ],
       "spell_cast_chance": 0.3,
       "sprite": "sprBloatedSlime",
-      "battle_sprite": "sprGiantSlime"
+      "battle_sprite": "sprBloatedSlime",
+      "roaming": true
     },
     "nursery_witch": {
-      "roaming": true,
       "enemy_id": "nursery_witch",
       "name": "Nursery Witch",
       "hp": 45,
@@ -298,7 +298,8 @@
       ],
       "spell_cast_chance": 0.3,
       "sprite": "sprNurseryWitchNew",
-      "battle_sprite": "sprWitch"
+      "battle_sprite": "sprNurseryWitchNew",
+      "roaming": true
     }
   },
   "items": {

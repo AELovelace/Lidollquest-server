@@ -16402,21 +16402,6 @@
       "childish": 2,
       "rarity": "rare"
     },
-    "star_rifle": {
-      "item_id": "star_rifle",
-      "category": "weapon",
-      "name": "Star Rifle",
-      "desc": "A long silver rifle etched with constellations. Each shot pulls 7 MP straight from the mage and lands like a heavy spell, from any row. Only a mage can use it.",
-      "weapon_class": "gun",
-      "mp_cost": 7,
-      "power": 40,
-      "atk": 0,
-      "def": 0,
-      "hp_restore": 0,
-      "value": 300,
-      "childish": 4,
-      "rarity": "epic"
-    },
     "mana_cannon": {
       "item_id": "mana_cannon",
       "category": "weapon",
@@ -16430,6 +16415,21 @@
       "hp_restore": 0,
       "value": 600,
       "childish": 3,
+      "rarity": "epic"
+    },
+    "star_rifle": {
+      "item_id": "star_rifle",
+      "category": "weapon",
+      "name": "Star Rifle",
+      "desc": "A long silver rifle etched with constellations. Each shot pulls 7 MP straight from the mage and lands like a heavy spell, from any row. Only a mage can use it.",
+      "weapon_class": "gun",
+      "mp_cost": 7,
+      "power": 40,
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "value": 300,
+      "childish": 4,
       "rarity": "epic"
     }
   },
@@ -20646,6 +20646,7 @@
       "avg_str_base": 10,
       "avg_str_per_level": 1.2,
       "heal_reference_hp": 100,
+      "mana_reference_mp": 100,
       "stamina_base": 100,
       "stamina_per_level": 2,
       "stamina_dex_share": 0.5,
@@ -20953,6 +20954,10 @@
           "base": 45,
           "per_floor": 0
         },
+        "echo-gulch": {
+          "base": 35,
+          "per_floor": 3
+        },
         "spooky-mansion": {
           "base": 56,
           "per_floor": 3
@@ -20987,6 +20992,10 @@
         },
         "default": {
           "base": 5,
+          "per_floor": 2
+        },
+        "coastal-caverns": {
+          "base": 20,
           "per_floor": 2
         }
       },
@@ -22599,6 +22608,15 @@
           "glass_sugar",
           "quicksilver_bead"
         ],
+        "gulch": [
+          "rust_filings",
+          "goldleaf",
+          "coffee_bean",
+          "tar_beetle",
+          "prune",
+          "rainwater",
+          "bottled_tears"
+        ],
         "safe_room": [
           "rosewater",
           "talc_blossom",
@@ -22626,7 +22644,9 @@
         "overworld-farmstead": "autumn_plains",
         "overworld-seafoam-coast": "coast",
         "overworld-emberfall-caldera": "caldera",
-        "overworld-obsidian-spa": "caldera"
+        "overworld-obsidian-spa": "caldera",
+        "overworld-echo-gulch": "gulch",
+        "dungeon-coastal-caverns": "coast"
       }
     },
     "brewing": {

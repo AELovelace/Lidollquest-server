@@ -72,9 +72,9 @@ test('blessings scale with piety: melee, magic, physical, DEF and Sula crawling 
  assert.equal(mageScaling(scaled('sula',100,LOOKS.sula)).magic,mageScaling(LOOKS.sula).magic*1.2);
  assert.equal(blessedDef(scaled('nyx',100,LOOKS.nyx)),24);assert.equal(blessedDef(LOOKS.nyx),20);
  const crawler={...LOOKS.sula,world:{crawling:true}};
- assert.equal(movementDelay(crawler,DEFAULT_TUNING),DEFAULT_TUNING.crawl_move_delay_ms);
+ assert.equal(movementDelay(crawler,DEFAULT_TUNING),DEFAULT_TUNING.crawl_move_delay_ms/0.8);
  assert.equal(faithCrawlFree({god:'sula',piety:49}),false);
- assert.equal(movementDelay(scaled('sula',50,crawler),DEFAULT_TUNING),DEFAULT_TUNING.move_delay_ms,'devout crawlers keep walking pace');
+ assert.equal(movementDelay(scaled('sula',50,crawler),DEFAULT_TUNING),DEFAULT_TUNING.move_delay_ms/0.8,'devout crawlers keep walking pace');
 });
 
 test('online: steps tick piety, the loadout carries the blessing, forged faith is ignored, and a GM can set a god and piety',()=>{

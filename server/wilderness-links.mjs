@@ -41,6 +41,15 @@ export function addSideTrail(f,{zone_id,name,side}){ // Carve a 3-tall trail in 
  return true; // Only new terrain opens, so the live edition keeps its rooms, loot and encounter locks.
 }
 
+export function retargetExit(f,{from,zone_id,name}){ // Point an existing crossing at a new neighbour (the Plains' east wall and the Coast's west wall used to meet; Echo Gulch now sits between them).
+ const exit=f.exits.find(e=>e.zone===from);
+ if(!exit||f.exits.some(e=>e.zone===zone_id))return false; // Idempotent: nothing to move, or already moved.
+ exit.zone=zone_id;exit.name=name; // Same tiles, same gap: only where it leads changes.
+ if(f.entries?.[from]){f.entries[zone_id]=f.entries[from];delete f.entries[from];} // Arrivals from the new neighbour stand where arrivals from the old one did.
+ f.geometryVersion=(f.geometryVersion??0)+1; // Connected clients refresh the exit labels and the minimap.
+ return true;
+}
+
 export function addLandmark(f,{zone,name,sprite,span_w=4,span_h=4,door_x=Math.floor(span_w/2),radius=6,center_dx=0,center_dy=0}){ // center_dx/dy: search round a point off-centre (Emberfall Caldera: north of the lava lake). // A building near the map centre whose door is a warp pad into another route (the Woods' haunted house -> Spooky Mansion).
  if(!zone||f.exits.some(exit=>exit.zone===zone))return false; // Idempotent across restarts and weekly editions.
  const W=f.width,H=f.height,cx=Math.floor(W/2)+center_dx,cy=Math.floor(H/2)+center_dy,k=(x,y)=>x+','+y;

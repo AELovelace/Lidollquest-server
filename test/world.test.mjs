@@ -17,15 +17,15 @@ test('hub and Dive movement enforce the live step cooldown, doubled while crawli
     let pair;for(let y=1;y<floor.height-1&&!pair;y++)for(let x=1;x<floor.width-2&&!pair;x++)if(walkable(floor,x,y)&&walkable(floor,x+1,y)&&![...s.dive.enemies,...(floor.exits??[]),floor.entrance].some(e=>e.y===y&&(e.x===x||e.x===x+1)))pair={x,y};
     assert.ok(pair);place(pair.x,pair.y);
    }else place(10,12); // Rose Court's plaza spawn; (10,9) is now the garden fountain.
-   time+=299;assert.throws(()=>act('move',{direction:'east'}),/too fast/);time++;act('move',{direction:'east'}); // crawl_move_delay_ms default 300.
+   time+=374;assert.throws(()=>act('move',{direction:'east'}),/too fast/);time++;act('move',{direction:'east'}); // Base 300ms / 0.8 = 375ms effective crawl interval.
    const loadout=structuredClone(c.loadout);loadout.world.crawling=false;loadout.player_info.equipped_accessory_1='';act('loadout',{loadout});
-   time+=149;assert.throws(()=>act('move',{direction:'west'}),/too fast/);time++;act('move',{direction:'west'}); // move_delay_ms default 150.
+   time+=187;assert.throws(()=>act('move',{direction:'west'}),/too fast/);time++;act('move',{direction:'west'}); // Base 150ms / 0.8 = 187.5ms effective walking interval.
    loadout.player_info.equipped_accessory_1='cursed_crawling_anklets';act('loadout',{loadout});
-   assert.equal(c.loadout.world.crawling,true);time+=299;assert.throws(()=>act('move',{direction:'east'}),/too fast/);time++;act('move',{direction:'east'});
+   assert.equal(c.loadout.world.crawling,true);time+=374;assert.throws(()=>act('move',{direction:'east'}),/too fast/);time++;act('move',{direction:'east'});
    api.loot.tune({move_delay_ms:100,crawl_move_delay_ms:1000},'gm'); // The /gm Loot tab (or the in-game Combat page) retunes both cooldowns live.
-   time+=999;assert.throws(()=>act('move',{direction:'west'}),/too fast/);time++;const tuned=act('move',{direction:'west'});
-   assert.equal(tuned.moveDelayMs,100);assert.equal(tuned.crawlMoveDelayMs,1000); // The snapshot ships the live numbers so the client paces itself to the same clock.
-   loadout.player_info.equipped_accessory_1='';loadout.world.crawling=false;act('loadout',{loadout});time+=99;assert.throws(()=>act('move',{direction:'east'}),/too fast/);time++;act('move',{direction:'east'});
+   time+=1249;assert.throws(()=>act('move',{direction:'west'}),/too fast/);time++;const tuned=act('move',{direction:'west'});
+   assert.equal(tuned.moveDelayMs,125);assert.equal(tuned.crawlMoveDelayMs,1250); // Snapshots ship the effective intervals, including the global 80% pace.
+   loadout.player_info.equipped_accessory_1='';loadout.world.crawling=false;act('loadout',{loadout});time+=124;assert.throws(()=>act('move',{direction:'east'}),/too fast/);time++;act('move',{direction:'east'});
    loadout.player_info.equipped_accessory_1='cursed_crawling_anklets';act('loadout',{loadout});assert.equal(c.loadout.world.crawling,true); // Back in the anklets so the Dive pass starts crawling, as before.
    api.loot.reset('tuning'); // Back to the shipped 150 / 300 for the Dive pass.
   }

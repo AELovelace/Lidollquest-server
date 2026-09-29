@@ -51,7 +51,7 @@ test('north trail at (50,1) upgrades existing Desert editions without rerolling 
  }
  const f=fixture({upgrade:false});try{
   f.player('alice');f.act('alice','dive_enter',{zone:DESERT_ZONE});const chest=f.snap('alice').dive.chests[0];f.place('alice',chest);f.act('alice','dive_claim',{chest:chest.id});
-  assert.equal(f.floor('alice').exits.length,2);f.restart(true);const upgraded=f.floor('alice');assert.equal(upgraded.exits.length,3);assert.ok(upgraded.exits.every(e=>e.style==='gap'));assert.equal(upgraded.geometryVersion,2); // Trail, then wall gaps.assert.equal(f.snap('alice').dive.claimed,1);
+  assert.equal(f.floor('alice').exits.length,2);f.restart(true);const upgraded=f.floor('alice');assert.equal(upgraded.exits.length,4);assert.ok(upgraded.exits.every(e=>e.style==='gap'));assert.equal(upgraded.geometryVersion,3); // North trail, the south trail to Echo Gulch, then wall gaps.assert.equal(f.snap('alice').dive.claimed,1);
   f.cross('alice');assert.equal(f.snap('alice').zone,HIGH_DESERT_ZONE);
  }finally{f.db.close();}
 });

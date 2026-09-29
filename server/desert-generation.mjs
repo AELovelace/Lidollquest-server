@@ -17,6 +17,38 @@ export function validateDesert(f){
  for(let y=0;y<f.height;y++)for(let x=0;x<f.width;x++)if(walkable(f,x,y)&&!seen.has(x+','+y))throw Error('Disconnected Desert floor');
  return true;
 }
+export function washBand(width,height,wash){ // (x,y) => true inside Echo Gulch's dry wash: a band `width` tall whose centre wobbles round the middle row. Shared by generation and the flood (no random numbers).
+ const mid=Math.floor(height/2),half=Math.floor((wash.width??4)/2),amp=wash.amplitude??7,wob=wash.wobble??3;
+ const centre=x=>mid+Math.round(amp*Math.sin(x*0.11)+wob*Math.sin(x*0.27+2)); // Same bend on every edition, so riverbed art and flood rules line up.
+ return (x,y)=>x>0&&y>0&&x<width-1&&y<height-1&&Math.abs(y-centre(x))<=half;
+}
+
+function slotCanyon(f,r,sc,rnd){ // Refill basin r with rock and cut a perfect maze through it (1-wide passages on odd tiles), then knock a few loops and open doorways onto the floor outside. Returns false (basin untouched) if no doorway is possible.
+ const cw=Math.floor((r.w-1)/2),ch=Math.floor((r.h-1)/2);if(cw<2||ch<2)return false; // Too small to be a maze.
+ const x0=r.x,y0=r.y,x1=x0+2*cw,y1=y0+2*ch,backup=f.walls.map(row=>[...row]); // The maze box, inclusive; backup undoes a sealed maze.
+ if(x0<2||y0<2||x1>f.width-3||y1>f.height-3)return false; // Keep a rock rim inside the map border.
+ const open=(x,y)=>{f.walls[y][x]=0;},cell=(i,j)=>({x:x0+1+2*i,y:y0+1+2*j});
+ for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)f.walls[y][x]=1; // Solid rock first.
+ const seen=new Set(),start=[rnd(cw),rnd(ch)],stack=[start];seen.add(start.join(','));open(cell(...start).x,cell(...start).y);
+ while(stack.length){ // Recursive backtracker: every passage joins, so the whole maze is one connected canyon.
+  const [i,j]=stack[stack.length-1],next=directions.map(([dx,dy])=>[i+dx,j+dy]).filter(([a,b])=>a>=0&&b>=0&&a<cw&&b<ch&&!seen.has(a+','+b));
+  if(!next.length){stack.pop();continue;} // Dead end: back up.
+  const [a,b]=next[rnd(next.length)];seen.add(a+','+b);open(x0+1+i+a,y0+1+j+b);open(cell(a,b).x,cell(a,b).y);stack.push([a,b]); // Knock the wall between the two cells, then step in.
+ }
+ for(let n=0;n<(sc.loops??2);n++){ // A few extra openings make loops, so monsters can come round a corner at you.
+  if(rnd(2)&&cw>1){const i=rnd(cw-1),j=rnd(ch);open(x0+2+2*i,y0+1+2*j);}else if(ch>1){const i=rnd(cw),j=rnd(ch-1);open(x0+1+2*i,y0+2+2*j);}
+ }
+ const sides=[[],[],[],[]]; // Box-edge tiles next to a passage with open floor right outside: north, south, west, east.
+ for(let i=0;i<cw;i++){const x=x0+1+2*i;if(f.walls[y0-1][x]===0)sides[0].push({x,y:y0});if(f.walls[y1+1][x]===0)sides[1].push({x,y:y1});}
+ for(let j=0;j<ch;j++){const y=y0+1+2*j;if(f.walls[y][x0-1]===0)sides[2].push({x:x0,y});if(f.walls[y][x1+1]===0)sides[3].push({x:x1,y});}
+ if(sides.every(s=>!s.length)){for(let y=0;y<f.height;y++)f.walls[y]=backup[y];return false;} // Sealed in by rock: leave it an open basin.
+ let opened=0;
+ for(const side of sides)if(side.length){const d=side.splice(rnd(side.length),1)[0];open(d.x,d.y);opened++;} // One door on every side that had ground outside, so trails that crossed the basin still get through the maze.
+ const spare=sides.flat();
+ while(opened<(sc.entrances??3)&&spare.length){const d=spare.splice(rnd(spare.length),1)[0];open(d.x,d.y);opened++;} // Top up to the authored number of ways in.
+ return true;
+}
+
 export function generateDesert(data,edition,depth=1){
  const c=data.config,s=data.structure,rnd=seeded(`${c.route}:${edition}:${depth}:v${data.version}`),range=(a,b)=>a+rnd(b-a+1);
  if(![c.width,c.height].every(n=>Number.isInteger(n)&&n>=40&&n<=128)||!Number.isInteger(s.basin_count)||s.basin_count<2||s.basin_count>12||!Number.isInteger(c.enemies_per_room)||c.enemies_per_room<0||c.enemies_per_room>6)throw Error('Invalid Desert dimensions/density');
@@ -57,6 +89,21 @@ export function generateDesert(data,edition,depth=1){
   const r={x,y,w,h};f.rooms.push(r);rect(r);path({x:x+Math.floor(w/2),y:y+Math.floor(h/2)},{x:x+Math.floor(w/2),y:Math.floor(f.height/2)},range(s.side_path_width_min,s.side_path_width_max));
  }
  for(let i=0;i<s.side_path_count;i++){const a=f.rooms[safeCount+rnd(s.basin_count)],b=f.rooms[safeCount+rnd(s.basin_count)];path({x:a.x+Math.floor(a.w/2),y:a.y+Math.floor(a.h/2)},{x:b.x+Math.floor(b.w/2),y:b.y+Math.floor(b.h/2)},range(s.side_path_width_min,s.side_path_width_max));}
+ if(s.wash){ // Echo Gulch: a dry wash (arroyo) snakes west to east across the middle (seed-free wobble). Flash floods run down it (gulch-features.mjs floodAt).
+  const band=washBand(f.width,f.height,s.wash);
+  for(let y=1;y<f.height-1;y++)for(let x=1;x<f.width-1;x++)if(band(x,y))f.walls[y][x]=0; // The whole riverbed is open floor.
+  f.wash=Array.from({length:f.height},(_,y)=>Array.from({length:f.width},(_,x)=>x>0&&y>0&&x<f.width-1&&y<f.height-1&&band(x,y)?'1':'0').join('')); // Compact rows like floor.cover: '1' = in the wash.
+ }
+ if(s.slot_canyons){ // Echo Gulch: some basins become slot canyons, 1-wide twisting mazes cut through the rock (a few loops, a few ways in).
+  const sc=s.slot_canyons,band=s.wash?washBand(f.width,f.height,s.wash):()=>false;
+  for(let i=safeCount;i<f.rooms.length;i++){
+   const r=f.rooms[i];if(rnd(100)>=(sc.percent??50))continue; // Roll per basin; the rest stay open canyon floor.
+   let crosses=false;for(let y=r.y-1;y<=r.y+r.h;y++)for(let x=r.x-1;x<=r.x+r.w;x++)if(band(x,y)||f.safeRooms.some(q=>inside(q,x,y)))crosses=true;
+   if(crosses)continue; // The wash and the trail mouths stay open ground.
+   if(f.rooms.some(q=>q.slot&&q.x<=r.x+r.w&&r.x<=q.x+q.w&&q.y<=r.y+r.h&&r.y<=q.y+q.h))continue; // Never cut a maze through another maze: overlapping basins stay open.
+   if(slotCanyon(f,r,sc,rnd))r.slot=true; // Marked so features and the client know it is a maze.
+  }
+ }
  for(const r of f.safeRooms)rect(r);
  if(s.sea_width){ // Flood the east band with a wavy shoreline (no random numbers), then let the pocket cleanup below drop anything the sea cut off.
   f.shore=Array.from({length:f.height},(_,y)=>Math.max(land-4,Math.min(f.width-2,land+Math.round(3*Math.sin(y*0.15)+2*Math.sin(y*0.37+1)))));
@@ -70,7 +117,7 @@ export function generateDesert(data,edition,depth=1){
  }
  // Remove isolated CA pockets; all active content is placed only in the entrance's connected component.
  const connected=reachable(f);for(let y=1;y<f.height-1;y++)for(let x=1;x<f.width-1;x++)if(!connected.has(x+','+y))f.walls[y][x]=1;
- if(s.crater)f.rooms=f.rooms.filter((r,i)=>{if(i<safeCount)return true;let n=0;for(let y=r.y;y<r.y+r.h;y++)for(let x=r.x;x<r.x+r.w;x++)if(walkable(f,x,y))n++;return n>=6;}); // Basins the lava swallowed hold no content.
+ if(s.crater||s.slot_canyons)f.rooms=f.rooms.filter((r,i)=>{if(i<safeCount)return true;let n=0;for(let y=r.y;y<r.y+r.h;y++)for(let x=r.x;x<r.x+r.w;x++)if(walkable(f,x,y))n++;return n>=6;}); // Basins the lava swallowed (or a slot canyon the pocket cleanup cut off) hold no content.
  const occupied=new Set(f.exits.map(key)),safe=p=>f.safeRooms.some(r=>inside(r,p.x,p.y));
  function free(r){const cells=[];for(let y=r.y;y<r.y+r.h;y++)for(let x=r.x;x<r.x+r.w;x++){const p={x,y};if(walkable(f,x,y)&&!occupied.has(key(p))&&!safe(p))cells.push(p);}if(!cells.length)throw Error('No Desert content space');const p=cells[rnd(cells.length)];occupied.add(key(p));return p;}
  const weights=data.enemy_types.flatMap(e=>Array(e.chance).fill(e.enemy_id));

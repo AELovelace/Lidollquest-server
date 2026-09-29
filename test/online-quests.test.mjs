@@ -232,7 +232,7 @@ test('shared delivery consumes only the deliverer tokens and credits the matchin
  }finally{f.close();}});
 
 test('token and object artwork accepts shipped icons and immutable uploads, rejecting unknown references',()=>{const f=fixture();try{
- const icon='sprIcon_stamina_potion';assert.ok(f.live.view().compiledSprites.includes(icon));assert.ok(f.live.asset(icon).png);
+ const icon='sprItem';assert.ok(f.live.view().compiledSprites.includes(icon));assert.ok(f.live.asset(icon).png);
  let map=place(f,'token','quest_parcel','persistent','honeydew-lantern',{sprite:icon});const token=map.placements.find(p=>p.content==='quest_parcel');assert.equal(token.sprite,icon);
  const asset=f.live.putAsset({png:'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAN0lEQVR4nO3QQREAMAgDQYofTCKxhspUBZ+NgcvsudUvFpebcQcIECBAgAABAgQIECBAgACBTzBf6ALAS4QDIwAAAABJRU5ErkJggg==',frames:1});map=place(f,'interact','quest_switch','persistent',map.id,{sprite:asset.id});assert.equal(map.placements.find(p=>p.content==='quest_switch').sprite,asset.id);
  for(const sprite of ['missing_sprite','managed-missing','https://invalid.test/image.png'])assert.throws(()=>place(f,'token','bad_sprite','persistent',map.id,{sprite}),/artwork|Artwork/);

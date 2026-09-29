@@ -1,3 +1,4 @@
+import {installCavernsContent} from './caverns-content.mjs';
 import {envFlag} from './env-flag.mjs'; // Case-insensitive on/off switches (FALSE really turns the GM panel off).
 import {migrateZoneIds} from './zone-rename.mjs'; // One-time dive-<name> -> overworld-/dungeon-<name> rewrite of saved zone ids.
 import {createWorldContent} from './world-content.mjs';
@@ -58,6 +59,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
   if(asset!=='coins'||!Number.isSafeInteger(amount)||amount<1||amount>dailyCoinCap())throw Error('Invalid server award'); // A single entitlement can never exceed one day's whole allowance.
   db.prepare('INSERT INTO reward_outbox(id,owner,amount,reason) VALUES (?,?,?,?)').run(id,owner,amount,reason);
  }});
+ installCavernsContent(db,live,zones.world?.flows); // Add the editable shipped expedition once.
  zones.setTutor(tutor); // Pip appears in the starting lobbies and tutor_ask stores questions.
  db.prepare('INSERT OR IGNORE INTO mommybot_online_seen SELECT owner,seen FROM quest_presence').run(); // Seed existing sessions on rollout without announcing their next heartbeat as a fresh join.
  const cloud=createCloudSaves(db,{now});

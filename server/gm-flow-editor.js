@@ -54,6 +54,7 @@ function engineNpcLibrary(host,q){
 } // Dragging a built-in resident creates a replacement entry without creating another NPC placement.
 function triggerQuest(n){return assets.find(a=>a.kind==='quest'&&a.id===n.ref)?.entry??cat.records.quests?.find(q=>q.id===n.ref)?.published??cat.records.quests?.find(q=>q.id===n.ref)?.draft;} // Match the published quest unless its edited draft belongs to this bundle.
 function triggerProperties(host,n){
+ field(host,'Start zone (optional)',n,'start_zone','text',[{id:'',name:'Any zone'},...referenceOptions('zones')]);field(host,'Near location target (optional)',n,'start_location');el('p','A queued scene waits until you are in this zone and within 3 tiles of the location target.',host).className='hint';
  if(n.type==='flag_entry')field(host,'When flag becomes set',n,'flag','text',[{id:'',name:'Choose flag'},...cat.flags.filter(f=>!f.retired)]);
  else{
   const quest=field(host,'Quest',n,'ref','text',[{id:'',name:'Choose quest'},...referenceOptions('quests')]);quest.onchange=()=>{checkpoint();n.ref=quest.value;n.stage='';n.objective='';changed();properties();};

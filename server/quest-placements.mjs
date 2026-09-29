@@ -1,8 +1,10 @@
+import {caveReach} from './caverns-generation.mjs';
 import {randomUUID,createHash} from 'node:crypto';
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'quest_placement_conflict'});};
 const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQuests=()=>{}}){
  db.exec(`CREATE TABLE IF NOT EXISTS world_placements(id TEXT PRIMARY KEY,zone TEXT NOT NULL,body TEXT NOT NULL);
+ CREATE TABLE IF NOT EXISTS world_placement_exclusions(zone TEXT NOT NULL,id TEXT NOT NULL,PRIMARY KEY(zone,id));
  CREATE TABLE IF NOT EXISTS world_placement_maps(zone TEXT NOT NULL,edition TEXT NOT NULL,signature TEXT NOT NULL,body TEXT NOT NULL,PRIMARY KEY(zone,edition));`);
  const rows=zone=>db.prepare('SELECT body FROM world_placements WHERE zone=? ORDER BY id').all(zone).map(r=>JSON.parse(r.body));
  function geometry(f){return hash([f.width,f.height,f.walls,f.props,f.entrance,f.entries,f.exits,(f.fixtures??[]).filter(p=>p.kind!=='npc'),f.portals]);}
@@ -13,11 +15,11 @@ export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQues
  }
  const obstacles=f=>[f.entrance,...Object.values(f.entries??{}),...(f.exits??[]),...(f.portals??[]),...(f.fixtures??[]),...(f.chests??[]),...(f.pickups??[]),...(f.enemies??[]).filter(e=>!e.dead)].filter(Boolean);
  function realize(zone,edition,f,{commit=true,players=[]}={}){
-  const logical=rows(zone);for(const p of logical)if(p.lifetime==='temporary'&&p.edition!==edition&&affected({...p,replacementEdition:edition}).length)fail('Active quests require expiring placement '+p.name+'. Place a persistent replacement or remove it with an explicit failure decision before replacing the map.');
+  const logical=[...(f.authoredPlacements??[]).filter(p=>!db.prepare('SELECT 1 FROM world_placement_exclusions WHERE zone=? AND id=?').get(zone,p.id)&&!rows(zone).some(v=>v.id===p.id)),...rows(zone)];for(const p of logical)if(p.lifetime==='temporary'&&p.edition!==edition&&affected({...p,replacementEdition:edition}).length)fail('Active quests require expiring placement '+p.name+'. Place a persistent replacement or remove it with an explicit failure decision before replacing the map.');
   const definitions=logical.filter(p=>p.lifetime==='persistent'||p.edition===edition),signature=hash([geometry(f),definitions]),old=db.prepare('SELECT * FROM world_placement_maps WHERE zone=? AND edition=?').get(zone,edition);
   if(!definitions.length){if(commit&&old)db.prepare('DELETE FROM world_placement_maps WHERE zone=? AND edition=?').run(zone,edition);return [];}if(old?.signature===signature)return JSON.parse(old.body);
-  const free=tiles(f),occupied=[...obstacles(f),...players],placements=[];
-  for(const p of definitions){const candidates=free.filter(t=>!occupied.some(o=>Math.abs(o.x-t.x)+Math.abs(o.y-t.y)<=1)).sort((a,b)=>(Math.abs(a.x-p.x)+Math.abs(a.y-p.y))-(Math.abs(b.x-p.x)+Math.abs(b.y-p.y))||a.y-b.y||a.x-b.x),spot=candidates[0];if(!spot)fail('No reachable tile for '+p.name+' in '+zone+'.');const placed={...p,...spot,home:{...spot}};placements.push(placed);occupied.push(spot);}
+  const free=tiles(f),dry=f.caveChannels?caveReach({...f,managedOccupancy:[]},undefined,true):null,occupied=[...obstacles(f),...players],placements=[];
+  for(const p of definitions){const candidates=free.filter(t=>(!p.dry||!dry||dry.has(t.x+','+t.y))&&!occupied.some(o=>Math.abs(o.x-t.x)+Math.abs(o.y-t.y)<=1)).sort((a,b)=>(Math.abs(a.x-p.x)+Math.abs(a.y-p.y))-(Math.abs(b.x-p.x)+Math.abs(b.y-p.y))||a.y-b.y||a.x-b.x),spot=candidates[0];if(!spot)fail('No reachable tile for '+p.name+' in '+zone+'.');const placed={...p,...spot,home:{...spot}};placements.push(placed);occupied.push(spot);}
   if(commit)db.prepare('INSERT INTO world_placement_maps VALUES (?,?,?,?) ON CONFLICT(zone,edition) DO UPDATE SET signature=excluded.signature,body=excluded.body').run(zone,edition,signature,JSON.stringify(placements));return placements;
  }
  function view(zone){const map=base.map(zone);if(!map.floor)return {...map,placements:[]};const placements=realize(zone,map.edition,map.floor),fresh=JSON.stringify(map.floor.managedOccupancy??[])===JSON.stringify(placements.filter(p=>p.kind==='npc').map(({x,y})=>({x,y})))?map:base.map(zone),revision=hash([fresh.revision,placements]);return {...fresh,baseRevision:fresh.revision,revision,placements};}
@@ -27,9 +29,9 @@ export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQues
   if(!['world_place_content','world_update_content','world_remove_content','world_scatter_orbs'].includes(input.action))return base.act({...input,revision:map.baseRevision});
   if(map.job)fail('Wait for regeneration to finish.');
   if(input.action==='world_update_content'){
-   const old=rows(input.zone).find(p=>p.id===input.placement);if(!old)fail('This placement no longer exists.');const x=input.x??old.x,y=input.y??old.y;
+   const old=map.placements.find(p=>p.id===input.placement);if(!old)fail('This placement no longer exists.');const x=input.x??old.x,y=input.y??old.y;
    if(!tiles(map.floor).some(t=>t.x===x&&t.y===y)||[...obstacles(map.floor),...map.placements.filter(p=>p.id!==old.id),...map.players].some(p=>Math.abs(p.x-x)+Math.abs(p.y-y)<=1))fail('Choose a reachable tile away from entrances, fixtures and occupants.');
-   const updated={...old,x,y,lifetime:input.lifetime==='temporary'?'temporary':'persistent',edition:map.edition};db.prepare('UPDATE world_placements SET body=? WHERE id=?').run(JSON.stringify(updated),old.id);return view(input.zone);
+   const updated={...old,x,y,lifetime:input.lifetime==='temporary'?'temporary':'persistent',edition:map.edition};db.prepare('INSERT INTO world_placements VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body').run(old.id,input.zone,JSON.stringify(updated));return view(input.zone);
   } // Moving or changing lifetime keeps stable placement identity and quest references.
   if(input.action==='world_scatter_orbs'){ // The orb generator: spread an ordered chain across the map, first orb nearest the entrance and the last deepest in, like the campaign's orb sequences.
    const list=Array.isArray(input.orbs)?input.orbs:[];if(!list.length||list.length>32||new Set(list).size!==list.length)fail('Choose one to 32 different orbs to scatter.');
@@ -49,7 +51,7 @@ export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQues
   }
   if(input.action==='world_remove_content'){
    const p=map.placements.find(p=>p.id===input.placement);if(!p)fail('Placement no longer exists.');const blockers=affected(p);if(blockers.length){if(input.resolution!=='fail')fail('Active quests depend on this placement: '+blockers.map(q=>q.definition.name).join(', ')+'. Place a replacement or explicitly fail these quests.');failQuests(blockers);}
-   db.prepare('DELETE FROM world_placements WHERE id=?').run(p.id);
+   db.prepare('DELETE FROM world_placements WHERE id=?').run(p.id);if(map.floor.authoredPlacements?.some(v=>v.id===p.id))db.prepare('INSERT OR IGNORE INTO world_placement_exclusions VALUES (?,?)').run(input.zone,p.id);
   }else{
    if(rows(input.zone).length>=128)fail('This zone already has 128 managed placements.');
    if(!['npc','interact','location','token','orb'].includes(input.placement_kind))fail('Choose an NPC, object, location, token or story orb.');

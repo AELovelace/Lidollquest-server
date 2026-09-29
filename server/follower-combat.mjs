@@ -1,3 +1,4 @@
+import {recalculateWetClothing} from './clothing-conditions.mjs';
 import {combatAction,combatData,currentTuning} from './combat.mjs';
 import {mitigate,healScale,rowMeleeDealt} from './scaling.mjs';
 import {syncRunHealth} from './loadout.mjs';
@@ -9,11 +10,8 @@ const dirty=p=>(p.diaper_wet_absorbed??0)+(p.diaper_tum_absorbed??0)+(p.had_wet_
 function cleanProtection(p){
  p.panties_bulk=Math.max(0,(p.panties_bulk??0)-(p.accident_bulk??0));
  for(const key of ['accident_bulk','had_wet_accident','had_tum_accident','diaper_wet_absorbed','diaper_tum_absorbed','diaper_wet_leaked','diaper_tum_leaked','grossout_chance','wet_hold_attempts','tum_hold_attempts'])p[key]=0;
- for(const slot of ['panties','socks','shoes'])p['slot_wet_'+slot]=false;
- const wet=new Set(['head','torso','pants'].filter(slot=>p['slot_wet_'+slot]).map(slot=>p['equipped_'+slot]).filter(Boolean));
- const penalty=Math.max(0,wet.size-2),delta=penalty-(p.wet_clothing_penalty??0);
- for(const key of ['str','def','dex','int','cha'])p[key]=(p[key]??0)-delta;
- p.wet_clothing_penalty=penalty;p.online_change_seq=(p.online_change_seq??0)+1;
+ for(const slot of ['panties','socks','shoes']){p['slot_wet_'+slot]=false;if(p.clothing_water)delete p.clothing_water[slot];}
+ recalculateWetClothing(p,hubData.equipment);p.online_change_seq=(p.online_change_seq??0)+1;
 } // Mirror the native silent cleanup, including accumulated bulk and wet-clothing penalties.
 
 export function followerAction(row,rows,enemy,z,roll,def){

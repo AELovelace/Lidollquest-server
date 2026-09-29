@@ -1629,6 +1629,157 @@
           "power": 10
         }
       ]
+    },
+    "sonic_screech": {
+      "spell_id": "sonic_screech",
+      "name": "Sonic Screech",
+      "description": "A shriek right in your ear, and then the canyon throws it back from every side at once. You jump so hard something gives.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "wet",
+          "amount": 25
+        },
+        {
+          "type": "excitement",
+          "amount": 10
+        },
+        {
+          "type": "damage",
+          "power": 5
+        }
+      ]
+    },
+    "rattle_scare": {
+      "spell_id": "rattle_scare",
+      "name": "Rattle Scare",
+      "description": "That dry little rattle, right by your ankle. You freeze stiff. Every part of you freezes except the part that really, really should.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "debuff",
+          "stat": "dex",
+          "amount": -3,
+          "turns": 3
+        },
+        {
+          "type": "wet",
+          "amount": 20
+        },
+        {
+          "type": "damage",
+          "power": 6
+        }
+      ]
+    },
+    "tattle": {
+      "spell_id": "tattle",
+      "name": "Tattle",
+      "description": "It hops onto a ledge and loudly repeats the noise your padding made on the way up. Then it does an impression of your face.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "shame",
+          "amount": 25
+        },
+        {
+          "type": "excitement",
+          "amount": 10
+        }
+      ]
+    },
+    "canyon_squeeze": {
+      "spell_id": "canyon_squeeze",
+      "name": "Canyon Squeeze",
+      "description": "The walls of the slot canyon seem to lean in as the pillar presses you back against the rock, right across your full middle.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "earth",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "tum",
+          "amount": 10
+        },
+        {
+          "type": "wet",
+          "amount": 15
+        },
+        {
+          "type": "stamina",
+          "amount": -15
+        },
+        {
+          "type": "damage",
+          "power": 8
+        }
+      ]
+    },
+    "hushaby_echo": {
+      "spell_id": "hushaby_echo",
+      "name": "Hushaby Echo",
+      "description": "Shhhh... and the canyon answers, shhhh, shhhh, from every wall at once, until your body stops listening to you and starts listening to her.",
+      "type": "enemy_combo",
+      "enemy_only": true,
+      "target": "player",
+      "mp_cost": 0,
+      "power": 0,
+      "element": "none",
+      "dot_turns": 0,
+      "dot_damage": 0,
+      "stat_effect": "",
+      "stat_amount": 0,
+      "combo_effects": [
+        {
+          "type": "wet",
+          "amount": 20
+        },
+        {
+          "type": "tum",
+          "amount": 15
+        },
+        {
+          "type": "stamina",
+          "amount": -25
+        },
+        {
+          "type": "damage",
+          "power": 9
+        }
+      ]
     }
   },
   "charms": {
@@ -1943,9 +2094,73 @@
     "magma_matron": {
       "cute_preference": "high",
       "sexy_preference": "low"
+    },
+    "echo_bat": {
+      "cute_preference": "high",
+      "sexy_preference": "neutral"
+    },
+    "rattletail": {
+      "cute_preference": "low",
+      "sexy_preference": "neutral"
+    },
+    "tattler_wren": {
+      "cute_preference": "high",
+      "sexy_preference": "low"
+    },
+    "hoodoo_sentinel": {
+      "cute_preference": "low",
+      "sexy_preference": "low"
+    },
+    "hush_matron": {
+      "cute_preference": "high",
+      "sexy_preference": "low"
     }
   },
   "defeat_equipment": {
+    "echo_bat": {
+      "first": [
+        "training_pants"
+      ],
+      "repeat": [
+        "training_pants"
+      ]
+    },
+    "rattletail": {
+      "first": [
+        "diaper"
+      ],
+      "repeat": [
+        "diaper"
+      ]
+    },
+    "tattler_wren": {
+      "first": [
+        "hair_bow"
+      ],
+      "repeat": [
+        "hair_bow"
+      ]
+    },
+    "hoodoo_sentinel": {
+      "first": [
+        "printed_diaper"
+      ],
+      "repeat": [
+        "printed_diaper"
+      ]
+    },
+    "hush_matron": {
+      "first": [
+        "diaper",
+        "pacifier",
+        "hair_bow"
+      ],
+      "repeat": [
+        "diaper",
+        "pacifier",
+        "hair_bow"
+      ]
+    },
     "ember_imp": {
       "first": [
         "training_pants"

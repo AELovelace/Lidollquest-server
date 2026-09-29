@@ -3,14 +3,14 @@
   "dressing_version": 1,
   "food_version": 1,
   "config": {
-    "_comment": "Weekly Taiga branch; sole access is the north-center Tundra trail. Export with python/export_online_taiga.py.",
+    "_comment": "Weekly Echo Gulch overworld (2026-09-29): red-rock badlands below Dustbreak Desert's south wall, between the Autumnal Plains (west) and the Seafoam Coast (east). A dry wash snakes across the middle and flash floods run down it; slot-canyon mazes; whisper stones; the echo makes monsters hear you from further away. North trailhead: Dustbreak's south gate. West and east trails (added to live editions by upgradeFloor) replace the old Plains<->Coast crossing. Band route_levels.echo-gulch. Export with python/export_online_gulch.py.",
     "enabled": true,
-    "route": "frostveil-taiga",
-    "zone_id": "overworld-taiga",
+    "route": "echo-gulch",
+    "zone_id": "overworld-echo-gulch",
     "zone_category": "overworld",
     "static": false,
-    "name": "Frostveil Taiga",
-    "theme": "taiga",
+    "name": "Echo Gulch",
+    "theme": "gulch",
     "width": 80,
     "height": 80,
     "enemies_per_room": 2,
@@ -20,9 +20,7 @@
       "water_bottle",
       "bottle",
       "sippy_juice",
-      "nanny_juice_box",
-      "formula_bottle_an",
-      "ghost_milk"
+      "nanny_juice_box"
     ],
     "treasures_per_room": 1,
     "enemy_respawn_seconds": 600,
@@ -32,209 +30,237 @@
     "boss_coins": 0,
     "inventory_capacity": 99,
     "non_diaper_panties_per_floor": 1,
+    "features": {
+      "_comment": "server/gulch-features.mjs. whispers: whisper stones on the open canyon floors (never in a slot canyon or the wash); walking beside one listens (dive_listen): a rumour, or, if you are visibly wet or messy or smell, gossip about you costing whisper.dignity (scaled by Shame). One listen per stone per cooldown_seconds. flood: every period_minutes a roar warns for warning_seconds, then the wash (floor.wash) floods for flood_seconds; each step in the flood adds wash_wet bladder and soaks soak_slots (clothing penalty, never an accident); the first step into it startles you (startle_wet, once per flood). echo: roaming monsters hear you within pursuit_steps plus crinkle (padded), slosh (wet), squish (messy) and accident (for accident_seconds after an accident), times crawl_percent while crawling, capped at max_reach path steps.",
+      "whispers": 6,
+      "whisper": {
+        "sprite": "sprGulchWhisperStone",
+        "span_w": 1,
+        "span_h": 2,
+        "spacing": 14,
+        "cooldown_seconds": 120,
+        "dignity": 10,
+        "rumours": [
+          "...the wash floods every few minutes. Listen for the roar and get up on the banks...",
+          "...old Gritt says he'll only let you use his outhouse if you buy something. He's lying. Mostly...",
+          "...the hoodoos in the slot canyons aren't all rocks. Crawl past the tall ones...",
+          "...sound carries down here. Every crinkle, every slosh. They all come running...",
+          "...someone found gold in the Prospector's Camp once. Nobody remembers who...",
+          "...the Hush Matron only comes out when it's quiet. It's never quiet...",
+          "...the Coast is east, past the wash. The Plains are west. Dustbreak's gate is north, if you can find it...",
+          "...the wren tells everyone everything. Don't let it see you..."
+        ],
+        "about_you": [
+          "...did you hear her coming up the wash? Crinkle, crinkle, crinkle, the whole way...",
+          "...soaked right through, and it wasn't the flood. Everyone could tell...",
+          "...the bats heard it first. Then the wren. Now the whole canyon knows...",
+          "...still wearing it, too. You could smell it from the next bend...",
+          "...grown adult, waddling round the badlands in a soggy diaper. Bless her...",
+          "...she tried to hold it through the slot canyon. She did not make it through the slot canyon...",
+          "...listen, listen: that squelch is her. Every step. Squelch, squelch...",
+          "...Gritt says she's not allowed on his clean bunks until she's changed..."
+        ]
+      },
+      "flood": {
+        "period_minutes": 10,
+        "warning_seconds": 30,
+        "flood_seconds": 45,
+        "wash_wet": 3,
+        "startle_wet": 30,
+        "soak_slots": [
+          "socks",
+          "shoes",
+          "pants"
+        ]
+      },
+      "echo": {
+        "crinkle": 2,
+        "slosh": 2,
+        "squish": 2,
+        "accident": 6,
+        "accident_seconds": 20,
+        "crawl_percent": 50,
+        "max_reach": 16
+      }
+    },
+    "landmark": {
+      "_comment": "The mine head, carved into the canyon wall north of the wash. Its tunnel is a warp pad (overworld-prospector-camp) that dive.mjs redirects into the Prospector's Camp hub room (server/prospector-camp.mjs).",
+      "zone": "overworld-prospector-camp",
+      "name": "Prospector's Camp",
+      "sprite": "sprGulchMineHead",
+      "span_w": 4,
+      "span_h": 3,
+      "door_x": 2,
+      "radius": 7,
+      "center_dy": -16
+    },
     "endpoints": [
       {
-        "zone": "overworld-tundra",
-        "name": "Frostveil Tundra",
-        "side": "south"
+        "zone": "overworld-desert",
+        "name": "Dustbreak Desert",
+        "side": "north"
       }
-    ],
-    "parent_zone": "overworld-tundra"
+    ]
   },
   "structure": {
-    "fill_chance": 51,
+    "fill_chance": 46,
     "smooth_passes": 4,
     "birth_limit": 5,
     "death_limit": 3,
-    "basin_count": 10,
-    "min_basin_w": 9,
-    "max_basin_w": 16,
-    "min_basin_h": 8,
+    "basin_count": 9,
+    "min_basin_w": 12,
+    "max_basin_w": 17,
+    "min_basin_h": 10,
     "max_basin_h": 15,
-    "main_path_width_min": 5,
-    "main_path_width_max": 8,
+    "main_path_width_min": 4,
+    "main_path_width_max": 6,
     "side_path_width_min": 4,
-    "side_path_width_max": 6,
-    "side_path_count": 8,
+    "side_path_width_max": 5,
+    "side_path_count": 6,
     "drunk_bias": 76,
-    "prop_count_min": 30,
-    "prop_count_max": 40
+    "prop_count_min": 26,
+    "prop_count_max": 34,
+    "wash": {
+      "width": 4,
+      "amplitude": 7,
+      "wobble": 3
+    },
+    "slot_canyons": {
+      "percent": 60,
+      "loops": 3,
+      "entrances": 3
+    }
   },
   "enemy_types": [
     {
-      "enemy_id": "frost_slime",
-      "chance": 45
-    },
-    {
-      "enemy_id": "snow_hare",
-      "chance": 35
-    },
-    {
-      "enemy_id": "rime_sprite",
+      "enemy_id": "echo_bat",
       "chance": 20
     },
     {
-      "enemy_id": "elder_witch",
-      "chance": 13
+      "enemy_id": "rattletail",
+      "chance": 18
     },
     {
-      "enemy_id": "nursery_witch",
+      "enemy_id": "tattler_wren",
+      "chance": 16
+    },
+    {
+      "enemy_id": "hoodoo_sentinel",
       "chance": 12
     },
     {
-      "enemy_id": "diaper_fairy",
-      "chance": 12
-    },
-    {
-      "enemy_id": "shadow_fairy",
+      "enemy_id": "sand_stinger",
       "chance": 10
     },
     {
-      "enemy_id": "bloated_slime",
-      "chance": 13
+      "enemy_id": "glowroach",
+      "chance": 8
     },
     {
       "enemy_id": "goblin_brute",
-      "chance": 12
+      "chance": 6
     },
     {
-      "enemy_id": "goblin",
-      "chance": 10
-    },
-    {
-      "enemy_id": "nanny_golem",
-      "chance": 9
-    },
-    {
-      "enemy_id": "teddy_mimic",
-      "chance": 9
+      "enemy_id": "hush_matron",
+      "chance": 3
     }
   ],
   "enemies": {
-    "frost_slime": {
-      "enemy_id": "frost_slime",
-      "name": "Frost Slime",
-      "hp": 20,
-      "str": 3,
-      "def": 0,
-      "dex": 2,
-      "exp": 6,
-      "enemy_spells": [],
-      "spell_cast_chance": 0.0,
-      "sprite": "sprFrostSlime",
-      "battle_sprite": "sprBattleFrostSlime",
-      "roaming": true
-    },
-    "snow_hare": {
-      "enemy_id": "snow_hare",
-      "name": "Snow Hare",
-      "hp": 26,
-      "str": 4,
-      "def": 1,
+    "echo_bat": {
+      "enemy_id": "echo_bat",
+      "name": "Echo Bat",
+      "hp": 42,
+      "str": 8,
+      "def": 2,
       "dex": 14,
-      "exp": 8,
-      "enemy_spells": [],
-      "spell_cast_chance": 0.0,
-      "sprite": "sprSnowHare",
-      "battle_sprite": "sprBattleSnowHare",
+      "exp": 24,
+      "enemy_spells": [
+        "sonic_screech"
+      ],
+      "spell_cast_chance": 0.4,
+      "sprite": "sprEchoBat",
+      "battle_sprite": "sprBattleEchoBat",
       "roaming": true
     },
-    "rime_sprite": {
-      "enemy_id": "rime_sprite",
-      "name": "Rime Sprite",
+    "rattletail": {
+      "enemy_id": "rattletail",
+      "name": "Rattletail",
+      "hp": 58,
+      "str": 10,
+      "def": 3,
+      "dex": 13,
+      "exp": 28,
+      "enemy_spells": [
+        "rattle_scare"
+      ],
+      "spell_cast_chance": 0.4,
+      "sprite": "sprRattletail",
+      "battle_sprite": "sprBattleRattletail",
+      "roaming": true
+    },
+    "tattler_wren": {
+      "enemy_id": "tattler_wren",
+      "name": "Tattler Wren",
+      "hp": 36,
+      "str": 6,
+      "def": 2,
+      "dex": 14,
+      "exp": 22,
+      "enemy_spells": [
+        "tattle"
+      ],
+      "spell_cast_chance": 0.45,
+      "sprite": "sprTattlerWren",
+      "battle_sprite": "sprBattleTattlerWren",
+      "roaming": true
+    },
+    "hoodoo_sentinel": {
+      "enemy_id": "hoodoo_sentinel",
+      "name": "Hoodoo Sentinel",
+      "hp": 110,
+      "str": 13,
+      "def": 9,
+      "dex": 2,
+      "exp": 42,
+      "enemy_spells": [
+        "canyon_squeeze",
+        "restraint_hold"
+      ],
+      "spell_cast_chance": 0.3,
+      "sprite": "sprHoodooSentinel",
+      "battle_sprite": "sprBattleHoodooSentinel",
+      "roaming": false
+    },
+    "sand_stinger": {
+      "enemy_id": "sand_stinger",
+      "name": "Sand Stinger",
+      "hp": 44,
+      "str": 10,
+      "def": 2,
+      "dex": 12,
+      "exp": 26,
+      "enemy_spells": [
+        "venom_sting"
+      ],
+      "spell_cast_chance": 0.35,
+      "sprite": "sprSandStinger",
+      "battle_sprite": "sprSandStinger",
+      "roaming": true
+    },
+    "glowroach": {
+      "enemy_id": "glowroach",
+      "name": "Glowroach",
       "hp": 32,
       "str": 5,
       "def": 1,
-      "dex": 12,
-      "exp": 10,
-      "enemy_spells": [],
-      "spell_cast_chance": 0.0,
-      "sprite": "sprRimeSprite",
-      "battle_sprite": "sprBattleRimeSprite",
-      "roaming": true
-    },
-    "elder_witch": {
-      "enemy_id": "elder_witch",
-      "name": "Elder Nursery Witch",
-      "hp": 80,
-      "str": 10,
-      "def": 4,
-      "dex": 8,
-      "exp": 40,
+      "dex": 13,
+      "exp": 15,
       "enemy_spells": [
-        "deep_hex",
-        "curse_wet"
-      ],
-      "spell_cast_chance": 0.35,
-      "sprite": "sprElderWitchNew",
-      "battle_sprite": "sprElderWitchNew",
-      "roaming": true
-    },
-    "nursery_witch": {
-      "enemy_id": "nursery_witch",
-      "name": "Nursery Witch",
-      "hp": 45,
-      "str": 6,
-      "def": 2,
-      "dex": 7,
-      "exp": 20,
-      "enemy_spells": [
-        "curse_wet",
-        "sacred_cramp"
+        "light_pulse"
       ],
       "spell_cast_chance": 0.3,
-      "sprite": "sprNurseryWitchNew",
-      "battle_sprite": "sprNurseryWitchNew",
-      "roaming": true
-    },
-    "diaper_fairy": {
-      "enemy_id": "diaper_fairy",
-      "name": "Diaper Fairy",
-      "hp": 25,
-      "str": 3,
-      "def": 1,
-      "dex": 12,
-      "exp": 12,
-      "enemy_spells": [
-        "sparkle_shame",
-        "fear_pulse"
-      ],
-      "spell_cast_chance": 0.35,
-      "sprite": "sprDiaperFairyNew",
-      "battle_sprite": "sprFairy",
-      "roaming": true
-    },
-    "shadow_fairy": {
-      "enemy_id": "shadow_fairy",
-      "name": "Shadow Diaper Fairy",
-      "hp": 45,
-      "str": 7,
-      "def": 3,
-      "dex": 14,
-      "exp": 28,
-      "enemy_spells": [
-        "shadow_shame",
-        "fear_pulse"
-      ],
-      "spell_cast_chance": 0.35,
-      "sprite": "sprShadowFairyNew",
-      "battle_sprite": "sprFairy",
-      "roaming": true
-    },
-    "bloated_slime": {
-      "enemy_id": "bloated_slime",
-      "name": "Bloated Bottle Slime",
-      "hp": 70,
-      "str": 8,
-      "def": 5,
-      "dex": 1,
-      "exp": 35,
-      "enemy_spells": [
-        "slime_seep_wet"
-      ],
-      "spell_cast_chance": 0.3,
-      "sprite": "sprBloatedSlime",
-      "battle_sprite": "sprBloatedSlime",
+      "sprite": "sprGlowroach",
+      "battle_sprite": "sprGlowroach",
       "roaming": true
     },
     "goblin_brute": {
@@ -253,51 +279,21 @@
       "battle_sprite": "sprGoblinBrute",
       "roaming": true
     },
-    "goblin": {
-      "enemy_id": "goblin",
-      "name": "Goblin",
-      "hp": 30,
-      "str": 4,
-      "def": 1,
-      "dex": 8,
-      "exp": 10,
-      "enemy_spells": [],
-      "spell_cast_chance": 0,
-      "sprite": "sprEnemyGeneric",
-      "battle_sprite": "sprGoblin",
-      "roaming": true
-    },
-    "nanny_golem": {
-      "enemy_id": "nanny_golem",
-      "name": "Nanny Golem",
-      "hp": 70,
-      "str": 10,
-      "def": 5,
-      "dex": 2,
-      "exp": 35,
+    "hush_matron": {
+      "enemy_id": "hush_matron",
+      "name": "Hush Matron",
+      "hp": 160,
+      "str": 16,
+      "def": 8,
+      "dex": 9,
+      "exp": 100,
       "enemy_spells": [
-        "mandatory_feeding",
-        "assessment_scan"
+        "hushaby_echo",
+        "sweeping_trip"
       ],
-      "spell_cast_chance": 0.3,
-      "sprite": "sprNannyGolemNew",
-      "battle_sprite": "sprNannyGolemNew",
-      "roaming": true
-    },
-    "teddy_mimic": {
-      "enemy_id": "teddy_mimic",
-      "name": "Teddy Mimic",
-      "hp": 35,
-      "str": 5,
-      "def": 2,
-      "dex": 4,
-      "exp": 15,
-      "enemy_spells": [
-        "cage_rattle"
-      ],
-      "spell_cast_chance": 0.25,
-      "sprite": "sprTeddyMimicNew",
-      "battle_sprite": "sprTeddyMimicNew",
+      "spell_cast_chance": 0.4,
+      "sprite": "sprHushMatron",
+      "battle_sprite": "sprBattleHushMatron",
       "roaming": true
     }
   },
@@ -320,18 +316,6 @@
       "tum_target_gain": 20,
       "rarity": "common"
     },
-    "ankle_socks": {
-      "item_id": "ankle_socks",
-      "category": "socks",
-      "name": "Ankle Socks",
-      "desc": "Plain white socks. Nothing to see here.",
-      "atk": 0,
-      "def": 0,
-      "hp_restore": 0,
-      "value": 3,
-      "childish": 2,
-      "rarity": "common"
-    },
     "baby_food": {
       "item_id": "baby_food",
       "category": "food",
@@ -348,6 +332,22 @@
       "pressure_turns": 6,
       "tum_per_turn": 4,
       "tum_target_gain": 20,
+      "rarity": "common"
+    },
+    "blue_jeans": {
+      "item_id": "blue_jeans",
+      "category": "pants",
+      "name": "Blue Jeans",
+      "desc": "Classic denim. Good coverage, grown-up look. +1 DEF. Bulk 1+ may show.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": 0,
+      "value": 15,
+      "childish": 1,
+      "conceals_panties": true,
+      "bulk_threshold": 1,
       "rarity": "common"
     },
     "boots": {
@@ -399,6 +399,24 @@
       "bulk": 0,
       "rarity": "common"
     },
+    "desert_electrolyte": {
+      "item_id": "desert_electrolyte",
+      "category": "drink",
+      "name": "Desert Electrolyte Flask",
+      "desc": "A chilled citrus drink mixed for Dustbreak heat. It restores a large amount of thirst and stamina.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 5,
+      "stamina_restore": 10,
+      "value": 16,
+      "childish": 1,
+      "thirst_restore": 167,
+      "wet_instant": 5,
+      "pressure_turns": 5,
+      "wet_per_turn": 4,
+      "wet_target_gain": 20,
+      "rarity": "common"
+    },
     "diaper": {
       "item_id": "diaper",
       "category": "panties",
@@ -436,57 +454,16 @@
       "tum_target_gain": 12,
       "rarity": "common"
     },
-    "formula_bottle_an": {
-      "item_id": "formula_bottle_an",
-      "category": "food",
-      "is_drink": true,
-      "name": "Auto-Nursery Formula",
-      "desc": "Warm enriched baby formula in a big bottle with a soft nipple top. Restores 18 HP but the nutrients... do things. Wet meter +15 after digestion.",
-      "atk": 0,
-      "def": 0,
-      "hp_restore": 18,
-      "value": 8,
-      "childish": 10,
-      "wet_bonus": 15,
-      "hunger_restore": 30,
-      "thirst_restore": 167,
-      "wet_instant": 4,
-      "tum_instant": 3,
-      "pressure_turns": 5,
-      "wet_per_turn": 4,
-      "tum_per_turn": 2,
-      "wet_target_gain": 20,
-      "tum_target_gain": 6,
-      "rarity": "common"
-    },
-    "ghost_milk": {
-      "item_id": "ghost_milk",
-      "category": "food",
-      "is_drink": true,
-      "name": "Ghost Milk",
-      "desc": "A bottle of shimmering spectral milk. It's ice-cold and slightly see-through. Restores 20 HP.",
-      "atk": 0,
-      "def": 0,
-      "hp_restore": 20,
-      "value": 14,
-      "childish": 8,
-      "thirst_restore": 167,
-      "wet_instant": 3,
-      "pressure_turns": 5,
-      "wet_per_turn": 4,
-      "wet_target_gain": 20,
-      "rarity": "common"
-    },
-    "hair_bow": {
-      "item_id": "hair_bow",
-      "category": "head",
-      "name": "Big Hair Bow",
-      "desc": "An enormous ribbon bow. Impossible to ignore.",
+    "knee_socks": {
+      "item_id": "knee_socks",
+      "category": "socks",
+      "name": "Striped Knee Socks",
+      "desc": "Tall socks with cheerful stripes. Very schoolgirl.",
       "atk": 0,
       "def": 0,
       "hp_restore": 0,
       "value": 5,
-      "childish": 8,
+      "childish": 7,
       "rarity": "common"
     },
     "nanny_juice_box": {
@@ -509,6 +486,41 @@
       "tum_per_turn": 4,
       "wet_target_gain": 20,
       "tum_target_gain": 20,
+      "rarity": "common"
+    },
+    "nighttime_diaper": {
+      "item_id": "nighttime_diaper",
+      "category": "panties",
+      "name": "Nighttime Diaper",
+      "desc": "An extra-thick overnight diaper. Enormous. Waddle-inducing. ATK -1, DEF -1, DEX -2.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -4,
+      "atk_mod": -1,
+      "def_mod": -1,
+      "dex_mod": -2,
+      "value": 8,
+      "childish": 10,
+      "bulk": 4,
+      "is_diaper": true,
+      "rarity": "rare"
+    },
+    "overalls": {
+      "item_id": "overalls",
+      "category": "torso",
+      "name": "Geometry Top",
+      "desc": "Denim shortalls with big bib pockets. Hides most things. +1 DEF. Bulk 2+ may show.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": 0,
+      "value": 12,
+      "childish": 8,
+      "bulk_threshold": 2,
+      "conceals_panties": true,
       "rarity": "common"
     },
     "permanent_continence_potion": {
@@ -535,6 +547,25 @@
       "mp_restore": 0,
       "continence_delta": 200,
       "continence_turns": 0,
+      "rarity": "rare"
+    },
+    "printed_diaper": {
+      "item_id": "printed_diaper",
+      "category": "panties",
+      "name": "Printed Diaper",
+      "desc": "A thick diaper printed with colorful stars. Very obvious. Very babyish. ATK -1, DEX -2.",
+      "atk": 0,
+      "def": 0,
+      "hp_restore": 0,
+      "hp_regen": 0,
+      "wet_resist": -3,
+      "atk_mod": -1,
+      "def_mod": 0,
+      "dex_mod": -2,
+      "value": 7,
+      "childish": 10,
+      "bulk": 3,
+      "is_diaper": true,
       "rarity": "rare"
     },
     "sippy_juice": {
@@ -654,18 +685,6 @@
       "wet_per_turn": 5,
       "wet_target_gain": 20,
       "rarity": "common"
-    },
-    "wooden_sword": {
-      "item_id": "wooden_sword",
-      "category": "weapon",
-      "name": "Wooden Sword",
-      "desc": "A sturdy practice sword. Deals 8 damage per swing.",
-      "atk": 8,
-      "def": 0,
-      "hp_restore": 0,
-      "value": 12,
-      "childish": 3,
-      "rarity": "rare"
     }
   },
   "item_pool": [
@@ -679,44 +698,29 @@
     "trail_rations",
     "dried_apple",
     "stamina_potion",
-    "wooden_sword",
+    "desert_electrolyte",
+    "boots",
+    "overalls",
+    "blue_jeans",
+    "knee_socks",
     "cotton_panties",
     "training_pants",
     "diaper",
-    "ankle_socks",
-    "boots",
-    "hair_bow",
+    "printed_diaper",
+    "nighttime_diaper",
     "bottle",
     "sippy_juice",
-    "nanny_juice_box",
-    "formula_bottle_an",
-    "ghost_milk"
+    "nanny_juice_box"
   ],
   "food_pool": [
     "adult_food",
     "baby_food",
     "trail_rations",
     "dried_apple",
-    "adult_food",
-    "baby_food",
-    "trail_rations",
-    "dried_apple",
-    "adult_food",
-    "baby_food",
-    "trail_rations",
-    "dried_apple",
     "water_bottle",
     "bottle",
     "sippy_juice",
-    "nanny_juice_box",
-    "formula_bottle_an",
-    "ghost_milk",
-    "water_bottle",
-    "bottle",
-    "sippy_juice",
-    "nanny_juice_box",
-    "formula_bottle_an",
-    "ghost_milk"
+    "nanny_juice_box"
   ],
   "potion_pool": [
     "temporary_continence_potion",
@@ -727,39 +731,33 @@
   ],
   "detail_profiles": [
     {
-      "sprite": "sprTundraBoulder",
-      "span_w": 2,
+      "sprite": "sprGulchEnvHoodoo",
+      "span_w": 1,
       "span_h": 2,
       "solid": true
     },
     {
-      "sprite": "sprTundraShrub",
+      "sprite": "sprGulchEnvBoulder",
       "span_w": 1,
       "span_h": 1,
       "solid": true
     },
     {
-      "sprite": "sprTundraCrystal",
-      "span_w": 2,
+      "sprite": "sprGulchEnvSagebrush",
+      "span_w": 1,
+      "span_h": 1,
+      "solid": true
+    },
+    {
+      "sprite": "sprGulchEnvSkull",
+      "span_w": 1,
+      "span_h": 1,
+      "solid": true
+    },
+    {
+      "sprite": "sprGulchEnvCactus",
+      "span_w": 1,
       "span_h": 2,
-      "solid": true
-    },
-    {
-      "sprite": "sprForestEnvFallenLog",
-      "span_w": 1,
-      "span_h": 1,
-      "solid": true
-    },
-    {
-      "sprite": "sprForestEnvMushroomPatch",
-      "span_w": 1,
-      "span_h": 1,
-      "solid": true
-    },
-    {
-      "sprite": "sprForestEnvStoneMarker",
-      "span_w": 1,
-      "span_h": 1,
       "solid": true
     }
   ]

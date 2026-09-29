@@ -18,6 +18,7 @@ export function validateFlow(input,{catalog=null,flags=[],publish=false}={}){
  for(const n of list(input.nodes)){
   if(!Object.hasOwn(FLOW_NODES,n.type))fail('Unknown flow block.');
   const node={id:id(n.id),type:n.type,asset_kind:["npc","orb","quest","monster","zone"].includes(n.asset_kind)?n.asset_kind:"",label:text(n.label,100),text:text(n.text,16000),sprite:text(n.sprite,100),ref:text(n.ref,160),operation:text(n.operation,40),branch:text(n.branch,80),flag:text(n.flag,120),conditions:validateFlagCondition(n.conditions),choices:[],effects:[],rewards:{},x:Number.isFinite(n.x??input.layout?.nodes?.[n.id]?.x)?Math.max(-100000,Math.min(100000,n.x??input.layout.nodes[n.id].x)):0,y:Number.isFinite(n.y??input.layout?.nodes?.[n.id]?.y)?Math.max(-100000,Math.min(100000,n.y??input.layout.nodes[n.id].y)):0};
+  if(triggerTypes.includes(node.type)){node.start_zone=text(n.start_zone,160);node.start_location=text(n.start_location,160);if(node.start_zone&&catalog&&!catalog.zones?.some(z=>z.id===node.start_zone))problem(node.id,'Choose an existing start zone.');if(node.start_location&&!node.start_zone)problem(node.id,'Choose a zone for the start location.');}
   if(node.type==='npc_entry'){node.repeatable=n.repeatable!==false;if(!node.ref)problem(node.id,'Choose the NPC whose dialogue this entry replaces.');}
   if(node.type==='piety_check')node.piety=validatePietyCheck(n.piety);
   if(node.type==='flag_entry'&&!flags.some(f=>f.id===node.flag&&!f.retired))problem(node.id,'Choose an active flag for this entry.');

@@ -3,188 +3,172 @@
   "dressing_version": 1,
   "food_version": 1,
   "config": {
-    "_comment": "Weekly Taiga branch; sole access is the north-center Tundra trail. Export with python/export_online_taiga.py.",
+    "_comment": "Coastal Caverns: natural chambers and tidal shortcuts. Export with python/export_online_caverns.py.",
     "enabled": true,
-    "route": "frostveil-taiga",
-    "zone_id": "overworld-taiga",
+    "route": "coastal-caverns",
+    "zone_id": "dungeon-coastal-caverns",
     "zone_category": "overworld",
     "static": false,
-    "name": "Frostveil Taiga",
-    "theme": "taiga",
+    "name": "Coastal Caverns",
+    "theme": "coastal_caverns",
     "width": 80,
     "height": 80,
-    "enemies_per_room": 2,
+    "enemies_per_room": 1,
     "potions_per_room": 1,
     "food_per_room": 1,
     "beverage_pool": [
       "water_bottle",
       "bottle",
       "sippy_juice",
-      "nanny_juice_box",
-      "formula_bottle_an",
-      "ghost_milk"
+      "nanny_juice_box"
     ],
     "treasures_per_room": 1,
     "enemy_respawn_seconds": 600,
     "boss_respawn_seconds": 600,
     "pursuit_steps": 6,
-    "boss_id": "",
+    "boss_id": "breakwater-hermit",
     "boss_coins": 0,
     "inventory_capacity": 99,
     "non_diaper_panties_per_floor": 1,
+    "features": {
+      "cavern_breath": {
+        "ebb_seconds": 45,
+        "warning_seconds": 15,
+        "surge_seconds": 30,
+        "needs_pressure": 1,
+        "step_delay_ms": 100,
+        "shallow_slots": [
+          "socks",
+          "shoes"
+        ],
+        "deep_slots": [
+          "socks",
+          "shoes",
+          "pants"
+        ]
+      }
+    },
     "endpoints": [
       {
-        "zone": "overworld-tundra",
-        "name": "Frostveil Tundra",
+        "zone": "overworld-seafoam-coast",
+        "name": "Seafoam Coast",
         "side": "south"
       }
     ],
-    "parent_zone": "overworld-tundra"
+    "generator": "caverns",
+    "parent_zone": "overworld-seafoam-coast",
+    "boss_enemy_id": "breakwater_hermit",
+    "roaming": false
   },
   "structure": {
-    "fill_chance": 51,
-    "smooth_passes": 4,
-    "birth_limit": 5,
-    "death_limit": 3,
-    "basin_count": 10,
-    "min_basin_w": 9,
-    "max_basin_w": 16,
-    "min_basin_h": 8,
-    "max_basin_h": 15,
-    "main_path_width_min": 5,
-    "main_path_width_max": 8,
-    "side_path_width_min": 4,
-    "side_path_width_max": 6,
-    "side_path_count": 8,
-    "drunk_bias": 76,
-    "prop_count_min": 30,
-    "prop_count_max": 40
+    "chamber_count": 9,
+    "chamber_radius": 6,
+    "channel_width": 3,
+    "dry_path_width": 3,
+    "ledge_bend": 7,
+    "extra_loops": 2
   },
   "enemy_types": [
     {
-      "enemy_id": "frost_slime",
-      "chance": 45
+      "enemy_id": "puddle_toad",
+      "chance": 18
     },
     {
-      "enemy_id": "snow_hare",
-      "chance": 35
+      "enemy_id": "bottle_slime",
+      "chance": 16
     },
     {
-      "enemy_id": "rime_sprite",
-      "chance": 20
+      "enemy_id": "sand_stinger",
+      "chance": 14
     },
     {
-      "enemy_id": "elder_witch",
-      "chance": 13
-    },
-    {
-      "enemy_id": "nursery_witch",
-      "chance": 12
+      "enemy_id": "bloated_slime",
+      "chance": 14
     },
     {
       "enemy_id": "diaper_fairy",
       "chance": 12
     },
     {
-      "enemy_id": "shadow_fairy",
+      "enemy_id": "dust_scavenger",
       "chance": 10
     },
     {
-      "enemy_id": "bloated_slime",
-      "chance": 13
+      "enemy_id": "glowroach",
+      "chance": 8
     },
     {
-      "enemy_id": "goblin_brute",
+      "enemy_id": "brineback_crab",
       "chance": 12
     },
     {
-      "enemy_id": "goblin",
+      "enemy_id": "echo_jelly",
       "chance": 10
-    },
-    {
-      "enemy_id": "nanny_golem",
-      "chance": 9
-    },
-    {
-      "enemy_id": "teddy_mimic",
-      "chance": 9
     }
   ],
   "enemies": {
-    "frost_slime": {
-      "enemy_id": "frost_slime",
-      "name": "Frost Slime",
-      "hp": 20,
-      "str": 3,
-      "def": 0,
-      "dex": 2,
-      "exp": 6,
-      "enemy_spells": [],
-      "spell_cast_chance": 0.0,
-      "sprite": "sprFrostSlime",
-      "battle_sprite": "sprBattleFrostSlime",
-      "roaming": true
-    },
-    "snow_hare": {
-      "enemy_id": "snow_hare",
-      "name": "Snow Hare",
-      "hp": 26,
-      "str": 4,
-      "def": 1,
-      "dex": 14,
-      "exp": 8,
-      "enemy_spells": [],
-      "spell_cast_chance": 0.0,
-      "sprite": "sprSnowHare",
-      "battle_sprite": "sprBattleSnowHare",
-      "roaming": true
-    },
-    "rime_sprite": {
-      "enemy_id": "rime_sprite",
-      "name": "Rime Sprite",
-      "hp": 32,
+    "puddle_toad": {
+      "enemy_id": "puddle_toad",
+      "name": "Puddle Toad",
+      "hp": 30,
       "str": 5,
       "def": 1,
-      "dex": 12,
-      "exp": 10,
-      "enemy_spells": [],
-      "spell_cast_chance": 0.0,
-      "sprite": "sprRimeSprite",
-      "battle_sprite": "sprBattleRimeSprite",
-      "roaming": true
-    },
-    "elder_witch": {
-      "enemy_id": "elder_witch",
-      "name": "Elder Nursery Witch",
-      "hp": 80,
-      "str": 10,
-      "def": 4,
       "dex": 8,
-      "exp": 40,
+      "exp": 10,
       "enemy_spells": [
-        "deep_hex",
-        "curse_wet"
+        "puddle_splash"
       ],
       "spell_cast_chance": 0.35,
-      "sprite": "sprElderWitchNew",
-      "battle_sprite": "sprElderWitchNew",
+      "sprite": "sprPuddleToad",
+      "battle_sprite": "sprBattlePuddleToad",
       "roaming": true
     },
-    "nursery_witch": {
-      "enemy_id": "nursery_witch",
-      "name": "Nursery Witch",
-      "hp": 45,
-      "str": 6,
-      "def": 2,
-      "dex": 7,
-      "exp": 20,
+    "bottle_slime": {
+      "enemy_id": "bottle_slime",
+      "name": "Bottle Slime",
+      "hp": 40,
+      "str": 4,
+      "def": 3,
+      "dex": 2,
+      "exp": 18,
       "enemy_spells": [
-        "curse_wet",
-        "sacred_cramp"
+        "formula_force"
       ],
       "spell_cast_chance": 0.3,
-      "sprite": "sprNurseryWitchNew",
-      "battle_sprite": "sprNurseryWitchNew",
+      "sprite": "sprBottleSlimeNew",
+      "battle_sprite": "sprBottleSlimeNew",
+      "roaming": true
+    },
+    "sand_stinger": {
+      "enemy_id": "sand_stinger",
+      "name": "Sand Stinger",
+      "hp": 44,
+      "str": 10,
+      "def": 2,
+      "dex": 12,
+      "exp": 26,
+      "enemy_spells": [
+        "venom_sting"
+      ],
+      "spell_cast_chance": 0.35,
+      "sprite": "sprSandStinger",
+      "battle_sprite": "sprSandStinger",
+      "roaming": true
+    },
+    "bloated_slime": {
+      "enemy_id": "bloated_slime",
+      "name": "Bloated Bottle Slime",
+      "hp": 70,
+      "str": 8,
+      "def": 5,
+      "dex": 1,
+      "exp": 35,
+      "enemy_spells": [
+        "slime_seep_wet"
+      ],
+      "spell_cast_chance": 0.3,
+      "sprite": "sprBloatedSlime",
+      "battle_sprite": "sprBloatedSlime",
       "roaming": true
     },
     "diaper_fairy": {
@@ -204,101 +188,85 @@
       "battle_sprite": "sprFairy",
       "roaming": true
     },
-    "shadow_fairy": {
-      "enemy_id": "shadow_fairy",
-      "name": "Shadow Diaper Fairy",
-      "hp": 45,
-      "str": 7,
-      "def": 3,
-      "dex": 14,
-      "exp": 28,
-      "enemy_spells": [
-        "shadow_shame",
-        "fear_pulse"
-      ],
-      "spell_cast_chance": 0.35,
-      "sprite": "sprShadowFairyNew",
-      "battle_sprite": "sprFairy",
+    "dust_scavenger": {
+      "enemy_id": "dust_scavenger",
+      "name": "Dust Scavenger",
+      "hp": 42,
+      "str": 6,
+      "def": 2,
+      "dex": 8,
+      "exp": 20,
+      "enemy_spells": [],
+      "spell_cast_chance": 0,
+      "sprite": "sprDustScavenger",
+      "battle_sprite": "sprDustScavenger",
       "roaming": true
     },
-    "bloated_slime": {
-      "enemy_id": "bloated_slime",
-      "name": "Bloated Bottle Slime",
-      "hp": 70,
-      "str": 8,
-      "def": 5,
-      "dex": 1,
-      "exp": 35,
+    "glowroach": {
+      "enemy_id": "glowroach",
+      "name": "Glowroach",
+      "hp": 32,
+      "str": 5,
+      "def": 1,
+      "dex": 13,
+      "exp": 15,
+      "enemy_spells": [
+        "light_pulse"
+      ],
+      "spell_cast_chance": 0.3,
+      "sprite": "sprGlowroach",
+      "battle_sprite": "sprGlowroach",
+      "roaming": true
+    },
+    "brineback_crab": {
+      "enemy_id": "brineback_crab",
+      "name": "Brineback Crab",
+      "hp": 95,
+      "str": 12,
+      "def": 11,
+      "dex": 5,
+      "exp": 30,
+      "enemy_spells": [
+        "venom_sting"
+      ],
+      "spell_cast_chance": 0.35,
+      "sprite": "sprSandStinger",
+      "battle_sprite": "sprSandStinger",
+      "roaming": false
+    },
+    "echo_jelly": {
+      "enemy_id": "echo_jelly",
+      "name": "Echo Jelly",
+      "hp": 80,
+      "str": 9,
+      "def": 4,
+      "dex": 8,
+      "exp": 30,
+      "enemy_spells": [
+        "formula_force"
+      ],
+      "spell_cast_chance": 0.3,
+      "sprite": "sprBottleSlimeNew",
+      "battle_sprite": "sprBottleSlimeNew",
+      "roaming": false
+    },
+    "breakwater_hermit": {
+      "enemy_id": "breakwater_hermit",
+      "name": "The Breakwater Hermit",
+      "hp": 220,
+      "str": 16,
+      "def": 8,
+      "dex": 6,
+      "exp": 120,
       "enemy_spells": [
         "slime_seep_wet"
       ],
       "spell_cast_chance": 0.3,
       "sprite": "sprBloatedSlime",
       "battle_sprite": "sprBloatedSlime",
-      "roaming": true
-    },
-    "goblin_brute": {
-      "enemy_id": "goblin_brute",
-      "name": "Goblin Brute",
-      "hp": 50,
-      "str": 8,
-      "def": 3,
-      "dex": 3,
-      "exp": 25,
-      "enemy_spells": [
-        "sweeping_trip"
-      ],
-      "spell_cast_chance": 0.2,
-      "sprite": "sprGoblinBruteNew",
-      "battle_sprite": "sprGoblinBrute",
-      "roaming": true
-    },
-    "goblin": {
-      "enemy_id": "goblin",
-      "name": "Goblin",
-      "hp": 30,
-      "str": 4,
-      "def": 1,
-      "dex": 8,
-      "exp": 10,
-      "enemy_spells": [],
-      "spell_cast_chance": 0,
-      "sprite": "sprEnemyGeneric",
-      "battle_sprite": "sprGoblin",
-      "roaming": true
-    },
-    "nanny_golem": {
-      "enemy_id": "nanny_golem",
-      "name": "Nanny Golem",
-      "hp": 70,
-      "str": 10,
-      "def": 5,
-      "dex": 2,
-      "exp": 35,
-      "enemy_spells": [
-        "mandatory_feeding",
-        "assessment_scan"
-      ],
-      "spell_cast_chance": 0.3,
-      "sprite": "sprNannyGolemNew",
-      "battle_sprite": "sprNannyGolemNew",
-      "roaming": true
-    },
-    "teddy_mimic": {
-      "enemy_id": "teddy_mimic",
-      "name": "Teddy Mimic",
-      "hp": 35,
-      "str": 5,
-      "def": 2,
-      "dex": 4,
-      "exp": 15,
-      "enemy_spells": [
-        "cage_rattle"
-      ],
-      "spell_cast_chance": 0.25,
-      "sprite": "sprTeddyMimicNew",
-      "battle_sprite": "sprTeddyMimicNew",
-      "roaming": true
+      "roaming": false,
+      "cavern_boss": true,
+      "boss": true
     }
   },
   "items": {
@@ -320,23 +288,11 @@
       "tum_target_gain": 20,
       "rarity": "common"
     },
-    "ankle_socks": {
-      "item_id": "ankle_socks",
-      "category": "socks",
-      "name": "Ankle Socks",
-      "desc": "Plain white socks. Nothing to see here.",
-      "atk": 0,
-      "def": 0,
-      "hp_restore": 0,
-      "value": 3,
-      "childish": 2,
-      "rarity": "common"
-    },
     "baby_food": {
       "item_id": "baby_food",
       "category": "food",
       "name": "Baby Food",
-      "desc": "Mushy, sweet purée in a little jar. Restores some health, but sits extremely heavy in your tummy for a long time.",
+      "desc": "Mushy, sweet pur\u00e9e in a little jar. Restores some health, but sits extremely heavy in your tummy for a long time.",
       "atk": 0,
       "def": 0,
       "hp_restore": 15,
@@ -350,17 +306,18 @@
       "tum_target_gain": 20,
       "rarity": "common"
     },
-    "boots": {
-      "item_id": "boots",
-      "category": "shoes",
-      "name": "Sturdy Boots",
-      "desc": "Heavy-duty boots that mean business. +2 DEF.",
+    "bikini_1": {
+      "item_id": "bikini_1",
+      "category": "bra",
+      "name": "Bikini #1",
+      "desc": "A bikini #1. Supports your chest.",
       "atk": 0,
-      "def": 2,
+      "def": 0,
       "hp_restore": 0,
-      "value": 18,
-      "childish": 0,
-      "rarity": "uncommon"
+      "value": 8,
+      "childish": 2,
+      "rarity": "common",
+      "pool_template": true
     },
     "bottle": {
       "item_id": "bottle",
@@ -436,47 +393,6 @@
       "tum_target_gain": 12,
       "rarity": "common"
     },
-    "formula_bottle_an": {
-      "item_id": "formula_bottle_an",
-      "category": "food",
-      "is_drink": true,
-      "name": "Auto-Nursery Formula",
-      "desc": "Warm enriched baby formula in a big bottle with a soft nipple top. Restores 18 HP but the nutrients... do things. Wet meter +15 after digestion.",
-      "atk": 0,
-      "def": 0,
-      "hp_restore": 18,
-      "value": 8,
-      "childish": 10,
-      "wet_bonus": 15,
-      "hunger_restore": 30,
-      "thirst_restore": 167,
-      "wet_instant": 4,
-      "tum_instant": 3,
-      "pressure_turns": 5,
-      "wet_per_turn": 4,
-      "tum_per_turn": 2,
-      "wet_target_gain": 20,
-      "tum_target_gain": 6,
-      "rarity": "common"
-    },
-    "ghost_milk": {
-      "item_id": "ghost_milk",
-      "category": "food",
-      "is_drink": true,
-      "name": "Ghost Milk",
-      "desc": "A bottle of shimmering spectral milk. It's ice-cold and slightly see-through. Restores 20 HP.",
-      "atk": 0,
-      "def": 0,
-      "hp_restore": 20,
-      "value": 14,
-      "childish": 8,
-      "thirst_restore": 167,
-      "wet_instant": 3,
-      "pressure_turns": 5,
-      "wet_per_turn": 4,
-      "wet_target_gain": 20,
-      "rarity": "common"
-    },
     "hair_bow": {
       "item_id": "hair_bow",
       "category": "head",
@@ -488,6 +404,53 @@
       "value": 5,
       "childish": 8,
       "rarity": "common"
+    },
+    "knickers_bikini_briefs_1": {
+      "item_id": "knickers_bikini_briefs_1",
+      "category": "panties",
+      "name": "Bikini Briefs #1",
+      "desc": "A pair of bikini briefs #1.",
+      "atk": 0,
+      "def": 0,
+      "wet_resist": 1,
+      "hp_restore": 0,
+      "value": 8,
+      "childish": 3,
+      "bulk": 0,
+      "bulk_threshold": 0,
+      "rarity": "common",
+      "pool_template": true
+    },
+    "knickers_swimming_bottoms_1": {
+      "item_id": "knickers_swimming_bottoms_1",
+      "category": "panties",
+      "name": "Swimming Bottoms #1",
+      "desc": "A pair of swimming bottoms #1.",
+      "atk": 0,
+      "def": 0,
+      "wet_resist": 2,
+      "hp_restore": 0,
+      "value": 8,
+      "childish": 3,
+      "bulk": 0,
+      "bulk_threshold": 0,
+      "rarity": "common",
+      "pool_template": true
+    },
+    "lolita_swimsuit_1": {
+      "item_id": "lolita_swimsuit_1",
+      "category": "dress",
+      "name": "Lolita Swimsuit #1",
+      "desc": "A stylish lolita swimsuit #1. Fills both torso and pants slots.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "value": 15,
+      "childish": 5,
+      "conceals_panties": true,
+      "bulk_threshold": 3,
+      "rarity": "common",
+      "pool_template": true
     },
     "nanny_juice_box": {
       "item_id": "nanny_juice_box",
@@ -516,7 +479,7 @@
       "name": "Permanent Continence Potion",
       "category": "food",
       "is_drink": true,
-      "desc": "Increases continence by 20 percentage points permanently, within the 0–100% range.",
+      "desc": "Increases continence by 20 percentage points permanently, within the 0\u2013100% range.",
       "value": 250,
       "hp_restore": 0,
       "mp_restore": 0,
@@ -529,13 +492,41 @@
       "name": "Permanent Incontinence Potion",
       "category": "food",
       "is_drink": true,
-      "desc": "Increases incontinence by 20 percentage points permanently, within the 0–100% range.",
+      "desc": "Increases incontinence by 20 percentage points permanently, within the 0\u2013100% range.",
       "value": 250,
       "hp_restore": 0,
       "mp_restore": 0,
       "continence_delta": 200,
       "continence_turns": 0,
       "rarity": "rare"
+    },
+    "sailor_fleece_dress_1": {
+      "item_id": "sailor_fleece_dress_1",
+      "category": "dress",
+      "name": "Sailor Fleece Dress #1",
+      "desc": "A stylish sailor fleece dress #1. Fills both torso and pants slots.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "value": 15,
+      "childish": 5,
+      "conceals_panties": true,
+      "bulk_threshold": 3,
+      "rarity": "common",
+      "pool_template": true
+    },
+    "shoes_sandals_1": {
+      "item_id": "shoes_sandals_1",
+      "category": "shoes",
+      "name": "Shoes Sandals #1",
+      "desc": "A pair of shoes sandals #1. Protects your feet.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "value": 10,
+      "childish": 2,
+      "rarity": "common",
+      "pool_template": true
     },
     "sippy_juice": {
       "item_id": "sippy_juice",
@@ -573,6 +564,21 @@
       "wet_per_turn": 4,
       "wet_target_gain": 12,
       "rarity": "common"
+    },
+    "swimming_top_1": {
+      "item_id": "swimming_top_1",
+      "category": "torso",
+      "name": "Swimming Top #1",
+      "desc": "A stylish swimming top #1. Fills both torso and pants slots.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "value": 15,
+      "childish": 5,
+      "bulk_threshold": 3,
+      "conceals_panties": true,
+      "rarity": "common",
+      "pool_template": true
     },
     "temporary_continence_potion": {
       "item_id": "temporary_continence_potion",
@@ -636,6 +642,21 @@
       "bulk": 1,
       "rarity": "common"
     },
+    "turtle_swimsuit_1": {
+      "item_id": "turtle_swimsuit_1",
+      "category": "dress",
+      "name": "Turtle Swimsuit #1",
+      "desc": "A stylish turtle swimsuit #1. Fills both torso and pants slots.",
+      "atk": 0,
+      "def": 1,
+      "hp_restore": 0,
+      "value": 15,
+      "childish": 5,
+      "conceals_panties": true,
+      "bulk_threshold": 3,
+      "rarity": "common",
+      "pool_template": true
+    },
     "water_bottle": {
       "item_id": "water_bottle",
       "category": "food",
@@ -654,18 +675,6 @@
       "wet_per_turn": 5,
       "wet_target_gain": 20,
       "rarity": "common"
-    },
-    "wooden_sword": {
-      "item_id": "wooden_sword",
-      "category": "weapon",
-      "name": "Wooden Sword",
-      "desc": "A sturdy practice sword. Deals 8 damage per swing.",
-      "atk": 8,
-      "def": 0,
-      "hp_restore": 0,
-      "value": 12,
-      "childish": 3,
-      "rarity": "rare"
     }
   },
   "item_pool": [
@@ -679,44 +688,31 @@
     "trail_rations",
     "dried_apple",
     "stamina_potion",
-    "wooden_sword",
     "cotton_panties",
     "training_pants",
     "diaper",
-    "ankle_socks",
-    "boots",
     "hair_bow",
+    "lolita_swimsuit_1",
+    "turtle_swimsuit_1",
+    "sailor_fleece_dress_1",
+    "swimming_top_1",
+    "bikini_1",
+    "knickers_swimming_bottoms_1",
+    "knickers_bikini_briefs_1",
+    "shoes_sandals_1",
     "bottle",
     "sippy_juice",
-    "nanny_juice_box",
-    "formula_bottle_an",
-    "ghost_milk"
+    "nanny_juice_box"
   ],
   "food_pool": [
     "adult_food",
     "baby_food",
     "trail_rations",
     "dried_apple",
-    "adult_food",
-    "baby_food",
-    "trail_rations",
-    "dried_apple",
-    "adult_food",
-    "baby_food",
-    "trail_rations",
-    "dried_apple",
     "water_bottle",
     "bottle",
     "sippy_juice",
-    "nanny_juice_box",
-    "formula_bottle_an",
-    "ghost_milk",
-    "water_bottle",
-    "bottle",
-    "sippy_juice",
-    "nanny_juice_box",
-    "formula_bottle_an",
-    "ghost_milk"
+    "nanny_juice_box"
   ],
   "potion_pool": [
     "temporary_continence_potion",
@@ -725,42 +721,5 @@
     "permanent_incontinence_potion",
     "stamina_potion"
   ],
-  "detail_profiles": [
-    {
-      "sprite": "sprTundraBoulder",
-      "span_w": 2,
-      "span_h": 2,
-      "solid": true
-    },
-    {
-      "sprite": "sprTundraShrub",
-      "span_w": 1,
-      "span_h": 1,
-      "solid": true
-    },
-    {
-      "sprite": "sprTundraCrystal",
-      "span_w": 2,
-      "span_h": 2,
-      "solid": true
-    },
-    {
-      "sprite": "sprForestEnvFallenLog",
-      "span_w": 1,
-      "span_h": 1,
-      "solid": true
-    },
-    {
-      "sprite": "sprForestEnvMushroomPatch",
-      "span_w": 1,
-      "span_h": 1,
-      "solid": true
-    },
-    {
-      "sprite": "sprForestEnvStoneMarker",
-      "span_w": 1,
-      "span_h": 1,
-      "solid": true
-    }
-  ]
+  "detail_profiles": []
 }

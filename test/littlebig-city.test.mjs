@@ -15,7 +15,7 @@ const covers=(p,x,y)=>x>=p.x&&y>=p.y&&x<p.x+(p.span_w??1)&&y<p.y+(p.span_h??1);
 
 test('LittleBigCity is a 60x60 lobby with a west Desert gate, plaza doorsteps and eight storefronts that follow the street plan',()=>{
  assert.equal(districtZone(city),'littlebig-clockwork');assert.equal(hubCatalog.find(h=>h.id==='littlebig-clockwork').name,'LittleBigCity');
- assert.deepEqual(hubRooms.filter(r=>r.parent==='littlebig-clockwork').map(r=>r.id),['littlebig-clockwork-beds','littlebig-clockwork-dives','littlebig-clockwork-temple',...hubData.shops.map(s=>'littlebig-clockwork-store-'+storeSlug(s))]);
+ assert.deepEqual(hubRooms.filter(r=>r.parent==='littlebig-clockwork').map(r=>r.id),['littlebig-clockwork-beds','littlebig-clockwork-dives','littlebig-clockwork-temple',...hubData.shops.map(s=>'littlebig-clockwork-store-'+storeSlug(s)),'littlebig-clockwork-prospector-camp']); // The Prospector's Camp behind Echo Gulch's mine head is in LittleBigCity's room family.
  assert.deepEqual(hubPortals('littlebig-clockwork').map(p=>[p.target,p.style,p.x,p.y]),[['overworld-desert','gap',0,29],['overworld-seafoam-coast','gap',29,59],['littlebig-clockwork-beds','door',28,28],['littlebig-clockwork-dives','door',33,28],['littlebig-clockwork-temple','door',28,33]]); // Nyx's temple too. Without a resolved map only the fixed openings are known.
  assert.deepEqual(wildernessGates('littlebig-clockwork').map(g=>g.target),['overworld-desert','overworld-seafoam-coast']); // West onto the Desert, south onto the Seafoam Coast.assert.deepEqual(dungeonPortals('littlebig-clockwork').map(p=>p.target),['dive-mansion','dive-hospital']);
  const doors=new Set();

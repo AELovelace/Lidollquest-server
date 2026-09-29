@@ -45,7 +45,7 @@ test('a finished one-time story can be replayed and its flag cleared from the pa
  }finally{f.close();}
 });
 
-test('flags: authored set true/false, engine memory is clear-only, stale revisions are refused',()=>{
+test('flags: authored set true/false, engine memory is clear-only, a newer game save does not block the panel',()=>{
  const f=fixture();try{
   let d=f.gm('progress_flag_set',{flag:'story_helped',value:true});assert.equal(d.flags.authored[0].value,true);
   d=f.gm('progress_flag_set',{flag:'story_helped',value:false});assert.equal(d.flags.authored[0].value,false);
@@ -56,7 +56,8 @@ test('flags: authored set true/false, engine memory is clear-only, stale revisio
   assert.deepEqual(d.flags.engine,[]);assert.deepEqual(d.flags.once,[]);
   assert.throws(()=>f.gm('progress_flag_clear',{flag:'boss_speech',kind:'once'}),/does not have/);
   const rev=f.progress.detail(f.id()).character.revision;
-  assert.throws(()=>f.progress.act({action:'progress_flag_set',character_id:f.id(),revision:rev-1,flag:'story_helped',value:true}),/changed/);
+  d=f.progress.act({action:'progress_flag_set',character_id:f.id(),revision:rev-1,flag:'story_helped',value:true}); // The player saved since the panel loaded: the edit still lands on the fresh row.
+  assert.equal(d.flags.authored[0].value,true);assert.equal(d.character.revision,rev+1,'the game sees one more revision and resyncs');
  }finally{f.close();}
 });
 

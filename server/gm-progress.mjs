@@ -39,7 +39,9 @@ export function createGmProgress(db,{live,quests,flows,now=Date.now}){
  }
 
  function act(input){ // progress_* actions from the panel; the caller owns the transaction and the audit row.
-  const c=load(input.character_id);if(c.revision!==input.revision)fail('This character changed. Refresh before editing.',409); // Never overwrite a newer game save.
+  const c=load(input.character_id); // Fresh row inside the caller's BEGIN IMMEDIATE, so a newer game save is edited, never overwritten.
+  // No revision match (2026-09-29): an online player saves on nearly every step, so the panel kept losing that race and the click looked ignored.
+  // Everything below touches server-owned memory and tables the game never uploads, and "does not have" guards cover a stale panel view.
   const before=c.state,s=JSON.parse(before),mem=memory(s);let message='';
   if(input.action==='progress_flag_set'){ // Authored story_ flags only; the helper rejects engine achievements.
    setStoryFlag(s,input.flag,input.value,flows?.flags()??[]);message=input.flag+' set to '+input.value+'.';

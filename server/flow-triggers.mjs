@@ -17,5 +17,5 @@ export function createFlowTriggers(db,{now,list,pin}){
    }
   }
  } // Observe while a character is busy too; each accepted quest attempt or false-to-true flag transition has its own durable receipt.
- return {observe,pending:c=>db.prepare('SELECT * FROM story_trigger_events WHERE character_id=? AND started=0 ORDER BY created,rowid LIMIT 1').get(c.id),started:id=>db.prepare('UPDATE story_trigger_events SET started=1 WHERE id=?').run(id)};
+ return {observe,pending:(c,ready=()=>true)=>db.prepare('SELECT * FROM story_trigger_events WHERE character_id=? AND started=0 ORDER BY created,rowid').all(c.id).find(ready),started:id=>db.prepare('UPDATE story_trigger_events SET started=1 WHERE id=?').run(id)}; // A distant location-scoped scene must not block unrelated eligible entries.
 } // Queued entries pin their definitions immediately and survive publication, restart and delayed combat.
