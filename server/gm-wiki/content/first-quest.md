@@ -1,5 +1,7 @@
 # Build your first quest
 
+> **Content block controls:** Quest stages, objectives, NPC pages/choices and orb pages now open as blocks with a small inspector. Keep generated stable IDs; connect destinations using the canvas or its selectors. Use **Save content drafts**, **Publish content**, and **Back to story flow**. Older images below show the previous forms; use the [current workspace controls](workshop.md#shared-content-uses-blocks-too) for those steps.
+
 [Wiki home](index.md)
 
 This walkthrough makes **A Light for the Scout**. An NPC asks the player to clear a danger. Accepting starts a journal quest and a battle. Victory completes and claims the quest, then records `story_scout_rescued`. Future visits get a grateful greeting. A nearby orb becomes readable and presents a short epilogue.
@@ -63,7 +65,7 @@ Do not type the uppercase symbols into fields. Substitute the corresponding actu
 1. Scroll down the left pane to **Content library**, then click **+ npc**.
 2. Keep its generated ID and copy it into your worksheet as `SCOUT_ID`.
 3. Change **name** to **Lantern Scout**, choose a sprite, and keep **wander radius** at `0`.
-4. Click **Keep edits in bundle**, then **Save draft** in the workshop toolbar.
+4. Click **Back to story flow**, then **Save draft** in the workshop toolbar.
 5. Open **Advanced GM tools / Sign in**, choose the **NPCs** tab, and open **Lantern Scout**. Choose its **Dialogue** section. This dedicated page editor is easier to use for your first conversation.
 
 ![Lantern Scout in the advanced NPC Dialogue section, showing the greeting and thanks pages, Text, Continue to, and Add page controls.](../assets/tutorial/04-npc-dialogue.png "This is the advanced NPC editor, not the canvas. Select a page on the left; edit its text on the right. Add page creates the second page.")
@@ -78,7 +80,7 @@ Set **Continue to** to **End conversation** (stored as `close`). Click **Add pag
 
 Leave the NPC quest list empty for this first publication. Keep **story default** as `greeting`. Add one **story reactions** entry: under its conditions, require **All set → Rescued the scout**; set page to `thanks`; leave entry empty.
 
-Choose **Keep edits in bundle** and Save draft. Open the same NPC in **Advanced GM tools → NPCs**, review it, and publish it. Publishing the NPC before the quest avoids a circular prerequisite during this introductory workflow. Reload the workshop to refresh its catalog.
+Choose **Back to story flow** and Save draft. Open the same NPC in **Advanced GM tools → NPCs**, review it, and publish it. Publishing the NPC before the quest avoids a circular prerequisite during this introductory workflow. Reload the workshop to refresh its catalog.
 
 ## 4. Create the journal quest
 
@@ -116,7 +118,7 @@ Create one stage named **Clear the path**. Keep its generated stage ID, set mode
 
 Set a small reward appropriate for your test, for example **10 XP** and **0 coins**, with no items or permanent stat changes. This is an example amount, not a balance recommendation for every zone. The monster may also award its normal combat rewards.
 
-Keep edits in bundle and Save draft. Publish the same quest through **Advanced GM tools → Quests**. Reload the workshop. The published scout already satisfies the giver reference. You may later add this quest to the NPC's quest list if you also want its ordinary quest-offer menu; the flow's explicit accept operation is enough for this tutorial.
+Back to story flow and Save draft. Publish the same quest through **Advanced GM tools → Quests**. Reload the workshop. The published scout already satisfies the giver reference. You may later add this quest to the NPC's quest list if you also want its ordinary quest-offer menu; the flow's explicit accept operation is enough for this tutorial.
 
 ## 5. Assemble the rescue flow
 
@@ -212,7 +214,7 @@ Verify that acceptance creates the journal quest, the real battle awards its kil
 
 ## 8. Publish and place the entry point
 
-1. In the workshop, open Lantern Scout's shared draft once more and choose **Keep edits in bundle**, so its grateful reaction is included in this publication.
+1. In the workshop, open Lantern Scout's shared draft once more and choose **Back to story flow**, so its grateful reaction is included in this publication.
 2. Click **Publish** and review the flow and NPC changes. If publication is disabled, stop here and ask the server operator about rollout.
 3. Click **Zone map & placements**. Set Zone to your chosen `ZONE_ID`, Placement kind to `npc`, and Lifetime to `persistent`.
 

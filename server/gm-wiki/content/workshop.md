@@ -4,6 +4,18 @@
 
 ## The workspace
 
+### Shared content uses blocks too
+
+Click an existing quest, NPC or orb in the content library (or **+ quest**, **+ npc**, **+ orb**) to open its canonical block canvas. Select one block to edit in the small right inspector. **Back to story flow** keeps your content drafts and returns to the surrounding flow. The workspace title and save button identify which kind of content you are editing.
+
+Quest canvases offer stage, objective, item pickup, token collection/delivery and branch blocks. Select a stage before adding an objective or branch. Adding a stage inserts it after the selected stage/branch. NPC canvases offer page, choice and ordered reaction blocks; select a page before adding its choice. Orbs offer narrative pages. Existing data opens directly, with its IDs and relationships preserved.
+
+Green connections select the next stage/page or an ending. Dashed gray lines show ownership: delete an objective/choice block to remove it from its parent. The Settings output selects the starting stage or default greeting. Content deletion/duplication operates on one selected block at a time; moving can still use multiple selections. Stable IDs stay fixed while names and text remain editable.
+
+**Pickups & quest tokens** lists inventory items and targets from quest drafts and saved placements. Click or drag a target onto a selected quest stage. Token objectives include a named selector, a new-target ID field and **Show / place objective on map**. Generated item pickups are visible in the map's pickup list too.
+
+**Check blocks** highlights structural problems. **Save content drafts** saves shared drafts, and **Publish content** reviews their bundle before publication. The server also validates definitions and checks revisions. Content layout is local browser-tab recovery data; the original quest/page fields remain the saved runtime format. Flow previews and isolated tests remain available after **Back to story flow**. Advanced GM stage/dialogue sections open this same block workspace.
+
 The left pane contains a searchable block palette and content library. The center is the story canvas. The right pane edits the selected block or the overall story. **Player preview** opens a collapsible presentation pane over the canvas. **Zone map & placements** opens the world placement tools.
 
 The toolbar contains New flow, Refresh content, Save draft, Validate, Publish, Rollback, Undo, Redo, Duplicate, Delete, Fit, Arrange, zoom controls, Flag library, Player preview, and In-game test. The saved-flow dropdown selects an existing draft. Refresh content updates the catalog while preserving your flow and pending bundle edits.

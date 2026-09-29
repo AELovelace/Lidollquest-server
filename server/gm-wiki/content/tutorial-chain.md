@@ -1,12 +1,14 @@
 # A three-quest chain: relight the beacon
 
+> **Content block controls:** Quest stages, objectives, NPC pages/choices and orb pages now open as blocks with a small inspector. Keep generated stable IDs; connect destinations using the canvas or its selectors. Use **Save content drafts**, **Publish content**, and **Back to story flow**. Older images below show the previous forms; use the [current workspace controls](workshop.md#shared-content-uses-blocks-too) for those steps.
+
 [Wiki home](index.md) · [Quest reference](quests.md)
 
 Build three separate journal quests that unlock in order. The player meets Keeper Rowan, scouts the Haunted Woods, then returns with a report. Each quest has its own acceptance and reward claim. This teaches **prerequisites**, which require a claimed reward rather than merely a finished objective.
 
 ## Before you start
 
-Open Story Workshop and use **+ npc** and **+ quest** in the content library. This example does not need a canvas flow: the NPC's ordinary quest menu handles acceptance, progress and turn-in. Use **Save asset drafts** and **Publish asset bundle...** inside the shared-content form.
+Open Story Workshop and use **+ npc** and **+ quest** in the content library. This example does not need a canvas flow: the NPC's ordinary quest menu handles acceptance, progress and turn-in. Use **Save content drafts** and **Publish content** inside the shared-content form.
 
 The pictures use memorable demonstration IDs. Your editor generates different IDs: keep them, copy them from the ID field, and substitute them everywhere this guide names a quest or NPC ID. Stage and objective IDs can be edited. Save frequently, and use **Refresh content** when another window saves a record.
 
@@ -42,7 +44,7 @@ Reopen Rowan from the library. Under **quests**, add the three actual quest IDs.
 
 ## 5. Publish and place
 
-Save the three drafts, then open Rowan and review **Publication bundle**. His unpublished quest references are included automatically. Choose **Publish asset bundle...** and check every listed name. This validates the mutually referenced NPC and quests together; you do not need to publish one broken half first.
+Save the three drafts, then open Rowan and review **Publication bundle**. His unpublished quest references are included automatically. Choose **Publish content** and check every listed name. This validates the mutually referenced NPC and quests together; you do not need to publish one broken half first.
 
 Open **Zone map & placements**. Select the intended existing zone, choose kind `npc`, use Rowan's ID as Content, and place him on a reachable free tile. Publishing does not place an NPC automatically. See [Maps](maps.md) for lifetime and placement checks.
 

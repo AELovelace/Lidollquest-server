@@ -1,5 +1,7 @@
 # A piety-gated quest: a quiet service
 
+> **Content block controls:** Quest stages, objectives, NPC pages/choices and orb pages now open as blocks with a small inspector. Keep generated stable IDs; connect destinations using the canvas or its selectors. Use **Save content drafts**, **Publish content**, and **Back to story flow**. Older images below show the previous forms; use the [current workspace controls](workshop.md#shared-content-uses-blocks-too) for those steps.
+
 [Wiki home](index.md) · [Piety block reference](blocks.md#piety-check)
 
 Offer a personal service only to an Orthain follower with at least 50 piety. The service asks the player to visit the Haunted Woods. Refusing or arriving with insufficient piety must allow another attempt; completing it must not pay twice.

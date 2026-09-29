@@ -21,6 +21,25 @@ function fixture(){
  return {db,live,ids,snap,act,send,command,place,create,map,get api(){return api;},advance(ms){time+=ms;},restart(){api.close();start();},close(){api.close();db.close();}};
 }
 
+test('a fresh character sees and collects a GM parcel in the full Castle Dungeon only after accepting its quest',()=>{
+ const f=fixture();try{
+  f.create('a','princess-rose');f.place('a',f.map().portals.find(p=>p.target==='princess-rose-garden'));f.act('a','hub_visit',{zone:'princess-rose-garden'});
+  const zone='dungeon-castle-dungeon';f.place('a',f.map().portals.find(p=>p.target===zone));f.act('a','dive_enter',{zone});
+  const publish=(kind,entry)=>f.live.change({action:'content_publish',kind,id:entry.id,revision:0,entry},'gm');
+  publish('npc',{id:'courier_fern',name:'Courier Fern',dialogue:[{id:'hello',text:'Find my parcel.',next:'close',actions:[]}],quests:[]});
+  publish('quest',{id:'lost_parcel',name:'Lost Parcel',givers:['courier_fern'],turn_in:{mode:'npc',npc:'courier_fern'},stages:[{id:'find',objectives:[{id:'find_parcel',type:'collect',target:'parcel_fern',token:true,zone,count:1}],next:'deliver'},{id:'deliver',objectives:[{id:'hand_over',type:'deliver',target:'parcel_fern',token:true,npc:'courier_fern',count:1}],next:'complete'}]});
+  const placeContent=(kind,content)=>{const map=f.api.world.map(zone);for(let y=2;y<map.floor.height-2;y++)for(let x=2;x<map.floor.width-2;x++)try{return f.api.world.act({action:'world_place_content',zone,edition:map.edition,revision:map.revision,placement_kind:kind,content,x,y}).placements.find(p=>p.content===content);}catch(error){if(!/reachable tile/.test(error.message))throw error;}assert.fail('No reachable placement tile');};
+  const npc=placeContent('npc','courier_fern'),token=placeContent('token','parcel_fern');
+  const beside=p=>{const floor=f.api.world.map(zone).floor;const near=[[1,0],[-1,0],[0,1],[0,-1]].map(([dx,dy])=>({x:p.x+dx,y:p.y+dy})).find(at=>floor.walls[at.y]?.[at.x]===0&&!floor.props[at.y]?.[at.x]);assert.ok(near);f.place('a',near);};
+  assert.ok(!f.snap().worldPlacements.some(p=>p.id===token.id),'No quest means no token');beside(npc);
+  let r=f.act('a','npc_talk',{placement:npc.id});
+  for(const label of ['Ask about quests','Lost Parcel','Accept quest']){const talk=r.onlineQuests.conversation,choice=talk.choices.find(c=>c.label===label);assert.ok(choice,label);r=f.act('a','npc_choice',{conversation:talk.id,page:talk.page,choice:choice.index});}
+  assert.ok(r.worldPlacements.some(p=>p.id===token.id),'Fresh acceptance includes the dungeon token in the player snapshot');
+  f.act('a','npc_close');beside(token);r=f.act('a','quest_interact',{placement:token.id});
+  assert.equal(r.onlineQuests.instances.find(q=>q.quest==='lost_parcel').stage,'deliver');assert.ok(!r.worldPlacements.some(p=>p.id===token.id));
+ }finally{f.close();}
+}); // Exercise the actual dungeon route and NPC acceptance, without GM quest-start shortcuts or legacy receipts.
+
 test('Castle stairs traverse the full Dungeon to Arcadia; opposite entrances and Escape keep their destinations',()=>{
  const f=fixture();try{
   f.create('a','princess-rose');f.place('a',f.map().portals.find(p=>p.target==='princess-rose-garden'));f.act('a','hub_visit',{zone:'princess-rose-garden'});

@@ -6,11 +6,11 @@ An NPC record defines who the character is, how they look, what they say, and wh
 
 ## Create the shared NPC
 
-Use **+ npc**, keep the generated ID, and edit name, description, sprite, battle sprite, wander radius, dialogue, quests, story default, and story reactions. Select approved artwork from the available assets. Start with a stationary NPC while testing proximity and placement.
+Use **+ npc** to open the NPC's block canvas. Keep the generated ID, and select Settings to edit name, description, sprites, wander radius and quest links. Add **Dialogue page**, **Player choice**, and **Greeting reaction** blocks from the palette. Select a page before adding its choices. Connect the Settings greeting output to the default page. Start with a stationary NPC while testing proximity and placement.
 
-Choose **Save asset drafts** to save the NPC independently, or **Keep edits in bundle** followed by the canvas **Save draft** to save it with a flow. **Publish asset bundle...** publishes the reviewed shared records without requiring a flow. For specialized artwork or dialogue editing, open the same record in the advanced NPC editor. Its sections include Basics, Artwork, Dialogue, Quest links, and Review. After using another editor, reload the workshop before saving the record there again.
+Choose **Save content drafts** to save the NPC bundle independently. **Publish content** publishes the reviewed shared records without requiring a flow. **Back to story flow** keeps the bundle available to save/publish with that story. Specialized artwork tools remain in the advanced NPC editor; its Dialogue section links to this block canvas. Refresh deliberately after another editor changes the same record to avoid stale revisions.
 
-![Dialogue pages and actions in the shared NPC editor.](../assets/tutorial/reference-npc-dialogue.png)
+Select one page, choice or reaction to edit its fields in the right inspector. Solid lines select the next page; dashed gray lines identify the page owning each choice. See [content block controls](workshop.md#shared-content-uses-blocks-too). Older tutorial images show the previous forms.
 
 The [advanced conversation tutorial](tutorial-conversations.md) connects topics, personal flags and ordered return greetings.
 
@@ -27,7 +27,7 @@ Use short, readable pages. Give choices an actual meaning: “I'll bring the sup
 | `turn_in` | Claim the referenced ready quest |
 | `branch` | Choose the specified branch of a quest waiting for that choice |
 
-The advanced editor supplies dedicated controls for these choices. Existing specialized NPC services may also appear at runtime; preserve their behavior when adding a story.
+Each choice block supplies these controls. Reaction blocks retain their ordered priority; **Move reaction earlier** moves a rule up. Existing specialized NPC services may also appear at runtime; preserve their behavior when adding a story.
 
 ## Keep quest services available
 

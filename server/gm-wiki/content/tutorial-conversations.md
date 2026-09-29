@@ -1,5 +1,7 @@
 # Advanced conversations that remember the player
 
+> **Content block controls:** Quest stages, objectives, NPC pages/choices and orb pages now open as blocks with a small inspector. Keep generated stable IDs; connect destinations using the canvas or its selectors. Use **Save content drafts**, **Publish content**, and **Back to story flow**. Older images below show the previous forms; use the [current workspace controls](workshop.md#shared-content-uses-blocks-too) for those steps.
+
 [Wiki home](index.md) · [NPC reference](npcs.md)
 
 Write a conversation with an optional lore topic, a meaningful decision, and a different greeting on later visits. This tutorial has no journal quest or reward: it concentrates on **choice ports**, **persistent flags**, and **ordered NPC reactions**.

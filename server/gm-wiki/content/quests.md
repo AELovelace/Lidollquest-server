@@ -4,13 +4,13 @@
 
 A quest tracks a character's task in the journal. A flow controls the interactions around that task. Use Quest operation blocks to accept, claim, abandon, or choose a quest branch; use Wait for objective when the story should pause until the referenced quest is ready or claimed.
 
-![The shared quest form exposes stage objectives and delivery fields.](../assets/tutorial/advanced-delivery-deliver.png)
+Quests now open as stage, objective and branch blocks with a compact inspector. See [the content block controls](workshop.md#shared-content-uses-blocks-too). Older tutorial screenshots show the previous forms; their objective field meanings still apply.
 
 For full examples, try the [three-quest chain](tutorial-chain.md), [parcel delivery](tutorial-delivery.md), [zone stay](tutorial-zone-stay.md), or [daily patrol](tutorial-daily-patrol.md).
 
 ## Create and organize a quest
 
-Use **+ quest** in the workshop library or the existing Quests editor under Advanced GM tools. Edit the same record in either place, and reload after saving it elsewhere to avoid stale revisions.
+Use **+ quest** in the workshop library. The advanced Quests editor's New action also opens this block canvas, and **Edit quest blocks** opens an existing record. Select Settings for eligibility and repeat controls; select **Rewards / complete** for rewards. Save with **Save content drafts** and publish with **Publish content**.
 
 Write a name, description, stage text, and objective text that tell the player what to do and where. Technical targets and IDs are not substitutes for instructions. A quest description should identify the destination, task, and return requirement.
 
@@ -33,6 +33,8 @@ An abandoned attempt can resume its captured definition, timer, and progress whe
 ## Stages
 
 A stage contains an ID, name, player-facing text, mode, objectives, a next destination, and optional branches. Mode `all` requires every objective; mode `any` requires at least one. The first stage is the initial stage.
+
+Select a stage and add objective or branch blocks from the palette or inspector. **Quest stage** inserts a new block after the selected stage or branch; keep its generated stable ID. Connect its output to the next stage or ending. Use the Settings start output to choose the first stage. All stage creation and editing happens on this canvas. **Collect item pickup**, **Collect quest token** and **Deliver quest token** preconfigure the corresponding objective; select the target and count in the inspector.
 
 Set next to another stage ID, `complete`, or `failed`. Every stage must be reachable. Quest-stage cycles and prerequisite cycles are rejected. A branching stage uses its branch destinations when objectives are met rather than automatically taking next.
 

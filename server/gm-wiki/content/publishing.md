@@ -10,11 +10,11 @@ Flag definition changes and map operations have their own saves/actions. Do not 
 
 ## Publish an NPC or quest without a flow
 
-Open the shared record from the library. Its top toolbar offers **Save asset drafts**, **Publish asset bundle...**, **Keep edits in bundle**, and **Remove from bundle**. The first two act on the listed shared assets and their required unpublished dependencies, independently of the canvas flow. A blank canvas is allowed for these actions. Use this for ordinary journal quests and NPC dialogue that do not need a personal story.
+Open the shared record from the library to show its content blocks. The top toolbar offers **Save content drafts**, **Check blocks**, and **Publish content**. Save/publication act on the listed shared assets and their required unpublished dependencies, independently of the surrounding story flow. A blank story flow is allowed. **Back to story flow** retains the content bundle. Use this for ordinary journal quests and NPC dialogue that do not need a personal story. Other asset types retain their specialized forms.
 
-Review the names under **Publication bundle** and the final confirmation. Related NPCs and quests can be published together even when they reference one another. Other already-published assets keep their live versions unless you explicitly include edits. Opening an unchanged published asset alone does not republish it. Remove from bundle drops local inclusion; it does not delete its saved canonical draft.
+Review the names under **Shared publication bundle** and the final confirmation. Related NPCs and quests can be published together even when they reference one another. Other already-published assets keep their live versions unless you explicitly include edits. Opening an unchanged published asset alone does not republish it.
 
-Validation and revision-conflict errors appear inside the asset form, where you can correct them. Failed publication is atomic. Save does not make an asset available to players; sidebar labels distinguish **[draft]**, **[published]** and **[unpublished changes]**. New NPCs still need a map placement after publication.
+Block checks highlight affected cards; server validation and revision-conflict errors appear in the status and inspector. Failed publication is atomic. Save does not make an asset available to players; sidebar labels distinguish **[draft]**, **[published]** and **[unpublished changes]**. New NPCs still need a map placement after publication.
 
 When saving the flow first, its explicit shared edits remain in the tab's bundle with their new revisions. Publishing afterward includes them. Reload recovery restores that bundle; deliberately switching to another flow starts a different bundle. Reopen saved assets marked unpublished changes if you need to include them in a new tab. Refresh content does not overwrite local edits or bypass revision conflicts.
 

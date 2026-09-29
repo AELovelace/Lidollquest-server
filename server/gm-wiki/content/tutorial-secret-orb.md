@@ -1,5 +1,7 @@
 # Bonus tutorial: unlock a secret memory orb
 
+> **Content block controls:** Quest stages, objectives, NPC pages/choices and orb pages now open as blocks with a small inspector. Keep generated stable IDs; connect destinations using the canvas or its selectors. Use **Save content drafts**, **Publish content**, and **Back to story flow**. Older images below show the previous forms; use the [current workspace controls](workshop.md#shared-content-uses-blocks-too) for those steps.
+
 [Wiki home](index.md) · [Orbs and artwork](orbs-art.md)
 
 Archivist Lark offers access to a hidden memory. Accepting sets a personal flag, and a nearby mint-green orb becomes readable for that character. Declining changes nothing. This separates the NPC's decision from the orb's world placement and presentation.
@@ -31,7 +33,7 @@ Use “Open the archive” and “Another time” as choice labels. The directio
 
 ## 3. Publish the two parts
 
-Publish the orb using **Publish asset bundle...**, then publish the NPC flow and its keeper draft. A flag relationship is not the same as a direct content reference: the flow's Set flag does not automatically add every orb that checks that flag to its publication bundle. Inspect both records deliberately.
+Publish the orb using **Publish content**, then publish the NPC flow and its keeper draft. A flag relationship is not the same as a direct content reference: the flow's Set flag does not automatically add every orb that checks that flag to its publication bundle. Inspect both records deliberately.
 
 Place Lark and the orb on separate reachable tiles through Zone map & placements. Use kinds `npc` and `orb` with their respective actual IDs. Keep them close enough that the direction text is accurate.
 

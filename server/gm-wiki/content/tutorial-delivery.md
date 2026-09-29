@@ -1,5 +1,7 @@
 # Find and deliver: the lost parcel
 
+> **Content block controls:** Quest stages, objectives, NPC pages/choices and orb pages now open as blocks with a small inspector. Keep generated stable IDs; connect destinations using the canvas or its selectors. Use **Save content drafts**, **Publish content**, and **Back to story flow**. Older images below show the previous forms; use the [current workspace controls](workshop.md#shared-content-uses-blocks-too) for those steps.
+
 [Wiki home](index.md) · [Objective reference](quests.md#objective-reference)
 
 Courier Fern has lost a parcel. The player accepts the request, finds a placed quest token, and explicitly hands it to Fern. This recipe uses a **quest token**, not a normal inventory item, so a player cannot buy a substitute or sell the quest parcel.
@@ -12,7 +14,7 @@ Use **+ quest** to create “The Lost Parcel.” Add Fern's actual NPC ID under 
 
 ## 2. Make a collection stage
 
-Add a stage with ID `find`, mode `all`, next `deliver`, and one objective:
+Select the first **Quest stage** block and name it Find parcel. Keep its generated ID, use mode `all`, then add **Collect quest token** from the inspector. Set the following objective values (IDs below are explanatory; keep generated stage/objective IDs):
 
 | Field | Value |
 | --- | --- |
@@ -30,7 +32,7 @@ Add a stage with ID `find`, mode `all`, next `deliver`, and one objective:
 
 ## 3. Make a delivery stage
 
-Add a second stage with ID `deliver`, mode `all`, next `complete`, and one objective:
+Select the Find parcel stage and add **Quest stage**. Name it Deliver parcel; insertion connects the collection stage to it. Connect its next output to **Rewards / complete**, use mode `all`, and add **Deliver quest token**. Select `parcel_fern` from the token selector and Fern from **Delivery NPC**:
 
 | Field | Value |
 | --- | --- |
@@ -48,7 +50,7 @@ The two stages matter. Collection grants the quest token; delivery consumes it. 
 
 ## 4. Publish and place both ends
 
-Add the quest ID to Fern's **quests** list. Review **Publication bundle** and use **Publish asset bundle...** to publish the mutually referenced records together.
+Add the quest ID to Fern's **quests** list in Settings. Review **Shared publication bundle** and use **Publish content** to publish the mutually referenced records together. Select the collection objective and use **Show / place objective on map** to prefill the token target and label. Older screenshots on this page show the previous forms; all stage/objective creation now uses blocks.
 
 In **Zone map & placements**, place Fern using kind `npc` and her NPC ID. Choose a second reachable tile for kind `token`, set **Content / objective ID** to `parcel_fern`, and give it a clear label and artwork. Use lifetime `persistent` if the request should survive map regeneration. Place the parcel a short walk away, not under the NPC or on a blocked tile.
 

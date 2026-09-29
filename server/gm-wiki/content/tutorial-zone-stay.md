@@ -1,5 +1,7 @@
 # Visit a zone and spend time there
 
+> **Content block controls:** Quest stages, objectives, NPC pages/choices and orb pages now open as blocks with a small inspector. Keep generated stable IDs; connect destinations using the canvas or its selectors. Use **Save content drafts**, **Publish content**, and **Back to story flow**. Older images below show the previous forms; use the [current workspace controls](workshop.md#shared-content-uses-blocks-too) for those steps.
+
 [Wiki home](index.md) · [Quest timers](quests.md#timers-and-sharing)
 
 Warden Moss asks the player to visit the Haunted Woods, spend two minutes listening there, then return with a report. This uses three journal stages and a **zone-qualified timer objective**. It measures accumulated connected time in that zone, not two minutes anywhere in the world.
@@ -45,7 +47,7 @@ Add stage ID `report`, next `complete`, with a `talk` objective targeting Moss's
 
 ## 5. Publish and place
 
-Save both drafts. Open Moss, inspect Publication bundle, and **Publish asset bundle...**. Place the NPC outside the listening zone if you want a distinct outward and return journey. No separate world objective placement is needed for a whole-zone visit or timer; the zone already exists.
+Save both drafts. Open Moss, inspect Publication bundle, and **Publish content**. Place the NPC outside the listening zone if you want a distinct outward and return journey. No separate world objective placement is needed for a whole-zone visit or timer; the zone already exists.
 
 If you want a specific clearing instead of the whole Woods, a location placement can detect reaching a tile, but it does not turn this timer into a radius-based stay detector. Keep the journal wording faithful to the actual rule.
 

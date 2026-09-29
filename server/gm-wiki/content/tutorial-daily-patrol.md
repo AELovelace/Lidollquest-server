@@ -1,5 +1,7 @@
 # Bonus tutorial: a repeatable daily patrol
 
+> **Content block controls:** Quest stages, objectives, NPC pages/choices and orb pages now open as blocks with a small inspector. Keep generated stable IDs; connect destinations using the canvas or its selectors. Use **Save content drafts**, **Publish content**, and **Back to story flow**. Older images below show the previous forms; use the [current workspace controls](workshop.md#shared-content-uses-blocks-too) for those steps.
+
 [Wiki home](index.md) · [Repeat eligibility](quests.md#eligibility-and-repeats)
 
 Build a small daily activity without duplicate rewards or an endlessly active story. Warden Moss asks the player to visit the Haunted Woods and report back. The journal quest's repeat policy controls eligibility; no repeatable flow is required.
