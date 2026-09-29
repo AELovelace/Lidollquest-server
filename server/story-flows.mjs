@@ -48,7 +48,7 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
  function run(r,c,s,{simulation=false,outcome=null}={}){
   const before=JSON.stringify(r.state);
   for(let budget=0;budget<256;budget++){
-   const n=node(r);if(!n)fail('This story block is missing.');
+   const n=node(r);if(!n)break; // Parked on a block that no longer exists: snapshot() shows a notice and flow_exit clears it, instead of every read failing.
    if(n.type==='end'){r.state.done=true;break;}
    if(['dialogue','narrative','choice'].includes(n.type))break;
    if(n.type==='piety_check'){next(r,pietyMatches(s,n.piety)?'match':'no_match');continue;}
@@ -65,19 +65,19 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
     next(r,r.state.wait.outcome);continue;
    }
    if(n.type==='set_flag'||n.type==='clear_flag')setStoryFlag(s,n.flag,n.type==='set_flag',r.definition.flags);
-   else if(n.type!=='entry'&&!triggerTypes.includes(n.type)&&!simulation){const effect=adapters[n.type];if(!effect)fail('This story action is not available: '+n.type);effect(c,s,n,r.definition,receipt);}
+   else if(n.type!=='entry'&&!triggerTypes.includes(n.type)&&!simulation){const effect=adapters[n.type];if(!effect)fail('This story action is not available: '+n.type);effect(c,s,n,r.definition,receipt);r.state.effects=(r.state.effects??0)+1;}
    next(r,'next');
   }
   if(!simulation&&JSON.stringify(r.state)!==before)write(r);return r;
  } // All local mutations commit with the enclosing character command; external rewards reuse durable receipt IDs.
- function available(c,s,kind,ref){return enabled&&!active(c)&&list().some(f=>f.published&&!f.published.retired&&f.published.bindings.some(b=>b.kind===kind&&b.ref===ref&&storyFlagsMatch(s,b.conditions))&&(f.published.repeatable||!db.prepare("SELECT 1 FROM story_flow_runs WHERE character_id=? AND flow=? AND json_extract(state,'$.done')=1 AND json_extract(state,'$.trigger') IS NOT 1").get(c.id,f.id)));}
+ function available(c,s,kind,ref){return enabled&&!active(c)&&list().some(f=>f.published&&!f.published.retired&&f.published.bindings.some(b=>b.kind===kind&&b.ref===ref&&storyFlagsMatch(s,b.conditions))&&(f.published.repeatable||!db.prepare("SELECT 1 FROM story_flow_runs WHERE character_id=? AND flow=? AND json_extract(state,'$.done')=1 AND json_extract(state,'$.trigger') IS NOT 1 AND NOT (json_extract(state,'$.exited')=1 AND COALESCE(json_extract(state,'$.effects'),0)=0)").get(c.id,f.id)));}
  function review(c,s,kind,ref){
   if(!available(c,s,kind,ref))return null;
   const f=list().find(f=>f.published&&!f.published.retired&&f.published.bindings.some(b=>b.kind===kind&&b.ref===ref&&storyFlagsMatch(s,b.conditions))),b=f.published.bindings.find(b=>b.kind===kind&&b.ref===ref&&storyFlagsMatch(s,b.conditions)),reactions=kind==='npc'?live.published().npcs[ref]?.story_reactions??[]:[],index=reactions.findIndex(r=>storyFlagsMatch(s,r.conditions));
   return JSON.stringify({flow:f.id,revision:db.prepare('SELECT MAX(revision) AS revision FROM story_flow_history WHERE id=?').get(f.id).revision,entry:reactions[index]?.entry||b.entry,reaction:index});
  } // Remember the offered branch so changed flags or publication cannot silently replace an open offer.
  function start(c,s,kind,ref,expected=null){if(expected!==null&&review(c,s,kind,ref)!==expected)fail('This story offer changed. Speak to the NPC again.');if(!enabled||active(c))return false;const found=list().filter(f=>f.published&&!f.published.retired).map(f=>({f,b:f.published.bindings.find(b=>b.kind===kind&&b.ref===ref&&storyFlagsMatch(s,b.conditions))})).find(v=>v.b);if(!found)return false;
-  if(!found.f.published.repeatable&&db.prepare("SELECT 1 FROM story_flow_runs WHERE character_id=? AND flow=? AND json_extract(state,'$.done')=1 AND json_extract(state,'$.trigger') IS NOT 1").get(c.id,found.f.id))return false;
+  if(!found.f.published.repeatable&&db.prepare("SELECT 1 FROM story_flow_runs WHERE character_id=? AND flow=? AND json_extract(state,'$.done')=1 AND json_extract(state,'$.trigger') IS NOT 1 AND NOT (json_extract(state,'$.exited')=1 AND COALESCE(json_extract(state,'$.effects'),0)=0)").get(c.id,found.f.id))return false;
   if(s.flowVersion!==1)fail('Update the game before starting this story.');if(s.run||s.pendingDefeat||s.dungeonScene||s.worldTurnDue||s.pendingPurchase)fail('Finish the current action before starting a story.');
   const published=live.published(),reaction=kind==='npc'?(published.npcs[ref]?.story_reactions??[]).find(r=>storyFlagsMatch(s,r.conditions)):null,entry=reaction?.entry||found.b.entry;if(!found.f.published.nodes.some(n=>n.id===entry))fail('This NPC story entry is missing.');const r={id:randomUUID(),character_id:c.id,flow:found.f.id,revision:db.prepare('SELECT MAX(revision) AS revision FROM story_flow_history WHERE id=?').get(found.f.id).revision,definition:pin(found.f.published),state:{node:entry,step:0,done:false,wait:null}};
   db.prepare('INSERT INTO story_flow_runs VALUES (?,?,?,?,?,?,?)').run(r.id,c.id,r.flow,r.revision,JSON.stringify(r.definition),JSON.stringify(r.state),now());run(r,c,s);return true;
@@ -87,7 +87,7 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
  function trigger(c,s){
   if(!enabled||s.flowVersion!==1)return;triggers.observe(c,s);
   if(s.run||s.pendingDefeat||s.dungeonScene||s.worldTurnDue||s.pendingPurchase||adapters.canStart?.(c,s)===false)return;
-  const parent=active(c);if(parent&&node(parent).type!=='objective')return;
+  const parent=active(c);if(parent&&node(parent)?.type!=='objective')return; // A parent parked on a missing block counts as a page: no new trigger starts until it is left.
   const event=triggers.pending(c);if(!event)return;
   const before=structuredClone(s),character=structuredClone(c);db.exec('SAVEPOINT story_trigger_start');
   try{
@@ -109,13 +109,20 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
   const q=db.prepare("SELECT id FROM online_quests WHERE character_id=? AND quest=? AND json_extract(state,'$.status') IN ('ready','claimed') ORDER BY created DESC LIMIT 1").get(c.id,b.ref);if(!q||s.flowObjectives?.[b.ref]===q.id)continue;
   if(start(c,s,'objective',b.ref)){s.flowObjectives??={};s.flowObjectives[b.ref]=q.id;return;}
  }} // Completion receipts belong to this character; a party member cannot advance another story.
- function act(c,s,input){const r=active(c);if(!r||input.flow_run!==r.id||input.flow_step!==r.state.step)fail('This story page changed. Refresh before choosing.');if(s.run||s.pendingDefeat||s.dungeonScene)fail('Finish the current action first.');const n=node(r);if(!['dialogue','narrative','choice'].includes(n.type))fail('Wait for the story objective.');let port='next';if(n.type==='choice'){const choice=n.choices.find(v=>v.id===input.choice);if(!choice||!storyFlagsMatch(s,choice.conditions)||!storyRequirementsMatch(s,choice.requirements))fail('That story choice is no longer available.');port=choice.id;}next(r,port);run(r,c,s);write(r);}
+ function act(c,s,input){const r=active(c);if(!r||input.flow_run!==r.id||input.flow_step!==r.state.step)fail('This story page changed. Refresh before choosing.');if(s.run||s.pendingDefeat||s.dungeonScene)fail('Finish the current action first.');const n=node(r);if(!n)fail('This story page is missing. Press Esc twice (or Leave story) to leave it.');if(!['dialogue','narrative','choice'].includes(n.type))fail('Wait for the story objective.');let port='next';if(n.type==='choice'){const choice=n.choices.find(v=>v.id===input.choice);if(!choice||!storyFlagsMatch(s,choice.conditions)||!storyRequirementsMatch(s,choice.requirements))fail('That story choice is no longer available.');port=choice.id;}next(r,port);run(r,c,s);write(r);}
+ function exit(c,s,input){ // flow_exit: the player's escape hatch from a story page (Esc twice / Leave story). Ends this run; see available()/start() for when it may begin again.
+  const r=active(c);if(!r||input.flow_run!==r.id)fail('This story already moved on. Refresh first.'); // The page step is not checked: a stuck page may never have reached this client.
+  if(s.run||s.pendingDefeat||s.dungeonScene)fail('Finish the current action first.');
+  const n=node(r);if(n&&['objective','battle'].includes(n.type))fail('This story is waiting for you out in the world; there is no page to leave.');
+  r.state.done=true;r.state.exited=true;r.state.exitedAt=now();write(r);
+ } // Effects already applied (flags, rewards) stay applied; nothing is rolled back.
  function resume(c,s){if(s.worldTurnDue||s.pendingPurchase)return;let r=active(c);if(r)run(r,c,s);
   if(!active(c)&&!s.run&&!s.pendingDefeat&&!s.dungeonScene){r=unpack(db.prepare("SELECT * FROM story_flow_runs WHERE character_id=? AND json_extract(state,'$.suspended')=1 AND json_extract(state,'$.done') IS NOT 1 ORDER BY updated DESC,rowid DESC LIMIT 1").get(c.id));if(r){delete r.state.suspended;write(r);run(r,c,s);}}
  } // When a sub-entry finishes, restore the objective wait it temporarily suspended.
- function blocking(c){const r=active(c);return !!r&&!['objective','battle'].includes(node(r).type);}
+ function blocking(c){const r=active(c);if(!r)return false;const n=node(r);return !n||!['objective','battle'].includes(n.type);} // A run parked on a missing block still blocks, but only until the player leaves it (flow_exit).
  function settled(c,s,encounter,outcome){const r=active(c);if(!r||r.state.wait?.encounter!==encounter)return;r.state.wait.outcome=['win','victory'].includes(outcome)?'victory':['defeat','charm_backfire','submitted'].includes(outcome)?'defeat':'retreat';write(r);}
- function snapshot(c,s){const r=active(c);if(!r)return null;const n=node(r);return {id:r.id,flow:r.flow,revision:r.revision,step:r.state.step,node:n.id,type:n.type,title:n.label||r.definition.flow.name,text:n.text,sprite:n.sprite,choices:n.choices.map(v=>({...v,available:storyFlagsMatch(s,v.conditions)&&storyRequirementsMatch(s,v.requirements)})),waiting:!['dialogue','narrative','choice'].includes(n.type)};}
+ function snapshot(c,s){const r=active(c);if(!r)return null;const n=node(r);if(!n)return {id:r.id,flow:r.flow,revision:r.revision,step:r.state.step,node:r.state.node,type:'dialogue',title:r.definition.flow.name,text:'This story page is missing. Press Esc twice (or Leave story) to leave it.',sprite:'',choices:[],waiting:false}; // A broken run still renders, so the player can leave it instead of losing every snapshot.
+  return {id:r.id,flow:r.flow,revision:r.revision,step:r.state.step,node:n.id,type:n.type,title:n.label||r.definition.flow.name,text:n.text,sprite:n.sprite,choices:n.choices.map(v=>({...v,available:storyFlagsMatch(s,v.conditions)&&storyRequirementsMatch(s,v.requirements)})),waiting:!['dialogue','narrative','choice'].includes(n.type)};}
  function preview(input){const {flow,issues}=definition(input.entry,true,input.assets??[]);const memory={faith:input.faith,fullDungeon:{flags:{...input.flags}},loadout:{player_info:{...input.stats,playerHealth:input.stats?.health??0},childish:input.stats?.childish??0}};const r={id:'preview',definition:{flow,flags:flags()},state:{node:input.node??flow.nodes.find(n=>n.type==='entry')?.id??flow.bindings[0]?.entry??flow.nodes.find(n=>triggerTypes.includes(n.type))?.id,step:0,done:false}};if(!flow.nodes.some(n=>n.id===r.state.node))fail('Choose a preview entry.');run(r,null,memory,{simulation:true,outcome:input.outcome});return {node:node(r),state:r.state,flags:memory.fullDungeon.flags,issues};}
  function inspect(characterId){const c=db.prepare('SELECT id,name,state,revision FROM quest_characters WHERE id=?').get(characterId);if(!c)fail('Character not found.',404);const s=JSON.parse(c.state);return {character:{id:c.id,name:c.name,revision:c.revision},values:s.fullDungeon?.flags??{},definitions:flags(),references:Object.fromEntries(flags().map(f=>[f.id,references(f.id)]))};}
  live.setStoryReferenceCheck?.((kind,body)=>{
@@ -142,5 +149,5 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
   if(input.action==='flow_flag_set'){const c=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(input.character_id);if(!c)fail('Character not found.',404);if(c.revision!==input.revision)fail('Character changed. Refresh first.');const s=JSON.parse(c.state);setStoryFlag(s,input.flag,input.value,flags());db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(s),c.id);return inspect(c.id);}
   fail('Unknown flow action.',400);
  }
- return {catalog,list,get,flags,references,gm,testDefinition,start,available,review,act,resume,settled,snapshot,active,blocking,objectives,beginTest,enabled};
+ return {catalog,list,get,flags,references,gm,testDefinition,start,available,review,act,exit,resume,settled,snapshot,active,blocking,objectives,beginTest,enabled};
 }

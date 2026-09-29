@@ -1456,3 +1456,13 @@ explicit zone); when that zone is the remembered one, the tile is restored unles
 walled it, in which case the room's spawn is used. A remembered room that no longer exists starts the character
 at their home hub instead of failing the entry. A lapsed session (window closed without `leave`) still resumes
 on its presence row. Run `node --test test/last-location.test.mjs`.
+
+### Leaving a story page (2026-09-28)
+
+`flow_exit {flow_run}` (`story-flows.mjs exit()`, allowed through the story-page gate in `zones.mjs`) ends the
+character's active run so a broken or unwanted flow can never softlock them; the page step is not checked. The
+run is marked `done` + `exited`; effects already applied stay. `run()` counts applied effect nodes in
+`state.effects`, and `available()`/`start()` ignore an exited run with `effects=0`, so a one-time story left
+before it gave anything can start again while one left after a reward cannot be farmed. A run parked on a
+missing block no longer crashes `snapshot()`/`blocking()`/`act()`: it renders a "page is missing" notice that can
+be left. Run `node --test test/flow-exit.test.mjs`.

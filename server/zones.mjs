@@ -376,7 +376,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    if(state.godMode&&i.gamemaster!==true)delete state.godMode; // GM god mode ends with the next command once the account loses the gamemaster role.
    if(input.action==='enter'){state.flowVersion=input.flow_version===1?1:0;state.followerVersion=input.follower_version===1?1:0;state.contentVersion=input.content_version===1?1:0;state.questVersion=input.quest_version===1?1:0;state.fullDungeonVersion=input.full_dungeon_version===1?1:0;}
    if(state.flowVersion!==1&&flows?.active(c))fail(409,'Update the game to resume this personal story.','client_update_required');
-   if(flows?.blocking(c)&&!['enter','flow_continue','flow_choice','loadout','chat','leave'].includes(input.action)&&!input.action.startsWith('gm_'))fail(409,'Finish the current story page first.');
+   if(flows?.blocking(c)&&!['enter','flow_continue','flow_choice','flow_exit','loadout','chat','leave'].includes(input.action)&&!input.action.startsWith('gm_'))fail(409,'Finish the current story page first.');
    if(state.followerVersion!==1&&input.action==='enter'&&(followers.get(c.id)||state.run?.sharedEncounter&&parties.members(c.id).some(v=>followers.get(v.id))))fail(409,'Update the game before resuming a companion adventure.','client_update_required');
    if(quests&&(Object.keys(live.published().quests).some(id=>!fullDungeonQuestIds.has(id))||Object.keys(live.published().npcs).length)&&state.questVersion!==1)fail(409,'Update the game for online NPCs and quests.','client_update_required'); // Full-route baseline quests must not close legacy routes to older clients; entry to the new routes has its own capability gate.
    if(live?.published().enabled&&state.contentVersion!==1&&['enter','dive_enter','dive_engage','hub_encounter'].includes(input.action))fail(409,'Update the game to use published world content.','client_update_required');
@@ -435,6 +435,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     state.faithNotice=`With a roar of defiance you tear free of the ${result.item.name}!${result.dispose?' The used diaper is thrown away.':' It is in your bag, still cursed.'} (${spent.left} left today)`;state.faithNoticeAt=now();
    }
    else if(input.action.startsWith('gm_')){p=presence(i,c,input.controller);gmTools.act(i,c,state,input,p);} // Staff tools refuse ordinary accounts before touching any state.
+   else if(flows&&input.action==='flow_exit'){presence(i,c,input.controller);flows.exit(c,state,input);state.lastResult={log:['You leave the story for now.']};} // The player's escape hatch from a stuck or unwanted story page.
    else if(flows&&['flow_continue','flow_choice'].includes(input.action)){presence(i,c,input.controller);flows.act(c,state,input);}
    else if(quests&&/^(npc_|quest_)/.test(input.action)){presence(i,c,input.controller);quests.act(c,state,input);}
    else if(orbs&&/^orb_/.test(input.action)){presence(i,c,input.controller);orbs.act(c,state,input);} // Read a story orb (or acknowledge its scene).
