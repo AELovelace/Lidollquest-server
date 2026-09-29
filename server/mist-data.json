@@ -16,5 +16,89 @@
     "hospital": 0.6,
     "desert_dungeon": 0.2,
     "tundra": 0
+  },
+  "smoke": {
+    "_comment": "Drifting Pink Smoke on overworlds: clouds form, drift with the wind and thin away, the same for every player (pure function of server time). Crawling under a dense cloud counts as Pink Mist. Keyed by zone id; unlisted zones stay clear. GM Zones tab can override per zone live.",
+    "enabled": true,
+    "defaults": {
+      "enabled": true,
+      "clouds": 6,
+      "life_minutes": 4,
+      "gap_minutes": 1.5,
+      "speed_min": 3,
+      "speed_max": 6,
+      "radius_min": 2.5,
+      "radius_max": 4.5,
+      "wind_deg": 0,
+      "wind_spread_deg": 40,
+      "cover_threshold": 0.35,
+      "entrance_radius": 3
+    },
+    "zones": {
+      "overworld-autumnal-plains": {
+        "clouds": 4,
+        "speed_min": 6,
+        "speed_max": 10,
+        "wind_deg": 20,
+        "life_minutes": 3
+      },
+      "overworld-seafoam-coast": {
+        "clouds": 4,
+        "speed_min": 6,
+        "speed_max": 11,
+        "wind_deg": 200,
+        "life_minutes": 3
+      },
+      "overworld-haunted-woods": {
+        "clouds": 9,
+        "speed_min": 1.5,
+        "speed_max": 3,
+        "radius_min": 3,
+        "radius_max": 5.5,
+        "life_minutes": 6,
+        "gap_minutes": 1
+      },
+      "overworld-tundra": {
+        "clouds": 5,
+        "speed_min": 4,
+        "speed_max": 8,
+        "wind_deg": 315
+      },
+      "overworld-taiga": {
+        "clouds": 6,
+        "speed_min": 2,
+        "speed_max": 4,
+        "wind_deg": 330
+      },
+      "overworld-desert": {
+        "clouds": 4,
+        "speed_min": 4,
+        "speed_max": 8,
+        "wind_deg": 10,
+        "radius_min": 2,
+        "radius_max": 3.5
+      },
+      "overworld-high-desert": {
+        "clouds": 4,
+        "speed_min": 4,
+        "speed_max": 7,
+        "wind_deg": 350
+      },
+      "overworld-emberfall-caldera": {
+        "clouds": 7,
+        "speed_min": 5,
+        "speed_max": 9,
+        "wind_deg": 90,
+        "wind_spread_deg": 70,
+        "life_minutes": 3
+      },
+      "overworld-echo-gulch": {
+        "clouds": 5,
+        "speed_min": 3,
+        "speed_max": 6,
+        "wind_deg": 270,
+        "wind_spread_deg": 25
+      }
+    }
   }
 }

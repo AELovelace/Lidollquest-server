@@ -1065,6 +1065,33 @@ Export companion-items.json with the game's python/export_companion_assets.py an
 Deploy defeat-scene metadata before the rebuilt game client. Older clients ignore this additive field; no databases, command receipts or weekly editions are reset. Completed scenes are remembered per character on each device; interrupted scenes can restart from the settled result.
 
 
+
+### Companion Eat/Drink and item details (2026-09-29)
+
+`companion_use` (`zones.mjs`) eats or drinks bag slot `slot` (`item_id` must still match) through `editCompanionLoadout`, the same source and token rules as Equip. It is refused during combat, and the generic guard already refuses it while a needs turn or purchase is pending.
+
+`companion-consume.mjs` is a line-for-line port of the game's food/drink branch, applied in the game's order:
+1. HP, with the -1/-2 sentinels and `healScale`.
+2. `survival_consume_item`: tier floors, instant wet/tum, and queued digestion. Wet-only saves skip tum.
+3. Stamina.
+4. MP, with `mana_reference_mp`.
+5. `grossout_reset`, which calls `accident_reset`. That settles unnoticed accidents (free in Utopia, scaled in Arcadia), dries underwear, socks and shoes, and recalculates the wet-clothing penalty.
+6. `shame_delta`. Losses are scaled by the stored `shame_level`.
+7. Continence potions.
+8. Brew fields.
+9. `inco_gain`.
+10. `active_effect`.
+11. One unit off the stack. The newest resale right leaves first.
+
+Change it together with `scrInventory.gml`, `scrSurvivalSystem.gml`, `scrAccidentSystem.gml` and `scrAlchemy.gml`.
+
+**Cloud writes.** Cloud edits now also write `player_mp`, but only when it changed. `companionSource` reads the save's top-level `wet_only_mode`.
+
+**Companion sheet.** Every carried and worn item has `details` for the companion card: desc, rarity, colour, ilvl, affixes, stats, effects, flags and sell. Consumables have `consumable` and `use_label`. `sheet.last_use` carries the last meal's Action Log lines.
+
+**Capabilities.** `companionConsume` and `companionItemDetails`.
+
+**Tests.** `test/companion-consume.test.mjs`.
 ## Shared Pink Mist
 
 `dive-mist.mjs` adds a deterministic `floor.mist` layer once per weekly edition, including existing floors that lack it. Compact rows are included only in the visited Dive definition. Safe entrance rooms and portal margins remain clear; geometry, scenery, claims and encounter locks are preserved. Later policy edits affect new editions.
@@ -1073,6 +1100,12 @@ Export `datafiles/generation/online_mist.json` with the game checkout's `python/
 
 Tests: `test/dive-mist.test.mjs` checks 900 generated floors and bounded spread; `test/dive.test.mjs` covers additive installation, pending-turn replay/reconnect and snapshot size.
 
+
+### Drifting Pink Smoke (overworlds)
+
+`pink-smoke.mjs` gives every listed overworld drifting pink clouds as a pure function of `(route, floor, config, time)`, like rain and tides. Nothing is stored. `dive.smoke` carries the current and next cloud of each slot (`born`, `dies`, spawn tile, `vx`/`vy` in tiles per minute, and 3-5 `lobes`), and the client ages them with `serverTime`. A single-step move sets `worldTurnDue.mist` when `mistAt || smokeAt`. Walk batches rely on the client's own check.
+
+Tuning is the `smoke` block of `mist-data.json` (`defaults` plus `zones["overworld-<name>"]`), exported by `python/export_online_mist.py`. The GM Zones tab can override it per zone (`pink_smoke`, validated against `SMOKE_FIELDS`). Tests: `test/pink-smoke.test.mjs`.
 
 ## Campaign Dive movement compatibility
 
@@ -1110,6 +1143,21 @@ Multiplayer mage levels now increment authoritative `state.mageSpellPicks` once 
 RPP: `/gm` now includes character-specific gifts and a purchase ledger (`GET /gm/rpp`, authenticated `rpp_gift` action). `rpp_buy` uses the existing character/controller revision and durable request receipt, plus `offer` and `rpp_cost`. Wallet, debit and unlock updates are atomic; gifts have independently replay-safe IDs. Startup adds three RPP tables without resetting data. Exported `magic_tree.rpp_shop` controls costs/classes/levels; `magic-balance.mjs` matches the client's mage ×0.5 physical, ×1.5 magic/fullness and ×2 MP multipliers. Purchased abilities are authoritative even when campaign imports or combat patches replace player data. Deploy service and combat-data before the matching GX client. Tests: `test/rpp.test.mjs`, `test/gm.test.mjs`, `test/combat.test.mjs`; game-side `RPP_GUIDE.md` documents the UI and browser fixture.
 
 ## Multicore runtime
+
+If an update stops reporting progress after `parallel pursuit ignores a result after shutdown`,
+check `test/parallel-generation.test.mjs`. Coastal Caverns now uses its own `cavernsOptions`;
+`diveOptions` applies only to the original quarters route. Sharing those overrides sent an
+extra job to the tests' deferred worker and left preparation waiting indefinitely. The
+generation tests assert route isolation and have a 30-second timeout. Run
+`node --test test/parallel-generation.test.mjs test/parallel-dive.test.mjs` to check the fix.
+This correction requires updated server source, not a database reset or client rebuild.
+
+The related regression fixtures use the production loot-base fallback, select pursuit
+floors by the visitor's route and edition, and check GM safe zones against the authored
+hub catalog. A `dungeon-` ID such as Coastal Caverns is not a safe room. These fixture
+corrections preserve the loot cap, pursuit, and category assertions without changing
+gameplay rules. Verify the complete checkout with
+`node --test --test-concurrency=2 test/*.test.mjs`.
 
 `QUEST_COMPUTE_WORKERS=auto` uses up to six persistent CPU workers while leaving
 two available cores of headroom (six workers on an eight-core VM). Explicit

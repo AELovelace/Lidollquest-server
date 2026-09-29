@@ -78,12 +78,14 @@ export function companionSource(db,c,p){
   const row=db.prepare(`SELECT revision,created,json_extract(CAST(data AS TEXT),'$.online_revision') AS online_revision,
    json_object('player_info',json_extract(CAST(data AS TEXT),'$.player_info'),'inventory',json_extract(CAST(data AS TEXT),'$.inventory'),
    'player_mp',json_extract(CAST(data AS TEXT),'$.player_mp'),'player_mp_max',json_extract(CAST(data AS TEXT),'$.player_mp_max'),
-   'player_spells',json_extract(CAST(data AS TEXT),'$.player_spells'),'childish',json_extract(CAST(data AS TEXT),'$.childish')) AS loadout
+   'player_spells',json_extract(CAST(data AS TEXT),'$.player_spells'),'childish',json_extract(CAST(data AS TEXT),'$.childish')) AS loadout,
+   json_extract(CAST(data AS TEXT),'$.wet_only_mode') AS wet_only
    FROM quest_cloud_versions WHERE character_id=? AND owner=? ORDER BY revision DESC LIMIT 1`).get(c.id,c.owner);
   if(row&&(!loadout||row.online_revision>=(state.loadoutRevision??c.revision))){loadout=JSON.parse(row.loadout);source='cloud';updatedAt=row.created;cloud=row;}
  }
  const version=createHash('sha256').update(JSON.stringify([source,cloud?.revision,c.revision,loadout])).digest('hex');
- return {loadout,source,updatedAt,cloud,version};
+ const wetOnly=cloud?Boolean(cloud.wet_only):loadout?.world?.wet_only_mode===true; // The campaign's easy mode: cloud saves keep it at the top level, online loadouts in world.
+ return {loadout,source,updatedAt,cloud,version,wetOnly};
 } // Read and write use exactly the same source selection; cloud updates also invalidate an open sheet.
 
 export function companionEquipment(db,c,state,p,input,catalog,capacity,now){
@@ -93,7 +95,8 @@ export function companionEquipment(db,c,state,p,input,catalog,capacity,now){
 export function editCompanionLoadout(db,c,state,p,input,now,change){ // Apply `change` to whichever loadout the companion sheet shows (online state or latest cloud save) and commit it there.
  const selected=companionSource(db,c,p);
  if(!selected.loadout||input.equipment_version!==selected.version)fail('Your equipment changed. Refresh and choose it again.');
- const next=change(importLoadout(selected.loadout));
+ const base=importLoadout(selected.loadout),mpBefore=base.player_mp; // Read before `change` may edit the copy in place.
+ const next=change(base,selected);
  if(selected.cloud){
   const head=db.prepare('SELECT * FROM quest_cloud_heads WHERE character_id=?').get(c.id);
   if(head?.paused)fail('Resume cloud sync in the game before changing saved equipment.');
@@ -101,6 +104,7 @@ export function editCompanionLoadout(db,c,state,p,input,now,change){ // Apply `c
   const row=db.prepare('SELECT data,preview FROM quest_cloud_versions WHERE character_id=? AND revision=?').get(c.id,selected.cloud.revision);
   const save=JSON.parse(Buffer.from(row.data).toString('utf8'));
   save.player_info=next.player_info;save.inventory=next.inventory;save.childish=next.childish;save.online_revision=c.revision+1;
+  if(next.player_mp!==mpBefore&&Number.isFinite(next.player_mp))save.player_mp=next.player_mp; // Only an MP potion touches MP; equipment changes leave the save's own value alone.
   const data=Buffer.from(JSON.stringify(save)),checksum=createHash('sha1').update(data).digest('hex'),revision=Math.max(head?.revision??0,selected.cloud.revision)+1;
   db.prepare('INSERT INTO quest_cloud_versions VALUES (?,?,?,?,?,?,?,?)').run(c.id,revision,c.owner,'equipment-'+createHash('sha256').update(c.id+input.request_id).digest('hex'),checksum,row.preview,now,data);
   db.prepare('INSERT INTO quest_cloud_heads VALUES (?,?,0) ON CONFLICT(character_id) DO UPDATE SET revision=excluded.revision').run(c.id,revision);

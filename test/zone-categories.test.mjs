@@ -4,6 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
 import {createQuestZones} from '../server/zones.mjs';
 import {gmZones} from '../server/gm.mjs';
+import {hubCatalog,hubRooms} from '../server/hubs.mjs';
 import {routeCategory,ZONE_CATEGORY} from '../server/zone-categories.mjs';
 
 const DIVES=['dive-quarters','dive-dungeon','dive-nursery','dive-school','dive-forest','dive-mansion','dive-hospital']; // Instanced boss routes.
@@ -15,7 +16,7 @@ function fixture(){ // Minimal in-memory server with one character standing in a
  const id=api.act('doll',{action:'create',name:'Doll',controller:'window',request_id:randomUUID()}).character.id; // Create the test character.
  const revision=api.read('doll',id).character.revision;
  api.act('doll',{action:'enter',zone:'honeydew-lantern',controller:'window',request_id:randomUUID(),character_id:id,revision,combat_version:3}); // Stand in a court lobby.
- return api.read('doll',id);
+ try{return api.read('doll',id);}finally{api.close();db.close();} // Return a detached snapshot and release the fixture's resources.
 }
 
 test('authored route data only accepts dive or overworld, defaulting to dive',()=>{
@@ -39,5 +40,7 @@ test('the GM zone catalogue shows every playable zone category',()=>{
  const byId=Object.fromEntries(gmZones.map(z=>[z.id,z.category]));
  for(const id of DIVES)assert.equal(byId[id],ZONE_CATEGORY.DIVE,id);
  for(const id of OVERWORLD)assert.equal(byId[id],ZONE_CATEGORY.OVERWORLD,id);
- assert.ok(gmZones.filter(z=>z.kind!=='chat'&&!/^(dive|overworld)-/.test(z.id)).every(z=>z.category===ZONE_CATEGORY.SAFE)); // Courts and RP rooms.
+ assert.equal(byId['dungeon-coastal-caverns'],ZONE_CATEGORY.OVERWORLD); // Full dungeons share overworld rules despite their dungeon- prefix.
+ for(const hub of [...hubCatalog,...hubRooms])assert.equal(byId[hub.id],ZONE_CATEGORY.SAFE,hub.id); // Check the authored courts and RP rooms; an unfamiliar route prefix does not imply safety.
+ for(const zone of gmZones)if(zone.kind!=='chat')assert.ok(Object.values(ZONE_CATEGORY).includes(zone.category),zone.id); // Every playable entry still needs a valid category.
 });

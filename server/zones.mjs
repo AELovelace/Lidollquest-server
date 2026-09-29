@@ -89,6 +89,7 @@ import {createRoleplay} from './roleplay.mjs';
 import {createRpp} from './rpp.mjs';
 import {manaCapacity,hasAbility} from './magic-balance.mjs';
 import {companionEquipment,editCompanionLoadout} from './companion-equipment.mjs';
+import {consumeFromBag} from './companion-consume.mjs'; // Eat/drink from the companion: a port of the game's food/drink rules.
 import {createCompanionShops} from './companion-shops.mjs';
 import {configureGeneratedItems,withGenerated} from './generated-items.mjs';
 import {companionSheet} from './companion.mjs';
@@ -124,7 +125,7 @@ function canonical(value,depth=0){ // Nested loadout property order may change w
  return value;
 }
 
-export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},highDesertOptions={},hauntedWoodsOptions={},spookyMansionOptions={},autumnalPlainsOptions={},farmsteadOptions={},coastOptions={},calderaOptions={},spaOptions={},gulchOptions={},onPresence=()=>{},compute=null,live=null,audit=()=>{},chatReach=CHAT_REACH_DEFAULT,followerOptions={},followerChatOptions={},flowTesting=false}={}) {
+export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},highDesertOptions={},hauntedWoodsOptions={},spookyMansionOptions={},autumnalPlainsOptions={},farmsteadOptions={},coastOptions={},cavernsOptions={},calderaOptions={},spaOptions={},gulchOptions={},onPresence=()=>{},compute=null,live=null,audit=()=>{},chatReach=CHAT_REACH_DEFAULT,followerOptions={},followerChatOptions={},flowTesting=false}={}) {
  const reachX=Math.max(1,Number(chatReach?.x)||CHAT_REACH_DEFAULT.x),reachY=Math.max(1,Number(chatReach?.y)||CHAT_REACH_DEFAULT.y); // Half-width and half-height of the hearing rectangle, in tiles.
  const onScreen=(a,b)=>Math.abs(a.x-b.x)<=reachX&&Math.abs(a.y-b.y)<=reachY; // True when b stands inside the screen-sized rectangle centred on a.
  let privateSprites=null,tutor=null; // tutor: the Pip tutorial NPC (tutor.mjs), handed in by service.mjs through setTutor().
@@ -184,7 +185,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  const spa=createDive(db,{now,roll,adjust,origins,parties,guilds,measure,compute,live,data:spaData,generate:generateSpa,upgradeFloor:()=>false,travel,enchantments,loot,alchemyStore,...spaOptions}); // Its only exit is the hall's warp pad back to the spa door.
  const gulch=createDive(db,{now,roll,adjust,origins,parties,guilds,measure,compute,live,data:gulchData,generate:generateDesert,upgradeFloor:floor=>{const c=(gulchOptions.data??gulchData).config;return addSideTrail(floor,{zone_id:AUTUMNAL_PLAINS_ZONE,name:(autumnalPlainsOptions.data??autumnalPlainsData).config.name,side:'left'})|addSideTrail(floor,{zone_id:COAST_ZONE,name:(coastOptions.data??coastData).config.name,side:'right'})|addLandmark(floor,c.landmark??{})|addGulchFeatures(floor,c.features)|openExitGaps(floor);},travel,enchantments,loot,alchemyStore,...gulchOptions}); // North: Dustbreak's south gate. West: the Autumnal Plains. East: the Seafoam Coast. The mine head's warp pad opens into the Prospector's Camp.
  const farmstead=createDive(db,{now,roll,adjust,origins,parties,guilds,measure,compute,live,data:farmsteadData,generate:generateFarmstead,upgradeFloor:()=>false,travel,enchantments,loot,alchemyStore,...farmsteadOptions}); // Its only exit is the hall's warp pad back out to the barn door; nothing is converted to wall gaps.
- const caverns=createDive(db,{now,roll,adjust,origins,parties,guilds,measure,compute,live,data:cavernsData,generate:generateCaverns,travel,enchantments,loot,alchemyStore,...diveOptions}); // One independent cave edition behind the central Coast doorway.
+ const caverns=createDive(db,{now,roll,adjust,origins,parties,guilds,measure,compute,live,data:cavernsData,generate:generateCaverns,travel,enchantments,loot,alchemyStore,...cavernsOptions}); // Caverns owns its overrides; quarter-dungeon data, generators and mock workers must never leak into this route.
  const engines=new Map([[CAVERNS_ZONE,caverns],[DIVE_ZONE,quarters],[DESERT_ZONE,desert],[TUNDRA_ZONE,tundra],[TAIGA_ZONE,taiga],[HIGH_DESERT_ZONE,highDesert],[HAUNTED_WOODS_ZONE,hauntedWoods],[SPOOKY_MANSION_ZONE,spookyMansion],[AUTUMNAL_PLAINS_ZONE,autumnalPlains],[FARMSTEAD_ZONE,farmstead],[COAST_ZONE,coast],[CALDERA_ZONE,caldera],[SPA_ZONE,spa],[GULCH_ZONE,gulch]]);
  function travel(c,state,source,destination){
   if(!WILDERNESS_LINKS.some(([parent,branch])=>(source===parent&&destination===branch)||(source===branch&&destination===parent)))return false;
@@ -469,6 +470,12 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    else if(input.action.startsWith('party_')){presence(i,c,input.controller);parties.act(c,input,i.blockedAccounts??[]);}
    else if(['companion_equip','companion_unequip'].includes(input.action)){
     companionEquipment(db,c,state,divePresence?.seen>now()-30000?divePresence:null,input,withGenerated(hubData.equipment),hubData.config.inventory_capacity,now());
+   }
+   else if(input.action==='companion_use'){ // Companion eat/drink: the same effects the game applies, on the same loadout the companion equips (online state or latest cloud save).
+    if(state.run)fail(409,'Leave combat before eating or drinking.');
+    const where=divePresence?.seen>now()-30000?divePresence:null;let lines=[];
+    editCompanionLoadout(db,c,state,where,input,now(),(loadout,selected)=>{lines=consumeFromBag(loadout,input.slot,input.item_id,withGenerated(hubData.equipment),{tuning:currentTuning(),zone:where?.zone??'',wetOnly:selected.wetOnly});return importLoadout(loadout);});
+    state.companionUse={at:now(),item_id:input.item_id,lines:lines.slice(0,12)}; // The companion shows what happened; the game re-pulls the loadout on its next read.
    }
    else if(input.action==='bank_sell'){ // Companion sale: account storage needs no zone presence, controller lease or shop fixture, but keeps every economy rule.
     if(state.run)fail(409,'Leave combat before selling.');

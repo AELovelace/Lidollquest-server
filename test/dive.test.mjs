@@ -193,7 +193,7 @@ test('failed generation retains the last valid edition and claims',()=>{
 });
 
 test('server clock pursues players, starts only one shared fight and respects the safe entrance',()=>{
- const f=fixture();try{const a=f.player(),s=f.snap(a),row=f.db.prepare('SELECT * FROM dive_editions').get(),floor=JSON.parse(row.content),fairy=floor.enemies.find(e=>e.type==='diaper_fairy');
+ const f=fixture();try{const a=f.player(),s=f.snap(a),visit=s.character.dive,row=f.db.prepare('SELECT * FROM dive_editions WHERE route=? AND edition=?').get(visit.route,visit.edition),floor=JSON.parse(row.content),fairy=floor.enemies.find(e=>e.type==='diaper_fairy'); // Pursuit must use this player's floor, not whichever route SQLite returns first.
   const target={x:fairy.x,y:fairy.y},steps=pathTo(floor,floor.entrance,target),position=steps.at(-3);f.place(a,position);
   const c=f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(a),state=JSON.parse(c.state);state.dive.safeUntil=0;f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),a);
   for(let i=0;i<4&&!f.snap(a).character.run;i++){f.advance(1100);f.tick();}
