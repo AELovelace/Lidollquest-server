@@ -4,6 +4,12 @@
 
 Use both preview and an in-game test. Preview answers “does this story read and branch correctly?” An isolated game session answers “do the actual quest, battle, inventory, flag and travel services behave correctly?”
 
+## Testing automatic entries and lineups
+
+Select **When flag is set** or **When objective completes**, then **Preview from this entry** to inspect its branch. In **In-game test**, choose **Start at entry** to run that sub-scene in isolation, or start at the main entry and complete the pickup normally. Three selected monsters must appear as three separate combatants, including duplicates; victory must wait for all of them. Verify the scene does not repeat on reconnect, and that a suspended objective wait returns after the scene.
+
+Use a newly accepted quest when testing completion tracking. Objectives completed before this tracking existed do not gain retroactive receipts. Events defer during dialogue/combat and retry crowded starts without undoing collected parcels.
+
 ## Player preview
 
 Save your work, then choose **Player preview**. The preview displays dialogue or narrative text, optional artwork, and choice buttons. It highlights the current block on the canvas. Use the offered battle outcomes to inspect victory, defeat and retreat continuations.

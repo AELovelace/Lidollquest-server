@@ -6,7 +6,7 @@ import {createWorldContent} from '../server/world-content.mjs';
 import {createQuestZones} from '../server/zones.mjs';
 import {hubData} from '../server/hubs.mjs';
 import {combatData} from '../server/combat.mjs';
-test('actual zone commands, NPC reactions, atomic asset bundles and isolated test recovery',()=>{
+for(const lineupSize of [1,2,3])test('actual story combat with '+lineupSize+' enemies, NPC reactions, bundles and test recovery',()=>{
  const db=new DatabaseSync(':memory:');let now=Date.parse('2026-09-20T12:00:00Z'),api,c;const live=createWorldContent(db,{equipment:hubData.equipment,spells:combatData.spells}),paid=[];
  const boot=()=>api=createQuestZones(db,{live,now:()=>now,roll:()=>0,grant:()=>({owner:'gm',id:'grant',client:'lidollquest',gamemaster:true}),wallet:()=>({coins:25}),adjust:(...args)=>{assert.match('arena-'+args[3],/^[A-Za-z0-9_-]{1,80}$/);paid.push(args);},diveOptions:{log:()=>{}}});
  const prior=process.env.QUEST_FLOWS_ENABLED;process.env.QUEST_FLOWS_ENABLED='true';boot();
@@ -37,7 +37,8 @@ test('actual zone commands, NPC reactions, atomic asset bundles and isolated tes
   r=act('flow_test_stop');assert.equal(r.flowTest,undefined);assert.equal(r.coins,25);
   assert.throws(()=>act('loadout',{test_session:code,loadout:{player_info:{level:99},inventory:[]}}),/test ended/);
   // A real story battle uses shared encounter settlement, rather than the preview's simulated outcome.
-  const battle=structuredClone(entry);battle.repeatable=true;battle.nodes.splice(2,0,{id:'fight',type:'battle',ref:Object.keys(live.published().monsters)[0]});battle.edges.find(e=>e.from==='say').to='fight';battle.edges.push({from:'fight',port:'victory',to:'flag'},{from:'fight',port:'defeat',to:'done'},{from:'fight',port:'retreat',to:'done'});
+  const monsterIds=Object.keys(live.published().monsters),lineup=[monsterIds[0],monsterIds[1],monsterIds[0]].slice(0,lineupSize);
+  const battle=structuredClone(entry);battle.repeatable=true;battle.nodes.splice(2,0,{id:'fight',type:'battle',...(lineupSize===1?{ref:lineup[0]}:{monsters:lineup})});battle.edges.find(e=>e.from==='say').to='fight';battle.edges.push({from:'fight',port:'victory',to:'flag'},{from:'fight',port:'defeat',to:'done'},{from:'fight',port:'retreat',to:'done'});
   battle.nodes.push({id:'accept',type:'quest',operation:'accept',ref:quest.id},{id:'wait',type:'objective',operation:'quest',ref:quest.id},{id:'claim',type:'quest',operation:'claim',ref:quest.id},{id:'orb_page',type:'narrative',text:'The rescued scout lights this path.'});
   battle.edges.find(e=>e.from==='say').to='accept';battle.edges.find(e=>e.from==='fight'&&e.port==='victory').to='wait';battle.edges.push({from:'accept',port:'next',to:'fight'},{from:'wait',port:'complete',to:'claim'},{from:'claim',port:'next',to:'flag'},{from:'orb_page',port:'next',to:'done'});
   const orb={id:'scout_orb',title:'Scout memory',colour:'#ffccdd',pages:[{text:'Legacy memory'}],story_conditions:{all:['story_scout']}};battle.bindings.push({kind:'orb',ref:orb.id,entry:'orb_page'});
@@ -45,9 +46,16 @@ test('actual zone commands, NPC reactions, atomic asset bundles and isolated tes
   api.world.flows.gm({action:'flow_flag_set',character_id:c.id,revision:c.revision,flag:'story_scout',value:false},'gm');c=api.read('',c.id).character;
   act('gm_god_mode',{value:true});r=act('npc_talk',{placement:at.id,edition:map.edition});let bt=r.onlineQuests.conversation;
   r=act('npc_choice',{conversation:bt.id,page:bt.page,choice:bt.choices.find(v=>v.label==='Continue personal story').index});r=act('flow_continue',{flow_run:r.flowScene.id,flow_step:r.flowScene.step});
-  assert.ok(c.run?.sharedEncounter);const encounter=c.run.sharedEncounter,target=r.encounter.enemies[0].id;
-  now+=10000;r=api.read('',c.id);c=r.character;
-  act('turn_ready',{battle:encounter,cycle:c.run.cycle,patch:[],forfeit:false});r=act('attack',{battle:encounter,cycle:c.run.cycle,target});
+  assert.ok(c.run?.sharedEncounter);const encounter=c.run.sharedEncounter,targets=r.encounter.enemies.map(v=>v.id);
+  assert.equal(targets.length,lineupSize);assert.equal(new Set(targets).size,lineupSize);
+  const pinned=api.world.flows.active(c).definition.assets.monsters;assert.ok(lineup.every(id=>pinned[id]));
+  api.close();boot();r=api.read('',c.id);c=r.character;assert.deepEqual(r.encounter.enemies.map(v=>v.id),targets);
+  for(const [i,target] of targets.entries()){
+   now+=10000;db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(now,c.id);r=api.read('',c.id);c=r.character;
+   act('turn_ready',{battle:encounter,cycle:c.run.cycle,patch:[],forfeit:false});r=act('attack',{battle:encounter,cycle:c.run.cycle,target});
+   if(i<targets.length-1){assert.equal(c.run.sharedEncounter,encounter);assert.equal(paid.length,1);assert.equal(c.fullDungeon.flags.story_scout,false);}
+  }
+
   assert.equal(c.run,null);assert.equal(r.flowScene,null);assert.equal(paid.length,2,'One real flow reward per completed run');
   assert.equal(c.fullDungeon.flags.story_scout,true);assert.ok(r.onlineQuests.instances.some(q=>q.quest===quest.id&&q.status==='claimed'));
   db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(at.x+1,at.y,c.id); // Return from the encounter tile before revisiting the scout.

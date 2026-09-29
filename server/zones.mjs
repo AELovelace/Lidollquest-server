@@ -206,7 +206,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  if(flows){world.flows=flows;world.invalidate=()=>live.invalidate();live.flowStart=flows.start;live.flowAvailable=flows.available;live.flowReview=flows.review;live.flowBlocking=flows.blocking;live.flowBattleSettled=flows.settled;}
  const flowTests=flows&&!flowTesting?createFlowTests(db,{flows,now,build:(memory,owner,testWallet,testAdjust)=>createQuestZones(memory,{flowTesting:true,now,roll,grant:()=>({owner,id:'flow-test',client:'lidollquest',gamemaster:true}),wallet:testWallet,adjust:testAdjust,live:createWorldContent(memory,{now,spells:combatData.spells,equipment:{...hubData.equipment,...combatData.defeat_items},defeatEquipment:combatData.defeat_equipment}),diveOptions:{log:()=>{}}})}):null;
  if(flowTests)world.flowTests=flowTests;if(flowTesting)world.testAssets=(assets,actor)=>live.bundle(assets,actor,true);
- function resumeStory(c){if(!flows?.active(c))return c;return atomic(()=>{const s=JSON.parse(c.state),before=JSON.stringify(s),old=flows.snapshot(c,s);flows.resume(c,s);if(!s.run&&!s.pendingDefeat&&!s.dungeonScene)flows.objectives(c,s);if(before!==JSON.stringify(s)||JSON.stringify(old)!==JSON.stringify(flows.snapshot(c,s))){c.revision++;c.state=JSON.stringify(s);db.prepare('UPDATE quest_characters SET state=?,revision=? WHERE id=?').run(c.state,c.revision,c.id);}return c;});}
+ function resumeStory(c){if(!flows?.enabled)return c;return atomic(()=>{const s=JSON.parse(c.state),before=JSON.stringify(s),old=flows.snapshot(c,s);flows.resume(c,s);flows.objectives(c,s);if(before!==JSON.stringify(s)||JSON.stringify(old)!==JSON.stringify(flows.snapshot(c,s))){c.revision++;c.state=JSON.stringify(s);db.prepare('UPDATE quest_characters SET state=?,revision=? WHERE id=?').run(c.state,c.revision,c.id);}return c;});}
  const saveOther=(oc,os)=>{const previous=JSON.parse(oc.state);if(JSON.stringify(os.loadout)!==JSON.stringify(previous.loadout))os.loadoutRevision=oc.revision+1;oc.revision++;oc.state=JSON.stringify(os);db.prepare('UPDATE quest_characters SET revision=?,state=? WHERE id=?').run(oc.revision,oc.state,oc.id);}; // Commit another participant's state inside the caller's transaction, as Dive encounters do.
  const pvpAllowed=id=>!isDungeon(id)||zoneCategory(id)===ZONE_CATEGORY.OVERWORLD; // Story overworlds (Desert, High Desert, Taiga, Tundra, Haunted Woods, Spooky Mansion) host duels; dungeon Dives do not.
  const duels=createDuels(db,{now,roll,parties,adjust,saveCharacter:saveOther,pvpAllowed,origins,getReadyPosted:(author,partners,since)=>partners.length>0&&!!db.prepare('SELECT 1 FROM quest_rp_posts p JOIN quest_rp_partners q ON q.post_id=p.id WHERE p.author=? AND p.created>? AND q.character_id IN ('+partners.map(()=>'?').join(',')+') LIMIT 1').get(author,since,...partners)}); // RP battles need a get-ready post naming an opponent within the last half hour.
@@ -416,7 +416,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     if(hub&&!hubCatalog.some(h=>h.id===hub))fail(400,'Choose one of the five hubs.');
     if(patron&&!GODS_BY_ID[patron])fail(400,'Choose one of the five gods, or none.');
     if(hub){
-     state.homeHub=hub;lines.push(`${hubCatalog.find(h=>h.id===hub).name} is your home now; you will arrive there when you come online.`);
+     state.homeHub=hub;lines.push(`${hubCatalog.find(h=>h.id===hub).name} is your home now; you will start there whenever nothing remembers where you last stood.`);
      const busy=state.run||state.dive||state.pendingPurchase||state.worldTurnDue||state.duel||state.trade||parties.party(c.id);
      if(!busy&&p.zone!==hub){const spawn=zone(hub).spawn??{x:10,y:9};db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(hub,spawn.x,spawn.y,now(),c.id);delete state.hubVisit;lines.push('You set off for it at once.');} // Solo and idle: go there now; otherwise it takes effect next time.
     }
@@ -509,7 +509,9 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(now(),c.id);
    }else if(input.action==='enter'){
     if(state.hubVisit&&!hubRooms.some(r=>r.id===state.hubVisit))delete state.hubVisit; // A retired annex cannot be resumed; fall through to the lobby the client asked for.
-    const z=zone(state.hubVisit??input.zone),active=db.prepare('SELECT * FROM quest_presence WHERE owner=? AND seen>?').get(i.owner,now()-30000);
+    const remembered=state.lastLocation&&!isDungeon(state.lastLocation.zone)?state.lastLocation:null; // Where this character last stood in a hub room (recorded below on every committed command); the client's lobby asks for that room, so the tile is restored when the zones match.
+    let asked=input.zone;if(remembered&&asked===remembered.zone&&![...questZones,...hubRooms].some(r=>r.id===asked)){asked=state.homeHub??'princess-rose';delete state.lastLocation;} // The remembered room was retired since: start at home instead of failing the entry.
+    const z=zone(state.hubVisit??asked),active=db.prepare('SELECT * FROM quest_presence WHERE owner=? AND seen>?').get(i.owner,now()-30000);
     const prior=db.prepare('SELECT grant_id,seen FROM quest_presence WHERE owner=?').get(i.owner);
     arrival=!prior||prior.grant_id!==i.id?'join':prior.seen<=now()-30000?'return':null;
     // Leaving deletes the row and a fresh sign-in issues a new grant, so either is a real arrival; the same grant
@@ -520,7 +522,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     if(z.parent)state.hubVisit=z.id; // Explicit annex entry also resumes committed inventory after reconnect.
     if(input.combat_version>=2&&state.run&&state.run.combatVersion!==2&&!state.run.sharedEncounter&&state.loadout)beginRound(state,z,roll); // Preserve the old opponent, HP and pot while upgrading an unfinished run.
     if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(z.id,now()-30000,i.owner).n>=64)fail(429,'This zone is full. Try again shortly.');
-    const spawn=divePresence?.zone===z.id?{x:divePresence.x,y:divePresence.y}:(z.spawn??{x:10,y:9});db.prepare('INSERT INTO quest_presence(owner,character_id,zone,grant_id,controller,x,y,seen,moved) VALUES (?,?,?,?,?,?,?,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=excluded.x,y=excluded.y,seen=excluded.seen,moved=0').run(i.owner,c.id,z.id,i.id,input.controller,spawn.x,spawn.y,now());
+    const spawn=divePresence?.zone===z.id?{x:divePresence.x,y:divePresence.y}:(remembered&&remembered.zone===z.id&&!blocked(z,remembered.x,remembered.y)?{x:remembered.x,y:remembered.y}:(z.spawn??{x:10,y:9})); /* A lapsed session resumes on its presence tile; a proper log-out resumes on the remembered tile unless a regenerated district has since walled it; otherwise the room's spawn. */db.prepare('INSERT INTO quest_presence(owner,character_id,zone,grant_id,controller,x,y,seen,moved) VALUES (?,?,?,?,?,?,?,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=excluded.x,y=excluded.y,seen=excluded.seen,moved=0').run(i.owner,c.id,z.id,i.id,input.controller,spawn.x,spawn.y,now());
    }else{
     p=presence(i,c,input.controller);const z=zone(p.zone);
     if(input.action==='hub_visit'){
@@ -651,6 +653,7 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     if(input.action!=='leave')db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);
    }
    const afterPresence=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);
+   if(afterPresence&&!isDungeon(afterPresence.zone))state.lastLocation={zone:afterPresence.zone,x:afterPresence.x,y:afterPresence.y}; // Remember the hub tile so logging back in lands here instead of the home hub's spawn (Dives resume through state.dive). The state row is rewritten below anyway, so this costs no extra write.
    const walk=input.action==='walk'?state.walkReceipt:null; // {request, walked, stop, path} from the hub loop above or dive.mjs.
    if(walk&&!walk.walked&&walk.stop!=='too_fast')fail(409,walk.stop==='blocked'?'That tile is blocked.':'Take that step on its own.'); // Nothing moved into a wall or special tile: roll the imported needs turns back too. A batch that only arrived early keeps its turns; the client resends those steps (already turned) on its next batch.
    if(input.action!=='defeat_complete'&&!input.action.startsWith('gm_'))parties.transfer(c,state,divePresence,afterPresence); // Portal transfers remain grouped; defeat acknowledgement returns only its reader.

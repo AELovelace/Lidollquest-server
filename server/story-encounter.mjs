@@ -14,3 +14,10 @@ export function storyFoe(floor,c,position,monster,receipt){
  const foe={id:'story-'+randomUUID(),type:monster.id,definition:structuredClone(monster),...spot,spawn:{...spot},manual:true,respawning:false,roaming:false,engaged:null,respawnAt:0,storyOwner:c.id,flowReceipt:receipt};
  floor.enemies.push(foe);return foe;
 } // Repeated steps reuse the same enemy; private story foes always occupy a reachable, unoccupied tile.
+export function storyFoes(floor,c,position,monsters,receipt){
+ const lineup=Array.isArray(monsters)?monsters:[monsters];
+ if(!lineup.length||lineup.length>3||lineup.some(m=>!m))throw Object.assign(Error('Choose 1 to 3 monsters for this story battle.'),{status:409,code:'flow_encounter_unavailable'});
+ const planned={...floor,enemies:[...floor.enemies]}; // Plan every slot first so a blocked tile cannot leave half a lineup behind.
+ const foes=lineup.map((monster,i)=>storyFoe(planned,c,position,monster,i?receipt+':'+i:receipt));
+ floor.enemies=planned.enemies;return foes;
+} // Slot receipts preserve duplicate monster instances and retry the whole lineup safely.

@@ -149,7 +149,7 @@ Connect these routes:
 ### B. Accept the quest and start the battle
 
 1. Add **Quest operation**. Label: **Accept rescue**. Operation: `accept`. Content reference: **A Light for the Scout**.
-2. Add **Battle**. Label: **Path guardian**. Content reference: the **same monster** used in the quest's kill target.
+2. Add **Battle**. Label: **Path guardian**. Drag the **same monster** used in the quest's kill target into its lineup, or select it with **Add monster**. You can add up to three enemies and adjust quest kill counts to match.
 3. Connect Ask for help's `help` output to Accept rescue, then Accept rescue's `next` to Path guardian.
 4. Add two Dialogue blocks: **Recover first** (?Rest first. We can try again.?) and **Try again later** (?The path is still guarded. Come back when you're ready.?).
 5. Connect the battle's `defeat` to Recover first and `retreat` to Try again later. Connect both dialogues' `next` to Finish.

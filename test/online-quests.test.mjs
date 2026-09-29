@@ -6,6 +6,23 @@ import {createWorldContent} from '../server/world-content.mjs';
 import {createQuestZones} from '../server/zones.mjs';
 import {hubData} from '../server/hubs.mjs';
 import {combatData} from '../server/combat.mjs';
+
+for(const triggerType of ['objective_entry','flag_entry'])test('parcel pickup starts a three-monster battle through '+triggerType,()=>{
+ const prior=process.env.QUEST_FLOWS_ENABLED;process.env.QUEST_FLOWS_ENABLED='true';const f=fixture();
+ try{
+  f.act('enter',{zone:'honeydew-lantern',flow_version:1,quest_version:1,content_version:1,combat_version:3});
+  const flag='story_parcels_gathered';authorObjectiveFlag(f,flag);
+  f.publish('quest',quest({stages:[{id:'gather',objectives:[{id:'parcels',type:'collect',target:'parcel',token:true,count:2,on_complete_flags:[flag]},{id:'later',type:'timer',count:10000}],next:'complete'}]}));
+  const first=place(f,'token','parcel').placements.find(p=>p.kind==='token'),map=place(f,'token','parcel'),second=map.placements.find(p=>p.kind==='token'&&p.id!==first.id);
+  const monster=Object.keys(f.live.published().monsters)[0],entry={id:'parcel_ambush',name:'Parcel ambush',nodes:[{id:'picked',type:triggerType,flag,ref:'first_quest',stage:'gather',objective:'parcels'},{id:'fight',type:'battle',monsters:[monster,monster,monster]},{id:'end',type:'end'}],edges:[{from:'picked',port:'next',to:'fight'},...['victory','defeat','retreat'].map(port=>({from:'fight',port,to:'end'}))]};
+  f.api.world.flows.gm({action:'flow_publish',id:entry.id,entry,revision:0},'dm');acceptQuest(f,{quest:'first_quest'});
+  beside(f,first);f.act('quest_interact',{placement:first.id,edition:map.edition});assert.equal(f.c.run,null);
+  beside(f,second);const command=f.command('quest_interact',{placement:second.id,edition:map.edition});f.send(command);const encounter=f.c.run.sharedEncounter,targets=f.last.encounter.enemies.map(v=>v.id);
+  assert.equal(targets.length,3);assert.equal(new Set(targets).size,3);assert.equal(f.last.onlineQuests.instances[0].status,'active','Only the parcel objective completed; the quest is still active.');
+  f.send(command);assert.equal(f.c.run.sharedEncounter,encounter);f.restart();assert.equal(f.c.run.sharedEncounter,encounter);assert.deepEqual(f.api.read('',f.c.id).encounter.enemies.map(v=>v.id),targets);
+  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM story_trigger_events WHERE started=1').get().n,1);
+ }finally{f.close();if(prior===undefined)delete process.env.QUEST_FLOWS_ENABLED;else process.env.QUEST_FLOWS_ENABLED=prior;}
+});
 const npc={id:'guide_npc',name:'Guide',description:'A friendly guide',dialogue:[{id:'hello',text:'Welcome!',next:'close',actions:[]}],quests:[]};
 const quest=(extra={})=>({id:'first_quest',name:'First quest',description:'Explore together',givers:['guide_npc'],turn_in:{mode:'journal'},stages:[{id:'start',name:'Explore',objectives:[{id:'arrive',type:'visit',target:'honeydew-lantern',count:1}],next:'complete'}],rewards:{xp:5,coins:10,rpp:3,stats:{cha:1}},...extra});
 const authorObjectiveFlag=(f,id,retired=false)=>f.api.world.flows.gm({action:'flow_flag_save',revision:f.api.world.flows.flags().find(v=>v.id===id)?.revision??0,entry:{id,name:id,retired}},'dm');

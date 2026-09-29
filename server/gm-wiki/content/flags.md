@@ -2,6 +2,8 @@
 
 [Wiki home](index.md)
 
+**When flag is set** is an automatic story entry. Connect it to a scene or Battle. It fires once when the flag is first seen true and rearms after an observed clear/set transition. An already-set flag triggers on the first check. Choose **When objective completes** instead when you need one scene per accepted quest attempt without clearing a shared flag.
+
 A story flag is a true-or-false fact about one online character. It survives travel, logout, reconnection, and server restarts. It is not account-wide and is not shared with the character's party.
 
 ![The flag library lists authored definitions, references and separate engine-owned achievements.](../assets/tutorial/reference-flag-library.png)

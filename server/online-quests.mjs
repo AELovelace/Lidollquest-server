@@ -101,6 +101,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
  } // Reaccepting an abandoned attempt resumes its original timer and progress instead of resetting eligibility.
  function transition(q,to){if(['complete','failed'].includes(to))q.state.status=to==='complete'?'ready':'failed';else{q.state.stage=to;q.state.status='active';q.state.stage_started=q.state.elapsed;}}
  function completeObjective(q,stage,o,s){
+  q.state.completed_objectives??={};q.state.completed_objectives[stage.id+':'+o.id]=true; // Remember success even after later stages or inventory changes, for objective entry blocks.
   const targets=o.on_complete_flags??[],key=stage.id+':'+o.id;if(!targets.length||q.state.completion_flags_applied?.[key])return;
   // These targets were authorized at publication and belong to the pinned accepted definition.
   // Retiring or editing live content must not change the promised effects of an existing attempt.

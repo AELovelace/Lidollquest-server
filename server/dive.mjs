@@ -1,4 +1,4 @@
-import {storyFoe} from './story-encounter.mjs';
+import {storyFoes} from './story-encounter.mjs';
 import {movementDelay,moveBurst,paceStep} from './crawl.mjs';
 import {createDiveControls} from './world-dive.mjs';
 import {createDiveEncounters} from './dive-encounters.mjs';
@@ -163,13 +163,13 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(amount){adjust(c.owner,'coins',amount,randomUUID(),'Dungeon Dive: '+record.edition);db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=coins+excluded.coins').run(c.owner,day,amount);p.coinsPaid+=amount;saveProgress(c,record.edition,p);}
   return amount;
  }
- function start(c,state,record,foe){
+ function start(c,state,record,foe,lineup=null){
   if(controls?.draining())fail('This Dive is being regenerated. Finish existing battles first.');
   if(live?.published().enabled&&state.contentVersion!==1)fail('Update the game to join this encounter.','client_update_required');
   if(gone(foe))fail('This monster is not available.');
   if(state.pendingDefeat||state.run||state.loadout?.player_info.playerHealth<=0||!foe||foe.engaged||foe.respawnAt>now())fail('That encounter is not available.'); // Saved stat points remain spendable after future encounters.
   if(!state.loadout)fail('Import your character before entering.');
-  if(state.diveCombatVersion===3){encounters.start(c,state,record,foe);return;} // New clients share an encounter; unfinished legacy fights keep their original path.
+  if(state.diveCombatVersion===3){encounters.start(c,state,record,foe,lineup);return;} // New clients share an encounter; unfinished legacy fights keep their original path.
   foe.engaged=c.id;const enemy=clone(foe.definition??data.enemies[foe.type]);enemy.maxHp=enemy.hp;enemy.turn=0;
   {const t=currentTuning();levelEnemy(t,enemy,encounterLevel(t,routeLevelFor(t,route,record.depth),[state.loadout.player_info.level]),{boss:foe.type===config.boss_id||enemy.tier==='boss'||enemy.boss===true});} // Route band by floor, raised toward this player's level; HP by turns-to-kill.
   state.lastResult=null;state.run={kind:'dive',id:randomUUID(),zone:zoneId,edition:record.edition,encounter:foe.id,stage:1,phase:'fight',hp:state.loadout.player_info.playerHealth,maxHp:state.loadout.player_info.playerHealthMax,heals:0,pot:0,handicaps:[],enemy,acted:now(),log:[enemy.name+' approaches.']};
@@ -179,8 +179,8 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function storyEncounter(c,s,monster,receipt,fight=true){
   if(s.diveCombatVersion!==3)fail('Update the game before entering a story encounter.');
   const record=getFloor(s.dive?.edition);if(!record)fail('Enter this dungeon first.');
-  const foe=storyFoe(record.floor,c,s.dive.position,monster,receipt);saveFloor(record);
-  if(fight){start(c,s,record,foe);return s.run.sharedEncounter;}return foe.id;
+  const foes=storyFoes(record.floor,c,s.dive.position,monster,receipt),foe=foes[0];if(!fight)saveFloor(record);
+  if(fight){start(c,s,record,foe,foes);return s.run.sharedEncounter;}return foe.id;
  } // Story foes pin their published stats and use the normal party/follower combat roster.
  function sweepDue(){return now()>=nextSweep;} // The sweep schedules itself from the soonest real deadline it saw, so recovery still lands on its exact second.
  function maintain(){

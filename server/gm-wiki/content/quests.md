@@ -2,6 +2,8 @@
 
 [Wiki home](index.md)
 
+To start a scene when one objective completes, add **When objective completes** in the story flow and select that quest, stage and objective. Connect next to Battle for a parcel ambush, then drag 1-3 monsters into the Battle. The objective entry fires once per accepted attempt before whole-quest completion; **Wait for objective** retains its whole-quest readiness behavior.
+
 A quest tracks a character's task in the journal. A flow controls the interactions around that task. Use Quest operation blocks to accept, claim, abandon, or choose a quest branch; use Wait for objective when the story should pause until the referenced quest is ready or claimed.
 
 Quests now open as stage, objective and branch blocks with a compact inspector. See [the content block controls](workshop.md#shared-content-uses-blocks-too). Older tutorial screenshots show the previous forms; their objective field meanings still apply.

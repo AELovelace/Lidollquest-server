@@ -69,9 +69,15 @@ The player can explore while waiting. Design an actual way for the requirement t
 
 A quest branch choice can stall a wait for readiness. Resolve the branch through normal quest UI or a flow branch operation before expecting the quest to be complete.
 
+## Automatic entry blocks
+
+**When flag is set** and **When objective completes** are independent starting blocks with a `next` output and no input. Connect them to Battle, Dialogue or another action. Flag entries start once on an observed false-to-true change (or the first observed true value). Objective entries select a quest, stage and specific objective, and run once per accepted attempt, even before the quest is ready. Main-story completion does not consume these entries.
+
+A parcel collection objective can connect directly to a Battle. Its count controls how many parcels must be collected first. Use one trigger per intended scene: an objective entry plus a flag entry for the same pickup schedules two scenes. Busy dialogue/combat defers the scene; an objective wait can suspend and resume around it. Select **Preview from this entry** or choose its start point in **In-game test**.
+
 ## Battle
 
-Choose a published monster reference. Outputs are `victory`, `defeat`, and `retreat`; all three need destinations. The server creates and starts an ordinary authoritative PvE encounter using the captured monster definition. Existing eligibility and party/follower limits apply.
+Drag 1-3 monsters from the library onto the Battle. Its lineup accepts duplicates; remove slots on the card or replace/reorder them in the inspector. Outputs are `victory`, `defeat`, and `retreat`; all three need destinations. The server creates and starts an ordinary authoritative PvE encounter using all captured monster definitions. Victory waits for every lineup member. Existing eligibility and party/follower limits apply.
 
 The runner waits for authoritative settlement. Mandatory defeat handling finishes before the defeat branch. A disconnected client does not award itself victory. See [Battles](monsters-rewards.md#battle-blocks-and-party-behavior).
 

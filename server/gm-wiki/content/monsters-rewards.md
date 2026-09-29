@@ -18,7 +18,7 @@ Publishing a shared monster can affect other encounters that use that record. Ac
 
 ## Battle blocks and party behavior
 
-A Battle block starts authoritative ordinary PvE with the selected monster. It needs room for a reachable story foe near the owner. If the area is crowded or blocked, the server can reject the start; test the location where the player will actually trigger the interaction.
+A Battle block starts authoritative ordinary PvE with exactly 1-3 selected monsters. Drag onto an existing Battle to add a slot; empty canvas creates a new Battle. Duplicate types are allowed. Remove on the card, or replace/reorder in the inspector. A fourth slot is rejected. The lineup needs a reachable unoccupied tile near the owner for every foe, and victory waits for all of them. If the area is crowded or blocked, the server can reject the start; test the location where the player will actually trigger the interaction.
 
 Connect all three outputs:
 
@@ -28,7 +28,7 @@ Connect all three outputs:
 
 Eligible allies can join under existing rules. Players plus followers cannot exceed three participants, and a party may have at most one hired follower. The flow does not manufacture extra slots or override PvP/arena rules. Only the story owner advances their personal flow from the encounter outcome.
 
-A quest's kill target must be the referenced monster's content ID. Its zone restriction must match where this battle occurs. If you accept the quest after the battle, that earlier victory is not a promised future objective event.
+Each quest kill objective targets a monster content ID from the lineup. Set its count to match the intended number of that type. Its zone restriction must match where this battle occurs. If you accept the quest after the battle, that earlier victory is not a promised future objective event.
 
 ## Spawn versus fight
 

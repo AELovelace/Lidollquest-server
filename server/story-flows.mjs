@@ -1,6 +1,7 @@
+import {createFlowTriggers,triggerTypes} from './flow-triggers.mjs';
 import {flowFaithCatalog,pietyMatches} from './flow-faith.mjs';
 import {randomUUID} from 'node:crypto';
-import {validateFlow,FLOW_NODES,flowPorts} from './flow-content.mjs';
+import {validateFlow,FLOW_NODES,flowPorts,battleMonsters} from './flow-content.mjs';
 import {storyFlagsMatch,storyRequirementsMatch,setStoryFlag,flagId} from './story-flags.mjs';
 const fail=(message,status=409)=>{throw Object.assign(Error(message),{status,code:'flow_conflict'});};
 export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapters={}}){
@@ -40,7 +41,7 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
   if(publishing)db.prepare('INSERT INTO story_flow_history VALUES (?,?,?,?,?)').run(flow.id,revision,JSON.stringify(flow),actor,now());return {...get(flow.id),issues};
  }
  const unpack=r=>r?{...r,definition:JSON.parse(r.definition),state:JSON.parse(r.state)}:null;
- const active=c=>unpack(db.prepare("SELECT * FROM story_flow_runs WHERE character_id=? AND json_extract(state,'$.done') IS NOT 1 ORDER BY updated DESC LIMIT 1").get(c.id));
+ const active=c=>unpack(db.prepare("SELECT * FROM story_flow_runs WHERE character_id=? AND json_extract(state,'$.done') IS NOT 1 AND json_extract(state,'$.suspended') IS NOT 1 ORDER BY updated DESC LIMIT 1").get(c.id));
  const write=r=>db.prepare('UPDATE story_flow_runs SET state=?,updated=? WHERE id=?').run(JSON.stringify(r.state),now(),r.id);
  const node=r=>r.definition.flow.nodes.find(n=>n.id===r.state.node);
  function next(r,port){const edge=r.definition.flow.edges.find(e=>e.from===r.state.node&&e.port===port);if(!edge)fail('This story has a missing connection.');r.state.node=edge.to;r.state.step++;r.state.wait=null;}
@@ -64,39 +65,61 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
     next(r,r.state.wait.outcome);continue;
    }
    if(n.type==='set_flag'||n.type==='clear_flag')setStoryFlag(s,n.flag,n.type==='set_flag',r.definition.flags);
-   else if(n.type!=='entry'&&!simulation){const effect=adapters[n.type];if(!effect)fail('This story action is not available: '+n.type);effect(c,s,n,r.definition,receipt);}
+   else if(n.type!=='entry'&&!triggerTypes.includes(n.type)&&!simulation){const effect=adapters[n.type];if(!effect)fail('This story action is not available: '+n.type);effect(c,s,n,r.definition,receipt);}
    next(r,'next');
   }
   if(!simulation&&JSON.stringify(r.state)!==before)write(r);return r;
  } // All local mutations commit with the enclosing character command; external rewards reuse durable receipt IDs.
- function available(c,s,kind,ref){return enabled&&!active(c)&&list().some(f=>f.published&&!f.published.retired&&f.published.bindings.some(b=>b.kind===kind&&b.ref===ref&&storyFlagsMatch(s,b.conditions))&&(f.published.repeatable||!db.prepare("SELECT 1 FROM story_flow_runs WHERE character_id=? AND flow=? AND json_extract(state,'$.done')=1").get(c.id,f.id)));}
+ function available(c,s,kind,ref){return enabled&&!active(c)&&list().some(f=>f.published&&!f.published.retired&&f.published.bindings.some(b=>b.kind===kind&&b.ref===ref&&storyFlagsMatch(s,b.conditions))&&(f.published.repeatable||!db.prepare("SELECT 1 FROM story_flow_runs WHERE character_id=? AND flow=? AND json_extract(state,'$.done')=1 AND json_extract(state,'$.trigger') IS NOT 1").get(c.id,f.id)));}
  function review(c,s,kind,ref){
   if(!available(c,s,kind,ref))return null;
   const f=list().find(f=>f.published&&!f.published.retired&&f.published.bindings.some(b=>b.kind===kind&&b.ref===ref&&storyFlagsMatch(s,b.conditions))),b=f.published.bindings.find(b=>b.kind===kind&&b.ref===ref&&storyFlagsMatch(s,b.conditions)),reactions=kind==='npc'?live.published().npcs[ref]?.story_reactions??[]:[],index=reactions.findIndex(r=>storyFlagsMatch(s,r.conditions));
   return JSON.stringify({flow:f.id,revision:db.prepare('SELECT MAX(revision) AS revision FROM story_flow_history WHERE id=?').get(f.id).revision,entry:reactions[index]?.entry||b.entry,reaction:index});
  } // Remember the offered branch so changed flags or publication cannot silently replace an open offer.
  function start(c,s,kind,ref,expected=null){if(expected!==null&&review(c,s,kind,ref)!==expected)fail('This story offer changed. Speak to the NPC again.');if(!enabled||active(c))return false;const found=list().filter(f=>f.published&&!f.published.retired).map(f=>({f,b:f.published.bindings.find(b=>b.kind===kind&&b.ref===ref&&storyFlagsMatch(s,b.conditions))})).find(v=>v.b);if(!found)return false;
-  if(!found.f.published.repeatable&&db.prepare("SELECT 1 FROM story_flow_runs WHERE character_id=? AND flow=? AND json_extract(state,'$.done')=1").get(c.id,found.f.id))return false;
+  if(!found.f.published.repeatable&&db.prepare("SELECT 1 FROM story_flow_runs WHERE character_id=? AND flow=? AND json_extract(state,'$.done')=1 AND json_extract(state,'$.trigger') IS NOT 1").get(c.id,found.f.id))return false;
   if(s.flowVersion!==1)fail('Update the game before starting this story.');if(s.run||s.pendingDefeat||s.dungeonScene||s.worldTurnDue||s.pendingPurchase)fail('Finish the current action before starting a story.');
-  const published=live.published(),reaction=kind==='npc'?(published.npcs[ref]?.story_reactions??[]).find(r=>storyFlagsMatch(s,r.conditions)):null,entry=reaction?.entry||found.b.entry;if(!found.f.published.nodes.some(n=>n.id===entry))fail('This NPC story entry is missing.');const r={id:randomUUID(),character_id:c.id,flow:found.f.id,revision:db.prepare('SELECT MAX(revision) AS revision FROM story_flow_history WHERE id=?').get(found.f.id).revision,definition:{flow:found.f.published,flags:flags().filter(f=>!f.engineOwned),assets:{monsters:Object.fromEntries(found.f.published.nodes.filter(n=>['battle','spawn'].includes(n.type)).map(n=>[n.ref,structuredClone(published.monsters[n.ref])])),quests:Object.fromEntries(found.f.published.nodes.filter(n=>['quest','objective'].includes(n.type)&&published.quests[n.ref]).map(n=>[n.ref,structuredClone(published.quests[n.ref])]))}},state:{node:entry,step:0,done:false,wait:null}};
+  const published=live.published(),reaction=kind==='npc'?(published.npcs[ref]?.story_reactions??[]).find(r=>storyFlagsMatch(s,r.conditions)):null,entry=reaction?.entry||found.b.entry;if(!found.f.published.nodes.some(n=>n.id===entry))fail('This NPC story entry is missing.');const r={id:randomUUID(),character_id:c.id,flow:found.f.id,revision:db.prepare('SELECT MAX(revision) AS revision FROM story_flow_history WHERE id=?').get(found.f.id).revision,definition:pin(found.f.published),state:{node:entry,step:0,done:false,wait:null}};
   db.prepare('INSERT INTO story_flow_runs VALUES (?,?,?,?,?,?,?)').run(r.id,c.id,r.flow,r.revision,JSON.stringify(r.definition),JSON.stringify(r.state),now());run(r,c,s);return true;
  }
- function beginTest(characterId,input){const {flow}=definition(input,true),c=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(characterId),s=JSON.parse(c.state),published=live.published();s.flowVersion=1;s.contentVersion=1;s.questVersion=1;s.diveCombatVersion=3;
-  const r={id:randomUUID(),character_id:c.id,flow:flow.id,revision:0,definition:{flow,flags:flags().filter(f=>!f.engineOwned),assets:structuredClone(published)},state:{node:flow.nodes.find(n=>n.type==='entry')?.id??flow.bindings[0]?.entry,step:0,done:false,wait:null}};
+ function pin(flow){const published=live.published();return {flow,flags:flags().filter(f=>!f.engineOwned),assets:{monsters:Object.fromEntries(flow.nodes.filter(n=>['battle','spawn'].includes(n.type)).flatMap(n=>(n.type==='battle'?battleMonsters(n):[n.ref]).map(id=>[id,structuredClone(published.monsters[id])]))),quests:Object.fromEntries(flow.nodes.filter(n=>['quest','objective','objective_entry'].includes(n.type)&&published.quests[n.ref]).map(n=>[n.ref,structuredClone(published.quests[n.ref])]))}};} // Capture every referenced asset before a deferred entry starts.
+ const triggers=createFlowTriggers(db,{now,list,pin});
+ function trigger(c,s){
+  if(!enabled||s.flowVersion!==1)return;triggers.observe(c,s);
+  if(s.run||s.pendingDefeat||s.dungeonScene||s.worldTurnDue||s.pendingPurchase||adapters.canStart?.(c,s)===false)return;
+  const parent=active(c);if(parent&&node(parent).type!=='objective')return;
+  const event=triggers.pending(c);if(!event)return;
+  const before=structuredClone(s),character=structuredClone(c);db.exec('SAVEPOINT story_trigger_start');
+  try{
+   if(parent){parent.state.suspended=true;write(parent);} // Only exploration waits yield to sub-entrypoints; dialogue and fights stay uninterrupted.
+   const r={id:event.id,character_id:c.id,flow:event.flow,revision:event.revision,definition:JSON.parse(event.definition),state:{node:event.node,step:0,done:false,wait:null,parent:parent?.id??null,trigger:true}}; // A retried deferred entry retains external reward receipts too.
+   db.prepare('INSERT INTO story_flow_runs VALUES (?,?,?,?,?,?,?)').run(r.id,c.id,r.flow,r.revision,JSON.stringify(r.definition),JSON.stringify(r.state),now());run(r,c,s);triggers.started(event.id);db.exec('RELEASE story_trigger_start');
+  }catch(error){
+   db.exec('ROLLBACK TO story_trigger_start');db.exec('RELEASE story_trigger_start');for(const key of Object.keys(s))delete s[key];Object.assign(s,before);Object.assign(c,character);
+   if(error.status!==409)throw error; // A crowded map or busy party leaves the event queued without undoing the parcel pickup.
+  }
+ }
+ function beginTest(characterId,input,entry=null){const {flow}=definition(input,true),c=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(characterId),s=JSON.parse(c.state),published=live.published();s.flowVersion=1;s.contentVersion=1;s.questVersion=1;s.diveCombatVersion=3;
+  if(entry!==null&&!flow.nodes.some(n=>n.id===entry&&['entry',...triggerTypes].includes(n.type)))fail('Choose an entry block for this test.');
+  const r={id:randomUUID(),character_id:c.id,flow:flow.id,revision:0,definition:{flow,flags:flags().filter(f=>!f.engineOwned),assets:structuredClone(published)},state:{node:entry??flow.nodes.find(n=>n.type==='entry')?.id??flow.bindings[0]?.entry??flow.nodes.find(n=>triggerTypes.includes(n.type))?.id,step:0,done:false,wait:null}};
+  triggers.observe(c,s);db.prepare('UPDATE story_trigger_events SET started=1 WHERE character_id=? AND flow=? AND node=?').run(c.id,flow.id,r.state.node); // A directly selected test entry also consumes its already-satisfied occurrence.
   db.prepare('INSERT INTO story_flow_runs VALUES (?,?,?,?,?,?,?)').run(r.id,c.id,r.flow,r.revision,JSON.stringify(r.definition),JSON.stringify(r.state),now());run(r,c,s);db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(s),c.id);
  } // This entry is exposed only to the separately constructed in-memory test engine.
- function objectives(c,s){if(!enabled||active(c)||s.flowVersion!==1||s.run||s.pendingDefeat||s.dungeonScene||s.worldTurnDue||s.pendingPurchase)return;for(const f of list().filter(f=>f.published&&!f.published.retired))for(const b of f.published.bindings.filter(b=>b.kind==='objective')){
+ function objectives(c,s){trigger(c,s);if(!enabled||active(c)||s.flowVersion!==1||s.run||s.pendingDefeat||s.dungeonScene||s.worldTurnDue||s.pendingPurchase)return;for(const f of list().filter(f=>f.published&&!f.published.retired))for(const b of f.published.bindings.filter(b=>b.kind==='objective')){
   const q=db.prepare("SELECT id FROM online_quests WHERE character_id=? AND quest=? AND json_extract(state,'$.status') IN ('ready','claimed') ORDER BY created DESC LIMIT 1").get(c.id,b.ref);if(!q||s.flowObjectives?.[b.ref]===q.id)continue;
   if(start(c,s,'objective',b.ref)){s.flowObjectives??={};s.flowObjectives[b.ref]=q.id;return;}
  }} // Completion receipts belong to this character; a party member cannot advance another story.
  function act(c,s,input){const r=active(c);if(!r||input.flow_run!==r.id||input.flow_step!==r.state.step)fail('This story page changed. Refresh before choosing.');if(s.run||s.pendingDefeat||s.dungeonScene)fail('Finish the current action first.');const n=node(r);if(!['dialogue','narrative','choice'].includes(n.type))fail('Wait for the story objective.');let port='next';if(n.type==='choice'){const choice=n.choices.find(v=>v.id===input.choice);if(!choice||!storyFlagsMatch(s,choice.conditions)||!storyRequirementsMatch(s,choice.requirements))fail('That story choice is no longer available.');port=choice.id;}next(r,port);run(r,c,s);write(r);}
- function resume(c,s){if(s.worldTurnDue||s.pendingPurchase)return;const r=active(c);if(r)run(r,c,s);}
+ function resume(c,s){if(s.worldTurnDue||s.pendingPurchase)return;let r=active(c);if(r)run(r,c,s);
+  if(!active(c)&&!s.run&&!s.pendingDefeat&&!s.dungeonScene){r=unpack(db.prepare("SELECT * FROM story_flow_runs WHERE character_id=? AND json_extract(state,'$.suspended')=1 AND json_extract(state,'$.done') IS NOT 1 ORDER BY updated DESC,rowid DESC LIMIT 1").get(c.id));if(r){delete r.state.suspended;write(r);run(r,c,s);}}
+ } // When a sub-entry finishes, restore the objective wait it temporarily suspended.
  function blocking(c){const r=active(c);return !!r&&!['objective','battle'].includes(node(r).type);}
  function settled(c,s,encounter,outcome){const r=active(c);if(!r||r.state.wait?.encounter!==encounter)return;r.state.wait.outcome=['win','victory'].includes(outcome)?'victory':['defeat','charm_backfire','submitted'].includes(outcome)?'defeat':'retreat';write(r);}
  function snapshot(c,s){const r=active(c);if(!r)return null;const n=node(r);return {id:r.id,flow:r.flow,revision:r.revision,step:r.state.step,node:n.id,type:n.type,title:n.label||r.definition.flow.name,text:n.text,sprite:n.sprite,choices:n.choices.map(v=>({...v,available:storyFlagsMatch(s,v.conditions)&&storyRequirementsMatch(s,v.requirements)})),waiting:!['dialogue','narrative','choice'].includes(n.type)};}
- function preview(input){const {flow,issues}=definition(input.entry,true,input.assets??[]);const memory={faith:input.faith,fullDungeon:{flags:{...input.flags}},loadout:{player_info:{...input.stats,playerHealth:input.stats?.health??0},childish:input.stats?.childish??0}};const r={id:'preview',definition:{flow,flags:flags()},state:{node:input.node??flow.nodes.find(n=>n.type==='entry')?.id??flow.bindings[0]?.entry,step:0,done:false}};if(!flow.nodes.some(n=>n.id===r.state.node))fail('Choose a preview entry.');run(r,null,memory,{simulation:true,outcome:input.outcome});return {node:node(r),state:r.state,flags:memory.fullDungeon.flags,issues};}
+ function preview(input){const {flow,issues}=definition(input.entry,true,input.assets??[]);const memory={faith:input.faith,fullDungeon:{flags:{...input.flags}},loadout:{player_info:{...input.stats,playerHealth:input.stats?.health??0},childish:input.stats?.childish??0}};const r={id:'preview',definition:{flow,flags:flags()},state:{node:input.node??flow.nodes.find(n=>n.type==='entry')?.id??flow.bindings[0]?.entry??flow.nodes.find(n=>triggerTypes.includes(n.type))?.id,step:0,done:false}};if(!flow.nodes.some(n=>n.id===r.state.node))fail('Choose a preview entry.');run(r,null,memory,{simulation:true,outcome:input.outcome});return {node:node(r),state:r.state,flags:memory.fullDungeon.flags,issues};}
  function inspect(characterId){const c=db.prepare('SELECT id,name,state,revision FROM quest_characters WHERE id=?').get(characterId);if(!c)fail('Character not found.',404);const s=JSON.parse(c.state);return {character:{id:c.id,name:c.name,revision:c.revision},values:s.fullDungeon?.flags??{},definitions:flags(),references:Object.fromEntries(flags().map(f=>[f.id,references(f.id)]))};}
  live.setStoryReferenceCheck?.((kind,body)=>{
+  if(kind==='quest')for(const f of list().filter(f=>f.published&&!f.published.retired))for(const n of f.published.nodes.filter(n=>n.type==='objective_entry'&&n.ref===body.id))if(!body.stages?.find(stage=>stage.id===n.stage)?.objectives?.some(o=>o.id===n.objective))fail('Update the objective entry '+n.id+' in '+f.id+' before removing its quest objective.');
   const definitions=flags();function check(v){if(!v||typeof v!=='object')return;if(['all','any','none'].every(k=>Array.isArray(v[k])))for(const id of [...v.all,...v.any,...v.none])if(id.startsWith('story_')&&!definitions.some(f=>f.id===id&&!f.retired))fail('Unknown authored flag: '+id);for(const child of Object.values(v))check(child);}check(body);
   if(kind==='quest')for(const stage of body.stages??[])for(const objective of stage.objectives??[])for(const id of objective.on_complete_flags??[]){
    if(!definitions.some(f=>f.id===id&&!f.retired&&!f.engineOwned))fail('Unknown or retired objective completion flag: '+id,400);

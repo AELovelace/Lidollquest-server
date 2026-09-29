@@ -26,6 +26,8 @@ Click a palette button to create a block, or drag it onto the canvas. Select its
 
 Dialogue, Narrative and Player choice blocks also offer **Portrait / artwork**. Choose an existing approved asset or compiled sprite. See [Artwork](orbs-art.md#artwork).
 
+Drag a monster onto an existing Battle to add it to that fight (maximum three, including duplicates). Add **When objective completes** or **When flag is set** to start a separate scene from a parcel pickup or a progression flag. Select the trigger and connect its next output; no interaction binding is needed.
+
 Dragging a library record onto the canvas creates an appropriate reference block: a monster becomes Battle, a quest becomes Quest operation, a zone becomes Travel, an NPC becomes Dialogue, and an orb becomes Narrative. Inspect the result: this does not automatically create a placement, entry binding, complete conversation, or all related quest steps.
 
 ## Connect execution ports

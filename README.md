@@ -1445,3 +1445,14 @@ Open `/gm/wiki/` or the **GM wiki / Quest creation guide** links in the GM panel
 The GM panel and Story Workshop offer **Ask the GM wiki assistant**, a `/gm/help` pop-out using the same staff sign-in. Requests go from the browser to authenticated `/gm/help/chat`; only the game server contacts the separate `npc-rag` GM service on port 9093. Keep the AI server's IP allowlist restricted to this game server's public outbound address. Screenshots and section links come from the local GM wiki, with enlarge controls. No RAG address, service key or model credential is sent to the browser.
 
 Set `LIDOLLQUEST_GM_HELP_URL` to the AI server address reachable from this host and `LIDOLLQUEST_GM_HELP_KEY` to the matching `GM_API_KEY`, then restart. The npc-rag checkout's `GM_HELP.md` documents the separate GM wiki index, service/task setup, firewall, updates and troubleshooting. Empty configuration leaves normal authoring available and displays a useful setup message in chat. Chat has no editing or game execution tools. Run `node --test test/gm-help.test.mjs`; browser checks live in the game checkout at `python/tests/fixtures/gm_help_browser.mjs`.
+
+### Log back in where you logged off (2026-09-28)
+
+Every committed command records the character's hub tile in `state.lastLocation` (`zones.mjs`, right after
+`afterPresence`; Dive zones are skipped because `state.dive` already resumes them). The state is public to its
+owner (`publicCombatState` spreads it), so the client's lobby asks to enter `lastLocation.zone` before the home
+hub. `enter` honours the zone it is asked for exactly as before (tests and in-session hub changes still pass an
+explicit zone); when that zone is the remembered one, the tile is restored unless a regenerated district has
+walled it, in which case the room's spawn is used. A remembered room that no longer exists starts the character
+at their home hub instead of failing the entry. A lapsed session (window closed without `leave`) still resumes
+on its presence row. Run `node --test test/last-location.test.mjs`.

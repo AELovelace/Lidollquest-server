@@ -7,7 +7,7 @@ export function createFlowTests(db,{flows,now,build}){
  const running=new Map();
  const row=id=>db.prepare('SELECT * FROM story_flow_tests WHERE id=?').get(id??'');
  function reap(){for(const [id,test] of running){if((row(id)?.expires??0)>now())continue;test.api.close();test.db.close();running.delete(id);}db.prepare('DELETE FROM story_flow_tests WHERE expires<=?').run(now());}
- function create(id,owner,overrides={}){reap();const definition=flows.testDefinition(id);const key=randomUUID();
+ function create(id,owner,overrides={},entry=null){reap();const definition=flows.testDefinition(id);const key=randomUUID();if(entry!==null&&!definition.flow.nodes.some(n=>n.id===entry&&['entry','flag_entry','objective_entry'].includes(n.type)))fail('Choose an entry block for this test.');definition.entry=entry;
   if(!overrides||typeof overrides!=='object'||Array.isArray(overrides)||Object.keys(overrides).length>512||Object.entries(overrides).some(([id,value])=>typeof value!=='boolean'||!flows.flags().some(f=>f.id===id&&!f.retired)))fail('Choose defined flags and boolean values for test overrides.');definition.flags={...overrides};
   if(db.prepare('SELECT COUNT(*) AS n FROM story_flow_tests WHERE owner=? AND expires>?').get(owner,now()).n>=5)fail('End an existing test first (five sessions per GM).');
   db.prepare('INSERT INTO story_flow_tests VALUES (?,?,?,?,?)').run(key,owner,'',JSON.stringify(definition),now()+1800000);return {id:key,expires:now()+1800000};
@@ -31,8 +31,8 @@ export function createFlowTests(db,{flows,now,build}){
    for(const name of ['world_content','world_content_history','world_assets','story_flag_definitions','world_placements','world_placement_maps','dive_editions','world_hub_maps','hub_district_editions','hub_district_current','hub_district_controls'])tables[name]=db.prepare('SELECT * FROM '+quote(name)).all();
    for(const name of ['dive_progress','online_quests','online_quest_claims','quest_item_origins'])tables[name]=db.prepare('SELECT * FROM '+quote(name)+' WHERE character_id=?').all(c.id);
    for(const name of ['dive_editions','world_hub_maps'])for(const r of tables[name]){const map=JSON.parse(r.content);for(const foe of map.enemies??[])foe.engaged=null;r.content=JSON.stringify(map);}
-   restore(test.db,tables);test.api.world.invalidate();test.api.world.testAssets(body.assets??[],identity.owner);test.api.world.flows.gm({action:'flow_save',id:body.flow.id,revision:0,entry:body.flow},identity.owner);
-   test.api.world.flows.beginTest(c.id,body.flow);record.character_id=c.id;db.prepare('UPDATE story_flow_tests SET character_id=? WHERE id=?').run(c.id,record.id);persist(record,test);
+   restore(test.db,tables);test.api.world.invalidate();test.api.world.testAssets(body.assets??[],identity.owner);test.api.world.flows.gm({action:'flow_publish',id:body.flow.id,revision:0,entry:body.flow},identity.owner);
+   test.api.world.flows.beginTest(c.id,body.flow,body.entry);record.character_id=c.id;db.prepare('UPDATE story_flow_tests SET character_id=? WHERE id=?').run(c.id,record.id);persist(record,test);
   }
   return view(record,test.api.read('',c.id));
  }

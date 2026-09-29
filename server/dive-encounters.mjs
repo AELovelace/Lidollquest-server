@@ -67,7 +67,8 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
  function persist(e,rows,caller=null){for(const {a,c,s} of rows){if(!e.finished){s.run=projection(e,a);syncRunHealth(s,a.run);}if(a.npc){const {run,...rest}=s;a.state=rest;}else if(c.id!==caller?.id)saveCharacter(c,s);}write(e);}
  function reset(a,s){a.cycle++;a.prepared=false;a.rowSwapped=false;a.duration=actionDelay(s.loadout.player_info.dex);a.readyAt=now()+a.duration;a.run.turn=a.cycle;a.run.turnReady=false;}
  function out(e,a,enemy,outcome){a.status=outcome;a.defeatEnemy=clone(enemy);a.prepared=false;a.downedAt=now();for(const ally of e.followers??[])if(ally.hirer===a.id&&ally.status==='active')ally.status='owner_out';message(e,a.name+' '+(outcome==='defeat'?'is down.':outcome==='flee'?'retreats from the fight.':'is out of the fight.'));} // Recovery time starts when this member goes down, not when the survivors finish fighting.
- function start(c,state,record,foe){
+ function start(c,state,record,foe,lineup=null){
+  if(lineup&&(!lineup.length||lineup.length>3||lineup[0]!==foe||new Set(lineup).size!==lineup.length||lineup.some(v=>!record.floor.enemies.includes(v)||v.storyOwner!==c.id||v.engaged||v.dead||v.respawnAt>now())))fail('This story battle lineup is unavailable.'); // Only server-pinned, private story enemies may supply an explicit lineup.
   if(foe.storyOwner&&foe.storyOwner!==c.id)fail('This encounter belongs to another character.');
   const members=parties?.members(c.id)??[],people=members.length?members:[c];
   const eligible=(s,other)=>context?context.eligible(s,other,record):s.dive?.edition===record.edition&&s.dive?.route===route;
@@ -80,7 +81,7 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
   }
   const e={id:randomUUID(),edition:record.edition,zone,route,origin:{x:foe.x,y:foe.y},created:now(),sequence:0,events:[],players:[],followers:[],enemies:[]};
   const tuning=currentTuning(),fightLevel=encounterLevel(tuning,routeLevelFor(tuning,route,record.depth),rows.map(row=>row.s.loadout.player_info.level)); // Floor band, raised toward the strongest party member (party_level_slack); hub events use the default band.
-  for(const selected of (context||foe.storyOwner?[foe]:selectEncounterEnemies({...record.floor,enemies:record.floor.enemies.filter(v=>!gone(v)&&!v.storyOwner)},foe,data,roll,now()))){selected.engaged=e.id;const enemy=pinDefeat(clone(selected.definition??data.enemies[selected.type]));enemy.maxHp=enemy.hp;enemy.turn=0;
+  for(const selected of (lineup??(context||foe.storyOwner?[foe]:selectEncounterEnemies({...record.floor,enemies:record.floor.enemies.filter(v=>!gone(v)&&!v.storyOwner)},foe,data,roll,now())))){selected.engaged=e.id;const enemy=pinDefeat(clone(selected.definition??data.enemies[selected.type]));enemy.maxHp=enemy.hp;enemy.turn=0;
    levelEnemy(tuning,enemy,fightLevel,{boss:selected.type===data.config.boss_id||enemy.tier==='boss'||enemy.boss===true}); // str/def/exp by the loot level curve, HP by turns-to-kill for the tier.
    const duration=enemyActionDelay(enemy.dex??0,roll)+e.enemies.length*encounterTuning.enemy_initial_stagger_ms;
    e.enemies.push({id:selected.id,data:enemy,duration,readyAt:now()+duration,dots:[],debuffs:[]});
