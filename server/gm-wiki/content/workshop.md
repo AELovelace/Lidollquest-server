@@ -65,6 +65,8 @@ Cards and controls can receive keyboard focus. Avoid using graph shortcuts while
 
 ## Story settings and bindings
 
+For NPCs, add **NPC interaction** directly to the canvas. Choose an engine resident or placed NPC, set requirements and **Every interaction**, and connect **next** to story actions. The **Engine NPCs** library also supports drag-and-drop entry creation. Explicit NPC blocks take priority over legacy bindings and greeting reactions; among eligible blocks, flow ID order then block order decides. Basic dialogue is suppressed throughout server actions, including objective waits and silent completion. It returns on a later interaction with no active or eligible replacement.
+
 Set a stable flow ID, name, description, and Repeatable setting. Use **Add entry binding** to choose a trigger kind, referenced content, entry block, and optional flag requirements.
 
 | Trigger | Meaning |
@@ -76,7 +78,7 @@ Set a stable flow ID, name, description, and Repeatable setting. Use **Add entry
 
 The objective binding is a quest-level completion trigger, not a free-form individual objective ID. For stage-by-stage behavior, use quest stages and branches, then explicit waits or choices in the flow.
 
-A published trigger belongs to one active flow. Put alternative flag-dependent routes inside that flow or use ordered NPC reactions; do not publish competing flows for the same NPC. See [NPC reactions](npcs.md#ordered-story-reactions).
+A published legacy binding belongs to one active flow. NPC interaction blocks can have several conditional entries; keep alternatives within one flow with specific entries first and a broad fallback last. See [NPC reactions](npcs.md#ordered-story-reactions).
 
 ## Edit a shared record
 

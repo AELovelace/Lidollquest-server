@@ -4,6 +4,14 @@
 
 An NPC record defines who the character is, how they look, what they say, and which quests they offer. A placement gives that record a location. An entry binding optionally attaches a playable personal story, which plays as soon as the player bumps into the NPC.
 
+## Replace an engine or placed NPC's dialogue
+
+Add **NPC interaction** on the story canvas, choose its NPC, and connect **next** to your scene. Dragging from **Engine NPCs** creates this entry for an existing resident without creating another placement. A placed NPC entry covers every placement of its shared record; engine entries identify a zone and fixture. Current generated dungeon NPC references may change with layout resets.
+
+Set **Story requirements** on the entry and choose whether it runs on **Every interaction** (default) or once per character. This setting is independent of the main flow's Repeatable setting. NPC interaction blocks override legacy bindings and greeting reactions; eligible entries use flow ID order, then block order. Put specific entries before a catch-all. Preview and isolated tests can start at the selected entry.
+
+The server owns the entire interaction while replacement content is available or active. Default dialogue, services and quest options remain hidden through objective waits and even actions that finish without a page. Ordinary chat returns on a later interaction only after the entry is consumed or ineligible and no replacement run remains. A flag check connected straight to End still handles the interaction; gate the entry itself to restore ordinary chat.
+
 ## Create the shared NPC
 
 Use **+ npc** to open the NPC's block canvas. Keep the generated ID, and select Settings to edit name, description, sprites, wander radius and quest links. Add **Dialogue page**, **Player choice**, and **Greeting reaction** blocks from the palette. Select a page before adding its choices. Connect the Settings greeting output to the default page. Start with a stationary NPC while testing proximity and placement.
@@ -31,7 +39,7 @@ Each choice block supplies these controls. Reaction blocks retain their ordered 
 
 ## Keep quest services available
 
-The NPC's quest list and quest giver references connect normal quest offers to this NPC. Progress, delivery, and turn-in options continue to use the existing quest system. While a bound story is available it plays on the bump instead of the NPC's greeting, so those options wait until the story is finished, its binding conditions stop matching, or a story reaction chooses a dialogue page (below). A one-time story that has been completed stops overriding the NPC. A repeatable story keeps overriding it: give the binding conditions, or add a story reaction, when players should reach the normal chat again. A story that ends without showing a page falls back to the normal chat.
+The NPC's quest list and giver references connect ordinary quest offers to this NPC. A bound story suppresses those options while active, including waits and silent actions. Completed one-time stories release the NPC on a later interaction; repeatable stories need binding requirements to become ineligible. For legacy bindings, a page-only greeting reaction can choose a server conversation instead. An eligible NPC interaction block takes precedence over those reactions.
 
 Do not duplicate the same offer in several places unless that is deliberate. If the player can accept both through normal dialogue and through a flow, test entering the flow with the quest already active. The flow accept operation leaves an already active instance in place; later steps must still make sense for its current progress.
 

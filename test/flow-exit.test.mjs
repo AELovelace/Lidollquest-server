@@ -56,11 +56,11 @@ test('a story parked on a missing block still renders and can be left, instead o
  }finally{f.close();}
 });
 
-test('a bound story that shows no page on the bump falls back to the NPC chat',()=>{
+test('a bound story that completes silently still suppresses default chat on that interaction',()=>{
  const f=fixture();try{
   f.republish({repeatable:true,nodes:[{id:'start',type:'entry'},{id:'done',type:'end'}],edges:[{from:'start',port:'next',to:'done'}]},1); // e.g. a "flag already set" check that goes straight to End.
   const r=f.talk();assert.equal(r.flowScene,null,'nothing to show');
-  assert.equal(r.onlineQuests.conversation.text,'Hello','the normal greeting opens instead of an empty bump');
-  assert.ok(!r.onlineQuests.conversation.choices.some(v=>v.label==='Continue personal story'),'the silent story is not offered again as a button');
+  assert.equal(r.onlineQuests.conversation,null,'silent server actions own the interaction too');
+  assert.equal(r.npcInteraction.source,'server');
  }finally{f.close();}
 });

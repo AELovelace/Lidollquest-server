@@ -103,3 +103,16 @@ Claim once through the quest system. Add an explicit flow Reward only when it is
 GM-placed `token` objects appear in the game only for an active, incomplete `collect` objective with token enabled and a matching target ID. Any zone restriction and objective conditions must also match. Accept the quest first. Walk onto the token, click it while beside it, or press **E** beside it. Walking through it in a confirmed movement batch also collects it. A placement grants at most one token per accepted quest stage; clicking after walking cannot grant another. Collection hides that placement for the collecting character and leaves it available to other eligible characters. Abandoning or finishing the collection stage hides tokens that are no longer needed.
 
 The GM map retains every authored placement. If it is visible there but absent in the game, check the accepted quest's current stage, exact target ID, token checkbox, conditions and zone. Published changes do not rewrite already accepted quest definitions; test a changed quest with a fresh eligible character or fresh isolated test state. For count greater than one, place distinct tokens with the same content ID.
+
+## Minimap quest guide
+
+Players track one quest at a time. The minimap then shows a **gold** marker on the door, gate, pad or wall gap to take toward the objective, and a **blue** marker on the objective itself once they are in the right zone. Blue corners around the whole minimap mean "somewhere in this zone". The guide always follows the **first unfinished objective in the order you wrote them**, even in an "any" stage, so list objectives in the order players should walk them.
+
+To make the markers point well:
+
+- Talk, deliver and NPC turn-ins find the resident fixture or the published NPC's placement. A published NPC with no placement gets no marker.
+- Location visits, interacts, token collects and orbs point at their placement. If the same content ID is placed in several zones, the nearest one wins. Set the objective's zone to pin one.
+- **Kill objectives need a zone**, or the guide only looks in the zone the player is already in. With a zone it points at the nearest living monster of that kind.
+- Plain item collects, state, equipment and timer objectives have no place unless you give them a zone. Players then see only the HUD text.
+
+A route through a disabled Dive, or to a zone with no way in, shows "The way there is closed right now" instead of a marker. The **quest_guide** switch on the Loot tab (or **Minimap quest guide** on the in-game GM Combat page) hides every marker for everyone when set to 0. Tracking is kept, so setting it back to 1 restores the markers.

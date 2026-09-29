@@ -7,7 +7,7 @@ export function createFlowTests(db,{flows,now,build}){
  const running=new Map();
  const row=id=>db.prepare('SELECT * FROM story_flow_tests WHERE id=?').get(id??'');
  function reap(){for(const [id,test] of running){if((row(id)?.expires??0)>now())continue;test.api.close();test.db.close();running.delete(id);}db.prepare('DELETE FROM story_flow_tests WHERE expires<=?').run(now());}
- function create(id,owner,overrides={},entry=null){reap();const definition=flows.testDefinition(id);const key=randomUUID();if(entry!==null&&!definition.flow.nodes.some(n=>n.id===entry&&['entry','flag_entry','objective_entry'].includes(n.type)))fail('Choose an entry block for this test.');definition.entry=entry;
+ function create(id,owner,overrides={},entry=null){reap();const definition=flows.testDefinition(id);const key=randomUUID();if(entry!==null&&!definition.flow.nodes.some(n=>n.id===entry&&['entry','npc_entry','flag_entry','objective_entry'].includes(n.type)))fail('Choose an entry block for this test.');definition.entry=entry;
   if(!overrides||typeof overrides!=='object'||Array.isArray(overrides)||Object.keys(overrides).length>512||Object.entries(overrides).some(([id,value])=>typeof value!=='boolean'||!flows.flags().some(f=>f.id===id&&!f.retired)))fail('Choose defined flags and boolean values for test overrides.');definition.flags={...overrides};
   if(db.prepare('SELECT COUNT(*) AS n FROM story_flow_tests WHERE owner=? AND expires>?').get(owner,now()).n>=5)fail('End an existing test first (five sessions per GM).');
   db.prepare('INSERT INTO story_flow_tests VALUES (?,?,?,?,?)').run(key,owner,'',JSON.stringify(definition),now()+1800000);return {id:key,expires:now()+1800000};
