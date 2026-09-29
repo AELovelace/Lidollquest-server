@@ -98,6 +98,9 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
  function inspect(characterId){const c=db.prepare('SELECT id,name,state,revision FROM quest_characters WHERE id=?').get(characterId);if(!c)fail('Character not found.',404);const s=JSON.parse(c.state);return {character:{id:c.id,name:c.name,revision:c.revision},values:s.fullDungeon?.flags??{},definitions:flags(),references:Object.fromEntries(flags().map(f=>[f.id,references(f.id)]))};}
  live.setStoryReferenceCheck?.((kind,body)=>{
   const definitions=flags();function check(v){if(!v||typeof v!=='object')return;if(['all','any','none'].every(k=>Array.isArray(v[k])))for(const id of [...v.all,...v.any,...v.none])if(id.startsWith('story_')&&!definitions.some(f=>f.id===id&&!f.retired))fail('Unknown authored flag: '+id);for(const child of Object.values(v))check(child);}check(body);
+  if(kind==='quest')for(const stage of body.stages??[])for(const objective of stage.objectives??[])for(const id of objective.on_complete_flags??[]){
+   if(!definitions.some(f=>f.id===id&&!f.retired&&!f.engineOwned))fail('Unknown or retired objective completion flag: '+id,400);
+  } // The same check covers ordinary publication, shared bundles and rollback.
   if(body.retired&&list().some(f=>f.published&&!f.published.retired&&JSON.stringify(f.published).includes(JSON.stringify(body.id))))fail('Update or retire flows referencing this asset first.');
  }); // Advanced editors use the same flag and dependency checks as the workshop.
  function gm(input,actor){

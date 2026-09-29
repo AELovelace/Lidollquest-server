@@ -56,6 +56,8 @@ Do not invent a writable substitute with the same meaning and assume engine serv
 
 ## Place flag changes at the right point
 
+An individual quest objective can set flags directly: select it in the quest canvas and use **+ Set flag on completion**. Its attached **On completed → Set flag** action runs when that objective meets its requirements, without waiting for the stage or quest to finish. It runs once per accepted attempt, including passive timers and eligible party credit. Clearing the flag afterward does not rearm the same objective; a new repeat attempt can set it again. See [objective completion actions](quests.md#objective-completion-flags).
+
 Put success flags on the confirmed victory or completion route. Put claimed-reward flags after a successful Claim operation when the flag means the request is completely resolved. Defeat and retreat should only change flags when that is part of the intended story.
 
 Clearing a flag does not undo a reward, quest claim, completed flow, or orb read. Those systems keep their own receipts. For example, clearing `story_scout_rescued` cannot make a once-only quest claimable again. If you need a repeatable event, design both the quest repeat policy and the flow's repeat guard accordingly.

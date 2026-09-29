@@ -1,4 +1,4 @@
-import {storyFlagsMatch} from './story-flags.mjs';
+import {storyFlagsMatch,setStoryFlag} from './story-flags.mjs';
 import {stackable,slotsUsed,addToInventory} from './loadout.mjs'; // Reward capacity counts slots the way the bag does: stacks are free.
 import {refreshMana} from './magic-balance.mjs';
 import {randomUUID,createHash} from 'node:crypto';
@@ -100,8 +100,19 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
   db.prepare('INSERT INTO online_quests VALUES (?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state').run(q.id,c.id,key,q.revision,JSON.stringify(definition),JSON.stringify(q.state),q.created);evaluate(q,c,s);return q;
  } // Reaccepting an abandoned attempt resumes its original timer and progress instead of resetting eligibility.
  function transition(q,to){if(['complete','failed'].includes(to))q.state.status=to==='complete'?'ready':'failed';else{q.state.stage=to;q.state.status='active';q.state.stage_started=q.state.elapsed;}}
+ function completeObjective(q,stage,o,s){
+  const targets=o.on_complete_flags??[],key=stage.id+':'+o.id;if(!targets.length||q.state.completion_flags_applied?.[key])return;
+  // These targets were authorized at publication and belong to the pinned accepted definition.
+  // Retiring or editing live content must not change the promised effects of an existing attempt.
+  const definitions=targets.map(id=>({id}));for(const id of targets)setStoryFlag(s,id,true,definitions);
+  q.state.completion_flags_applied??={};q.state.completion_flags_applied[key]=true;
+ } // Store the receipt with quest progress: abandonment, retries and state rechecks cannot reapply it.
+ function savePassiveFlags(c,s,before){
+  if(before===JSON.stringify(s.fullDungeon?.flags))return;
+  db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(s),c.id);
+ } // Timers and nearby party credit have no player-command save; commit their flag changes in the caller's transaction.
  function evaluate(q,c,s,event=null){
-  if(q.state.status!=='active')return;const stage=q.definition.stages.find(v=>v.id===q.state.stage),progress=q.state.progress,grantedTokens=new Set();
+  if(q.state.status!=='active')return;const stage=q.definition.stages.find(v=>v.id===q.state.stage),progress=q.state.progress,grantedTokens=new Set(),completed=[];
   for(const o of stage.objectives){const key=stage.id+':'+o.id;if(!conditions(s,o.conditions)){if(['state','equipment','collect'].includes(o.type)&&!o.token)progress[key]=0;continue;}let count=progress[key]??0;
    if(o.type==='state')count=conditions(s,[o])?o.count:0;
    if(o.type==='equipment'){count=0;const p=s.loadout?.player_info??{};if(o.slot?p['equipped_'+o.slot]===o.target:Object.entries(p).some(([k,v])=>k.startsWith('equipped_')&&v===o.target))count=o.count;}
@@ -110,7 +121,9 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
    if(event&&o.token&&o.type==='collect'&&event.type==='collect'&&event.target===o.target&&(!o.zone||o.zone===event.zone)&&(!event.shared||o.sharing==='party')&&!grantedTokens.has(o.target)){q.state.tokens[o.target]=(q.state.tokens[o.target]??0)+1;grantedTokens.add(o.target);}
    if(event&&(!event.shared||o.sharing==='party')&&(!o.zone||o.zone===event.zone)&&event.type===o.type&&(!o.target||o.target===event.target)&&(!event.objective||event.objective===o.id))count+=event.count??1;
    progress[key]=Math.min(o.count,count);
+   if(progress[key]>=o.count)completed.push(o);
   }
+  for(const o of completed)completeObjective(q,stage,o,s); // Evaluate every objective against the same pre-effect flags before applying completion actions.
   const met=o=>(progress[stage.id+':'+o.id]??0)>=o.count;if(stage.mode==='any'?stage.objectives.some(met):stage.objectives.every(met)){if(stage.branches.length)q.state.status='choice';else transition(q,stage.next);}save(q);
  }
  function event(c,s,e){if(!db.prepare("SELECT 1 FROM online_quests WHERE character_id=? AND json_extract(state,'$.status')='active' LIMIT 1").get(c.id)&&!(parties.members(c.id).length))return;const p=position(c,s);e={...e,zone:e.zone??p?.zone,quests:e.quests??instances(c).filter(q=>q.state.status==='active').map(q=>q.quest)};for(const q of instances(c)){if(q.state.status!=='active'||(e.stage&&e.stage!==q.state.stage)||(e.quests&&!e.quests.includes(q.quest))||q.created>(e.created??now()))continue;const receipt=q.state.stage+':'+e.id;
@@ -121,7 +134,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
    }
    if(!db.prepare('INSERT OR IGNORE INTO online_quest_events VALUES (?,?)').run(q.id,receipt).changes)continue;evaluate(q,c,s,e);}
 
-  if(e.shared||e.type==='kill'||!p)return;for(const other of parties.members(c.id)){if(other.id===c.id)continue;const state=JSON.parse(other.state),op=position(other,state);if(op&&op.seen>now()-30000&&op.zone===p.zone&&op.edition===p.edition&&Math.abs(op.x-p.x)+Math.abs(op.y-p.y)<=8)event(other,state,{...e,shared:true});}
+  if(e.shared||e.type==='kill'||!p)return;for(const other of parties.members(c.id)){if(other.id===c.id)continue;const state=JSON.parse(other.state),op=position(other,state);if(op&&op.seen>now()-30000&&op.zone===p.zone&&op.edition===p.edition&&Math.abs(op.x-p.x)+Math.abs(op.y-p.y)<=8){const before=JSON.stringify(state.fullDungeon?.flags);event(other,state,{...e,shared:true});savePassiveFlags(other,state,before);}}
  } // Each durable gameplay event can affect an accepted instance at most once, including after restart.
  function advance(c,s,key,branch){const q=active(c,key);if(!q||q.state.status!=='choice')fail('This quest is not awaiting a choice.');const b=q.definition.stages.find(v=>v.id===q.state.stage).branches.find(b=>b.id===branch);if(!b||!conditions(s,b.conditions))fail('That branch is unavailable.');q.state.branch.push(b.id);transition(q,b.to);save(q);}
  function claim(c,s,key,source){const q=active(c,key);if(!q||q.state.status!=='ready')fail('This quest is not ready to turn in.');if(q.definition.turn_in.mode==='npc'&&source!==q.definition.turn_in.npc)fail('Return to the designated NPC.');if(!s.loadout)fail('Load this character before claiming rewards.');
@@ -165,7 +178,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
   if(op==='quest_advance'){
    if(current.state.status!=='active')fail(current.state.status==='choice'?'Pick a branch in the journal to continue.':'That quest is already ready to turn in.');
    const stage=current.definition.stages.find(v=>v.id===current.state.stage);
-   for(const o of stage.objectives)current.state.progress[stage.id+':'+o.id]=o.count; // Mark every objective of this stage met.
+   for(const o of stage.objectives){current.state.progress[stage.id+':'+o.id]=o.count;completeObjective(current,stage,o,s);} // Forced stage advancement completes its objectives and their actions; skipping the whole quest does not.
    if(stage.branches.length)current.state.status='choice';else transition(current,stage.next); // Same exit rule evaluate() applies to a naturally finished stage.
    save(current);evaluate(current,c,s); // The next stage may already be satisfied by the character's current state.
    return current.definition.name;
@@ -244,5 +257,5 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
  function flowObjective(c,key){return instances(c).some(q=>q.quest===key&&['ready','claimed'].includes(q.state.status));}
  return {placements,visiblePlacements,act,after,event,flow,flowObjective,snapshot,conditions,gm,gmCatalog,detail(c,s,id){const q=instances(c).find(q=>q.id===id||q.quest===id);if(!q)fail('Quest not found.',404);return publicQuest(q,s);},tick(){const full=now()>=nextQuestSweep;if(full)nextQuestSweep=now()+30000; // Offline characters' online timers cannot advance (elapsed stops at seen+30 s), so they only need the 30 s sweep; after() still ticks them on their next action.
   const rows=full?db.prepare("SELECT DISTINCT c.* FROM quest_characters c JOIN online_quests q ON q.character_id=c.id WHERE json_extract(q.state,'$.status') IN ('active','choice')").all():db.prepare("SELECT DISTINCT c.* FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id JOIN online_quests q ON q.character_id=c.id WHERE p.seen>? AND json_extract(q.state,'$.status') IN ('active','choice')").all(now()-30000); // Every second: only characters seen in the last 30 s.
-  for(const c of rows)tickCharacter(c,JSON.parse(c.state));placements.tick();}};
+  for(const c of rows){const state=JSON.parse(c.state),before=JSON.stringify(state.fullDungeon?.flags);tickCharacter(c,state);savePassiveFlags(c,state,before);}placements.tick();}};
 }

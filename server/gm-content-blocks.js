@@ -2,7 +2,7 @@
 // These cards are authoring views, never new executable flow node types.
 let workspace=null;
 const contentKinds=['quest','npc','orb'];
-const blockNames={root:'Settings',stage:'Quest stage',objective:'Objective',branch:'Quest branch',page:'Dialogue page',action:'Player choice',reaction:'Greeting reaction',complete:'Rewards / complete',failed:'Quest failed',close:'End conversation'};
+const blockNames={root:'Settings',stage:'Quest stage',objective:'Objective',completion_flags:'Set flag on completion',branch:'Quest branch',page:'Dialogue page',action:'Player choice',reaction:'Greeting reaction',complete:'Rewards / complete',failed:'Quest failed',close:'End conversation'};
 function contentAsset(){return workspace?assets.find(a=>a.kind===workspace.kind&&a.id===workspace.id):null;}
 function graph(){return contentAsset()?contentGraph():flow;} // Existing canvas gestures share the active graph's positions.
 function contentGraph(){
@@ -20,7 +20,9 @@ function contentGraph(){
   stages.forEach((s,i)=>{
    const stage=add('stage:'+s.id,'stage',s,d,320+i*650,0);
    if(!s.branches?.length)link(stage,'next',dest(s.next),to=>{s.next=to.role==='stage'?to.data.id:to.role;});
-   (s.objectives??[]).forEach((o,j)=>{const n=add(stage.id+':objective:'+o.id,'objective',o,s,stage.x,260+j*240);n.label=(o.token?'Token ':o.type==='collect'?'Pickup ':'')+(o.text||o.type+' '+(o.target||''));link(stage,'objective '+(j+1),n.id);});
+   (s.objectives??[]).forEach((o,j)=>{const n=add(stage.id+':objective:'+o.id,'objective',o,s,stage.x,260+j*240);n.label=(o.token?'Token ':o.type==='collect'?'Pickup ':'')+(o.text||o.type+' '+(o.target||''));link(stage,'objective '+(j+1),n.id);
+    if(o.on_complete_flags?.length){const effect=add(n.id+':completion','completion_flags',{text:o.on_complete_flags.map(id=>cat.flags.find(f=>f.id===id)?.name??id).join('\n')},o,n.x+260,n.y+120);link(n,'on completed',effect.id);}
+   }); // Completion actions stay visibly attached to their objective, independent of the stage's exit route.
    (s.branches??[]).forEach((b,j)=>{const n=add(stage.id+':branch:'+b.id,'branch',b,s,stage.x+280,260+j*240);link(stage,b.label||'branch',n.id);link(n,'next',dest(b.to),to=>{b.to=to.role==='stage'?to.data.id:to.role;});});
   });
   add('complete','complete',d.rewards??{},d,320+stages.length*650,0);
@@ -53,11 +55,18 @@ function openContent(a){
 function closeContent(){workspace=null;activeAsset=null;pending=null;issues=[];selected.clear();const url=new URL(location.href);for(const key of ['kind','id','new'])url.searchParams.delete(key);window.history.replaceState(null,'',url);library();draw();properties();}
 function contentPalette(){
  const kind=contentAsset().kind;
- return kind==='quest'?{stage:'Quest stage',objective:'Objective',pickup:'Collect item pickup',token:'Collect quest token',delivery:'Deliver quest token',branch:'Quest branch'}:
+ return kind==='quest'?{stage:'Quest stage',objective:'Objective',pickup:'Collect item pickup',token:'Collect quest token',delivery:'Deliver quest token',completion_flags:'Set flag on completion',branch:'Quest branch'}:
   kind==='npc'?{page:'Dialogue page',action:'Player choice',reaction:'Greeting reaction'}:{page:'Narrative page'};
 }
 function contentAdd(type,x,y,target=''){
  const a=contentAsset(),d=a.entry,g=contentGraph(),n=g.nodes.find(n=>selected.has(n.id));
+ if(type==='completion_flags'){
+  if(!['objective','completion_flags'].includes(n?.role))throw Error('Select the objective that should set this flag.');
+  const o=n.role==='objective'?n.data:n.parent,flag=cat.flags.find(f=>!f.engineOwned&&!f.retired&&f.id.startsWith('story_')&&!o.on_complete_flags?.includes(f.id));
+  if(!flag)throw Error('Create another authored flag in Flag library first.');
+  if((o.on_complete_flags?.length??0)>=16)throw Error('An objective can set up to 16 flags.');
+  checkpoint();o.on_complete_flags??=[];o.on_complete_flags.push(flag.id);selected=new Set([n.role==='objective'?n.id+':completion':n.id]);changed();properties();return;
+ } // Adding this action requires an explicit owning objective, just like choices require a page.
  const parent=n?.role==='stage'||n?.role==='page'?n.data:n?.parent;
  if(['objective','pickup','token','delivery','branch'].includes(type)&&!d.stages?.includes(parent))throw Error('Select the quest stage that should own this block first.');
  if(type==='action'&&!d.dialogue?.includes(parent))throw Error('Select the dialogue page for this choice first.');
@@ -121,6 +130,7 @@ function contentProperties(){
   el('p','Add stages, pages, objectives and choices using the blocks on the left.',host).className='hint';
   if(['npc','orb'].includes(a.kind))button(host,'Save and copy pages to a story flow',async()=>{await saveAssetBundle(false);closeContent();seed(a);});
  }else if(n.role==='objective')objectiveProperties(host,n.data);
+ else if(n.role==='completion_flags')completionFlagProperties(host,n.parent);
  else if(n.role==='complete')form(host,n.data);
  else if(n.role==='failed')field(host,'Failure message',d,'failure_text','textarea');
  else if(n.role!=='close'){
@@ -141,7 +151,8 @@ function contentProperties(){
   const state={to:g.edges.find(e=>e.from===n.id&&e.port===output.id)?.to??''};const input=field(host,'Connect '+output.id,state,'to','text',[{id:'',name:'Choose destination'},...choices.map(v=>({id:v.id,name:v.role==='page'?v.label+' · '+(v.text||'Empty page').slice(0,45):v.label}))]);
   input.onchange=()=>attempt(()=>{pending={from:n.id,port:output.id};contentConnect(input.value);});
  }
- if(n.role==='stage')for(const [type,label] of Object.entries(contentPalette()).filter(([k])=>k!=='stage'))button(host,'+ '+label,()=>contentAdd(type));
+ if(n.role==='stage')for(const [type,label] of Object.entries(contentPalette()).filter(([k])=>!['stage','completion_flags'].includes(k)))button(host,'+ '+label,()=>contentAdd(type));
+ if(n.role==='completion_flags')button(host,'Delete completion action',contentRemove);
  if(n.role==='page'&&a.kind==='npc')button(host,'+ Player choice',()=>contentAdd('action'));
  if(n.role==='reaction'){const index=d.story_reactions.indexOf(n.data);button(host,'Move reaction earlier',()=>{if(index>0){checkpoint();[d.story_reactions[index-1],d.story_reactions[index]]=[d.story_reactions[index],d.story_reactions[index-1]];selected=new Set(['reaction:'+(index-1)]);changed();properties();}});}
  if(['stage','objective','branch','page','action','reaction'].includes(n.role)){button(host,'Duplicate block',contentDuplicate);button(host,'Delete block',contentRemove);}
@@ -165,9 +176,19 @@ function objectiveProperties(host,o){
  if(o.type==='equipment')field(host,'Equipment slot (empty = any)',o,'slot');
  if(o.type==='state'){field(host,'Character field',o,'field','text',cat.records.questCatalog.stateFields);field(host,'Comparison',o,'op','text',['gte','lte','eq']);field(host,'Required value',o,'value','number');}
  o.conditions??=[];arrayForm(host,o,'conditions');
+ completionFlagProperties(host,o);
  if(o.token||['interact','visit'].includes(o.type))button(host,'Show / place objective on map',()=>openMap(o.target,{kind:o.token?'token':o.type==='visit'?'location':'interact',zone:o.zone||undefined,content:o.target,name:o.text||o.target}));
  if(o.token)el('p','Accept the quest before collecting. Each placement counts once per stage; place distinct tokens for a count above one.',host).className='hint';
 }
+function completionFlagProperties(host,o){
+ const box=el('fieldset',undefined,host);el('legend','On completed → Set flag',box);
+ el('p','Sets these flags to true the first time this objective is met, without waiting for the stage or reward claim. Create flags in Flag library.',box).className='hint';
+ for(let i=0;i<(o.on_complete_flags?.length??0);i++){
+  contentSelect(box,'Completion flag '+(i+1),o.on_complete_flags,i,cat.flags.filter(f=>!f.engineOwned&&!f.retired&&f.id.startsWith('story_')));
+  button(box,'Remove completion flag '+(i+1),()=>{checkpoint();o.on_complete_flags.splice(i,1);if(!o.on_complete_flags.length)delete o.on_complete_flags;changed();properties();});
+ }
+ button(box,'+ Set flag on completion',()=>contentAdd('completion_flags'));
+} // Both the objective inspector and its connected action block edit the same canonical target list.
 function contentReferences(host,label,obj,key,options){
  const box=el('fieldset',undefined,host);el('legend',label,box);
  for(let i=0;i<obj[key].length;i++){contentSelect(box,label+' '+(i+1),obj[key],i,options);button(box,'Remove '+(i+1),()=>{checkpoint();obj[key].splice(i,1);changed();properties();});}
@@ -176,7 +197,7 @@ function contentReferences(host,label,obj,key,options){
 function contentRemove(){
  const a=contentAsset(),d=a.entry,g=contentGraph(),targets=g.nodes.filter(n=>selected.has(n.id));
  if(pending){say('Reconnect this route to another stage or an ending. Ownership links are removed by deleting their child block.');pending=null;return;}
- if(targets.length!==1)throw Error('Select one content block to delete.');const n=targets[0];if(!['stage','objective','branch','page','action','reaction'].includes(n.role))throw Error('Settings and ending blocks stay in the content graph.');
+ if(targets.length!==1)throw Error('Select one content block to delete.');const n=targets[0];if(n.role==='completion_flags'){checkpoint();delete n.parent.on_complete_flags;selected=new Set([n.id.slice(0,-':completion'.length)]);changed();properties();return;}if(!['stage','objective','branch','page','action','reaction'].includes(n.role))throw Error('Settings and ending blocks stay in the content graph.');
  checkpoint();
  if(n.role==='stage'){
   const replacement=!n.data.branches?.length&&n.data.next!==n.data.id?n.data.next:'complete';d.stages=d.stages.filter(s=>s!==n.data);
@@ -207,6 +228,7 @@ function checkContentBlocks(report=true){
    if(!Number.isSafeInteger(n.data.count)||n.data.count<1)problem(n,'Use a positive whole-number count.');
    if(!['state','timer'].includes(n.data.type)&&!n.data.target&&!n.data.zone)problem(n,'Choose the objective target.');
    if(n.data.type==='deliver'&&!n.data.npc)problem(n,'Choose a delivery NPC.');
+   for(const id of n.data.on_complete_flags??[])if(!cat.flags.some(f=>f.id===id&&!f.retired&&!f.engineOwned&&id.startsWith('story_')))problem(n,'Choose an active authored completion flag.');
   }
   if(n.role==='action'&&n.data.effect!=='none'&&!n.data.quest)problem(n,'Choose the quest for this action.');
  }

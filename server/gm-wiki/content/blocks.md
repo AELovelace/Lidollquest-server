@@ -61,6 +61,8 @@ All operations have `next`. They do not bypass eligibility, inventory capacity, 
 
 ## Wait for objective
 
+For an action tied to one objective, open the quest's own canvas, select that objective and add **Set flag on completion**. This attaches an **On completed → Set flag** action and does not need a running story flow. It is separate from the whole-quest wait described below. See [objective completion actions](quests.md#objective-completion-flags).
+
 Choose Wait for `quest` to wait until the referenced quest has status ready or claimed. This is whole-quest readiness, not an arbitrary per-objective polling expression. Choose Wait for `flag` to wait for the configured flag condition. Output is `complete`.
 
 The player can explore while waiting. Design an actual way for the requirement to become true: an available quest target, a world interaction, or a committed action from another allowed gameplay path. Do not put the only Set flag that satisfies the wait after the wait itself.

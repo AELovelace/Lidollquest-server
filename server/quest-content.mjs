@@ -11,6 +11,10 @@ const list=(v,max=64)=>Array.isArray(v)&&v.length<=max?v:fail(`Use at most ${max
 const choose=(v,values)=>values.includes(v)?v:fail('Unknown quest option: '+v);
 const unique=rows=>{if(new Set(rows.map(r=>r.id)).size!==rows.length)fail('IDs must be unique.');return rows;};
 export function validateConditions(value=[]){return list(value,16).map(c=>c.flags?{flags:validateFlagCondition(c.flags)}:{field:choose(c.field,stateFields),op:choose(c.op??'gte',['gte','lte','eq']),value:num(c.value,-1000000),...(c.item?{item:id(c.item)}:{})});}
+export function validateObjectiveFlags(value){
+ const flags=list(value,16);if(flags.some(flag=>typeof flag!=='string'||!/^story_[a-z0-9_]{1,74}$/.test(flag)))fail('Objective completion can only set authored story_ flags.');
+ return [...new Set(flags)];
+} // Drafts retain a bounded list of authored IDs; publication checks their active definitions.
 export function validateQuestContent(kind,v,{assetRef,spells,equipment}){
  const out={id:id(v.id),name:text(v.name??'',100),description:text(v.description??''),retired:!!v.retired};
  if(kind==='npc'){
@@ -28,7 +32,7 @@ export function validateQuestContent(kind,v,{assetRef,spells,equipment}){
   out.timer={mode:choose(v.timer?.mode??'online',['online','realtime']),seconds:num(v.timer?.seconds??0,0,31536000)};
   out.turn_in={mode:choose(v.turn_in?.mode??'npc',['npc','journal']),npc:v.turn_in?.npc?text(v.turn_in.npc,160):''};
   out.givers=list(v.givers??[],32).map(x=>text(x,160));
-  out.stages=unique(list(v.stages??[],64).map(s=>({id:id(s.id),name:text(s.name??'',100),text:text(s.text??''),mode:choose(s.mode??'all',['all','any']),next:s.next??'complete',objectives:unique(list(s.objectives??[],32).map(o=>({id:id(o.id),type:choose(o.type,objectiveTypes),text:text(o.text??'',500),target:text(o.target??'',160),npc:text(o.npc??'',160),zone:text(o.zone??'',100),count:num(o.count??1,1),sharing:choose(o.sharing??'personal',['personal','party']),conditions:validateConditions(o.conditions),...(o.type==='state'?{field:choose(o.field,stateFields),op:choose(o.op??'gte',['gte','lte','eq']),value:num(o.value??0,-1000000)}:{}),...(o.type==='equipment'?{slot:text(o.slot??'',40)}:{}),token:!!o.token}))),branches:unique(list(s.branches??[],8).map(b=>({id:id(b.id),label:text(b.label??'',160),to:b.to??'complete',conditions:validateConditions(b.conditions)})))})));
+  out.stages=unique(list(v.stages??[],64).map(s=>({id:id(s.id),name:text(s.name??'',100),text:text(s.text??''),mode:choose(s.mode??'all',['all','any']),next:s.next??'complete',objectives:unique(list(s.objectives??[],32).map(o=>({id:id(o.id),type:choose(o.type,objectiveTypes),text:text(o.text??'',500),target:text(o.target??'',160),npc:text(o.npc??'',160),zone:text(o.zone??'',100),count:num(o.count??1,1),sharing:choose(o.sharing??'personal',['personal','party']),conditions:validateConditions(o.conditions),...(o.type==='state'?{field:choose(o.field,stateFields),op:choose(o.op??'gte',['gte','lte','eq']),value:num(o.value??0,-1000000)}:{}),...(o.type==='equipment'?{slot:text(o.slot??'',40)}:{}),token:!!o.token,...(o.on_complete_flags!==undefined?{on_complete_flags:validateObjectiveFlags(o.on_complete_flags)}:{})}))),branches:unique(list(s.branches??[],8).map(b=>({id:id(b.id),label:text(b.label??'',160),to:b.to??'complete',conditions:validateConditions(b.conditions)})))})));
   const names=new Set(out.stages.map(s=>s.id)),visited=new Set(),active=new Set();
   function walk(key){if(key==='complete'||key==='failed')return;if(!names.has(key))fail('Stage destination does not exist.');if(active.has(key))fail('Quest stages cannot form a cycle.');if(visited.has(key))return;active.add(key);const s=out.stages.find(v=>v.id===key);for(const next of s.branches.length?s.branches.map(b=>b.to):[s.next])walk(next);active.delete(key);visited.add(key);}
   if(out.stages.length){walk(out.stages[0].id);if(visited.size!==names.size)fail('Every stage must be reachable.');}

@@ -40,6 +40,16 @@ Set next to another stage ID, `complete`, or `failed`. Every stage must be reach
 
 `complete` means the quest is **ready to claim**. It does not mean the player has received rewards. This distinction matters for prerequisite quests, flags that represent a fully completed request, and flow waits.
 
+## Objective completion flags
+
+Create an authored flag in **Flag library**, select the objective block, then choose **+ Set flag on completion**. Pick the flag in the attached action's inspector; up to 16 authored flags can be set. The objective and action stay connected on the quest canvas, and deleting the action removes its effects. Save and publish the content, then accept a new quest to test it.
+
+These flags become true when that individual objective meets its count and conditions. Other objectives may still be unfinished, and rewards need not be claimed. No active story flow is needed. State, equipment and item objectives that are already met may fire on acceptance. In an `any` stage, uncompleted objectives do not fire.
+
+The effect runs once per objective per accepted attempt. Repeated events, reconnects, server restarts, and abandoning/resuming the same attempt keep that receipt. Clearing the flag later does not make the same objective set it again. A new repeat attempt can run it again. Timers and eligible party members persist their own effects. Existing accepted quests keep their pinned action lists when new content is published. GM Advance stage completes its objective actions; Complete quest skips the remaining actions.
+
+Only active authored `story_...` flags can be selected and published. Engine achievements remain protected. Use a story flow's Set flag after Claim when the flag must mean the reward has actually been claimed. The **Wait for objective** flow block still waits for the whole quest to become ready or claimed.
+
 ## Objective reference
 
 | Type | What completes it | Target and authoring notes |

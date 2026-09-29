@@ -8,6 +8,8 @@ import {hubData} from '../server/hubs.mjs';
 import {combatData} from '../server/combat.mjs';
 const npc={id:'guide_npc',name:'Guide',description:'A friendly guide',dialogue:[{id:'hello',text:'Welcome!',next:'close',actions:[]}],quests:[]};
 const quest=(extra={})=>({id:'first_quest',name:'First quest',description:'Explore together',givers:['guide_npc'],turn_in:{mode:'journal'},stages:[{id:'start',name:'Explore',objectives:[{id:'arrive',type:'visit',target:'honeydew-lantern',count:1}],next:'complete'}],rewards:{xp:5,coins:10,rpp:3,stats:{cha:1}},...extra});
+const authorObjectiveFlag=(f,id,retired=false)=>f.api.world.flows.gm({action:'flow_flag_save',revision:f.api.world.flows.flags().find(v=>v.id===id)?.revision??0,entry:{id,name:id,retired}},'dm');
+const objectiveCharacter=(f,id=f.c.id)=>JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(id).state);
 function fixture(){const db=new DatabaseSync(':memory:'),live=createWorldContent(db,{spells:combatData.spells,equipment:hubData.equipment}),paid=[];let time=Date.parse('2026-09-19T12:00:00Z'),api,c,last;
  const start=()=>api=createQuestZones(db,{live,now:()=>time,roll:()=>0,grant:()=>({owner:'alice',id:'grant',client:'lidollquest'}),wallet:()=>({coins:0}),adjust:(...args)=>paid.push(args),diveOptions:{log:()=>{}}});start();
  const command=(action,extra={})=>({action,controller:'control',request_id:randomUUID(),character_id:c?.id,revision:c?.revision,...extra});
@@ -251,4 +253,69 @@ test('wandering NPCs step once per 2 s slot, stay inside their radius, and pause
  const paused=where();assert.deepEqual({x:paused.x,y:paused.y,step:paused.step},{x:talking.x,y:talking.y,step:talking.step},'a held NPC neither moves nor spends its slot');
  f.db.prepare('DELETE FROM online_conversations').run();f.advance(100);f.api.tick(); // Conversation ends inside the same 2 s slot.
  assert.notEqual(where().step,paused.step,'the paused NPC is retried in the same slot once released');
+}finally{f.close();}});
+
+test('objective completion flags fire before stage completion and stay once-only after clear, restart and resume',()=>{const f=fixture();try{
+ const flag='story_objective_done';authorObjectiveFlag(f,flag);
+ f.publish('quest',quest({stages:[{id:'start',objectives:[{id:'healthy',type:'state',field:'health',value:1,on_complete_flags:[flag]},{id:'later',type:'timer',count:10000}],next:'complete'}]}));
+ acceptQuest(f,{quest:'first_quest'});assert.equal(f.last.onlineQuests.instances[0].status,'active');assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],true);
+ const q=JSON.parse(f.db.prepare('SELECT state FROM online_quests WHERE quest=?').get('first_quest').state);assert.equal(q.completion_flags_applied['start:healthy'],true);
+ const row=f.db.prepare('SELECT revision FROM quest_characters WHERE id=?').get(f.c.id);
+ f.api.world.flows.gm({action:'flow_flag_set',character_id:f.c.id,revision:row.revision,flag,value:false},'dm');
+ f.act('heartbeat',{revision:row.revision+1});assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],false,'A satisfied predicate must not undo a later clear action');
+ f.restart();f.act('heartbeat');assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],false);
+ f.act('quest_abandon',{quest:'first_quest'});acceptQuest(f,{quest:'first_quest'});assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],false,'Resuming the same attempt retains the receipt');
+}finally{f.close();}});
+
+test('objective completion flags respect token thresholds, any-stage completion and pinned accepted actions',()=>{const f=fixture();try{
+ const flag='story_collected',replacement='story_changed',skipped='story_not_completed';for(const id of [flag,replacement,skipped])authorObjectiveFlag(f,id);
+ const d=quest({stages:[{id:'gather',mode:'any',objectives:[{id:'stars',type:'collect',target:'stars',token:true,count:2,on_complete_flags:[flag]},{id:'never',type:'timer',count:10000,on_complete_flags:[skipped]}],next:'complete'}]});
+ f.publish('quest',d);const first=place(f,'token','stars').placements.find(p=>p.kind==='token'),map=place(f,'token','stars'),second=map.placements.find(p=>p.kind==='token'&&p.id!==first.id);acceptQuest(f,{quest:'first_quest'});
+ d.stages[0].objectives[0].on_complete_flags=[replacement];f.publish('quest',d);authorObjectiveFlag(f,flag,true); // Live retirement does not rewrite the accepted, authorized target list.
+ beside(f,first);f.act('quest_interact',{placement:first.id,edition:map.edition});assert.equal(objectiveCharacter(f).fullDungeon?.flags?.[flag],undefined);
+ beside(f,second);const cmd=f.command('quest_interact',{placement:second.id,edition:map.edition});f.send(cmd);f.send(cmd);
+ assert.equal(f.last.onlineQuests.instances[0].status,'ready');const flags=objectiveCharacter(f).fullDungeon.flags;assert.equal(flags[flag],true);assert.equal(flags[replacement],undefined);assert.equal(flags[skipped],undefined,'Completing an any-stage never completes its other objectives');
+ assert.equal(JSON.parse(f.db.prepare('SELECT state FROM online_quests WHERE quest=?').get(d.id).state).completion_flags_applied['gather:stars'],true);
+}finally{f.close();}});
+
+test('objective completion flags from passive timers persist character revisions and grant again on a new repeat attempt',()=>{const f=fixture();try{
+ const flag='story_timer_done';authorObjectiveFlag(f,flag);
+ f.publish('quest',quest({repeat:'cooldown',cooldown_seconds:1,stages:[{id:'wait',objectives:[{id:'clock',type:'timer',count:5,on_complete_flags:[flag]}],next:'complete'}]}));acceptQuest(f,{quest:'first_quest'});
+ const before=f.db.prepare('SELECT revision FROM quest_characters WHERE id=?').get(f.c.id).revision;f.advance(6000);f.api.tick();
+ assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],true);assert.equal(f.db.prepare('SELECT revision FROM quest_characters WHERE id=?').get(f.c.id).revision,before+1);
+ f.restart();assert.equal(f.c.fullDungeon.flags[flag],true);f.act('quest_claim',{quest:'first_quest'});
+ const row=f.db.prepare('SELECT revision FROM quest_characters WHERE id=?').get(f.c.id);f.api.world.flows.gm({action:'flow_flag_set',character_id:f.c.id,revision:row.revision,flag,value:false},'dm');f.restart();f.advance(2000);
+ acceptQuest(f,{quest:'first_quest'});assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],false);f.advance(6000);f.api.tick();assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],true);
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM online_quests WHERE quest=?').get('first_quest').n,2);
+}finally{f.close();}});
+
+test('objective completion flags persist for eligible nearby party members and exclude distant members',()=>{const f=fixture();try{
+ const flag='story_party_token';authorObjectiveFlag(f,flag);
+ const map=place(f,'token','parcel'),token=map.placements.find(p=>p.kind==='token');
+ f.publish('quest',quest({stages:[{id:'find',objectives:[{id:'parcel',type:'collect',target:'parcel',token:true,sharing:'party',on_complete_flags:[flag]}],next:'complete'}]}));acceptQuest(f,{quest:'first_quest'});beside(f,token);
+ const q=f.db.prepare('SELECT * FROM online_quests WHERE quest=?').get('first_quest'),pos=f.db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(f.c.id);
+ f.db.prepare('INSERT INTO quest_parties VALUES (?,?,?)').run('flag-party',f.c.id,0);f.db.prepare('INSERT INTO quest_party_members VALUES (?,?,?)').run(f.c.id,'flag-party',0);
+ for(const [id,offset] of [['near-friend',2],['far-friend',30]]){
+  f.db.prepare('INSERT INTO quest_characters VALUES (?,?,?,?,?,?,?)').run(id,id,id,0,0,JSON.stringify(objectiveCharacter(f)),id+'-create');
+  f.db.prepare('INSERT INTO online_quests VALUES (?,?,?,?,?,?,?)').run(id+'-quest',id,q.quest,q.revision,q.definition,q.state,q.created);
+  f.db.prepare('INSERT INTO quest_presence(owner,character_id,zone,grant_id,controller,x,y,seen,moved) VALUES (?,?,?,?,?,?,?,?,?)').run(id,id,pos.zone,id,id,token.x+offset,token.y,pos.seen,pos.moved);
+  f.db.prepare('INSERT INTO quest_party_members VALUES (?,?,?)').run(id,'flag-party',0);
+ }
+ const cmd=f.command('quest_interact',{placement:token.id,edition:map.edition});f.send(cmd);f.send(cmd);
+ assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],true);assert.equal(objectiveCharacter(f,'near-friend').fullDungeon.flags[flag],true);assert.equal(objectiveCharacter(f,'far-friend').fullDungeon?.flags?.[flag],undefined);
+ const receipt=JSON.parse(f.db.prepare('SELECT state FROM online_quests WHERE id=?').get('near-friend-quest').state);assert.equal(receipt.completion_flags_applied['find:parcel'],true);
+ assert.equal(f.db.prepare('SELECT revision FROM quest_characters WHERE id=?').get('near-friend').revision,1);
+ f.restart();assert.equal(objectiveCharacter(f,'near-friend').fullDungeon.flags[flag],true);
+}finally{f.close();}});
+
+test('objective completion flags validate authored references on publish and rollback, and prevent referenced flag retirement',()=>{const f=fixture();try{
+ const flag='story_valid_completion';authorObjectiveFlag(f,flag);authorObjectiveFlag(f,'story_retired_completion',true);
+ const d=quest(),o=d.stages[0].objectives[0];
+ for(const value of [['school_graduated'],['__proto__'],['story_'],['story_invalid-flag'],'story_wrong_type',Array(17).fill(flag)]){o.on_complete_flags=value;assert.throws(()=>f.publish('quest',d),/authored|entries/);}
+ for(const value of ['story_missing_completion','story_retired_completion']){o.on_complete_flags=[value];assert.throws(()=>f.publish('quest',d),/Unknown or retired objective completion flag/);}
+ o.on_complete_flags=[flag,flag];const saved=f.publish('quest',d);assert.deepEqual(saved.draft.stages[0].objectives[0].on_complete_flags,[flag]);
+ assert.ok(f.api.world.flows.references(flag).some(r=>r.kind==='quests'&&r.id===d.id));assert.throws(()=>authorObjectiveFlag(f,flag,true),/Remove the flag/);
+ delete o.on_complete_flags;const clean=f.publish('quest',d);authorObjectiveFlag(f,flag,true);
+ assert.throws(()=>f.live.change({action:'content_rollback',kind:'quest',id:d.id,revision:clean.revision,target_revision:saved.revision},'dm'),/Unknown or retired objective completion flag/);
+ assert.equal(f.live.published().quests[d.id].stages[0].objectives[0].on_complete_flags,undefined);
 }finally{f.close();}});
