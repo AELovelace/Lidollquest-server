@@ -3,7 +3,6 @@ import {resolve, join, dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {randomUUID} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
-import {availableParallelism} from 'node:os';
 import {validateEnvironment, activateRelease} from './release.mjs';
 
 const ROOT = '/opt/lidollquest-server', CONFIG = '/etc/lidollquest', DATA = '/var/lib/lidollquest-server';
@@ -102,7 +101,7 @@ async function main() { // Prepare configuration first; require a usable reward 
   run('/usr/bin/chown', ['nobody', testDir]);
   const tests = readdirSync(join(release, 'test')).filter(name => name.endsWith('.test.mjs')).map(name => join(release, 'test', name));
   if (!tests.length) throw Error('Candidate contains no tests.');
-  const concurrency = Math.max(1, Number.parseInt(process.env.LIDOLLQUEST_TEST_CONCURRENCY, 10) || Math.max(2, Math.floor(availableParallelism() / 4))); // Each test file boots a whole service plus compute workers beside the live server; the default cores-1 fan-out starved event loops past the 5 s/10 s request timeouts (ECONNRESET).
+  const concurrency = Math.max(1, Number.parseInt(process.env.LIDOLLQUEST_TEST_CONCURRENCY, 10) || 4); // Run four test files at once by default; retain the environment override for host-specific tuning.
   run('/usr/sbin/runuser', ['-u', 'nobody', '--', NODE, '--test', `--test-concurrency=${concurrency}`, ...tests], {cwd: testDir});
   console.log(`Test artifacts: ${testDir}`);
   if (!existsSync(unitPath)) { writeFileSync(unitPath, unit, {flag: 'wx', mode: 0o644}); chmodSync(unitPath, 0o644); }

@@ -823,6 +823,8 @@ sudo bash deploy/fedora-deploy.sh
 Each run tests a new immutable release under `/opt/lidollquest-server/releases`
 as `nobody`, then stops only the quest service, creates a private backup under
 `/var/backups/lidollquest-server`, and atomically switches `current`.
+Tests run four files simultaneously by default. Override with
+`sudo env LIDOLLQUEST_TEST_CONCURRENCY=2 bash deploy/fedora-deploy.sh` when needed.
 Tests use separate temporary data; the optional tracker integration test skips
 when no adjacent test checkout is available. Running the installer from the
 installed `current` directory redeploys that same code; it does not download
