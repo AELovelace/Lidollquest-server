@@ -10,17 +10,19 @@ A story flag is a true-or-false fact about one online character. It survives tra
 
 ## Define a flag
 
-Open **Flag library**. Enter a stable ID beginning with `story_`, a readable name, and a description. For example:
+Click **+ flag** beside **+ npc**, or **+ New flag** at the top of **Flag library**. Give it a name and optional description, then click **Create flag**. The editor generates a unique `story_...` ID for you. You can customize it under **Advanced · stable ID** before saving; existing IDs are read-only. For example:
 
 | Field | Example |
 | --- | --- |
-| New flag ID | `story_scout_rescued` |
-| Readable name | Rescued the scout |
+| Stable ID (optional customization) | `story_scout_rescued` |
+| Name | Rescued the scout |
 | Description | Set after claiming the scout rescue; unlocks the grateful greeting and epilogue. |
 
 Use lowercase letters, digits and underscores after the prefix. Treat the ID as permanent once content references it. The library's references list helps locate published checks and changes. Change the readable name or description when wording improves; do not rename the underlying ID casually.
 
 A new definition does not create true values on characters. A missing value is false. You do not need to add Clear flag blocks at the start of every story.
+
+Use **+ New flag** beside a flow flag selector to create and select a flag without leaving the block. The same button under All set, Any set or None set adds it to that requirement group. Quest objectives offer **+ Create completion flag** to create and attach a success memory directly. Cancel saves nothing and preserves your current content edits. Definitions save immediately; save/publish the NPC, quest or flow that uses them as usual. Find saved flags by name or ID in the content library or Flag library to edit their name and description.
 
 Requirement forms include **Filter flags by name or ID**. Selected flags stay visible while filtering so a hidden search result cannot conceal an existing requirement.
 

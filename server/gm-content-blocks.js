@@ -63,8 +63,8 @@ function contentAdd(type,x,y,target=''){
  if(type==='completion_flags'){
   if(!['objective','completion_flags'].includes(n?.role))throw Error('Select the objective that should set this flag.');
   const o=n.role==='objective'?n.data:n.parent,flag=cat.flags.find(f=>!f.engineOwned&&!f.retired&&f.id.startsWith('story_')&&!o.on_complete_flags?.includes(f.id));
-  if(!flag)throw Error('Create another authored flag in Flag library first.');
   if((o.on_complete_flags?.length??0)>=16)throw Error('An objective can set up to 16 flags.');
+  if(!flag)return createCompletionFlag(o);
   checkpoint();o.on_complete_flags??=[];o.on_complete_flags.push(flag.id);selected=new Set([n.role==='objective'?n.id+':completion':n.id]);changed();properties();return;
  } // Adding this action requires an explicit owning objective, just like choices require a page.
  const parent=n?.role==='stage'||n?.role==='page'?n.data:n?.parent;
@@ -184,13 +184,18 @@ function objectiveProperties(host,o){
 }
 function completionFlagProperties(host,o){
  const box=el('fieldset',undefined,host);el('legend','On completed → Set flag',box);
- el('p','Sets these flags to true the first time this objective is met, without waiting for the stage or reward claim. Create flags in Flag library.',box).className='hint';
+ el('p','Sets these flags to true the first time this objective is met, without waiting for the stage or reward claim. Choose an existing flag or create one here.',box).className='hint';
  for(let i=0;i<(o.on_complete_flags?.length??0);i++){
   contentSelect(box,'Completion flag '+(i+1),o.on_complete_flags,i,cat.flags.filter(f=>!f.engineOwned&&!f.retired&&f.id.startsWith('story_')));
   button(box,'Remove completion flag '+(i+1),()=>{checkpoint();o.on_complete_flags.splice(i,1);if(!o.on_complete_flags.length)delete o.on_complete_flags;changed();properties();});
  }
  button(box,'+ Set flag on completion',()=>contentAdd('completion_flags'));
+ button(box,'+ Create completion flag',()=>createCompletionFlag(o)).disabled=(o.on_complete_flags?.length??0)>=16;
 } // Both the objective inspector and its connected action block edit the same canonical target list.
+function createCompletionFlag(o){
+ if((o.on_complete_flags?.length??0)>=16)throw Error('An objective can set up to 16 flags.');
+ editFlag(null,f=>{checkpoint();o.on_complete_flags??=[];o.on_complete_flags.push(f.id);changed();properties();});
+} // A freshly named flag is saved and attached without leaving the objective's workspace.
 function contentReferences(host,label,obj,key,options){
  const box=el('fieldset',undefined,host);el('legend',label,box);
  for(let i=0;i<obj[key].length;i++){contentSelect(box,label+' '+(i+1),obj[key],i,options);button(box,'Remove '+(i+1),()=>{checkpoint();obj[key].splice(i,1);changed();properties();});}
