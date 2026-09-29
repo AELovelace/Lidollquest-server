@@ -58,7 +58,7 @@ Piety is checked at admission. Falling below 50 later does not cancel an accepte
 
 ## 4. Bind, publish and place
 
-Add an NPC entry binding from Shrine Keeper to Entry. Save the flow and its assets, Validate, then Publish after reviewing the included quest and keeper. Place the keeper on a reachable tile. Players choose **Continue personal story** from the conversation to enter the gate.
+Add an NPC entry binding from Shrine Keeper to Entry. Save the flow and its assets, Validate, then Publish after reviewing the included quest and keeper. Place the keeper on a reachable tile. Players enter the gate as soon as they bump into the keeper; the story plays in place of the keeper's greeting.
 
 ## 5. Test the boundaries
 

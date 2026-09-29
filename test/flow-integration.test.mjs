@@ -24,8 +24,7 @@ for(const lineupSize of [1,2,3])test('actual story combat with '+lineupSize+' en
   let map=api.world.map('honeydew-lantern'),placed;
   for(let y=2;y<map.floor.height-2&&!placed;y++)for(let x=2;x<map.floor.width-2&&!placed;x++)try{placed=api.world.act({action:'world_place_content',zone:map.id,edition:map.edition,revision:map.revision,placement_kind:'npc',content:'scout',x,y});}catch(e){if(!/reachable tile/.test(e.message))throw e;}
   assert.ok(placed);const at=placed.placements.find(p=>p.content==='scout');db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(at.x+1,at.y,c.id);
-  let r=act('npc_talk',{placement:at.id,edition:map.edition});assert.ok(r.onlineQuests.conversation.choices.some(v=>v.label==='Ask about quests'));
-  const talk=r.onlineQuests.conversation;r=act('npc_choice',{conversation:talk.id,page:talk.page,choice:talk.choices.find(v=>v.label==='Continue personal story').index});assert.equal(r.flowScene.text,'Help the scout.');
+  let r=act('npc_talk',{placement:at.id,edition:map.edition});assert.equal(r.onlineQuests.conversation,null,'a bound story replaces the chat');assert.equal(r.flowScene.text,'Help the scout.'); // Bumping plays the story straight away.
   const request={action:'flow_continue',request_id:randomUUID(),controller:'controller',character_id:c.id,revision:c.revision,flow_run:r.flowScene.id,flow_step:r.flowScene.step};r=api.act('',request);c=r.character;api.act('',request);assert.equal(paid.length,1);assert.equal(c.fullDungeon.flags.story_scout,true);
   db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(at.x+1,at.y,c.id); // Return from the encounter tile before revisiting the scout.
   r=act('npc_talk',{placement:at.id,edition:map.edition});assert.equal(r.onlineQuests.conversation.text,'Thank you');act('npc_close');
@@ -44,8 +43,7 @@ for(const lineupSize of [1,2,3])test('actual story combat with '+lineupSize+' en
   const orb={id:'scout_orb',title:'Scout memory',colour:'#ffccdd',pages:[{text:'Legacy memory'}],story_conditions:{all:['story_scout']}};battle.bindings.push({kind:'orb',ref:orb.id,entry:'orb_page'});
   transaction(()=>api.world.flows.gm({action:'flow_publish',id:battle.id,entry:battle,revision:1,assets:[{kind:'orb',id:orb.id,entry:orb,revision:0}]},'gm'));
   api.world.flows.gm({action:'flow_flag_set',character_id:c.id,revision:c.revision,flag:'story_scout',value:false},'gm');c=api.read('',c.id).character;
-  act('gm_god_mode',{value:true});r=act('npc_talk',{placement:at.id,edition:map.edition});let bt=r.onlineQuests.conversation;
-  r=act('npc_choice',{conversation:bt.id,page:bt.page,choice:bt.choices.find(v=>v.label==='Continue personal story').index});r=act('flow_continue',{flow_run:r.flowScene.id,flow_step:r.flowScene.step});
+  act('gm_god_mode',{value:true});r=act('npc_talk',{placement:at.id,edition:map.edition});r=act('flow_continue',{flow_run:r.flowScene.id,flow_step:r.flowScene.step});
   assert.ok(c.run?.sharedEncounter);const encounter=c.run.sharedEncounter,targets=r.encounter.enemies.map(v=>v.id);
   assert.equal(targets.length,lineupSize);assert.equal(new Set(targets).size,lineupSize);
   const pinned=api.world.flows.active(c).definition.assets.monsters;assert.ok(lineup.every(id=>pinned[id]));

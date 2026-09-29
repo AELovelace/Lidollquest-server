@@ -24,9 +24,10 @@ function fixture(){
  const map=api.world.map('honeydew-lantern');let placed;
  for(let y=2;y<map.floor.height-2&&!placed;y++)for(let x=2;x<map.floor.width-2&&!placed;x++)try{placed=api.world.act({action:'world_place_content',zone:map.id,edition:map.edition,revision:map.revision,placement_kind:'npc',content:'scout',x,y});}catch(e){if(!/reachable tile/.test(e.message))throw e;}
  const at=placed.placements.find(p=>p.content==='scout');
- const talk=()=>{db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(at.x+1,at.y,c.id);return act('npc_talk',{placement:at.id,edition:map.edition}).onlineQuests.conversation;};
- const story=conversation=>{const choice=conversation.choices.find(v=>v.label==='Continue personal story');return choice?act('npc_choice',{conversation:conversation.id,page:conversation.page,choice:choice.index}):null;};
- return {db,act,talk,story,paid,read:()=>api.read('',c.id),close:()=>{db.close();process.env.QUEST_FLOWS_ENABLED=prior;}};
+ const talk=()=>{db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(at.x+1,at.y,c.id);return act('npc_talk',{placement:at.id,edition:map.edition});};
+ const story=r=>{if(r.flowScene)return r;assert.ok(r.onlineQuests.conversation,'no story means the normal chat opens');act('npc_close');return null;}; // Bumping a story NPC plays the story straight away (2026-09-28).
+ const republish=(changes,revision)=>transaction(()=>api.world.flows.gm({action:'flow_publish',id:entry.id,entry:{...entry,...changes},revision,assets:[]},'gm'));
+ return {db,act,talk,story,paid,republish,read:()=>api.read('',c.id),close:()=>{db.close();process.env.QUEST_FLOWS_ENABLED=prior;}};
 }
 
 test('Esc leaves a story page: early exits can restart, rewarded one-time stories end for good',()=>{
@@ -52,5 +53,14 @@ test('a story parked on a missing block still renders and can be left, instead o
   assert.throws(()=>f.act('flow_continue',{flow_run:run,flow_step:r.flowScene.step}),/missing/);
   assert.throws(()=>f.act('hub_visit',{zone:'honeydew-lantern-inn'}),/Finish the current story page first/);
   r=f.act('flow_exit',{flow_run:run});assert.equal(r.flowScene,null,'the escape hatch still works');
+ }finally{f.close();}
+});
+
+test('a bound story that shows no page on the bump falls back to the NPC chat',()=>{
+ const f=fixture();try{
+  f.republish({repeatable:true,nodes:[{id:'start',type:'entry'},{id:'done',type:'end'}],edges:[{from:'start',port:'next',to:'done'}]},1); // e.g. a "flag already set" check that goes straight to End.
+  const r=f.talk();assert.equal(r.flowScene,null,'nothing to show');
+  assert.equal(r.onlineQuests.conversation.text,'Hello','the normal greeting opens instead of an empty bump');
+  assert.ok(!r.onlineQuests.conversation.choices.some(v=>v.label==='Continue personal story'),'the silent story is not offered again as a button');
  }finally{f.close();}
 });

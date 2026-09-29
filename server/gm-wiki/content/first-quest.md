@@ -194,7 +194,7 @@ Click **Story settings / bindings**, then **Add entry binding**:
 
 **Checkpoint:** your binding points to the scout and Start rescue, not Finish or the battle.
 
-The normal NPC interaction will offer **Continue personal story**. It will still have its normal greeting and applicable quest/service options. The flow is repeatable so a refusal is not permanent; the top flag check makes repeat visits harmless after success.
+Bumping into the scout now plays the story straight away, in place of the normal greeting: that is how a bound story overrides an NPC. The flow is repeatable so a refusal is not permanent; the top flag check makes repeat visits harmless after success. If a visit's story ends without showing any page (for example the flag check goes straight to Finish), the scout's normal greeting and quest/service options open instead.
 
 Validate. Fix every missing output, blank text, missing reference, or incorrect operation before continuing. Save draft.
 

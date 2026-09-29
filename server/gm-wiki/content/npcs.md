@@ -2,7 +2,7 @@
 
 [Wiki home](index.md)
 
-An NPC record defines who the character is, how they look, what they say, and which quests they offer. A placement gives that record a location. An entry binding optionally adds a playable personal story to the interaction.
+An NPC record defines who the character is, how they look, what they say, and which quests they offer. A placement gives that record a location. An entry binding optionally attaches a playable personal story, which plays as soon as the player bumps into the NPC.
 
 ## Create the shared NPC
 
@@ -31,13 +31,13 @@ Each choice block supplies these controls. Reaction blocks retain their ordered 
 
 ## Keep quest services available
 
-The NPC's quest list and quest giver references connect normal quest offers to this NPC. Progress, delivery, and turn-in options continue to use the existing quest system. A flow binding adds **Continue personal story** rather than removing those options.
+The NPC's quest list and quest giver references connect normal quest offers to this NPC. Progress, delivery, and turn-in options continue to use the existing quest system. While a bound story is available it plays on the bump instead of the NPC's greeting, so those options wait until the story is finished, its binding conditions stop matching, or a story reaction chooses a dialogue page (below). A one-time story that has been completed stops overriding the NPC. A repeatable story keeps overriding it: give the binding conditions, or add a story reaction, when players should reach the normal chat again. A story that ends without showing a page falls back to the normal chat.
 
 Do not duplicate the same offer in several places unless that is deliberate. If the player can accept both through normal dialogue and through a flow, test entering the flow with the quest already active. The flow accept operation leaves an already active instance in place; later steps must still make sense for its current progress.
 
 ## Ordered story reactions
 
-Story reactions choose the starting dialogue page or flow entry based on current flags. The first matching rule wins. Add specific rules before broad ones, drag them into the desired order, or use Move up. Always choose an explicit **story default** page for the fallback.
+Story reactions choose the starting dialogue page or flow entry based on current flags. The first matching rule wins. A matching rule that chooses a **page** (and no flow entry) opens that dialogue page instead of auto-playing the bound story; the story is then offered as **Continue personal story** on that page. A rule that chooses a flow **entry** auto-plays the story from that block. Add specific rules before broad ones, drag them into the desired order, or use Move up. Always choose an explicit **story default** page for the fallback.
 
 Example order:
 

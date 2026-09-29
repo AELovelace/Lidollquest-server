@@ -69,7 +69,7 @@ Set a stable flow ID, name, description, and Repeatable setting. Use **Add entry
 
 | Trigger | Meaning |
 | --- | --- |
-| `npc` | Offers the personal story through that NPC's conversation |
+| `npc` | Plays the personal story as soon as the player bumps into that NPC, overriding its normal chat (see [NPC reactions](npcs.md#ordered-story-reactions)) |
 | `orb` | Starts when the character reads that placed orb |
 | `zone` | Starts from the supported zone-entry path |
 | `objective` | Uses completion of the referenced quest instance: ready or claimed |
