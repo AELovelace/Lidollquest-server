@@ -121,6 +121,7 @@ tr.sel td{background:#2c1e3d}
   <button type="button" role="tab" id="tab-rpp" aria-controls="panel-rpp" aria-selected="false" tabindex="-1">RPP</button>
   <button type="button" role="tab" id="tab-enchantments" aria-controls="panel-enchantments" aria-selected="false" tabindex="-1">Curses &amp; Blessings</button>
   <button type="button" role="tab" id="tab-loot" aria-controls="panel-loot" aria-selected="false" tabindex="-1">Loot</button>
+  <button type="button" role="tab" id="tab-crafting" aria-controls="panel-crafting" aria-selected="false" tabindex="-1">Crafting</button>
   <button type="button" role="tab" id="tab-alchemy" aria-controls="panel-alchemy" aria-selected="false" tabindex="-1">Alchemy</button>
   <button type="button" role="tab" id="tab-tutor" aria-controls="panel-tutor" aria-selected="false" tabindex="-1">Tutor NPC</button>
   <button type="button" role="tab" id="tab-guilds" aria-controls="panel-guilds" aria-selected="false" tabindex="-1">Guilds</button>
@@ -422,6 +423,14 @@ tr.sel td{background:#2c1e3d}
     <div class="row"><button class="go" id="pRoll">Roll</button><button id="pAgain">Roll another</button></div>
     <p id="pResult" class="curve"></p>
   </section>
+</div>
+<div class="tab-panel" id="panel-crafting" role="tabpanel" aria-labelledby="tab-crafting" tabindex="0" hidden>
+ <section class="wide"><h2>Crafting, gathering and wildlife</h2>
+ <p>Choose a content section. Recipes use exact ingredient quantities; cooking matches two or three culinary tags. Live edits preserve existing discoveries and issued items. Regional spawn changes apply to newly generated maps.</p>
+ <div class="row"><select id="craftSection" aria-label="Crafting section"></select><button id="craftReload">Reload</button><b id="craftRevision"></b></div>
+ <textarea id="craftJson" aria-label="Crafting section JSON" rows="25" spellcheck="false" style="width:100%;font-family:monospace"></textarea>
+ <div class="row"><input id="craftReason" placeholder="Reason for change"><button id="craftSave">Validate and save section</button><button id="craftExport">Download crafting.json</button></div>
+ </section>
 </div>
 <div class="tab-panel" id="panel-alchemy" role="tabpanel" aria-labelledby="tab-alchemy" tabindex="0" hidden>
   <section class="wide" aria-labelledby="alchemyHeading">
@@ -1788,6 +1797,13 @@ tr.sel td{background:#2c1e3d}
 
  function alchemyNumber(id){var v=$(id).value.trim();return v===""?NaN:Number(v);}
 
+ var craftData=null;
+ function renderCraft(){if(!craftData)return;$('craftJson').value=JSON.stringify(craftData.data[$('craftSection').value],null,2);$('craftRevision').textContent='Revision '+craftData.revision;}
+ async function loadCraft(){try{craftData=await api('/gm/crafting');var key=$('craftSection').value;clear($('craftSection'));Object.keys(craftData.data).forEach(function(k){var option=el('option',null,k);option.value=k;$('craftSection').appendChild(option);});if(key)$('craftSection').value=key;renderCraft();}catch(error){say('err',error.message);}}
+ $('tab-crafting').addEventListener('click',function(){if(!craftData)loadCraft();});
+ $('craftReload').addEventListener('click',loadCraft);$('craftSection').addEventListener('change',renderCraft);
+ $('craftSave').addEventListener('click',async function(){try{if(!craftData)return;var value=JSON.parse($('craftJson').value);await api('/gm/action',{method:'POST',body:{action:'crafting_save',section:$('craftSection').value,value:value,revision:craftData.revision,reason:$('craftReason').value}});await loadCraft();say('ok','Crafting section saved.');}catch(error){say('err',error.message);}});
+ $('craftExport').addEventListener('click',function(){if(!craftData)return;var url=URL.createObjectURL(new Blob([JSON.stringify(Object.assign({version:1},craftData.data),null,2)+'\n'],{type:'application/json'})),link=el('a');link.href=url;link.download='crafting.json';link.click();URL.revokeObjectURL(url);});
  function loadAlchemy(){
   if(!token)return;
   var epoch=perfEpoch;

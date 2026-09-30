@@ -199,21 +199,23 @@ export function createLootRoller(table,bases=null){ // Built from the shipped ta
    return {curseMult:cfg.curse_mult,blessMult:cfg.bless_mult,force:cfg.force_blessing?'blessing':''};
   },
   generator,
-  roll(item,key,{level=1,luck='chest',floor=0}={}){ // `floor`: minimum rarity index (see pickRarity). // `key` is the chest's own seed key, so the roll is stable across regeneration. Returns the rolled struct, which may be a generated replacement.
+  roll(item,key,{level=1,luck='chest',floor=0,exactLevel=false,rarity=null,reserved=0}={}){ // Crafting supplies a server-chosen tier and exact level; ordinary loot keeps its existing defaults.
    if(!item||typeof item!=='object')return item;
    if(generator.has&&generator.isTemplate(item)){const gen=generator.generate(item.category,seeded(key+':base'),item.is_diaper===true);if(gen){gen.source_item_id=item.item_id;item=gen;}} // numbered art variant -> style + garment base
    if(item.source_item_id===undefined)item.source_item_id=item.item_id;
    if(item.base_name===undefined)item.base_name=String(item.name??'');
    if(!has||!eligible(item))return item;
    const rnd=seeded(key+':loot');
-   const tier=pickRarity(luck,rnd,floor),cfg=rarityConfig(tuning,tier);
+   const tier=order.includes(rarity)?rarity:pickRarity(luck,rnd,floor),cfg=rarityConfig(tuning,tier);
    const cap=Math.max(1,Math.floor(num(tuning.ilvl_cap,100)));
-   const ilvl=Math.max(1,Math.min(cap,Math.floor(num(level,1))+range(rnd,Math.floor(num(tuning.ilvl_jitter_min,-1)),Math.floor(num(tuning.ilvl_jitter_max,2)))));
+   const ilvl=Math.max(1,Math.min(cap,Math.floor(num(level,1))+(exactLevel?0:range(rnd,Math.floor(num(tuning.ilvl_jitter_min,-1)),Math.floor(num(tuning.ilvl_jitter_max,2))))));
    scaleBase(item,ilvl,tier);
    const slots=itemSlots(item),used=new Set();
    const loot={rolled:true,rarity:tier,ilvl,prefix:undefined,suffix:undefined,bonus:[],title:'',seed:String(key),slots};
+   let reservedLeft=Math.max(0,Math.floor(reserved)); // Guaranteed properties consume the ordinary affix budget first.
    for(let p=0;p<slots.length;p++){
     for(let k=0;k<cfg.affixes;k++){
+     if(reservedLeft>0){reservedLeft--;continue;}
      let want='bonus';
      if(p===0&&k===0)want='prefix';
      else if(cfg.suffix&&!loot.suffix&&((slots.length===1&&k===1)||(slots.length>1&&p===1&&k===0)))want='suffix'; // a dress takes its title from the pants pass

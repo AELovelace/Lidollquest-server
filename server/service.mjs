@@ -6,6 +6,7 @@ import {createWorldJobs} from './world-jobs.mjs';
 import {combatData} from './combat.mjs';
 import {hubData} from './hubs.mjs';
 import {DatabaseSync} from 'node:sqlite';
+import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {isAbsolute} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -46,6 +47,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
  db.exec(`CREATE TABLE IF NOT EXISTS wallet_cache(owner TEXT PRIMARY KEY,coins INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS reward_outbox(id TEXT PRIMARY KEY,owner TEXT NOT NULL,amount INTEGER NOT NULL,reason TEXT NOT NULL,delivered INTEGER NOT NULL DEFAULT 0);
  CREATE INDEX IF NOT EXISTS reward_delivery ON reward_outbox(owner,delivered);`);
+ if(!db.prepare('PRAGMA table_info(reward_outbox)').all().some(c=>c.name==='paid'))db.exec('ALTER TABLE reward_outbox ADD COLUMN paid INTEGER NOT NULL DEFAULT 0'); // Persist partial delivery of large funded transfers.
  let identity=null; // The simulation below is synchronous; the HTTP layer never awaits while this identity is in use.
  const onlineFeed=createOnlineFeed(db,{token:onlineToken,now});
  const mommybotProfile=createMommybotProfile(db,{token:onlineToken,enabled:owner=>!gm.suspended(owner),now});
@@ -58,6 +60,9 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
  const zones=createQuestZones(db,{now,roll,compute,live,followerOptions,followerChatOptions,measure:metrics.measure,onPresence:onlineFeed.record,enabled:owner=>!gm.suspended(owner),muted:gm.muted,audit:gm.record,grant:()=>{if(!identity)throw Error('Missing request identity');return identity;},wallet:owner=>({coins:db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(owner)?.coins??0}),adjust:(owner,asset,amount,id,reason)=>{
   if(asset!=='coins'||!Number.isSafeInteger(amount)||amount<1||amount>dailyCoinCap())throw Error('Invalid server award'); // A single entitlement can never exceed one day's whole allowance.
   db.prepare('INSERT INTO reward_outbox(id,owner,amount,reason) VALUES (?,?,?,?)').run(id,owner,amount,reason);
+ },transfer:(owner,asset,amount,id,reason)=>{
+  if(asset!=='coins'||!Number.isSafeInteger(amount)||amount<1||amount>512000000)throw Error('Invalid funded transfer');
+  db.prepare('INSERT INTO reward_outbox(id,owner,amount,reason) VALUES (?,?,?,?)').run('store-'+createHash('sha256').update(id).digest('hex'),owner,amount,reason);
  }});
  installCavernsContent(db,live,zones.world?.flows); // Add the editable shipped expedition once.
  zones.setTutor(tutor); // Pip appears in the starting lobbies and tutor_ask stores questions.
@@ -70,7 +75,9 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
   if(deliveries.has(owner))return deliveries.get(owner);
   const task=(async()=>{
    for(const row of db.prepare('SELECT * FROM reward_outbox WHERE owner=? AND delivered=0 LIMIT 8').all(owner)){
-    try{const receipt=await metrics.measureAsync('account.credit',()=>walletClient.credit(token,{request_id:'arena-'+row.id,kind:'credit',amount:row.amount}));db.prepare('UPDATE reward_outbox SET delivered=1 WHERE id=?').run(row.id);db.prepare('UPDATE wallet_cache SET coins=? WHERE owner=?').run(receipt.balance,owner);}
+    const funded=row.id.startsWith('store-'),amount=funded?Math.min(row.amount-row.paid,dailyCoinCap()):row.amount;
+    const request_id=funded?'store-'+createHash('sha256').update(row.id+':'+row.paid).digest('hex'):'arena-'+row.id;
+    try{const receipt=await metrics.measureAsync('account.credit',()=>walletClient.credit(token,{request_id,kind:'credit',amount}));db.prepare('UPDATE reward_outbox SET paid=?,delivered=? WHERE id=?').run(row.paid+amount,Number(row.paid+amount>=row.amount),row.id);db.prepare('UPDATE wallet_cache SET coins=? WHERE owner=?').run(receipt.balance,owner);}
     catch(error){console.warn('quest_reward_delivery_failed',row.id,error?.status??'transport');return;} // Log no credentials; retry this same entitlement on the next authenticated visit.
    }
   })();deliveries.set(owner,task);try{await task;}finally{deliveries.delete(owner);}
@@ -159,7 +166,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
    if(input?.action==='tutor_ask')void tutor.kick(); // The question is committed; ask npc-rag now without holding this response open.
    const receipt=result.receipt;identity=verified;try{result=metrics.measure(req.method==='GET'?'zones.read':'zones.refresh',()=>zones.read(token,result.character?.id,req.method==='GET'?view:{companion:['bank_sell','companion_equip','companion_unequip','companion_use','companion_roll','companion_withdraw'].includes(input?.action)||(input?.companion===true&&/^guild_/.test(String(input?.action??'')))}));if(receipt)result.receipt=receipt;}finally{identity=null;} // Build exactly one final view after purchase settlement, including durable replay receipts.
    await flush(verified.owner,token);result.coins=db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(verified.owner).coins;
-   result.pendingCoins=db.prepare('SELECT COALESCE(SUM(amount),0) AS n FROM reward_outbox WHERE owner=? AND delivered=0').get(verified.owner).n;
+   result.pendingCoins=db.prepare('SELECT COALESCE(SUM(amount-paid),0) AS n FROM reward_outbox WHERE owner=? AND delivered=0').get(verified.owner).n;
    result.tutor=tutor.view(result.character?.id??null); // Pip's latest answer for this character (tutor.mjs); null when there is none.
    result.capabilities={followers:zones.followers.enabled,followerVersion:1,unifiedCreation:true,inspection:true,friends:true,cloudSaves:true,saveManagement:true,characterManagement:true,characterDescriptions:true,companionEquipment:true,companionBank:true,bankSales:true,companionShops:true,companionWithdraw:true,companionConsume:true,companionItemDetails:true,companionDiamondRolls:true,snapshotCache:true,guilds:true};
    const known=parseKnown(url.searchParams.get('known'));if(known)metrics.measure('response.cache',()=>elide(result,known)); // Opted-in clients get stubs for pieces they already hold (snapshot-cache.mjs); others get the classic response.

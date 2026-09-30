@@ -1,3 +1,4 @@
+import {mealMultiplier} from './crafting-combat.mjs';
 import {syncCrawl} from './crawl.mjs';
 import {refreshMana} from './magic-balance.mjs';
 import {blessedDef} from './faith-blessing.mjs'; // Nyx's devout carry extra DEF into every run.
@@ -37,7 +38,7 @@ export function importLoadout(input) { // Campaign data is intentionally client-
 export function applyRunLoadout(run,loadout) { // Handicaps remain attached to this run when equipment or consumables change base stats.
  const p=loadout.player_info,weakened=run.handicaps.filter(h=>h==='Weakened strikes').length,vitality=run.handicaps.filter(h=>h==='Reduced vitality').length;
  run.maxHp=Math.max(1,p.playerHealthMax-vitality*5);run.hp=Math.min(run.maxHp,p.playerHealth);
- run.attack=Math.max(1,loadout.attack-weakened);run.defense=blessedDef(loadout)-run.handicaps.filter(h=>h==='Reduced armor').length;run.level=p.level;
+ run.attack=Math.max(1,loadout.attack-weakened);run.defense=Math.floor(blessedDef(loadout)*mealMultiplier(loadout,'defense'))-run.handicaps.filter(h=>h==='Reduced armor').length;run.level=p.level;
 }
 
 export function syncRunHealth(state,run) { // Save current HP without permanently applying temporary arena maximum-HP penalties.

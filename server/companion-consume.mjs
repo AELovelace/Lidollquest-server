@@ -176,6 +176,7 @@ export function consumeFromBag(loadout,index,itemId,catalog,{tuning=DEFAULT_TUNI
   if(!Array.isArray(p.active_effects))p.active_effects=[];p.active_effects.push(effect);
   lines.push(num(effect.turns_until_start)>0?'('+name+' - something feels different... effect in '+effect.turns_until_start+' turns.)':'('+name+' - an effect begins...)');
  }
+ if(item.meal_buff)p.meal_buff=structuredClone(item.meal_buff); // Only buff-bearing food replaces the current meal.
  consumeAt(bag,index);
  return lines;
 }

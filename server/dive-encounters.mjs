@@ -1,3 +1,5 @@
+import {preserveCraftingState} from './crafting-state.mjs';
+import {awardWildlife,awardCraftingDungeon} from './crafting-wildlife.mjs';
 import {followerAction,guardianTarget} from './follower-combat.mjs';
 import {randomUUID} from 'node:crypto';
 import {recordDungeonVictories} from './full-dungeon-rules.mjs';
@@ -25,7 +27,7 @@ export function enemyActionDelay(dex,roll,tuning=encounterTuning){
 }
 
 export function selectReinforcements(floor,foe,data,roll,time,tuning=encounterTuning){
- const max=(foe.definition??data.enemies[foe.type]).hp,pool=floor.enemies.filter(e=>!e.manual&&!foe.manual&&e.id!==foe.id&&!e.engaged&&e.respawnAt<=time&&(e.definition??data.enemies[e.type])?.hp<=max);
+ const max=(foe.definition??data.enemies[foe.type]).hp,pool=floor.enemies.filter(e=>!e.manual&&!foe.manual&&e.id!==foe.id&&(e.definition??data.enemies[e.type])?.temperament!=='neutral'&&(foe.definition??data.enemies[foe.type])?.temperament!=='neutral'&&!e.engaged&&e.respawnAt<=time&&(e.definition??data.enemies[e.type])?.hp<=max);
  const chosen=[foe];if(pool.length&&roll(10000)<tuning.second_enemy_chance*10000){
   chosen.push(pool.splice(roll(pool.length),1)[0]);
   if(pool.length&&roll(10000)<tuning.third_enemy_chance*10000)chosen.push(pool.splice(roll(pool.length),1)[0]);
@@ -52,10 +54,10 @@ export function applyCombatPatch(loadout,patch){
   const key=op.path.at(-1),current=dest[key];
   if(typeof op.before==='number'&&typeof op.after==='number'&&typeof current==='number'){if(!Number.isFinite(op.before)||!Number.isFinite(op.after))fail('Invalid combat number.');dest[key]=current+op.after-op.before;}
   else {if(JSON.stringify(current??null)!==JSON.stringify(op.before))fail('This item or status changed; refresh before using it.');dest[key]=clone(op.after);}
- }if(result.player_info&&typeof result.player_info==='object')result.player_info.rpp_abilities=clone(loadout.player_info.rpp_abilities??[]);return importLoadout(result); // A whole player_info replacement cannot bypass protected paid-ability paths.
+ }if(result.player_info&&typeof result.player_info==='object')result.player_info.rpp_abilities=clone(loadout.player_info.rpp_abilities??[]);preserveCraftingState(loadout,result,{consume:true});return importLoadout(result); // A whole player_info replacement cannot bypass protected paid-ability paths.
 } // Numeric deltas preserve intervening attacks/heals; structural item edits require an unchanged baseline.
 
-export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate,context=null,gone=()=>false}){
+export function createDiveEncounters(db,{origins,live=null,now,roll,data,parties,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate,context=null,gone=()=>false}){
  const config=data.config,zone=config.zone_id??'dive-quarters',route=config.route,boss=(config.boss_id??'iris')||'world_boss',z={theme:config.theme??'princess_quarters',activeTime:true};
  db.exec('CREATE TABLE IF NOT EXISTS quest_dive_encounters(id TEXT PRIMARY KEY,route TEXT NOT NULL,edition TEXT NOT NULL,state TEXT NOT NULL,updated INTEGER NOT NULL)');
  db.exec("CREATE INDEX IF NOT EXISTS quest_open_dive_encounters ON quest_dive_encounters(route) WHERE json_extract(state,'$.finished') IS NOT 1"); // Retain history without scanning every settled fight on each simulation tick.
@@ -106,6 +108,7 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
    const enemy=a.defeatEnemy??e.enemies[0].data;a.run.enemy={...enemy,exp:xp};if(xp)awardExperience(s,roll);syncRunHealth(s,a.run);
    if(bossDown){const p=progress(c,record.edition);p.completed=true;saveProgress(c,record.edition,p);}
    if(!['flee','abandoned'].includes(a.status))recordDungeonVictories(data,c,s,record,e.enemies.filter(v=>v.data.hp<=0).map(v=>v.id),progress,saveProgress);
+   if(!['flee','abandoned'].includes(a.status)){for(const foe of e.enemies.filter(v=>v.data.hp<=0))awardWildlife(c,s,foe.data,{origins,key:e.id+':'+foe.id});if(bossDown)awardCraftingDungeon(c,s,zone,{origins,key:e.id+':'+c.id});}
    const coins=bossDown?pay(c,s,record,true):0,outcome=a.status==='active'?(win?'win':'abandoned'):a.status;
    const equipment=applyDefeatEquipment(s,a.run,outcome); // Only this member's actual defeat opponent supplies their outfit, even when their party wins.
    const outfitLog=equipment?.changes.length?a.run.log.slice(-equipment.changes.length):[]; // Read the outfit lines before dignity appends its own.
@@ -152,7 +155,7 @@ export function createDiveEncounters(db,{live=null,now,roll,data,parties,saveFlo
     if(support&&!target||!support&&!enemy)fail('Choose an active target.');
     const foe=enemy??e.enemies.find(v=>v.data.hp>0);a.run.enemy=foe.data;a.run.dots=foe.dots;a.run.debuffs=foe.debuffs;a.run.turnReady=true;
     if(input.action==='use_item'){state.loadout=applyCombatPatch(state.loadout,input.patch??[]);applyRunLoadout(a.run,state.loadout);}
-    const outcome=combatAction(state,input,z,roll,target?.s??state);for(const line of a.run.log)message(e,a.name+': '+line);
+    const outcome=combatAction(state,input,{...z,craftEnemies:e.enemies.map(v=>v.data)},roll,target?.s??state);for(const line of a.run.log)message(e,a.name+': '+line);
     if(outcome==='charm_backfire')out(e,a,foe.data,outcome);else reset(a,state);
    }
   }

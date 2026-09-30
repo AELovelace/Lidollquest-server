@@ -70,7 +70,11 @@ function npcGoal(key,{isZone,contentZones}){ // "<zone>:<fixture>" resident keys
 
 export function locateGoal(goal,{x=0,y=0,fixtures=[],placements=[],enemies=[],rooms=[],time=0}={}){ // The tile to mark inside the current zone, or null for "somewhere in this zone".
  if(goal.fixture){const f=fixtures.find(f=>f.id===goal.fixture);if(f)return {x:f.x,y:f.y};} // Resident NPCs stand on their fixture.
- if(goal.content){const n=placements.find(n=>n.content===goal.content&&(!goal.npc||n.kind==='npc'))??fixtures.find(f=>f.kind==='token'&&f.content===goal.content);if(n)return {x:n.x,y:n.y};} // Placed NPCs, locations, tokens, interacts and orbs; full-dungeon quest tokens are floor fixtures.
+ if(goal.content){ // Placed NPCs, locations, tokens, interacts and orbs; full-dungeon quest tokens are floor fixtures.
+  const near=list=>list.sort((a,b)=>Math.abs(a.x-x)+Math.abs(a.y-y)-(Math.abs(b.x-x)+Math.abs(b.y-y)))[0]; // Several placements can share one content key (three survey markers): take the closest.
+  const n=near(placements.filter(n=>n.content===goal.content&&(!goal.npc||n.kind==='npc')))??near(fixtures.filter(f=>f.kind==='token'&&f.content===goal.content)); // Callers pass only what this character can still see, so collected tokens are already gone.
+  if(n)return {x:n.x,y:n.y};
+ }
  if(goal.enemy){ // The nearest living monster of that kind.
   const alive=enemies.filter(e=>(e.type===goal.enemy||e.enemy_id===goal.enemy||e.definition?.enemy_id===goal.enemy)&&!(e.respawnAt>time)); // Defeated monsters waiting to respawn do not count.
   alive.sort((a,b)=>Math.abs(a.x-x)+Math.abs(a.y-y)-(Math.abs(b.x-x)+Math.abs(b.y-y))); // Closest first.

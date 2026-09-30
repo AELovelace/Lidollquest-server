@@ -58,6 +58,9 @@ test('locateGoal finds fixtures, placements, the nearest living monster and room
  assert.deepEqual(locateGoal({enemy:'goblin'},{x:0,y:0,time:100,enemies:[{type:'goblin',x:9,y:9},{type:'goblin',x:1,y:1,respawnAt:500},{type:'goblin',x:3,y:3}]}),{x:3,y:3},'Respawning monsters are skipped; the nearest living one wins.');
  assert.deepEqual(locateGoal({room:'intake'},{rooms:[{type:'intake',x:10,y:10,w:5,h:3}]}),{x:12,y:11});
  assert.equal(locateGoal({content:'missing'},{}),null,'No tile means "somewhere in this zone".');
+ const markers=[{kind:'token',content:'marker',x:30,y:30},{kind:'token',content:'marker',x:4,y:5},{kind:'token',content:'marker',x:12,y:2}];
+ assert.deepEqual(locateGoal({content:'marker'},{x:3,y:3,placements:markers}),{x:4,y:5},'Several placements share a content key: the nearest one wins, not the first listed.');
+ assert.deepEqual(locateGoal({content:'marker'},{x:3,y:3,placements:markers.slice(0,1)}),{x:30,y:30},'With the others collected (filtered out by the caller), the last one is marked.');
 });
 
 test('guide() answers with the exit, the target tile, or a note',()=>{

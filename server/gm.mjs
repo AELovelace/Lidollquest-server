@@ -1,3 +1,4 @@
+import {createCraftingStore} from './crafting-store.mjs';
 import {createGmHelp} from './gm-help.mjs';
 import {serveGmWiki} from './gm-wiki.mjs';
 import {createEnchanter,describeItem} from './enchantment.mjs';
@@ -96,6 +97,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
 
  // The Adjective + Item + Rarity table a gamemaster edits: the same store every dive
  // route rolls through, layered over the shipped baseline exported into dive-data.json.
+ const craftingStore=createCraftingStore(db);
  const alchemyStore=()=>alchemy??fail(503,'Alchemy tuning is not available on this deployment.','gm_alchemy_unavailable');
  const alchemyBase=()=>(typeof alchemyTable==='function'?alchemyTable():alchemyTable)??fail(503,'This deployment shipped no alchemy tables (re-run export_online_dive.py).','gm_alchemy_unavailable');
  const alchemyView=()=>{ // Everything the /gm Alchemy tab shows: live and shipped sections, which keys are overridden, and the pickers' vocabularies.
@@ -303,6 +305,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    record(actor,'enchant_reset','enchantments',{...result,reason:clean(input.reason,240)});
    return {...result,revision:enchantStore().revision()};
   },
+  crafting_save(input,actor){const result=craftingStore.save(input.section,input.value,input.revision);record(actor,'crafting_save',input.section,{revision:result.revision,reason:clean(input.reason,240)});return result;}, // Validate the complete merged content before saving a live section.
   alchemy_save(input,actor){
    const section=String(input.section??'');
    const saved=alchemyStore().save(section,input.patch,alchemyBase(),actor); // Refused unless the whole merged section stays valid.
@@ -478,6 +481,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    if(url.pathname==='/gm/loot'&&req.method==='GET')return send(200,lootView()); // Adjective + Item + Rarity tuning and affix authoring.
    if(url.pathname==='/gm/guilds'&&req.method==='GET'){const store=guildStore(),id=url.searchParams.get('id');return send(200,{guilds:store.gm.list(url.searchParams.get('q')??''),detail:id?store.gm.detail(id):null,tuning:store.gm.tuning()});} // Player guilds (guilds.mjs): search, one guild's roster/ledger/weeks, and the live guild_* tuning values.
    if(url.pathname==='/gm/tutor'&&req.method==='GET')return send(200,tutor?tutor.gmView():{configured:false,settings:null,recent:[]}); // Pip's switch, npc-rag health and the latest questions/answers.
+   if(url.pathname==='/gm/crafting'&&req.method==='GET')return send(200,craftingStore.view());
    if(url.pathname==='/gm/alchemy'&&req.method==='GET')return send(200,alchemyView()); // Chest odds and brewing rules (alchemy-store.mjs).
    if(url.pathname==='/gm/rp'&&req.method==='GET')return send(200,rp.journal(Object.fromEntries(url.searchParams)));
    if(url.pathname==='/gm/rpp'&&req.method==='GET')return send(200,rpp.journal(url.searchParams.get('character')??''));

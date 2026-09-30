@@ -6,6 +6,7 @@ import {createQuestZones} from '../server/zones.mjs';
 import {DAILY_COIN_CAP} from '../server/hubs.mjs';
 import {diveData,DIVE_ZONE} from '../server/dive.mjs';
 import {generateFloor,validateFloor,weeklyWindow,pathTo,walkable,dressFloor} from '../server/dive-generation.mjs';
+import {createDiveLootRoller} from '../server/dive-loot.mjs';
 const gear=bag=>bag.filter(i=>i.category!=='ingredient'); // chests may add a seeded ingredient bundle beside their item
 
 function fixture(options={}){
@@ -179,13 +180,36 @@ test('weekly reset returns idle visitors, grants active fights grace and rejects
   f.setTime('2026-10-05T11:00:01Z');f.tick();assert.equal(f.snap(a).character.dive,null);assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM dive_editions WHERE route='quarters-pilot'").get().n,3,'downtime creates only the currently due edition');
  }finally{f.close();}
 });
-test('static routes keep their floor, visitors and claims across weekly resets',()=>{
+test('static routes keep their floor and visitors across weekly resets',()=>{
  const data={...structuredClone(diveData),config:{...structuredClone(diveData.config),static:true}}; // Same Quarters route, flagged persistent.
  const f=fixture({data});try{const a=f.player(),first=f.snap(a).dive;assert.equal(first.static,true);assert.equal(first.resetsAt,0); // Clients get no countdown for a persistent map.
   f.setTime('2026-09-21T10:59:50Z');f.act(a,'enter',{zone:DIVE_ZONE}); // Refresh presence just before the boundary, like the weekly-reset test.
   f.setTime('2026-09-21T11:00:01Z');f.tick();let s=f.act(a,'heartbeat');assert.equal(s.zone,DIVE_ZONE);assert.equal(s.dive.edition,first.edition,'the visitor stays on the same floor after Monday'); // Weekly routes would return this visitor to the hub.
   f.setTime('2026-10-05T11:00:01Z');f.tick();assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM dive_editions WHERE route='quarters-pilot'").get().n,1,'no new editions are generated'); // Weeks of downtime still leave only the original floor.
   assert.equal(JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(a).state).dive?.edition,first.edition,'the idle visitor is never swept back to the hub'); // Read raw state: presence has gone stale over the downtime.
+ }finally{f.close();}
+});
+
+test('locked maps refill personal treasure weekly without resetting layout, progression or replay receipts',()=>{
+ const data=structuredClone(diveData);data.config.static=true;data.config.roaming=false;
+ const f=fixture({data});try{
+  const a=f.player(),initial=f.snap(a),edition=initial.dive.edition,route=data.config.route,chest=initial.dive.chests[0],pickup=initial.dive.pickups[0];
+  const read=()=>JSON.parse(f.db.prepare('SELECT state FROM dive_progress WHERE character_id=? AND route=? AND edition=?').get(a,route,edition).state);
+  const write=p=>f.db.prepare('UPDATE dive_progress SET state=? WHERE character_id=? AND route=? AND edition=?').run(JSON.stringify(p),a,route,edition);
+  f.near(a,chest);const original=f.command(a,'dive_claim',{chest:chest.id});f.raw(original);
+  f.near(a,pickup);f.act(a,'dive_claim',{chest:pickup.id});
+  const p=read();p.completed=true;p.coinsPaid=50;p.defeated=['iris'];p.customMechanism={open:true};delete p.lootWeek;write(p); // Existing locked maps may predate the independent treasure clock.
+  f.setTime('2026-09-21T10:59:58Z');const before=f.act(a,'enter',{zone:DIVE_ZONE});assert.equal(before.dive.chests.find(v=>v.id===chest.id).claimed,true);
+  const geometry=before.zones.find(z=>z.id===DIVE_ZONE),position=before.position,bag=before.character.loadout.inventory;
+  f.setTime('2026-09-21T11:00:00Z');f.tick();let next=f.snap(a);
+  assert.equal(next.dive.edition,edition);assert.deepEqual(next.position,position);assert.deepEqual(next.zones.find(z=>z.id===DIVE_ZONE).walls,geometry.walls);
+  assert.equal(next.dive.chests.find(v=>v.id===chest.id).claimed,false);assert.equal(next.dive.pickups.find(v=>v.id===pickup.id).claimed,false);assert.deepEqual(next.character.loadout.inventory,bag);
+  f.raw(original);assert.deepEqual(f.snap(a).character.loadout.inventory,bag,'replaying last week never delivers again');assert.equal(f.snap(a).dive.claimed,0);
+  f.near(a,chest);f.act(a,'dive_claim',{chest:chest.id});const saved=read();
+  assert.equal(saved.lootWeek,'2026-09-21');assert.deepEqual(saved.claimed,[chest.id]);assert.equal(saved.completed,true);assert.equal(saved.coinsPaid,50);assert.deepEqual(saved.defeated,['iris']);assert.deepEqual(saved.customMechanism,{open:true});assert.ok(p.explored.every(cell=>saved.explored.includes(cell)));
+  assert.deepEqual(saved.rolls[chest.id],createDiveLootRoller(data)(edition+':loot:2026-09-21',a,chest,{}),'new week supplies a new deterministic roll seed');
+  f.restart();assert.equal(f.snap(a).dive.chests.find(v=>v.id===chest.id).claimed,true);assert.throws(()=>f.act(a,'dive_claim',{chest:chest.id}),/already claimed/);
+  f.setTime('2026-10-05T11:00:00Z');f.tick();assert.equal(f.snap(a).dive.claimed,0);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM dive_editions WHERE route=?').get(route).n,1);
  }finally{f.close();}
 });
 test('failed generation retains the last valid edition and claims',()=>{

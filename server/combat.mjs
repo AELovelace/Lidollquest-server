@@ -1,3 +1,4 @@
+import {mealMultiplier,tickMeal,weaponEffects} from './crafting-combat.mjs';
 import {gameContext} from './game-context.mjs';
 import {isCrawling,syncCrawl,standBlockReason,setCrawling} from './crawl.mjs';
 import {readFileSync} from 'node:fs';
@@ -33,7 +34,7 @@ export function mageScaling(loadout){ // Match scrSpellSystem's childish/shame a
  const practice=hasAbility(loadout,'arcane_practice')?1.1:1,magicBase=mage?mageBalance.magic:1;
  const piousMagic=1+loadoutBlessing(loadout,'magic_pct')/100,piousPhysical=1+(loadoutBlessing(loadout,'melee_pct')+loadoutBlessing(loadout,'physical_pct'))/100; // Sula's magic; Orthain's melee and Nyx's physical strikes.
  const surePious=(hasAbility(loadout,'sure_strike')?1.1:1)*piousPhysical; // Sure Strike and piety boost every weapon hit
- return {magic:magicBase*(1+affinity)*practice*piousMagic,physical:(mage?mageBalance.physical*Math.max(0.4,1-affinity):1)*surePious,ranged:surePious,flat:mage?Math.floor((Math.max(0,num(p.diaper_wet_absorbed))+Math.max(0,num(p.diaper_tum_absorbed)))*magicBase*practice):0}; // The base magic boost also multiplies absorbed fullness; affinity keeps its existing shape.
+ return {magic:magicBase*(1+affinity)*practice*piousMagic*mealMultiplier(loadout,'magic'),physical:(mage?mageBalance.physical*Math.max(0.4,1-affinity):1)*surePious,ranged:surePious,flat:mage?Math.floor((Math.max(0,num(p.diaper_wet_absorbed))+Math.max(0,num(p.diaper_tum_absorbed)))*magicBase*practice):0}; // The base magic boost also multiplies absorbed fullness; affinity keeps its existing shape.
 }
 
 export function beginRound(state,z,roll,authoredEnemy=null){ // Arena rounds and authored dungeon encounters share turn/effect initialization.
@@ -82,7 +83,7 @@ function statEffect(p,key,amount){
 
 export function readyTurn(state,forfeit,z,roll){ // The shared game routine supplies trusted accident/status changes; only the server advances combat.
  const r=state.run;if(r.phase!=='fight'||r.turnReady)fail('This turn is already prepared.');
- r.turnReady=true;r.rowSwapped=false; // A new turn allows one free row change again.
+ tickMeal(state.loadout);r.turnReady=true;r.rowSwapped=false; // A new turn allows one free row change again.
  tick(r.buffs,b=>{state.loadout.player_info[b.stat_key]=Math.max(0,num(state.loadout.player_info[b.stat_key])-b.amount);if(b.stat_key==='int')refreshIntMana(state.loadout);r.log.push(b.spell_id+' expired.');});
  applyRunLoadout(r,state.loadout);
  if(forfeit){r.log=['Too distracted to act.'];return finishTurn(state,z,roll);}
@@ -118,7 +119,7 @@ function charm(state,action,roll){
  const authored=r.enemy.authored??{hp:r.enemy.maxHp,str:r.enemy.str,def:r.enemy.def}; // Charm difficulty follows the designer's numbers, not level-scaled HP, so a levelled fairy stays as charmable as before.
  const dc=(profile.dc_override??clamp(8+Math.floor((authored.hp+authored.str+authored.def)/10),10,22))+(diplomat?3+2*r.charmPressure:0)+(p.level<=3?4:p.level<=6?2:p.level<=9?1:0);
  r.log.push((action==='allure'?'Allure':'Charm')+' roll '+total+' vs DC '+dc+'.');
- if(total>=dc){r.enemy.hp=0;r.log.push(profile.success_log??r.enemy.name+' is charmed and leaves the fight.');return 'win';}
+ if(total>=dc){r.enemy.resolution='charmed';r.enemy.hp=0;r.log.push(profile.success_log??r.enemy.name+' is charmed and leaves the fight.');return 'win';}
  r.log.push(r.enemy.name+' resists.');
  if(diplomat)r.charmPressure++;
  else if(++r.charmFailures>=r.charmLimit){r.log.push('Your failed charm backfires.');return 'charm_backfire';}
@@ -126,7 +127,7 @@ function charm(state,action,roll){
 }
 
 function enemySpell(state,s){ // Enemy spell effects share the player's serialized modifier timers.
- const r=state.run,p=state.loadout.player_info,defense=blessedDef(state.loadout)-r.handicaps.filter(h=>h==='Reduced armor').length;r.log.push(r.enemy.name+' casts '+s.name+'.');
+ const r=state.run,p=state.loadout.player_info,defense=Math.floor(blessedDef(state.loadout)*mealMultiplier(state.loadout,'defense'))-r.handicaps.filter(h=>h==='Reduced armor').length;r.log.push(r.enemy.name+' casts '+s.name+'.');
  if(s.type==='enemy_stat'&&s.stat_effect==='crawling'){if(s.stat_amount>0){setCrawling(state.loadout,true);r.log.push(loadoutCrawlFree(state.loadout)?"Knocked down! Sula preserves your speed and physical damage; Stand Up costs one action.":'Knocked down! Physical damage -25%; Stand Up costs one action.');}} // Report the blessing already used by movementDelay and physical attacks.
  else if(s.type==='enemy_stat')enemyStat(p,s.stat_effect,s.stat_amount);
  if(s.type==='enemy_damage')r.hp=Math.max(0,r.hp-mitigate(currentTuning(),s.power,defense)); // Player DEF shaves a percentage off enemy spells.
@@ -192,9 +193,11 @@ export function combatAction(state,input,z,roll,supportTarget=state){
    else if(w.cls==='wand'){raw=Math.floor(raw*Math.max(0.1,num(t.reach_damage_mult,0.75)));verb='flick your wand at';}
    raw=Math.floor(raw*rowMeleeDealt(t,r.row,reach)); // Back-row melee is halved; reach is not.
   }
+  raw=Math.floor(raw*mealMultiplier(l,'weapon'));
   const base=Math.max(1,mitigate(t,raw,r.enemy.def)-weakened); // Enemy DEF as a percentage (def_mitigation_k).
   const damage=isCrawling(state.loadout)&&!loadoutCrawlFree(state.loadout)?Math.max(1,Math.floor(base*0.75)):base; // Match campaign rounding and preserve minimum damage. Sula's devout crawl without penalty.
-  r.enemy.hp=Math.max(0,r.enemy.hp-damage);r.log.push('You '+verb+' '+r.enemy.name+' for '+damage+' damage.');
+  const actual=Math.min(r.enemy.hp,damage);r.enemy.hp=Math.max(0,r.enemy.hp-damage);r.log.push('You '+verb+' '+r.enemy.name+' for '+damage+' damage.');
+  weaponEffects(state,{weapon:w.item,actual,raw,roll,mitigate:(n,d)=>mitigate(t,n,d),enemies:z.craftEnemies??[]});
   if(godMode(state)&&r.enemy.hp>0)godStrike(r); // Any landed attack finishes the enemy.
  }else if(input.action==='row'){ // Party rows: a free change once per turn by default, or a turn-spending one when row_swap_costs_turn is set.
   if(!r.rowPartner)fail('No one is here to hold the line; alone you always fight in front.');

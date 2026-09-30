@@ -2,12 +2,13 @@ import {randomUUID} from 'node:crypto';
 import {stackable,stackTokens,setStackTokens} from './loadout.mjs';
 
 const slots=['weapon','head','mouth','torso','pants','panties','plug','socks','shoes','gloves','bra','diaper_cover','special','accessory_1','accessory_2','accessory_3'].map(s=>'equipped_'+s);
+const canonical=(item,definition)=>{if(!definition.crafted&&!definition.cooked&&!definition.brewed)return;const mutable={};for(const k of ['quantity','online_item','online_items','online_sell_price','wetness','messiness','wet_absorbed','tum_absorbed'])if(item[k]!==undefined)mutable[k]=item[k];for(const k of Object.keys(item))delete item[k];Object.assign(item,structuredClone(definition),mutable);}; // Rolled properties are restored from the issued item, preserving garment wear and stack identity.
 const strip=item=>{delete item.online_item;delete item.online_items;delete item.online_sell_price;};
 export function createItemOrigins(db){
  db.exec(`CREATE TABLE IF NOT EXISTS quest_item_origins(id TEXT PRIMARY KEY,character_id TEXT NOT NULL,item TEXT NOT NULL,price INTEGER NOT NULL,status TEXT NOT NULL);
  CREATE INDEX IF NOT EXISTS quest_owned_items ON quest_item_origins(character_id,status);`);
  function mint(character,item,paid=Infinity){ // Only committed server loot and paid purchases create sale rights; client metadata never does.
-  strip(item);const price=Math.min(paid,item.category==='quest_item'||!(item.value>0)?0:item.cursed?1:Math.max(1,Math.floor(item.value*0.5)));
+  strip(item);const price=Math.min(paid,item.quest_item||item.bound||item.soulbound||item.tradeable===false||['quest','quest_item'].includes(item.category)||!(item.value>0)?0:item.cursed?1:Math.max(1,Math.floor(item.value*0.5)));
   if(!Number.isSafeInteger(price)||price<=0)return item;
   const id=randomUUID();db.prepare('INSERT INTO quest_item_origins VALUES (?,?,?,?,?)').run(id,character,JSON.stringify(item),price,'held');
   item.online_item=id;item.online_sell_price=price;return item;
@@ -20,9 +21,9 @@ export function createItemOrigins(db){
    if(stackable(item)){ // A stack keeps one right per tracked unit, in purchase order, never more rights than units; the rest (eaten, thrown away, lost) are retired below like any missing single.
     const quantity=Math.max(1,Math.floor(Number(item.quantity)||1)),kept=[];
     for(const id of stackTokens(item)){const r=owned.get(id);if(!r||r.definition.item_id!==item.item_id||seen.has(id)||kept.length>=quantity)continue;seen.add(id);kept.push(id);}
-    setStackTokens(item,kept,new Map(kept.map(id=>[id,owned.get(id).price])));return kept.length>0;
+    if(kept.length)canonical(item,owned.get(kept[0]).definition);setStackTokens(item,kept,new Map(kept.map(id=>[id,owned.get(id).price])));return kept.length>0;
    }
-   const r=owned.get(item.online_item);if(!r||r.definition.item_id!==item.item_id||seen.has(r.id)){strip(item);return false;}item.online_sell_price=r.price;seen.add(r.id);return true;};
+   const r=owned.get(item.online_item);if(!r||r.definition.item_id!==item.item_id||seen.has(r.id)){strip(item);return false;}canonical(item,r.definition);item.online_sell_price=r.price;seen.add(r.id);return true;};
   // Bank contents are server-owned: imported copies of a banked token cannot displace the stored original.
   const bank=db.prepare('SELECT items FROM quest_bank WHERE character_id=?').get(c.id);
   if(bank){const stored=JSON.parse(bank.items);for(const entry of stored)accept(entry.item);db.prepare('UPDATE quest_bank SET items=? WHERE character_id=?').run(JSON.stringify(stored),c.id);}
@@ -57,7 +58,7 @@ export function createItemOrigins(db){
  }
  function sale(c,item,token=item?.online_item){ // The right being sold: a single item's own token, or any token a stack carries (the client offers its front unit).
   const id=stackable(item)?(stackTokens(item).includes(token)?token:''):(token===item?.online_item?token:'');
-  const row=db.prepare("SELECT * FROM quest_item_origins WHERE id=? AND character_id=? AND status='held'").get(id??'',c.id);return row&&JSON.parse(row.item).item_id===item.item_id?row:null;
+  const row=db.prepare("SELECT * FROM quest_item_origins WHERE id=? AND character_id=? AND status='held'").get(id??'',c.id);if(!row)return null;const definition=JSON.parse(row.item);return definition.item_id===item.item_id&&!definition.quest_item&&!definition.bound&&!definition.soulbound&&definition.tradeable!==false&&!['quest','quest_item'].includes(definition.category)?row:null;
  }
  function park(id,character){return db.prepare("UPDATE quest_item_origins SET status='escrow' WHERE id=? AND character_id=? AND status='held'").run(id??'',character).changes>0;} // An item on a trade table or in a duel pot keeps its right in escrow: reconcile() only judges held rows, so it is not marked spent while out of the bag.
  function release(id,character){return db.prepare("UPDATE quest_item_origins SET status='held',character_id=? WHERE id=? AND status='escrow'").run(character,id??'').changes>0;} // Back to a bag: the original owner on a refund, the new owner on a completed swap or a won pot.

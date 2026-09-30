@@ -22,7 +22,16 @@ test('shipped block quest: accept, collect once, defer ambush to refuge, boss, r
   db.prepare('UPDATE quest_presence SET x=29,y=58,moved=0 WHERE character_id=?').run(c.id);act('move',{direction:'south'});place({x:40,y:41});act('move',{direction:'north'});act('gm_god_mode',{value:true});
   let map=api.world.map(CAVERNS_ZONE);const dry=caveReach({...map.floor,managedOccupancy:[]},undefined,true);assert.equal(map.placements.length,6);assert.ok(map.placements.every(p=>dry.has(p.x+','+p.y)));
   const npc=map.placements.find(p=>p.kind==='npc');place(npc);act('npc_talk',{placement:npc.id});assert.equal(r.onlineQuests.conversation,null);assert.equal(r.flowScene.node,'offer');next('yes');assert.equal(c.fullDungeon.flags.story_caverns_started,true);next();assert.equal(r.flowScene,null);
-  const markers=map.placements.filter(p=>p.kind==='token');for(const marker of markers){place(marker);act('quest_interact',{placement:marker.id});}assert.equal(c.fullDungeon.flags.story_caverns_surveyed,true);assert.equal(r.flowScene,null,'Must wait for the refuge, even after collecting all markers.');
+  const markers=map.placements.filter(p=>p.kind==='token'),collected=[];
+  for(const marker of markers){
+   place(marker);r=api.read('',c.id);c=r.character;
+   const target=r.questGuide?.target;assert.ok(target,'the minimap guide marks a survey marker in the Caverns');
+   assert.ok(!collected.some(m=>m.x===target.x&&m.y===target.y),'the guide never points at a marker this character already picked up (was stuck on the first one)');
+   assert.deepEqual(target,{x:marker.x,y:marker.y},'standing on a marker, the nearest remaining one is this one');
+   act('quest_interact',{placement:marker.id});collected.push(marker);
+  }
+  assert.equal(c.fullDungeon.flags.story_caverns_surveyed,true);
+  const hermit=map.floor.enemies.find(p=>p.id==='breakwater-hermit');assert.equal(r.questGuide?.objective,'boss','all three markers: stage two guides to the Hermit');assert.deepEqual(r.questGuide.target,{x:hermit.x,y:hermit.y});assert.equal(r.flowScene,null,'Must wait for the refuge, even after collecting all markers.');
   const refuge=map.placements.find(p=>p.kind==='location');place(refuge);r=api.read('',c.id);c=r.character;assert.equal(r.flowScene.node,'ambush_intro');next();assert.equal(r.encounter.enemies.length,2);
   const id=c.id,flowRevision=api.world.flows.get('coastal_caverns_story').revision;api.close();boot();r=api.read('',id);c=r.character;assert.equal(api.world.flows.get('coastal_caverns_story').revision,flowRevision);assert.equal(r.encounter.enemies.length,2);win();assert.equal(r.flowScene.node,'victory');next();
   map=api.world.map(CAVERNS_ZONE);const boss=map.floor.enemies.find(p=>p.id==='breakwater-hermit');place({x:boss.x-1,y:boss.y});act('dive_engage',{encounter:boss.id});win();assert.equal(c.fullDungeon.flags.story_caverns_hermit_defeated,true);assert.equal(r.flowScene.node,'memory_hint');next();
