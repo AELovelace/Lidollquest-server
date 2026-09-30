@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
 import {createQuestZones} from '../server/zones.mjs';
-import {paceStep,moveDelays,movementDelay} from '../server/crawl.mjs';
+import {paceStep,paceSingle,moveDelays,movementDelay} from '../server/crawl.mjs';
 import {campaignDives} from '../server/hubs.mjs';
 import {walkable} from '../server/dive-generation.mjs';
 
@@ -42,6 +42,13 @@ test('the burst step clock keeps the old one-step rule at burst 1 and never beat
  let clock=0,count=0;for(let i=0;i<20;i++){const next=paceStep(clock,1000,150,6);if(next===null)break;clock=next;count++;}
  assert.equal(count,6,'six queued steps may arrive together');
  assert.equal(clock,1000+5*150,'and they still occupy five further delay slots');
+});
+
+test('single steps may finish a burst a walk batch started, but never start one',()=>{
+ assert.equal(paceSingle(900,1000,150,6),null,'idle clock: the strict now - moved >= delay rule');
+ assert.equal(paceSingle(850,1000,150,6),1000);
+ assert.equal(paceSingle(1450,1000,150,6),1600,'a batch parked the clock ahead: the bump takes the next slot inside the burst');
+ assert.equal(paceSingle(1750,1000,150,6),null,'but not past it');
 });
 
 test('hub walks commit plain floor in order with their needs turns, and stop at the burst, walls and travel tiles',()=>{
@@ -115,5 +122,44 @@ test('dungeon walks reveal each tile, count room events, and stop before loot an
   assert.equal(h.c.walkReceipt.walked,1);assert.equal(h.c.walkReceipt.stop,'special','loot waits for its own single step');
   assert.deepEqual(stopped.position,{x:start.x+2,y:start.y});
   refused(()=>h.act('walk',{steps:['west'],loadout:loadout('loot2')},2000),/on its own/);
+ }finally{h.db.close();}
+});
+
+test('the single step after a laggy walk batch shares its burst clock instead of bouncing as too fast',()=>{ // Regression: a late batch parks `moved` up to (burst-1) delays ahead of now, so a strict now-moved check refused the chest/door step that followed.
+ const h=harness();try{
+  h.act('create',{name:'Laggy'});
+  const s=h.act('enter',{zone:'princess-rose',loadout:loadout('entry')});
+  const z=s.zones.find(v=>v.id===s.zone),solid=(x,y)=>z.walls[y]?.[x]!==0||(z.fixtures??[]).some(f=>f.solid!==false&&x>=f.x&&y>=f.y&&x<f.x+(f.span_w??1)&&y<f.y+(f.span_h??1))||(z.portals??[]).some(p=>p.x===x&&p.y===y);
+  let start=null;for(let y=1;y<z.height-1&&!start;y++)for(let x=1;x+9<z.width-1&&!start;x++)if([...Array(10).keys()].every(i=>!solid(x+i,y)))start={x,y}; // Ten clear tiles east.
+  h.place(start.x,start.y);
+  h.act('walk',{steps:['east','east','east','east'],loadout:loadout('batch')},2000); // Four steps land together, one round trip late: slots T..T+3d, so `moved` sits 3d ahead of now.
+  assert.equal(h.c.walkReceipt.walked,4);
+  const moved=h.act('move',{direction:'east'},200); // The client waits one interval (187.5 + 12.5 ms) after its last predicted step, then bumps the special tile.
+  assert.deepEqual(moved.position,{x:start.x+5,y:start.y},'the follow-up single step is accepted');
+  h.act('move',{direction:'east'},0);h.act('move',{direction:'east'},0); // The bucket (6 slots + the ~1 refilled over 200 ms) still has two steps in it...
+  refused(()=>h.act('move',{direction:'east'},0),/too fast/); // ...then it is spent, so a cheater gains nothing a 6-step walk batch did not already allow.
+  assert.deepEqual(h.presence().x,start.x+7);
+ }finally{h.db.close();}
+});
+
+test('a dungeon chest right after a walk batch opens on the first bump',()=>{
+ const h=harness();try{
+  h.act('create',{name:'Looter'});
+  h.act('enter',{zone:'princess-rose',loadout:loadout('entry')});
+  const data=campaignDives[0],zone=data.config.zone_id;h.place(9,0);
+  const hall=h.act('hub_visit',{zone:'princess-rose-dives'}),pad=hall.zones.find(v=>v.id===hall.zone).portals.find(p=>p.target===zone);
+  h.place(pad.x,pad.y);h.act('dive_enter',{zone});
+  const visit=h.c.dive,record=()=>JSON.parse(h.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=?').get(visit.route,visit.edition).content);
+  const f=record(),busy=new Set([...f.enemies,...f.chests,...(f.pickups??[]),...(f.exits??[]),f.entrance].map(p=>p.x+','+p.y));
+  let start=null;for(let y=1;y<f.height-1&&!start;y++)for(let x=1;x+5<f.width-1&&!start;x++)if([...Array(5).keys()].every(i=>walkable(f,x+i,y)&&!busy.has((x+i)+','+y)))start={x,y}; // Four floor tiles plus the loot tile.
+  assert.ok(start);
+  const s=JSON.parse(h.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(h.c.id).state);s.dive.position={...start};s.dive.safeUntil=0;
+  h.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(s),h.c.id);h.place(start.x,start.y);
+  const floor=record();(floor.pickups??=[]).push({id:'lag-test-pickup',x:start.x+4,y:start.y,item:{item_id:'water_bottle'}});
+  h.db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=?').run(JSON.stringify(floor),visit.route,visit.edition);
+  h.act('walk',{steps:['east','east','east'],loadout:loadout('approach')},2000); // Three steps up to the pickup, delivered late in one batch.
+  assert.equal(h.c.walkReceipt.walked,3);
+  const bumped=h.act('move',{direction:'east',world_step:true},200); // The loot tile always goes out as its own single step.
+  assert.deepEqual(bumped.position,{x:start.x+4,y:start.y},'the player steps onto the pickup instead of stopping beside it');
  }finally{h.db.close();}
 });

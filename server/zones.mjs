@@ -18,7 +18,7 @@ import {createDuels,DUEL_ACTIONS,DUEL_FIGHT_ACTIONS} from './duels.mjs';
 import {createTrades,TRADE_ACTIONS} from './trades.mjs';
 import {createFieldMagic,FIELD_CAST_ACTIONS} from './field-magic.mjs'; // Heal/Cure/Buff spells on a nearby party member outside battle (2026-09-28).
 import {publicCombatState} from './defeat-scenes.mjs';
-import {movementDelay,moveDelays,moveBurst,paceStep} from './crawl.mjs';
+import {movementDelay,moveDelays,moveBurst,paceStep,paceSingle} from './crawl.mjs';
 import {createParties} from './parties.mjs';
 import {createGuilds} from './guilds.mjs'; // Persistent player guilds (2026-09-28): roster, chat stream, treasury, weekly goal.
 import {publishPlayerActivity} from './player-activity.mjs';
@@ -232,7 +232,8 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
  const flowTests=flows&&!flowTesting?createFlowTests(db,{flows,now,build:(memory,owner,testWallet,testAdjust)=>createQuestZones(memory,{flowTesting:true,now,roll,grant:()=>({owner,id:'flow-test',client:'lidollquest',gamemaster:true}),wallet:testWallet,adjust:testAdjust,live:createWorldContent(memory,{now,spells:combatData.spells,equipment:{...hubData.equipment,...combatData.defeat_items},defeatEquipment:combatData.defeat_equipment}),diveOptions:{log:()=>{}}})}):null;
  if(flowTests)world.flowTests=flowTests;if(flowTesting)world.testAssets=(assets,actor)=>live.bundle(assets,actor,true);
  if(world)world.progress=createGmProgress(db,{live,quests,flows,now}); // GM panel Players tab: per-character flags, quests, story/orb replays for test accounts.
- function resumeStory(c){if(!flows?.enabled)return c;return atomic(()=>{const s=JSON.parse(c.state),before=JSON.stringify(s),old=flows.snapshot(c,s);flows.resume(c,s);flows.objectives(c,s);if(before!==JSON.stringify(s)||JSON.stringify(old)!==JSON.stringify(flows.snapshot(c,s))){c.revision++;c.state=JSON.stringify(s);db.prepare('UPDATE quest_characters SET state=?,revision=? WHERE id=?').run(c.state,c.revision,c.id);}return c;});}
+ if(flows)live.flowFlagsCleared=flows.flagsCleared; // Reset receipts also rearm automatic flag entries, including across offline rollovers.
+ function resumeStory(c){return atomic(()=>{const s=JSON.parse(c.state),before=JSON.stringify(s),old=flows?.snapshot(c,s);quests?.resetFlags(c,s);if(flows?.enabled){flows.resume(c,s);flows.objectives(c,s);}if(before!==JSON.stringify(s)||JSON.stringify(old)!==JSON.stringify(flows?.snapshot(c,s))){c.revision++;c.state=JSON.stringify(s);db.prepare('UPDATE quest_characters SET state=?,revision=? WHERE id=?').run(c.state,c.revision,c.id);}return c;});} // Reads reconcile due quest resets before story conditions, even with story playback disabled.
  const saveOther=(oc,os)=>{const previous=JSON.parse(oc.state);if(JSON.stringify(os.loadout)!==JSON.stringify(previous.loadout))os.loadoutRevision=oc.revision+1;oc.revision++;oc.state=JSON.stringify(os);db.prepare('UPDATE quest_characters SET revision=?,state=? WHERE id=?').run(oc.revision,oc.state,oc.id);}; // Commit another participant's state inside the caller's transaction, as Dive encounters do.
  const pvpAllowed=id=>!isDungeon(id)||zoneCategory(id)===ZONE_CATEGORY.OVERWORLD; // Story overworlds (Desert, High Desert, Taiga, Tundra, Haunted Woods, Spooky Mansion) host duels; dungeon Dives do not.
  const duels=createDuels(db,{now,roll,parties,adjust,saveCharacter:saveOther,pvpAllowed,origins,getReadyPosted:(author,partners,since)=>partners.length>0&&!!db.prepare('SELECT 1 FROM quest_rp_posts p JOIN quest_rp_partners q ON q.post_id=p.id WHERE p.author=? AND p.created>? AND q.character_id IN ('+partners.map(()=>'?').join(',')+') LIMIT 1').get(author,since,...partners)}); // RP battles need a get-ready post naming an opponent within the last half hour.
@@ -395,10 +396,13 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
    if(input.action==='gm_catalog'){gmTools.requireGm(i);presence(i,c,input.controller);return {...response(i,c),receipt:{action:'gm_catalog',request_id:input.request_id,gm:gmTools.catalog(i,c)}};} // A read-only list: no revision bump or journal row, exactly like rp_read.
    if(old){if(old.fingerprint!==fingerprint)fail(409,'This request ID already describes another action.');return {...response(i,c),receipt:JSON.parse(old.result)};}
    if(input.action==='heartbeat'){
+    const state=JSON.parse(c.state),before=JSON.stringify(state.fullDungeon?.flags);quests?.resetFlags(c,state);
+    if(before!==JSON.stringify(state.fullDungeon?.flags)){c.revision++;c.state=JSON.stringify(state);db.prepare('UPDATE quest_characters SET state=?,revision=? WHERE id=?').run(c.state,c.revision,c.id);} // Idle connected players see the rollover even before the next scheduled sweep.
     const lease=presence(i,c,input.controller);if(now()-lease.seen>=HEARTBEAT_WRITE_INTERVAL)db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);return response(i,c); /* Presence stays fresh for 30 s, so a heartbeat only needs to touch the row every few seconds; the other heartbeats commit nothing and cost no disk write. */
    }
    if((!JSON.parse(c.state).run?.sharedEncounter||!['turn_ready','attack','cast','charm','allure','use_item','flee','submit','stand','row','revive'].includes(input.action))&&(!Number.isSafeInteger(input.revision)||input.revision!==c.revision))fail(409,'Character changed; refresh before choosing another action.');
    const state=JSON.parse(c.state);let p,rpId,fieldCastResult;
+   quests?.resetFlags(c,state); // Commands see the new period before NPC greetings, entry requirements or objective effects run.
    if(state.godMode&&i.gamemaster!==true)delete state.godMode; // GM god mode ends with the next command once the account loses the gamemaster role.
    if(input.action==='enter'){state.flowVersion=input.flow_version===1?1:0;state.followerVersion=input.follower_version===1?1:0;state.contentVersion=input.content_version===1?1:0;state.questVersion=input.quest_version===1?1:0;state.fullDungeonVersion=input.full_dungeon_version===1?1:0;state.cavernVersion=input.cavern_version===1?1:0;}
    if(state.flowVersion!==1&&flows?.active(c))fail(409,'Update the game to resume this personal story.','client_update_required');
@@ -632,12 +636,12 @@ export function createQuestZones(db,{grant,wallet,adjust,enabled=()=>true,muted=
     else if(input.action==='leave'){delete state.hubVisit;if(state.run)fail(409,'Bank your completed rounds or forfeit before leaving.');db.prepare('DELETE FROM quest_presence WHERE owner=?').run(i.owner);}
     else if(input.action==='move'){
      if(state.run?.phase==='fight')fail(409,'Finish this round before moving.');
-     if(now()-p.moved<movementDelay(state.loadout,currentTuning()))fail(429,'Movement is too fast.'); // move_delay_ms / crawl_move_delay_ms from the live Loot tuning.
+     const paced=paceSingle(p.moved,now(),movementDelay(state.loadout,currentTuning()),moveBurst(currentTuning()));if(paced===null)fail(429,'Movement is too fast.'); // move_delay_ms / crawl_move_delay_ms from the live Loot tuning. After a late walk batch this step finishes the batch's burst instead of bouncing at the door.
      const directions={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]},d=Object.hasOwn(directions,input.direction)?directions[input.direction]:null;if(!d)fail(400,'Choose a movement direction.');
      const x=p.x+d[0],y=p.y+d[1];if(blocked(z,x,y))fail(409,'That tile is blocked.');
      const gap=hubGaps(z).find(g=>inHubGap(g,x,y));
      if(gap)visitHub(i,state,z,zone(gap.target)); // The server commits wall contact and room transfer in one receipt, including click-path movement.
-     else {db.prepare('UPDATE quest_presence SET x=?,y=?,moved=?,facing=? WHERE owner=?').run(x,y,now(),FACING[input.direction],i.owner);if(input.world_step===true&&state.loadout)state.worldTurnDue={id:randomUUID()};} // Ordinary walking still reserves one recoverable needs turn and turns the avatar toward the step.
+     else {db.prepare('UPDATE quest_presence SET x=?,y=?,moved=?,facing=? WHERE owner=?').run(x,y,paced,FACING[input.direction],i.owner); /* The step claims its paced slot, so single steps spend the same burst budget as batches. */if(input.world_step===true&&state.loadout)state.worldTurnDue={id:randomUUID()};} // Ordinary walking still reserves one recoverable needs turn and turns the avatar toward the step.
     }else if(input.action==='walk'){ // Queued hub steps: plain floor only, paced by the burst step clock; gaps, portals and the annex exit keep the single-step move.
      if(state.run?.phase==='fight')fail(409,'Finish this round before moving.');
      const burst=moveBurst(currentTuning()),path=[];let at={x:p.x,y:p.y},clock=p.moved,stop=input.walkCut?'special':'',facing=p.facing;

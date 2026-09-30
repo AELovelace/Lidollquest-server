@@ -117,7 +117,7 @@ function contentProperties(){
  el('h2',blockNames[n.role],host);el('p',a.kind+' · '+a.id,host).className='hint';
  if(n.role==='root'){
   if(a.kind==='orb'){field(host,'Hidden until revealed',d,'hidden_until_revealed','checkbox');el('p','Place this orb on the map, then use Reveal orb or Hide orb in a story flow to control its visibility for each character. Reading requirements still apply.',host).className='hint';}
-  for(const key of Object.keys(d))if(!['stages','dialogue','pages','story_reactions','rewards','story_default'].includes(key)){
+  for(const key of Object.keys(d))if(!['stages','dialogue','pages','story_reactions','rewards','story_default','reset_flags'].includes(key)){
    if(key==='hidden_until_revealed'&&a.kind==='orb')continue;
    if(key==='id'){field(host,'Stable ID',d,key).readOnly=true;continue;}
    if(['givers','quests','prerequisites'].includes(key)){
@@ -127,8 +127,10 @@ function contentProperties(){
    if(key==='turn_in'){
     const box=el('fieldset',undefined,host);el('legend','Claim rewards',box);field(box,'Where',d.turn_in,'mode','text',[{id:'npc',name:'Return to NPC'},{id:'journal',name:'From journal'}]);contentSelect(box,'Turn-in NPC',d.turn_in,'npc',referenceOptions('npcs'));continue;
    }
+   if(key==='repeat'&&a.kind==='quest'){field(host,'Repeat policy',d,key,'text',['once','daily','weekly','cooldown']).addEventListener('change',properties);continue;}
    form(host,{get [key](){return d[key];},set [key](v){d[key]=v;}});
   }
+  if(a.kind==='quest')resetFlagProperties(host,d); // Existing drafts also show the optional reset controls without rewriting their schema.
   el('p','Add stages, pages, objectives and choices using the blocks on the left.',host).className='hint';
   if(['npc','orb'].includes(a.kind))button(host,'Save and copy pages to a story flow',async()=>{await saveAssetBundle(false);closeContent();seed(a);});
  }else if(n.role==='objective')objectiveProperties(host,n.data);
@@ -182,6 +184,19 @@ function objectiveProperties(host,o){
  if(o.token||['interact','visit'].includes(o.type))button(host,'Show / place objective on map',()=>openMap(o.target,{kind:o.token?'token':o.type==='visit'?'location':'interact',zone:o.zone||undefined,content:o.target,name:o.text||o.target}));
  if(o.token)el('p','Accept the quest before collecting. Each placement counts once per stage; place distinct tokens for a count above one.',host).className='hint';
 }
+function resetFlagProperties(host,d){
+ const box=el('fieldset',undefined,host);el('legend','Clear flags when this quest resets',box);
+ const enabled=['daily','weekly'].includes(d.repeat),options=cat.flags.filter(f=>!f.engineOwned&&!f.retired&&f.id.startsWith('story_'));
+ el('p','Choose up to 16 story flags. After rewards are claimed, clear them once at the next UTC daily or Monday weekly reset, including while offline. Empty means no flags reset. Use flags dedicated to this quest.',box).className='hint';
+ if(!enabled)el('p','Choose a daily or weekly repeat policy to add reset flags. Remove selected flags before saving another repeat policy.',box).className='hint';
+ for(let i=0;i<(d.reset_flags?.length??0);i++){
+  contentSelect(box,'Reset flag '+(i+1),d.reset_flags,i,options);
+  button(box,'Remove reset flag '+(i+1),()=>{checkpoint();d.reset_flags.splice(i,1);if(!d.reset_flags.length)delete d.reset_flags;changed();properties();});
+ }
+ const available=options.find(f=>!d.reset_flags?.includes(f.id));
+ button(box,'+ Add reset flag',()=>{checkpoint();d.reset_flags??=[];d.reset_flags.push(available.id);changed();properties();}).disabled=!enabled||!available||(d.reset_flags?.length??0)>=16;
+ button(box,'+ Create reset flag',()=>editFlag(null,f=>{checkpoint();d.reset_flags??=[];d.reset_flags.push(f.id);changed();properties();})).disabled=!enabled||(d.reset_flags?.length??0)>=16;
+} // Reset targets belong to quest Settings; undo, recovery and publication use the same canonical draft.
 function completionFlagProperties(host,o){
  const box=el('fieldset',undefined,host);el('legend','On completed → Set flag',box);
  el('p','Sets these flags to true the first time this objective is met, without waiting for the stage or reward claim. Choose an existing flag or create one here.',box).className='hint';
@@ -227,6 +242,11 @@ function contentDuplicate(){
 function checkContentBlocks(report=true){
  const a=contentAsset(),g=contentGraph(),errors=[],seen=new Set(),stack=new Set();
  const problem=(n,message)=>errors.push({severity:'error',node:n.id,message});
+ if(a.kind==='quest'&&a.entry.reset_flags?.length){
+  if(!['daily','weekly'].includes(a.entry.repeat))problem(g.nodes[0],'Reset flags require a daily or weekly repeat policy.');
+  if(a.entry.reset_flags.length>16)problem(g.nodes[0],'A quest can reset up to 16 flags.');
+  for(const id of a.entry.reset_flags)if(!cat.flags.some(f=>f.id===id&&!f.retired&&!f.engineOwned&&id.startsWith('story_')))problem(g.nodes[0],'Choose an active authored reset flag.');
+ }
  const visit=id=>{if(stack.has(id)){if(a.kind==='quest')problem(g.nodes.find(n=>n.id===id),'Quest stages cannot form a loop.');return;}if(seen.has(id))return;seen.add(id);stack.add(id);for(const e of g.edges.filter(e=>e.from===id))visit(e.to);stack.delete(id);};visit('root');
  for(const n of g.nodes){
   if(n.role==='stage'&&!seen.has(n.id))problem(n,'Connect this stage to the starting route.');

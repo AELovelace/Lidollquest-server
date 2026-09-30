@@ -18,11 +18,23 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
  CREATE INDEX IF NOT EXISTS online_quest_owner ON online_quests(character_id,quest);
  CREATE TABLE IF NOT EXISTS online_quest_events(instance TEXT NOT NULL,event TEXT NOT NULL,PRIMARY KEY(instance,event));
  CREATE TABLE IF NOT EXISTS online_quest_claims(instance TEXT PRIMARY KEY,character_id TEXT NOT NULL,quest TEXT NOT NULL,claimed INTEGER NOT NULL,result TEXT NOT NULL);
+ CREATE TABLE IF NOT EXISTS online_quest_flag_resets(instance TEXT PRIMARY KEY,character_id TEXT NOT NULL,due INTEGER NOT NULL,flags TEXT NOT NULL,applied INTEGER NOT NULL DEFAULT 0);
+ CREATE INDEX IF NOT EXISTS online_quest_flag_reset_due ON online_quest_flag_resets(due,character_id) WHERE applied=0;
+ CREATE INDEX IF NOT EXISTS online_quest_flag_reset_owner ON online_quest_flag_resets(character_id,due) WHERE applied=0;
  CREATE TABLE IF NOT EXISTS online_conversations(character_id TEXT PRIMARY KEY,id TEXT NOT NULL,placement TEXT NOT NULL,zone TEXT NOT NULL,edition TEXT NOT NULL,definition TEXT NOT NULL,page TEXT NOT NULL,expires INTEGER NOT NULL);`);
  live.registerQuestPack(fullDungeonQuestPack()); // Baseline quests overlay no GM-edited definitions or existing character instances.
  const unpack=r=>r?{...r,definition:JSON.parse(r.definition),state:JSON.parse(r.state)}:null;
  const instances=c=>db.prepare('SELECT * FROM online_quests WHERE character_id=? ORDER BY created,id').all(c.id).map(unpack);
  const save=q=>db.prepare('UPDATE online_quests SET state=? WHERE id=?').run(JSON.stringify(q.state),q.id);
+ function resetFlags(c,s){
+  const rows=db.prepare('SELECT * FROM online_quest_flag_resets WHERE character_id=? AND applied=0 AND due<=? ORDER BY due,instance').all(c.id,now());
+  for(const row of rows){
+   const ids=JSON.parse(row.flags),definitions=ids.map(id=>({id})); // These targets were authorized in the accepted definition, even if later retired.
+   for(const id of ids)setStoryFlag(s,id,false,definitions);
+   live.flowFlagsCleared?.(c,ids); // Rearm flag entries before a new attempt can set the same flag again.
+   db.prepare('UPDATE online_quest_flag_resets SET applied=1 WHERE instance=?').run(row.instance);
+  }
+ } // The caller saves character memory and these receipts in one transaction; skipped offline periods apply only once per claim.
  live.setReferenceCheck((kind,body)=>{
   if(body.retired)return;const registry=new Set(world.catalog().map(z=>z.id));
   const npcExists=key=>{if(live.published().npcs[key]&&!live.published().npcs[key].retired)return true;const split=key.indexOf(':');if(split<0||!registry.has(key.slice(0,split)))return false;return (world.map(key.slice(0,split)).floor?.fixtures??[]).some(f=>f.kind==='npc'&&f.id===key.slice(split+1));};
@@ -158,6 +170,10 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
   const day=Math.floor(now()/86400000),spent=db.prepare('SELECT coins FROM quest_reward_days WHERE owner=? AND day=?').get(c.owner,day)?.coins??0,paid=Math.min(r.coins,Math.max(0,dailyCoinCap()-spent));
   if(paid){adjust(c.owner,'coins',paid,'quest-'+q.id,'Quest: '+q.definition.name);db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?) ON CONFLICT(owner,day) DO UPDATE SET coins=coins+excluded.coins').run(c.owner,day,paid);}
   const result={quest:key,name:q.definition.name,coins:paid,cappedCoins:r.coins-paid,xp:r.xp,rpp:r.rpp,items:r.items};db.prepare('INSERT INTO online_quest_claims VALUES (?,?,?,?,?)').run(q.id,c.id,key,now(),JSON.stringify(result));q.state.status='claimed';q.state.reward=result;save(q);Object.assign(s,next);s.questReward=result;guilds?.progress(c.id,'quest');
+  if(q.definition.reset_flags?.length&&['daily','weekly'].includes(q.definition.repeat)){
+   const mode=q.definition.repeat,due=mode==='daily'?(period(mode,now())+1)*86400000:(period(mode,now())+1)*604800000-3*86400000;
+   db.prepare('INSERT INTO online_quest_flag_resets(instance,character_id,due,flags) VALUES (?,?,?,?)').run(q.id,c.id,due,JSON.stringify(q.definition.reset_flags));
+  } // Schedule midnight UTC or Monday midnight UTC only after a successful claim; unfinished and abandoned attempts never schedule a reset.
  } // The caller's transaction owns the claim, inventory, progression, currency outbox, and command receipt.
  function gm(c,s,op,key){ // Gamemaster test shortcuts. They move quest state only; rewards still come from the normal turn-in.
   const published=live.published().quests[key],current=active(c,key);
@@ -173,6 +189,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
    const rows=db.prepare('SELECT id FROM online_quests WHERE character_id=? AND quest=?').all(c.id,key);
    if(!rows.length&&!db.prepare('SELECT 1 FROM online_quest_claims WHERE character_id=? AND quest=?').get(c.id,key))fail('This character has no history with that quest.');
    for(const row of rows)db.prepare('DELETE FROM online_quest_events WHERE instance=?').run(row.id); // Forget which events were counted so a new attempt can earn them again.
+   for(const row of rows)db.prepare('DELETE FROM online_quest_flag_resets WHERE instance=?').run(row.id); // A GM history reset must not leave a delayed flag clear behind.
    db.prepare('DELETE FROM online_quest_claims WHERE character_id=? AND quest=?').run(c.id,key); // Clears once-only and cooldown eligibility for this character alone.
    db.prepare('DELETE FROM online_quests WHERE character_id=? AND quest=?').run(c.id,key);
    return published?.name??key;
@@ -272,7 +289,10 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
   else {const q=active(c,n.ref);if(q){q.state.abandoned_status=q.state.status;q.state.status='abandoned';save(q);}}
  } // Flow operations retain ordinary prerequisites, progress and reward receipts.
  function flowObjective(c,key){return instances(c).some(q=>q.quest===key&&['ready','claimed'].includes(q.state.status));}
- return {placements,visiblePlacements,act,after,event,flow,flowObjective,snapshot,conditions,gm,gmCatalog,trackedQuest(c,s){const q=c?tracked(c,s):null;return q?publicQuest(q,s):null;}/* The tracked quest's public view, for the minimap guide (quest-guide.mjs). */,detail(c,s,id){const q=instances(c).find(q=>q.id===id||q.quest===id);if(!q)fail('Quest not found.',404);return publicQuest(q,s);},tick(){const full=now()>=nextQuestSweep;if(full)nextQuestSweep=now()+30000; // Offline characters' online timers cannot advance (elapsed stops at seen+30 s), so they only need the 30 s sweep; after() still ticks them on their next action.
+ return {placements,visiblePlacements,act,after,event,flow,flowObjective,snapshot,conditions,gm,gmCatalog,resetFlags,trackedQuest(c,s){const q=c?tracked(c,s):null;return q?publicQuest(q,s):null;}/* The tracked quest's public view, for the minimap guide (quest-guide.mjs). */,detail(c,s,id){const q=instances(c).find(q=>q.id===id||q.quest===id);if(!q)fail('Quest not found.',404);return publicQuest(q,s);},tick(){const full=now()>=nextQuestSweep;if(full)nextQuestSweep=now()+30000; // Offline characters' online timers cannot advance (elapsed stops at seen+30 s), so they only need the 30 s sweep; after() still ticks them on their next action.
+  for(const c of db.prepare('SELECT DISTINCT c.* FROM online_quest_flag_resets r JOIN quest_characters c ON c.id=r.character_id WHERE r.applied=0 AND r.due<=?').all(now())){
+   const state=JSON.parse(c.state),before=JSON.stringify(state.fullDungeon?.flags);resetFlags(c,state);savePassiveFlags(c,state,before);
+  } // Due-only sweep includes offline characters and commits clears before evaluating any timer objectives.
   const rows=full?db.prepare("SELECT DISTINCT c.* FROM quest_characters c JOIN online_quests q ON q.character_id=c.id WHERE json_extract(q.state,'$.status') IN ('active','choice')").all():db.prepare("SELECT DISTINCT c.* FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id JOIN online_quests q ON q.character_id=c.id WHERE p.seen>? AND json_extract(q.state,'$.status') IN ('active','choice')").all(now()-30000); // Every second: only characters seen in the last 30 s.
   for(const c of rows){const state=JSON.parse(c.state),before=JSON.stringify(state.fullDungeon?.flags);tickCharacter(c,state);savePassiveFlags(c,state,before);}placements.tick();}};
 }

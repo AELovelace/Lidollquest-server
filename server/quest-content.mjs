@@ -11,8 +11,8 @@ const list=(v,max=64)=>Array.isArray(v)&&v.length<=max?v:fail(`Use at most ${max
 const choose=(v,values)=>values.includes(v)?v:fail('Unknown quest option: '+v);
 const unique=rows=>{if(new Set(rows.map(r=>r.id)).size!==rows.length)fail('IDs must be unique.');return rows;};
 export function validateConditions(value=[]){return list(value,16).map(c=>c.flags?{flags:validateFlagCondition(c.flags)}:{field:choose(c.field,stateFields),op:choose(c.op??'gte',['gte','lte','eq']),value:num(c.value,-1000000),...(c.item?{item:id(c.item)}:{})});}
-export function validateObjectiveFlags(value){
- const flags=list(value,16);if(flags.some(flag=>typeof flag!=='string'||!/^story_[a-z0-9_]{1,74}$/.test(flag)))fail('Objective completion can only set authored story_ flags.');
+export function validateObjectiveFlags(value,action='Objective completion can only set'){
+ const flags=list(value,16);if(flags.some(flag=>typeof flag!=='string'||!/^story_[a-z0-9_]{1,74}$/.test(flag)))fail(action+' authored story_ flags.');
  return [...new Set(flags)];
 } // Drafts retain a bounded list of authored IDs; publication checks their active definitions.
 export function validateQuestContent(kind,v,{assetRef,spells,equipment}){
@@ -29,6 +29,8 @@ export function validateQuestContent(kind,v,{assetRef,spells,equipment}){
   out.prerequisites=list(v.prerequisites??[],32).map(id);out.conditions=validateConditions(v.conditions);
   out.failure_text=text(v.failure_text??'This quest could not be completed.');
   out.repeat=choose(v.repeat??'once',['once','daily','weekly','cooldown']);out.cooldown_seconds=num(v.cooldown_seconds??86400,1,31536000);
+  if(v.reset_flags!==undefined)out.reset_flags=validateObjectiveFlags(v.reset_flags,'Quest resets can only clear'); // Optional so existing definitions keep their original hashes.
+  if(out.reset_flags?.length&&!['daily','weekly'].includes(out.repeat))fail('Reset flags require a daily or weekly repeat policy.');
   out.timer={mode:choose(v.timer?.mode??'online',['online','realtime']),seconds:num(v.timer?.seconds??0,0,31536000)};
   out.turn_in={mode:choose(v.turn_in?.mode??'npc',['npc','journal']),npc:v.turn_in?.npc?text(v.turn_in.npc,160):''};
   out.givers=list(v.givers??[],32).map(x=>text(x,160));

@@ -17,5 +17,8 @@ export function createFlowTriggers(db,{now,list,pin}){
    }
   }
  } // Observe while a character is busy too; each accepted quest attempt or false-to-true flag transition has its own durable receipt.
- return {observe,pending:(c,ready=()=>true)=>db.prepare('SELECT * FROM story_trigger_events WHERE character_id=? AND started=0 ORDER BY created,rowid').all(c.id).find(ready),started:id=>db.prepare('UPDATE story_trigger_events SET started=1 WHERE id=?').run(id)}; // A distant location-scoped scene must not block unrelated eligible entries.
+ function flagsCleared(c,ids){
+  const clear=db.prepare('UPDATE story_trigger_flags SET value=0 WHERE character_id=? AND source=?');for(const id of ids)clear.run(c.id,id);
+ } // Observe the reset even if an objective sets the flag again in the same command; keep queued scenes and sequence numbers intact.
+ return {observe,flagsCleared,pending:(c,ready=()=>true)=>db.prepare('SELECT * FROM story_trigger_events WHERE character_id=? AND started=0 ORDER BY created,rowid').all(c.id).find(ready),started:id=>db.prepare('UPDATE story_trigger_events SET started=1 WHERE id=?').run(id)}; // A distant location-scoped scene must not block unrelated eligible entries.
 } // Queued entries pin their definitions immediately and survive publication, restart and delayed combat.

@@ -27,6 +27,7 @@ const npc={id:'guide_npc',name:'Guide',description:'A friendly guide',dialogue:[
 const quest=(extra={})=>({id:'first_quest',name:'First quest',description:'Explore together',givers:['guide_npc'],turn_in:{mode:'journal'},stages:[{id:'start',name:'Explore',objectives:[{id:'arrive',type:'visit',target:'honeydew-lantern',count:1}],next:'complete'}],rewards:{xp:5,coins:10,rpp:3,stats:{cha:1}},...extra});
 const authorObjectiveFlag=(f,id,retired=false)=>f.api.world.flows.gm({action:'flow_flag_save',revision:f.api.world.flows.flags().find(v=>v.id===id)?.revision??0,entry:{id,name:id,retired}},'dm');
 const objectiveCharacter=(f,id=f.c.id)=>JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(id).state);
+function seedResetFlags(f,flags){const s=objectiveCharacter(f);s.fullDungeon??={};s.fullDungeon.flags={...s.fullDungeon.flags,...flags};f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(s),f.c.id);} // Fixture setup preserves all other character state.
 function fixture(){const db=new DatabaseSync(':memory:'),live=createWorldContent(db,{spells:combatData.spells,equipment:hubData.equipment}),paid=[];let time=Date.parse('2026-09-19T12:00:00Z'),api,c,last;
  const start=()=>api=createQuestZones(db,{live,now:()=>time,roll:()=>0,grant:()=>({owner:'alice',id:'grant',client:'lidollquest'}),wallet:()=>({coins:0}),adjust:(...args)=>paid.push(args),diveOptions:{log:()=>{}}});start();
  const command=(action,extra={})=>({action,controller:'control',request_id:randomUUID(),character_id:c?.id,revision:c?.revision,...extra});
@@ -46,6 +47,63 @@ function acceptQuest(f,input){ // Drive a real NPC conversation for generic ques
  if(temporary&&d.turn_in.mode==='journal'&&!d.stages.some(stage=>stage.objectives.some(o=>o.target===giver||o.npc===giver))){const current=f.api.world.map(zone);f.api.world.act({action:'world_remove_content',zone,edition:current.edition,revision:current.revision,placement:p.id});}
  return result;
 }
+for(const repeat of ['daily','weekly'])test(repeat+' reset clears only selected personal flags at the exact UTC boundary and only once',()=>{const f=fixture();try{
+ const flag='story_reset_selected';authorObjectiveFlag(f,flag);f.publish('quest',quest({repeat,reset_flags:[flag]}));acceptQuest(f,{quest:'first_quest'});
+ seedResetFlags(f,{[flag]:true,story_unrelated:true,school_graduated:true});const command=f.command('quest_claim',{quest:'first_quest'});f.send(command);f.send(command);
+ const receipt=f.db.prepare('SELECT * FROM online_quest_flag_resets').get(),expected=Date.parse(repeat==='daily'?'2026-09-20T00:00:00Z':'2026-09-21T00:00:00Z');assert.equal(receipt.due,expected);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM online_quest_flag_resets').get().n,1);
+ const other=f.db.prepare('SELECT * FROM quest_characters WHERE id=?').get(f.c.id);f.db.prepare('INSERT INTO quest_characters(id,owner,name,created,revision,state,creation_id) VALUES (?,?,?,?,?,?,?)').run('reset-other',other.owner,other.name,other.created,other.revision,other.state,'reset-other');
+ f.advance(expected-Date.parse('2026-09-19T12:00:00Z')-1);f.api.tick();assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],true);
+ f.advance(1);if(repeat==='daily')f.api.tick();else f.restart(); // Exercise both the offline sweep and read-on-reconnect path.
+ assert.deepEqual(objectiveCharacter(f).fullDungeon.flags,{[flag]:false,story_unrelated:true,school_graduated:true});assert.equal(objectiveCharacter(f,'reset-other').fullDungeon.flags[flag],true);
+ assert.equal(f.db.prepare('SELECT applied FROM online_quest_flag_resets').get().applied,1);
+ seedResetFlags(f,{[flag]:true});f.advance(15*86400000);f.api.tick();f.restart();assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],true,'Skipped periods and restarts never apply an old reset twice');
+}finally{f.close();}});
+
+test('daily reset precedes NPC reactions and gated offers without a prior tick or read',()=>{const f=fixture();try{
+ const flag='story_daily_done';authorObjectiveFlag(f,flag);f.publish('npc',{...npc,story_reactions:[{conditions:{all:[flag]},page:'done'}],dialogue:[...npc.dialogue,{id:'done',text:'Already helped today.',next:'close',actions:[]}]});
+ f.publish('quest',quest({repeat:'daily',reset_flags:[flag],conditions:[{flags:{none:[flag]}}]}));const map=place(f,'npc',npc.id),p=map.placements.find(p=>p.content===npc.id);
+ acceptQuest(f,{quest:'first_quest'});seedResetFlags(f,{[flag]:true});f.act('quest_claim',{quest:'first_quest'});beside(f,p);f.act('npc_talk',{placement:p.id,edition:map.edition});assert.equal(f.last.onlineQuests.conversation.text,'Already helped today.');
+ f.advance(12*3600000);f.db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(Date.parse('2026-09-20T00:00:00Z'),f.c.id);beside(f,p);f.act('npc_talk',{placement:p.id,edition:map.edition});assert.equal(f.last.onlineQuests.conversation.text,'Welcome!');assert.ok(f.last.onlineQuests.conversation.choices.some(c=>c.label==='Ask about quests'));
+ acceptQuest(f,{quest:'first_quest'});assert.equal(f.last.onlineQuests.instances.filter(q=>q.status==='ready').length,1);
+}finally{f.close();}});
+
+test('reset targets are pinned on acceptance and failed commands roll back both clears and receipts',()=>{const f=fixture();try{
+ const flag='story_original_reset',replacement='story_replacement_reset';for(const id of [flag,replacement])authorObjectiveFlag(f,id);
+ f.publish('quest',quest({repeat:'daily',reset_flags:[flag]}));acceptQuest(f,{quest:'first_quest'});f.publish('quest',quest({repeat:'weekly',reset_flags:[replacement]}));authorObjectiveFlag(f,flag,true);
+ seedResetFlags(f,{[flag]:true,[replacement]:true});f.act('quest_claim',{quest:'first_quest'});assert.deepEqual(JSON.parse(f.db.prepare('SELECT flags FROM online_quest_flag_resets').get().flags),[flag]);
+ f.advance(12*3600000);f.db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(Date.parse('2026-09-20T00:00:00Z'),f.c.id);assert.throws(()=>f.api.act('',f.command('quest_accept',{quest:'first_quest',quest_revision:'invalid'})),/Speak to/);assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],true);assert.equal(f.db.prepare('SELECT applied FROM online_quest_flag_resets').get().applied,0);
+ f.restart();assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],false);assert.equal(objectiveCharacter(f).fullDungeon.flags[replacement],true);
+}finally{f.close();}});
+
+test('unfinished, ready, abandoned and legacy repeat attempts do not reset flags',()=>{const f=fixture();try{
+ const flag='story_unfinished';authorObjectiveFlag(f,flag);seedResetFlags(f,{[flag]:true});
+ f.publish('quest',quest({repeat:'daily',reset_flags:[flag],stages:[{id:'wait',objectives:[{id:'later',type:'timer',count:10000}],next:'complete'}]}));acceptQuest(f,{quest:'first_quest'});
+ f.advance(86400000);f.api.tick();f.restart();assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],true);
+ f.act('enter',{zone:'honeydew-lantern',quest_version:1,content_version:1,combat_version:3});f.act('quest_abandon',{quest:'first_quest'});f.advance(86400000);f.restart();f.act('enter',{zone:'honeydew-lantern',quest_version:1,content_version:1,combat_version:3});acceptQuest(f,{quest:'first_quest'});assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],true);
+ f.publish('quest',quest({id:'legacy_daily',repeat:'daily'}));acceptQuest(f,{quest:'legacy_daily'});f.advance(86400000);f.restart();assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],true);f.act('enter',{zone:'honeydew-lantern',quest_version:1,content_version:1,combat_version:3});f.act('quest_claim',{quest:'legacy_daily'});f.advance(86400000);f.restart();assert.equal(f.db.prepare('SELECT COUNT(*) n FROM online_quest_flag_resets').get().n,0);
+}finally{f.close();}});
+
+test('heartbeat applies due resets and a second claimed attempt schedules its own clear',()=>{const f=fixture();try{
+ const flag='story_repeat_reset';authorObjectiveFlag(f,flag);f.publish('quest',quest({repeat:'daily',reset_flags:[flag]}));acceptQuest(f,{quest:'first_quest'});seedResetFlags(f,{[flag]:true});f.act('quest_claim',{quest:'first_quest'});
+ f.advance(12*3600000);f.db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(Date.parse('2026-09-20T00:00:00Z'),f.c.id);f.act('heartbeat');assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],false);
+ acceptQuest(f,{quest:'first_quest'});seedResetFlags(f,{[flag]:true});f.act('quest_claim',{quest:'first_quest'});assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],true);
+ f.advance(86400000);f.api.tick();assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],false);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM online_quest_flag_resets WHERE applied=1').get().n,2);
+}finally{f.close();}});
+
+test('GM removal cancels pending resets without clearing flags',()=>{const f=fixture();try{
+ const flag='story_removed_reset';authorObjectiveFlag(f,flag);f.publish('quest',quest({repeat:'daily',reset_flags:[flag]}));acceptQuest(f,{quest:'first_quest'});seedResetFlags(f,{[flag]:true});f.act('quest_claim',{quest:'first_quest'});
+ f.api.quests.gm(f.c,objectiveCharacter(f),'quest_reset','first_quest');f.advance(86400000);f.api.tick();assert.equal(objectiveCharacter(f).fullDungeon.flags[flag],true);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM online_quest_flag_resets').get().n,0);
+}finally{f.close();}});
+
+test('reset flags validate repeat policy and authored references on save, publish and rollback',()=>{const f=fixture();try{
+ const flag='story_valid_reset';authorObjectiveFlag(f,flag);authorObjectiveFlag(f,'story_retired_reset',true);
+ for(const value of [['school_graduated'],['__proto__'],['story_'],['story_invalid-flag'],'story_wrong_type',Array(17).fill(flag)])assert.throws(()=>f.publish('quest',quest({repeat:'daily',reset_flags:value})),/authored|entries/);
+ for(const repeat of ['once','cooldown'])assert.throws(()=>f.publish('quest',quest({repeat,reset_flags:[flag]})),/daily or weekly/);
+ for(const id of ['story_missing_reset','story_retired_reset'])assert.throws(()=>f.publish('quest',quest({repeat:'daily',reset_flags:[id]})),/Unknown or retired quest reset flag/);
+ const saved=f.publish('quest',quest({repeat:'daily',reset_flags:[flag,flag]}));assert.deepEqual(saved.draft.reset_flags,[flag]);assert.throws(()=>authorObjectiveFlag(f,flag,true),/Remove the flag/);
+ const clean=f.publish('quest',quest({repeat:'daily'}));authorObjectiveFlag(f,flag,true);assert.throws(()=>f.live.change({action:'content_rollback',kind:'quest',id:'first_quest',revision:clean.revision,target_revision:saved.revision},'dm'),/Unknown or retired quest reset flag/);
+}finally{f.close();}});
+
 test('quest publication, acceptance, progression and capped claim are durable and exactly once',()=>{const f=fixture();try{
  f.publish('quest',quest());const accepted=acceptQuest(f,{quest:'first_quest'});assert.equal(accepted.onlineQuests.instances[0].status,'ready');
  const command=f.command('quest_claim',{quest:'first_quest'});f.send(command);f.send(command);assert.equal(f.paid.length,1);assert.equal(f.c.loadout.player_info.cha,3);assert.equal(f.db.prepare('SELECT balance FROM quest_rpp_wallets').get().balance,3);

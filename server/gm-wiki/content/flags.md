@@ -90,6 +90,8 @@ To replay a one-time NPC story with a flag guard, press **Let it play again** on
 
 ## Preview and isolated overrides
 
+Daily/weekly quest Settings can select authored flags to clear once at the next UTC repeat boundary after rewards are claimed. This lets greetings and offers return to their initial branch each cycle. Use dedicated flags for each quest; shared flags change every reader. Unfinished quests retain flags, and repeat reconnects do not clear a flag again. **When flag is set** entries rearm after a scheduled clear. See [quest reset settings](quests.md#daily-and-weekly-flag-resets).
+
 Player preview exposes simulated flags relevant to the flow. Toggle them to test branches. When creating an In-game test code, **Use current preview flags** copies those explicit values into the sandbox character only. Unspecified values come from the copied character.
 
 Test false defaults, all relevant true values, overlapping reactions, and clearing an authored flag. Leave the test and verify that the real character has its original values. See [Testing](testing.md).

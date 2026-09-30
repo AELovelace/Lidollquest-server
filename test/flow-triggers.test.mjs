@@ -22,6 +22,13 @@ test('flag entries rearm on clear/set and do not consume the main entry',()=>{co
  f.restart();f.check();assert.equal(f.flows.active(f.c),null);assert.equal(f.flows.start(f.c,f.s,'npc','keeper'),true);
  f.s.fullDungeon.flags.story_parcel=false;f.check();f.s.fullDungeon.flags.story_parcel=true;f.check();assert.equal(f.flows.snapshot(f.c,f.s).text,'Flag scene');f.continue();assert.equal(f.flows.snapshot(f.c,f.s).node,'wait');
 }finally{f.close();}});
+test('quest rollover rearms a flag that is set again before the next observation',()=>{const f=fixture();try{
+ f.s.fullDungeon.flags.story_parcel=true;f.check();f.continue();f.restart();
+ f.s.fullDungeon.flags.story_parcel=false;f.flows.flagsCleared(f.c,['story_parcel']);f.s.fullDungeon.flags.story_parcel=true;f.check();
+ assert.equal(f.flows.snapshot(f.c,f.s).text,'Flag scene');f.continue();f.check();assert.equal(f.flows.active(f.c),null);
+ assert.equal(f.db.prepare("SELECT COUNT(*) n FROM story_trigger_events WHERE event LIKE 'flag:story_parcel:%'").get().n,2);
+}finally{f.close();}});
+
 test('completed objectives enter once per attempt and return to the suspended wait across restart',()=>{const f=fixture();try{
  f.flows.start(f.c,f.s,'npc','keeper');const parent=f.flows.active(f.c).id;f.complete('wrong','other');f.check();assert.equal(f.flows.active(f.c).id,parent);
  f.complete();f.check();assert.equal(f.flows.snapshot(f.c,f.s).text,'Parcel scene');f.restart();f.continue();assert.equal(f.flows.active(f.c).id,parent);

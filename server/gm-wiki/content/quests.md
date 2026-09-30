@@ -104,6 +104,14 @@ GM-placed `token` objects appear in the game only for an active, incomplete `col
 
 The GM map retains every authored placement. If it is visible there but absent in the game, check the accepted quest's current stage, exact target ID, token checkbox, conditions and zone. Published changes do not rewrite already accepted quest definitions; test a changed quest with a fresh eligible character or fresh isolated test state. For count greater than one, place distinct tokens with the same content ID.
 
+## Daily and weekly flag resets
+
+In the quest **Settings** block, select **daily** or **weekly** under **Repeat policy**, then choose **Clear flags when this quest resets**. Add existing flags or create one directly; up to 16 authored story flags are supported. An empty list preserves all flags. Save and publish, then accept a new attempt to use the changed settings.
+
+After a successful reward claim, the selected flags clear once at the next midnight UTC for dailies, or Monday midnight UTC for weeklies. Due resets apply offline and before returning players' NPC greetings, story conditions and quest offers. Unfinished, ready-but-unclaimed and abandoned quests preserve their flags. Once-only and cooldown quests cannot configure reset flags.
+
+Targets and repeat policy are pinned to the accepted definition. Later publication does not rewrite pending resets, and older attempts without the option are unchanged. Use quest-specific flags because shared flags affect every story reading them. Engine achievements cannot be cleared this way. A flag set again after rollover stays set until a new claimed attempt schedules another reset. GM Remove cancels pending resets; GM Finish without rewards does not schedule them.
+
 ## Minimap quest guide
 
 Players track one quest at a time. The minimap then shows a **gold** marker on the door, gate, pad or wall gap to take toward the objective, and a **blue** marker on the objective itself once they are in the right zone. Blue corners around the whole minimap mean "somewhere in this zone". The guide always follows the **first unfinished objective in the order you wrote them**, even in an "any" stage, so list objectives in the order players should walk them.

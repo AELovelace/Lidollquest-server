@@ -1,6 +1,6 @@
 import {cavernBreath,cavernStep,cavernDelay} from './caverns-features.mjs';
 import {storyFoes} from './story-encounter.mjs';
-import {movementDelay,moveBurst,paceStep} from './crawl.mjs';
+import {movementDelay,moveBurst,paceStep,paceSingle} from './crawl.mjs';
 import {createDiveControls} from './world-dive.mjs';
 import {createDiveEncounters} from './dive-encounters.mjs';
 import {generatorName} from './compute-tasks.mjs'; // Maps a generator function to the name the worker pool understands.
@@ -401,13 +401,13 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(action==='move'||action==='dive_engage'){
    if(state.run)fail('Finish combat first.'); // Exploration stays available while stat points are banked.
    if(action==='dive_engage'){const foe=f.enemies.find(e=>e.id===input.encounter);if(!foe||Math.abs(foe.x-p.x)+Math.abs(foe.y-p.y)>1)fail('Approach that enemy first.');start(c,state,record,foe);return;}
-   if(now()-p.moved<movementDelay(state.loadout,currentTuning())+cavernDelay(f,p.x,p.y,config,now()))fail('Movement is too fast.'); /* Wet channels add one interval to the ordinary step. */ const d={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];if(!d)fail('Choose a direction.');
+   const paced=paceSingle(p.moved,now(),movementDelay(state.loadout,currentTuning())+cavernDelay(f,p.x,p.y,config,now()),moveBurst(currentTuning()));if(paced===null)fail('Movement is too fast.'); /* The chest/stairs step after a late walk batch finishes that batch's burst instead of bouncing; wet channels add one interval. */ const d={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];if(!d)fail('Choose a direction.');
    const x=p.x+d[0],y=p.y+d[1];if(!walkable(f,x,y))fail('That tile is blocked.');const foe=f.enemies.find(e=>e.x===x&&e.y===y&&e.respawnAt<=now());
    if(foe){start(c,state,record,foe);return;}
    const exit=f.exits?.find(e=>inExit(e,x,y)); // Pads are one tile; overworld wall gaps span two.
    const entranceReturn=!(f.exits?.length)&&x===f.entrance.x&&y===f.entrance.y;
    if(exit||entranceReturn){back(c,state,exit?.zone);return;} // Stepping onto any return portal commits the transfer; spawning/reconnecting on it never triggers a bounce.
-   db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(x,y,now(),c.id);reveal(c,state,f,x,y);
+   db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(x,y,paced,c.id);reveal(c,state,f,x,y); // Claim the paced slot, like a walk step.
    cavernStep(f,state,x,y,config,now(),echoItems());
    dungeonRules?.step(c,state,record,x,y); // Room timers and traps count committed moves only.
    if(input.world_step===true)state.worldTurnDue={id:randomUUID(),mist:mistAt(f,x,y)||!!smokeCfg()?.enabled&&smokeAt(route,f,smokeCfg(),now(),x,y,record.edition),lullaby:!!state.dungeonLullaby}; // Loot commits first; the needs tick resumes from that inventory rather than overwriting the grant.

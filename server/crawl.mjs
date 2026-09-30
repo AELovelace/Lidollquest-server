@@ -34,4 +34,7 @@ export function paceStep(moved,at,delay,burst=1){ // Step clock for queued walki
  const next=Math.max(moved+delay,at); // Each step claims the next delay slot; an idle player's slot starts from now, so pauses are never banked beyond the burst.
  return next-at<=(burst-1)*delay?next:null; // burst 1 is exactly the old rule (now - moved >= delay); a larger burst lets a batch arrive early by up to (burst-1) steps.
 }
+export function paceSingle(moved,at,delay,burst=1){ // Step clock for one ordinary `move` (doors, chests, stairs, pads, the classic path). Returns the slot to store as `moved`, or null when too fast.
+ return paceStep(moved,at,delay,moved>at?burst:1); // A late walk batch parks `moved` in the future; the bump that follows it may finish that burst. An idle clock keeps the strict now-moved>=delay rule, so single steps never start a burst of their own.
+}
 export function movementDelay(loadout,tuning=null){const d=moveDelays(tuning);return isCrawling(loadout)&&!loadoutCrawlFree(loadout)?d.crawl:d.walk;} // Milliseconds the server demands between online steps. Shared NPC clocks stay unchanged; only the crawler is slowed.

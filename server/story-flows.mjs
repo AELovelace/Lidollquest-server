@@ -140,6 +140,7 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
  live.setStoryReferenceCheck?.((kind,body)=>{
   if(kind==='quest')for(const f of list().filter(f=>f.published&&!f.published.retired))for(const n of f.published.nodes.filter(n=>n.type==='objective_entry'&&n.ref===body.id))if(!body.stages?.find(stage=>stage.id===n.stage)?.objectives?.some(o=>o.id===n.objective))fail('Update the objective entry '+n.id+' in '+f.id+' before removing its quest objective.');
   const definitions=flags();function check(v){if(!v||typeof v!=='object')return;if(['all','any','none'].every(k=>Array.isArray(v[k])))for(const id of [...v.all,...v.any,...v.none])if(id.startsWith('story_')&&!definitions.some(f=>f.id===id&&!f.retired))fail('Unknown authored flag: '+id);for(const child of Object.values(v))check(child);}check(body);
+  if(kind==='quest')for(const id of body.reset_flags??[])if(!definitions.some(f=>f.id===id&&!f.retired&&!f.engineOwned))fail('Unknown or retired quest reset flag: '+id,400); // Shared publication and rollback validate the same targets.
   if(kind==='quest')for(const stage of body.stages??[])for(const objective of stage.objectives??[])for(const id of objective.on_complete_flags??[]){
    if(!definitions.some(f=>f.id===id&&!f.retired&&!f.engineOwned))fail('Unknown or retired objective completion flag: '+id,400);
   } // The same check covers ordinary publication, shared bundles and rollback.
@@ -161,5 +162,5 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
   if(input.action==='flow_flag_set'){const c=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(input.character_id);if(!c)fail('Character not found.',404);if(c.revision!==input.revision)fail('Character changed. Refresh first.');const s=JSON.parse(c.state);setStoryFlag(s,input.flag,input.value,flags());db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(s),c.id);return inspect(c.id);}
   fail('Unknown flow action.',400);
  }
- return {catalog,list,get,flags,references,gm,testDefinition,start,available,npcOverride,npcPending,npcActive,review,act,exit,resume,settled,snapshot,active,blocking,objectives,beginTest,enabled};
+ return {catalog,list,get,flags,references,gm,testDefinition,start,available,npcOverride,npcPending,npcActive,review,act,exit,resume,settled,snapshot,active,blocking,objectives,beginTest,enabled,flagsCleared:triggers.flagsCleared};
 }
