@@ -67,7 +67,7 @@ test('walking the village: doorsteps enter the hall and inn, beds rest, pads div
   const lobby=act('enter',{zone:'honeydew-lantern',loadout:{player_info:{playerHealth:50,playerHealthMax:50},inventory:[{item_id:'adult_food'}]}});
   assert.deepEqual(lobby.position,{x:25,y:26});const def=zoneOf(lobby);assert.equal(def.name,'Honeydew Village');assert.equal(def.width,50);assert.equal(def.district.lobby,true);assert.equal(def.walls.length,50);
   assert.ok(def.fixtures.filter(f=>f.kind==='shop').every(f=>f.offers.length>0),'village merchants carry daily stock');
-  assert.ok(Buffer.byteLength(JSON.stringify(lobby))<262144,'the town fits the gateway response budget');
+  assert.ok(Buffer.byteLength(JSON.stringify(lobby))<1048576,'the town fits the gateway response budget'); // 1048576 = the tracker quest-proxy responseLimit for zone routes (omo-trainer server/quest-proxy.mjs); raised from 256 KB on 2026-09-30.
   place(24,24);assert.throws(()=>act('move',{direction:'north'}),/blocked/); // The Community Hall facade is solid.
   place(25,25);const hall=act('move',{direction:'north',world_step:true}); // Stepping onto the doorstep walks inside.
   assert.equal(hall.zone,'honeydew-lantern-dives');assert.deepEqual(hall.position,{x:10,y:17});assert.equal(c.hubVisit,'honeydew-lantern-dives');assert.equal(c.worldTurnDue,undefined);assert.equal(c.loadout.inventory.length,1);

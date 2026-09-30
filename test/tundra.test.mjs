@@ -24,7 +24,7 @@ test('Tundra preserves the gateway response limit, full inventory claims and pen
  const f=fixture();try{
   f.loadout.inventory=Array.from({length:99},()=>({item_id:'adult_food',name:'Meal'}));
   const id=f.player('alice','princess-rose'),initial=f.snap(id);
-  assert.ok(Buffer.byteLength(JSON.stringify(initial))<262144,'all three hub definitions plus an active floor fit the tracker gateway');
+  assert.ok(Buffer.byteLength(JSON.stringify(initial))<1048576,'all three hub definitions plus an active floor fit the tracker gateway'); // 1048576 = the tracker quest-proxy responseLimit for zone routes (omo-trainer server/quest-proxy.mjs); raised from 256 KB on 2026-09-30.
   const chest=initial.dive.chests[0];f.near(id,chest);
   assert.throws(()=>f.act(id,'dive_claim',{chest:chest.id}),/Inventory full/);
   assert.equal(f.snap(id).dive.claimed,0);

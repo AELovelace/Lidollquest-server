@@ -30,7 +30,7 @@ test('new Dives enforce hub adjacency, isolate claims, retain fights/reconnects 
    place(...(hub==='honeydew-lantern'?[25,25]:hub==='littlebig-clockwork'?[33,29]:[9,0]));act('hub_visit',{zone:hub+'-dives'});place(2,9); // Plaza doorsteps for the two towns; Rose's top-wall gap.
    assert.throws(()=>act('dive_enter',{zone:zone_id}),/glowing portal/);
    place(data.config.pad.x,data.config.pad.y);const entered=act('dive_enter',{zone:zone_id});
-   assert.ok(Buffer.byteLength(JSON.stringify(entered))<262144);assert.equal(entered.dungeons.length,24); /* + Echo Gulch and Coastal Caverns (2026-09-29) */assert.equal(entered.dive.claimed,0); // Four full routes are additive; the six small campaign Dives retain their claims and entrances.
+   assert.ok(Buffer.byteLength(JSON.stringify(entered))<1048576);assert.equal(entered.dungeons.length,24); /* + Echo Gulch and Coastal Caverns (2026-09-29) */assert.equal(entered.dive.claimed,0); // Four full routes are additive; the six small campaign Dives retain their claims and entrances. // 1048576 = the tracker quest-proxy responseLimit for zone routes (omo-trainer server/quest-proxy.mjs); raised from 256 KB on 2026-09-30.
    const floor=entered.zones.at(-1),chest=entered.dive.chests[0],near=pathTo(floor,floor.entrance,chest).at(-2)??floor.entrance;
    place(near.x,near.y);act('dive_claim',{chest:chest.id});setup();
    const resumed=act('enter',{zone:zone_id});assert.equal(resumed.dive.claimed,1);assert.equal(c.dive.returnZone,hub+'-dives');

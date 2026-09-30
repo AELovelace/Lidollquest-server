@@ -36,6 +36,6 @@ test('HTTP companion retains the selected private sheet, bank page and active de
   const row=service.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(first.id),state=JSON.parse(row.state);
   state.loadout.inventory=Array.from({length:512},()=>({item_id:'iron_dagger',name:'x'.repeat(96),atk:17,custom:'ignored'.repeat(100)}));
   service.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),first.id);
-  read=await get('&character_id='+first.id);assert.equal(read.data.sheet.inventory.length,512);assert.equal(read.data.sheet.inventory[0].custom,undefined);assert.ok(Buffer.byteLength(JSON.stringify(read.data))<262144);
+  read=await get('&character_id='+first.id);assert.equal(read.data.sheet.inventory.length,512);assert.equal(read.data.sheet.inventory[0].custom,undefined);assert.ok(Buffer.byteLength(JSON.stringify(read.data))<1048576); // 1048576 = the tracker quest-proxy responseLimit for zone routes (omo-trainer server/quest-proxy.mjs); raised from 256 KB on 2026-09-30.
  }finally{service.server.closeAllConnections();await new Promise(r=>service.server.close(r));}
 });

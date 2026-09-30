@@ -303,6 +303,6 @@ test('mist upgrades preserve editions and combat; reserved exposure survives rec
   const command=f.command(id,'world_turn',{world_turn_id:due,loadout:next});s=f.raw(command);const committed=structuredClone(s.character.loadout);
   assert.equal(s.character.worldTurnDue,undefined);assert.deepEqual(f.raw(command).character.loadout,committed);
   assert.deepEqual(f.snap(id).zones.at(-1).mist,current.mist,'restart and replay preserve the shared mist layer');
-  assert.ok(Buffer.byteLength(JSON.stringify(s))<262144,'a fully populated mist snapshot fits the gateway response budget');
+  assert.ok(Buffer.byteLength(JSON.stringify(s))<1048576,'a fully populated mist snapshot fits the gateway response budget'); // 1048576 = the tracker quest-proxy responseLimit for zone routes (omo-trainer server/quest-proxy.mjs); raised from 256 KB on 2026-09-30.
  }finally{f.close();}
 });

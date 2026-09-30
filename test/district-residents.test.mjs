@@ -59,7 +59,7 @@ test('two visitors share clock-driven positions and can talk privately without m
   for(let n=0;n<4;n++){now+=3000;api.tick();}
   const a=api.read('alice',chars.alice.id),b=api.read('bob',chars.bob.id),npc=map(a).fixtures.find(n=>n.roaming);
   assert.deepEqual(map(a).fixtures,map(b).fixtures);assert.notDeepEqual(map(a).fixtures,before);
-  assert.ok(Buffer.byteLength(JSON.stringify(a))<262144);
+  assert.ok(Buffer.byteLength(JSON.stringify(a))<1048576); // 1048576 = the tracker quest-proxy responseLimit for zone routes (omo-trainer server/quest-proxy.mjs); raised from 256 KB on 2026-09-30.
   assert.throws(()=>act('alice','hub_talk',{fixture:npc.id}),/Stand next/);
   db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(npc.x,npc.y,chars.alice.id);
   const loadout=structuredClone(chars.alice.loadout);now+=3000;api.tick();

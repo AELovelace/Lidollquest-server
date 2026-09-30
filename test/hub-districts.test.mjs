@@ -42,7 +42,7 @@ test('district travel, monthly persistence, talks, shared chat and safe live rol
    const id=districtZone(def);let entered=act('enter',{zone:def.hub,loadout:{player_info:{playerHealth:77},inventory:[{item_id:'adult_food'}]}});
    if(!def.lobby){const gate=hubPortals(def.hub).find(p=>p.target===id);place(gate.side==='left'?1:18,gate.y+1);entered=act('move',{direction:gate.side==='left'?'west':'east'});} // Annex districts open from the left wall (Rose's Tundra gate is its right wall); a lobby town is where you already are.
    const map=entered.zones.find(z=>z.id===id);
-   assert.equal(entered.zone,id);assert.equal(map.name,def.name);assert.deepEqual(entered.position,map.spawn);assert.ok(Buffer.byteLength(JSON.stringify(entered))<262144);
+   assert.equal(entered.zone,id);assert.equal(map.name,def.name);assert.deepEqual(entered.position,map.spawn);assert.ok(Buffer.byteLength(JSON.stringify(entered))<1048576); // 1048576 = the tracker quest-proxy responseLimit for zone routes (omo-trainer server/quest-proxy.mjs); raised from 256 KB on 2026-09-30.
    if(def.lobby){now+=60001;db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(now,c.id);assert.ok(act('start').character.run,'a lobby town is still the arena lobby');}else assert.throws(()=>act('start'),/arena lobby/); // One arena entry per minute per character; keep the presence lease fresh across the wait.
    if(def.lobby)act('flee');
    assert.throws(()=>act('hub_talk',{fixture:'npc-0'}),/Stand next/);

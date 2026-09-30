@@ -114,7 +114,7 @@ test('Taiga submission and reconnect preserve the scene before recovery at its s
 test('80x80 Taiga snapshot with a full inventory fits the gateway and mixed enemies can start shared combat',()=>{
  const f=fixture();try{
   f.loadout.inventory=Array.from({length:99},()=>({item_id:'adult_food',name:'Meal'}));f.player('alice');f.act('alice','dive_enter',{zone:TUNDRA_ZONE});f.cross('alice');
-  const s=f.snap('alice');assert.ok(Buffer.byteLength(JSON.stringify(s))<262144);
+  const s=f.snap('alice');assert.ok(Buffer.byteLength(JSON.stringify(s))<1048576); // 1048576 = the tracker quest-proxy responseLimit for zone routes (omo-trainer server/quest-proxy.mjs); raised from 256 KB on 2026-09-30.
   const foe=s.dive.enemies.find(e=>!tundraData.enemies[e.type]);f.place('alice',foe);const battle=f.act('alice','dive_engage',{encounter:foe.id});
   assert.ok(battle.encounter.enemies.length);assert.ok(battle.encounter.enemies.every(e=>typeof e.name==='string'));assert.equal(battle.character.run.zone,TAIGA_ZONE);
   assert.throws(()=>f.act('alice','dive_exit',{battle:battle.encounter.id,cycle:battle.character.run.cycle}),/fight|combat|action/i);

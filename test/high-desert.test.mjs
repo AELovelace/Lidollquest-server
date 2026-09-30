@@ -89,7 +89,7 @@ test('parties climb together and a disabled High Desert refuses the trail',()=>{
 test('80x80 High Desert snapshot fits the gateway and mixed foes start shared combat',()=>{
  const f=fixture();try{
   f.player('alice');f.act('alice','dive_enter',{zone:DESERT_ZONE});f.cross('alice');
-  const s=f.snap('alice');assert.ok(Buffer.byteLength(JSON.stringify(s))<262144);
+  const s=f.snap('alice');assert.ok(Buffer.byteLength(JSON.stringify(s))<1048576); // 1048576 = the tracker quest-proxy responseLimit for zone routes (omo-trainer server/quest-proxy.mjs); raised from 256 KB on 2026-09-30.
   const foe=s.dive.enemies.find(e=>!desertData.enemies[e.type]);f.place('alice',foe);const battle=f.act('alice','dive_engage',{encounter:foe.id});
   assert.ok(battle.encounter.enemies.every(e=>typeof e.name==='string'));assert.equal(battle.character.run.zone,HIGH_DESERT_ZONE);
  }finally{f.db.close();}

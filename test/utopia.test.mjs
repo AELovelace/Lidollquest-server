@@ -62,7 +62,7 @@ test('walking to Utopia: Taiga north trail in, doorsteps into all three rooms, t
   act('create',{name:'Alice'});
   const lobby=act('enter',{zone:UTOPIA_ZONE,loadout:{player_info:{playerHealth:50,playerHealthMax:50},inventory:[]}});
   const def=zoneOf(lobby);assert.equal(def.name,'Utopia');assert.equal(def.width,60);assert.equal(def.fixtures.filter(f=>f.kind==='changer').length,5);
-  assert.ok(Buffer.byteLength(JSON.stringify(lobby))<262144,'the city fits the gateway response budget');
+  assert.ok(Buffer.byteLength(JSON.stringify(lobby))<1048576,'the city fits the gateway response budget'); // 1048576 = the tracker quest-proxy responseLimit for zone routes (omo-trainer server/quest-proxy.mjs); raised from 256 KB on 2026-09-30.
   for(const kind of ['beds','dives','tower']){
    const door=def.portals.find(p=>p.target===UTOPIA_ZONE+'-'+kind);place(door.x,door.y); // Stand on the doorstep, as the client does.
    const room=act('hub_visit',{zone:UTOPIA_ZONE+'-'+kind});assert.equal(room.zone,UTOPIA_ZONE+'-'+kind);

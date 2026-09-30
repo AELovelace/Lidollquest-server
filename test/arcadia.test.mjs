@@ -71,7 +71,7 @@ test('walking to Arcadia: Honeydew -> Plains -> south trail in, doorsteps into a
   const trail=zoneOf(plains).exits.find(e=>e.zone===ARCADIA_ZONE);assert.ok(trail,'the Plains have their south trail');divePlace(trail.x,trail.y-1);
   const city=act('dive_exit',{zone:ARCADIA_ZONE});assert.equal(city.zone,ARCADIA_ZONE);assert.ok(city.position.y<=2,'arrivals from the Plains stand inside the north gate');
   const def=zoneOf(city);assert.equal(def.name,'Arcadia');assert.equal(def.width,60);
-  assert.ok(Buffer.byteLength(JSON.stringify(city))<262144,'the city fits the gateway response budget');
+  assert.ok(Buffer.byteLength(JSON.stringify(city))<1048576,'the city fits the gateway response budget'); // 1048576 = the tracker quest-proxy responseLimit for zone routes (omo-trainer server/quest-proxy.mjs); raised from 256 KB on 2026-09-30.
   for(const kind of ['beds','dives','tower']){
    const door=def.portals.find(p=>p.target===ARCADIA_ZONE+'-'+kind);place(door.x,door.y); // Stand on the doorstep, as the client does.
    const room=act('hub_visit',{zone:ARCADIA_ZONE+'-'+kind});assert.equal(room.zone,ARCADIA_ZONE+'-'+kind);
