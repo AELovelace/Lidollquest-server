@@ -416,7 +416,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    if(action==='dive_engage'){const foe=f.enemies.find(e=>e.id===input.encounter);if(!foe||Math.abs(foe.x-p.x)+Math.abs(foe.y-p.y)>1)fail('Approach that enemy first.');start(c,state,record,foe);return;}
    const paced=paceSingle(p.moved,now(),movementDelay(state.loadout,currentTuning())+cavernDelay(f,p.x,p.y,config,now()),moveBurst(currentTuning()));if(paced===null)fail('Movement is too fast.'); /* The chest/stairs step after a late walk batch finishes that batch's burst instead of bouncing; wet channels add one interval. */ const d={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];if(!d)fail('Choose a direction.');
    const x=p.x+d[0],y=p.y+d[1];if(!walkable(f,x,y))fail('That tile is blocked.');const foe=f.enemies.find(e=>e.x===x&&e.y===y&&e.respawnAt<=now());
-   if(foe){if(foe.definition?.temperament==='neutral')fail('A peaceful animal is here. Use Interact to hunt it.');start(c,state,record,foe);return;}
+   if(foe){start(c,state,record,foe);return;} // Bumping any enemy starts the fight, peaceful animals included (Interact still works too); prey never chase, so walking into one is the deliberate hunt.
    const exit=f.exits?.find(e=>inExit(e,x,y)); // Pads are one tile; overworld wall gaps span two.
    const entranceReturn=!(f.exits?.length)&&x===f.entrance.x&&y===f.entrance.y;
    if(exit||entranceReturn){back(c,state,exit?.zone);return;} // Stepping onto any return portal commits the transfer; spawning/reconnecting on it never triggers a bounce.

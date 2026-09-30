@@ -32,7 +32,7 @@
           "x": 10,
           "y": 7
         },
-        "boss_enemy_id": "goblin_brute",
+        "boss_enemy_id": "slime_queen_boss",
         "scenery": [
           "sprDungeonEnvStoneBrazier",
           "sprDungeonEnvRubblePile"
@@ -57,6 +57,10 @@
         "ritual_chamber"
       ],
       "enemy_types": [
+        {
+          "enemy_id": "goblin_brute",
+          "weight": 8
+        },
         {
           "enemy_id": "goblin",
           "weight": 20
@@ -183,7 +187,7 @@
         "goblin_brute": {
           "enemy_id": "goblin_brute",
           "name": "Goblin Brute",
-          "roaming": false,
+          "roaming": true,
           "hp": 50.0,
           "str": 8.0,
           "def": 3.0,
@@ -263,6 +267,22 @@
           ],
           "sprite": "sprPacifierWraith",
           "battle_sprite": "sprPacifierWraith"
+        },
+        "slime_queen_boss": {
+          "enemy_id": "slime_queen_boss",
+          "name": "The Slime Queen",
+          "roaming": false,
+          "hp": 90.0,
+          "str": 12.0,
+          "def": 6.0,
+          "dex": 4.0,
+          "exp": 75.0,
+          "spell_cast_chance": 0.3,
+          "enemy_spells": [
+            "slime_seep_wet"
+          ],
+          "sprite": "sprBloatedSlime",
+          "battle_sprite": "sprBloatedSlime"
         },
         "teddy_mimic": {
           "enemy_id": "teddy_mimic",

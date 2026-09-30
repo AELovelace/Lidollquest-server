@@ -44,11 +44,12 @@ test('the burst step clock keeps the old one-step rule at burst 1 and never beat
  assert.equal(clock,1000+5*150,'and they still occupy five further delay slots');
 });
 
-test('single steps may finish a burst a walk batch started, but never start one',()=>{
- assert.equal(paceSingle(900,1000,150,6),null,'idle clock: the strict now - moved >= delay rule');
+test('single steps share the walk burst, so a late batch never makes the bump after it look too fast',()=>{
+ assert.equal(paceSingle(900,1000,150,6),1050,'a step 50 ms early takes the next slot instead of bouncing (the client timed it on its own schedule; the server clock re-anchored to a late batch)');
  assert.equal(paceSingle(850,1000,150,6),1000);
  assert.equal(paceSingle(1450,1000,150,6),1600,'a batch parked the clock ahead: the bump takes the next slot inside the burst');
  assert.equal(paceSingle(1750,1000,150,6),null,'but not past it');
+ assert.equal(paceSingle(900,1000,150,1),null,'burst 1 (queued walking off) keeps the strict now - moved >= delay rule');
 });
 
 test('hub walks commit plain floor in order with their needs turns, and stop at the burst, walls and travel tiles',()=>{
@@ -139,6 +140,43 @@ test('the single step after a laggy walk batch shares its burst clock instead of
   h.act('move',{direction:'east'},0);h.act('move',{direction:'east'},0); // The bucket (6 slots + the ~1 refilled over 200 ms) still has two steps in it...
   refused(()=>h.act('move',{direction:'east'},0),/too fast/); // ...then it is spent, so a cheater gains nothing a 6-step walk batch did not already allow.
   assert.deepEqual(h.presence().x,start.x+7);
+ }finally{h.db.close();}
+});
+
+test('a late batch re-anchors the step clock, and the chest bump the client already timed is still accepted',()=>{ // Regression (2026-09-30): the client paces bumps on its own schedule, but a batch delivered late claims slots from its arrival, so the bump arrived "early" by the lag and bounced with "Movement is too fast".
+ const h=harness();try{
+  h.act('create',{name:'Jitter'});
+  const s=h.act('enter',{zone:'princess-rose',loadout:loadout('entry')});
+  const z=s.zones.find(v=>v.id===s.zone),solid=(x,y)=>z.walls[y]?.[x]!==0||(z.fixtures??[]).some(f=>f.solid!==false&&x>=f.x&&y>=f.y&&x<f.x+(f.span_w??1)&&y<f.y+(f.span_h??1))||(z.portals??[]).some(p=>p.x===x&&p.y===y);
+  let start=null;for(let y=1;y<z.height-1&&!start;y++)for(let x=1;x+9<z.width-1&&!start;x++)if([...Array(10).keys()].every(i=>!solid(x+i,y)))start={x,y}; // Ten clear tiles east.
+  h.place(start.x,start.y);
+  h.act('walk',{steps:['east'],loadout:loadout('first')},2000); // The first predicted step goes out alone at T and takes slot T.
+  h.act('walk',{steps:['east','east'],loadout:loadout('late')},450); // Steps 2-3 arrive one slow round trip later: the clock re-anchors to T+450, so `moved` lands at T+637.5 instead of T+375.
+  assert.equal(h.c.walkReceipt.walked,2);
+  const bumped=h.act('move',{direction:'east'},300); // The client bumps at T+750 (its fourth 187.5 ms slot): only 112.5 ms after the re-anchored clock, which the strict rule refused.
+  assert.deepEqual(bumped.position,{x:start.x+4,y:start.y},'the bump is paced inside the burst instead of bouncing');
+ }finally{h.db.close();}
+});
+
+test('walking into a peaceful animal starts the hunt, just like bumping a hostile enemy',()=>{
+ const h=harness();try{
+  h.act('create',{name:'Hunter'});
+  h.act('enter',{zone:'princess-rose',loadout:loadout('entry')});
+  const data=campaignDives[0],zone=data.config.zone_id;h.place(9,0);
+  const hall=h.act('hub_visit',{zone:'princess-rose-dives'}),pad=hall.zones.find(v=>v.id===hall.zone).portals.find(p=>p.target===zone);
+  h.place(pad.x,pad.y);h.act('dive_enter',{zone});
+  const visit=h.c.dive,record=()=>JSON.parse(h.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=?').get(visit.route,visit.edition).content);
+  const f=record(),busy=new Set([...f.enemies,...f.chests,...(f.pickups??[]),...(f.exits??[]),f.entrance].map(p=>p.x+','+p.y));
+  let start=null;for(let y=1;y<f.height-1&&!start;y++)for(let x=1;x+2<f.width-1&&!start;x++)if([0,1].every(i=>walkable(f,x+i,y)&&!busy.has((x+i)+','+y)))start={x,y}; // The player's tile plus the animal's.
+  assert.ok(start);
+  const st=JSON.parse(h.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(h.c.id).state);st.dive.position={...start};st.dive.safeUntil=0;
+  h.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(st),h.c.id);h.place(start.x,start.y);
+  const floor=record(),monster=Object.values(data.enemies)[0];
+  floor.enemies.push({id:'prey-test',type:monster.id,definition:{...monster,temperament:'neutral',roaming:true},x:start.x+1,y:start.y,spawn:{x:start.x+1,y:start.y},roaming:true,engaged:null,dead:false,respawnAt:0}); // A wildlife-style prey animal beside the player.
+  h.db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=?').run(JSON.stringify(floor),visit.route,visit.edition);
+  const bumped=h.act('move',{direction:'east'},400);
+  assert.ok(bumped.character.run,'the bump starts a fight instead of refusing with "Use Interact"');
+  assert.equal(bumped.character.run.encounter,'prey-test');
  }finally{h.db.close();}
 });
 

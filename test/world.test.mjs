@@ -12,6 +12,7 @@ test('hub and Dive movement enforce the live step cooldown, doubled while crawli
  const place=(x,y)=>db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(x,y,time,c.id);
  try{
   act('create',{name:'Crawler'});act('enter',{zone:'princess-rose',loadout:{player_info:{stamina:20,stat_points:0},inventory:[],world:{crawling:true}}});
+  api.loot.tune({move_burst_steps:1},'gm'); // Queued walking off: single steps then keep the exact per-step cooldown this test measures (with a burst they share the walk allowance, covered in walk.test.mjs).
   for(const dive of [false,true]){
    if(dive){time+=1000;const s=act('dive_enter',{zone:'dive-quarters'}),floor=s.zones.find(z=>z.id===s.zone);
     let pair;for(let y=1;y<floor.height-1&&!pair;y++)for(let x=1;x<floor.width-2&&!pair;x++)if(walkable(floor,x,y)&&walkable(floor,x+1,y)&&![...s.dive.enemies,...(floor.exits??[]),floor.entrance].some(e=>e.y===y&&(e.x===x||e.x===x+1)))pair={x,y};
@@ -27,7 +28,7 @@ test('hub and Dive movement enforce the live step cooldown, doubled while crawli
    assert.equal(tuned.moveDelayMs,125);assert.equal(tuned.crawlMoveDelayMs,1250); // Snapshots ship the effective intervals, including the global 80% pace.
    loadout.player_info.equipped_accessory_1='';loadout.world.crawling=false;act('loadout',{loadout});time+=124;assert.throws(()=>act('move',{direction:'east'}),/too fast/);time++;act('move',{direction:'east'});
    loadout.player_info.equipped_accessory_1='cursed_crawling_anklets';act('loadout',{loadout});assert.equal(c.loadout.world.crawling,true); // Back in the anklets so the Dive pass starts crawling, as before.
-   api.loot.reset('tuning'); // Back to the shipped 150 / 300 for the Dive pass.
+   api.loot.reset('tuning');api.loot.tune({move_burst_steps:1},'gm'); // Back to the shipped 150 / 300 for the Dive pass, still without a burst.
   }
  }finally{db.close();}
 });
