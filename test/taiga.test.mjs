@@ -48,22 +48,22 @@ test('north trail upgrades existing Tundra editions without rerolling content, l
   for(let y=0;y<f.height;y++)for(let x=0;x<f.width;x++)if(walkable(before,x,y))assert.ok(walkable(f,x,y));
  }
  const f=fixture({upgrade:false});try{
-  f.player('alice');f.act('alice','dive_enter',{zone:TUNDRA_ZONE});const chest=f.snap('alice').dive.chests[0];f.place('alice',chest);f.act('alice','dive_claim',{chest:chest.id});
+  f.player('alice');f.act('alice','dive_enter',{zone:TUNDRA_ZONE});const chest=f.snap('alice').dive.chests.find(ch=>ch.kind!=='ingredient');f.place('alice',chest);f.act('alice','dive_claim',{chest:chest.id});
   const old=f.floor('alice');assert.equal(old.exits.length,2);f.restart(true);const upgraded=f.floor('alice');assert.equal(upgraded.exits.length,4);assert.ok(upgraded.exits.every(e=>e.style==='gap'));assert.equal(upgraded.geometryVersion,3);assert.equal(f.snap('alice').dive.claimed,1); // Taiga trail, Emberfall Caldera trail, then wall gaps; the claim survives.
   f.cross('alice');assert.equal(f.snap('alice').zone,TAIGA_ZONE);
  }finally{f.db.close();}
 });
 
-test('Taiga requires the north Tundra trail; transfers, replay, reconnect and loot stay route scoped',()=>{
+test('Taiga requires the north Tundra trail; transfers, replay, reconnect and loot stay route scoped',()=>{ // Wilderness chests are typed since 2026-09-30; these claims pick a non-ingredient chest so the item counts below stay about slot items.
  const f=fixture();try{
   f.player('alice');assert.throws(()=>f.act('alice','dive_enter',{zone:TAIGA_ZONE}),/portal/);
   assert.deepEqual(f.snap('alice').zones.filter(z=>(z.portals??[]).some(p=>p.target===TAIGA_ZONE)).map(z=>z.id),['utopia-arcanum']); // Only Utopia's south gate opens straight onto the Taiga; everyone else walks the Tundra trail.
   f.act('alice','dive_enter',{zone:TUNDRA_ZONE});assert.throws(()=>f.act('alice','dive_exit',{zone:TAIGA_ZONE}),/Stand beside/);
   assert.throws(()=>f.act('alice','dive_enter',{zone:TAIGA_ZONE}),/Leave your current dungeon/);
-  const tundraChest=f.snap('alice').dive.chests[0];f.place('alice',tundraChest);f.act('alice','dive_claim',{chest:tundraChest.id});
+  const tundraChest=f.snap('alice').dive.chests.find(ch=>ch.kind!=='ingredient');f.place('alice',tundraChest);f.act('alice','dive_claim',{chest:tundraChest.id});
   f.place('alice',{x:50,y:1});const command=f.command('alice','move',{direction:'north',world_step:true}); /* Walk into the top-wall gap. */const first=f.raw('alice',command);f.raw('alice',command);
   assert.equal(first.zone,TAIGA_ZONE);assert.deepEqual(first.position,{x:40,y:78});assert.equal(first.character.worldTurnDue,undefined);assert.equal(first.character.dive.hubOrigin,'princess-rose');
-  assert.equal(first.dive.claimed,0);const loot=first.dive.chests[0];f.place('alice',loot);f.act('alice','dive_claim',{chest:loot.id});
+  assert.equal(first.dive.claimed,0);const loot=first.dive.chests.find(ch=>ch.kind!=='ingredient');f.place('alice',loot);f.act('alice','dive_claim',{chest:loot.id});
   f.restart();const resumed=f.act('alice','enter',{zone:TAIGA_ZONE,combat_version:3});assert.equal(resumed.dive.claimed,1);assert.equal(resumed.character.loadout.inventory.filter(i=>i.category!=='ingredient').reduce((n,i)=>n+(i.quantity??1),0),2,'both chest items arrived'); /* Count units, not bag entries: when both chests roll the same stackable food (seeded by the random character id, ~2.5% of runs) they merge into one stack of 2. */
   const exit=f.floor('alice').exits[0];f.place('alice',{x:exit.x,y:exit.y-1});const back=f.act('alice','move',{direction:'south'});
   assert.equal(back.zone,TUNDRA_ZONE);assert.deepEqual(back.position,{x:50,y:1});assert.equal(back.dive.claimed,1);
@@ -79,7 +79,7 @@ test('parties cross together; a busy member rolls back the whole transfer',()=>{
   assert.throws(()=>f.cross('alice'),/turn|busy|Finish/i);assert.equal(f.snap('alice').zone,TUNDRA_ZONE);
   delete state.worldTurnDue;f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),f.ids.bob);
   f.cross('alice');assert.equal(f.snap('bob').zone,TAIGA_ZONE);assert.equal(f.snap('alice').peers.length,2);
-  const chest=f.snap('alice').dive.chests[0];f.place('alice',chest);f.act('alice','dive_claim',{chest:chest.id});assert.equal(f.snap('bob').dive.claimed,0);
+  const chest=f.snap('alice').dive.chests.find(ch=>ch.kind!=='ingredient');f.place('alice',chest);f.act('alice','dive_claim',{chest:chest.id});assert.equal(f.snap('bob').dive.claimed,0);
   f.act('bob','dive_exit');assert.equal(f.snap('alice').zone,TUNDRA_ZONE);assert.equal(f.snap('bob').zone,TUNDRA_ZONE);
  }finally{f.db.close();}
 });
@@ -91,7 +91,7 @@ test('disabled Taiga refuses entry; weekly rollover safely restores the originat
  const f=fixture();try{
   f.player('alice','honeydew-lantern');f.place('alice',{x:1,y:25});f.act('alice','move',{direction:'west',world_step:true}); // Honeydew Village's west gate walks straight onto Frostveil.
   f.cross('alice');const old=f.snap('alice').dive.edition;
-  const chest=f.snap('alice').dive.chests[0];f.place('alice',chest);f.act('alice','dive_claim',{chest:chest.id});f.advance(7*86400000);
+  const chest=f.snap('alice').dive.chests.find(ch=>ch.kind!=='ingredient');f.place('alice',chest);f.act('alice','dive_claim',{chest:chest.id});f.advance(7*86400000);
   const resumed=f.act('alice','enter',{zone:TAIGA_ZONE,combat_version:3});assert.equal(resumed.zone,'honeydew-lantern');assert.equal(resumed.character.loadout.inventory.filter(i=>i.category!=='ingredient').length,1);
   assert.deepEqual(resumed.position,{x:1,y:25}); // Back inside the village's Tundra gate.
   f.place('alice',{x:1,y:25});f.act('alice','move',{direction:'west',world_step:true});f.cross('alice');assert.notEqual(f.snap('alice').dive.edition,old);assert.equal(f.snap('alice').dive.claimed,0);

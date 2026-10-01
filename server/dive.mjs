@@ -7,7 +7,7 @@ import {createDiveEncounters} from './dive-encounters.mjs';
 import {generatorName} from './compute-tasks.mjs'; // Maps a generator function to the name the worker pool understands.
 import {addPinkMist,mistAt} from './dive-mist.mjs';
 import {smokeConfig,smokeView,smokeAt} from './pink-smoke.mjs'; // Drifting Pink Smoke clouds on overworlds.
-import {createDiveLootRoller} from './dive-loot.mjs';
+import {createDiveLootRoller,dietWilderness} from './dive-loot.mjs';
 import {createEnchantmentStore} from './enchantment-store.mjs';
 import {createLootStore} from './loot-store.mjs';
 import {readFileSync} from 'node:fs';
@@ -72,7 +72,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const week=config.static&&newest?newest.slice(0,10):weeklyWindow(now()).edition; // Static routes stay pinned to their newest floor's week instead of the calendar week.
   return controls&&db.prepare('SELECT edition FROM world_routes WHERE route=? AND week=?').get(route,week)?.edition||newest; // A gamemaster regeneration for that week wins over the automatic floor.
  };
- const controls=live?createDiveControls(db,{now,data,live,current,getFloor,saveFloor,saveCharacter,entry,generate,compute,generator:generatorName(generate)??'rooms',upgradeFloor:floor=>{upgradeFloor(floor);addPinkMist(floor);}}):null;
+ const controls=live?createDiveControls(db,{now,data,live,current,getFloor,saveFloor,saveCharacter,entry,generate,compute,generator:generatorName(generate)??'rooms',upgradeFloor:floor=>{upgradeFloor(floor);dietWilderness(floor,config);addPinkMist(floor);}}):null; // GM regenerations get the wilderness loot diet too.
  let routeCharactersQuery=null;const routeCharacters={all:id=>(routeCharactersQuery??=db.prepare("SELECT * FROM quest_characters WHERE json_extract(state,'$.dive.route')=?")).all(id)}; // Same rows owns() accepts; prepared on first sweep, after zones.mjs has made the table and its index.
  const summaryQuery=db.prepare('SELECT edition,ends,updated,length(content) AS size FROM dive_editions WHERE route=? AND edition=? AND depth=1'),summaries=new Map(); // summaries: edition -> {key,edition,ends,floor:{chests,pickups}} with only the ids a lobby summary counts.
  function summaryRecord(){ // What current() would give a snapshot that only counts chests and pickups, without decoding (and cloning monsters into) the whole floor.
@@ -118,7 +118,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const window=weeklyWindow(now());if(existsQuery.get(route,window.edition)||now()<retryAt)return;
   if(generationPending)return generationPending;
   const generationData=clone(data),generationRevision=data.contentRevision;
-  const install=floor=>{if(live&&live.published().revision!==generationRevision)return;if(live)for(const foe of floor.enemies)foe.definition=clone(generationData.enemies[foe.type]);if(closed||weeklyWindow(now()).edition!==window.edition)return;upgradeFloor(floor);addPinkMist(floor);live?.mapReady?.(zoneId,window.edition,floor);db.prepare('INSERT OR IGNORE INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(route,window.edition,window.start,window.ends,JSON.stringify(floor),now());log('dive_generation_ready',route,window.edition);};
+  const install=floor=>{if(live&&live.published().revision!==generationRevision)return;if(live)for(const foe of floor.enemies)foe.definition=clone(generationData.enemies[foe.type]);if(closed||weeklyWindow(now()).edition!==window.edition)return;upgradeFloor(floor);dietWilderness(floor,config);addPinkMist(floor);live?.mapReady?.(zoneId,window.edition,floor);db.prepare('INSERT OR IGNORE INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(route,window.edition,window.start,window.ends,JSON.stringify(floor),now());log('dive_generation_ready',route,window.edition);};
   const failed=error=>{if(closed)return;retryAt=now()+minutes;log('dive_generation_failed',route,String(error));};
   if(compute&&generatorName(generate)){ // Named generators (rooms, desert, forest) run on the worker pool.
    generationPending=compute.submit('generate',{generator:generatorName(generate),data:generationData,edition:window.edition}).then(install).catch(failed).finally(()=>{generationPending=null;});return generationPending;
@@ -210,7 +210,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   settledKey=null;let active=getFloor(edition);if(!active)return; // Same floor current() returns; only marked settled once the pass below finishes.
   if(dungeonRules&&repairFullDungeonContent(active.floor,data))saveFloor(active); // Repair deployed NPC art and misplaced ambient spawns in place before ordinary maintenance.
   controls?.reconcile(active);
-  if(addCraftingWildlife(active.floor,zoneId)|upgradeFloor(active.floor))saveFloor(active); // Add a trail to an existing edition without rerolling rooms or claimed treasure.
+  if(addCraftingWildlife(active.floor,zoneId)|upgradeFloor(active.floor)|dietWilderness(active.floor,config))saveFloor(active); // Add a trail to an existing edition without rerolling rooms or claimed treasure; thin a wilderness edition's loot once (and any loot a new trail just added).
   if(addPinkMist(active.floor))saveFloor(active); // Install a layer on existing editions once, preserving every room, enemy lock and personal claim.
   if(zoneId===DIVE_ZONE&&((active.floor.dressingVersion??0)<(data.dressing_version??2)||(active.floor.foodVersion??0)<(data.food_version??0))&&now()>=dressingRetryAt){
    try{
@@ -300,16 +300,19 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function claim(c,state,record,chest,automatic=false){
   if(chest.puzzle&&!record.floor.puzzles.find(p=>p.id===chest.puzzle)?.solved)fail('Push the blocks to open this chest first.');
   const personal=progress(c,record.edition);if(chest.requires_encounter&&!personal.defeated?.includes(chest.requires_encounter)){if(automatic)return;fail('Defeat the guarding boss before claiming this treasure.');}if(personal.claimed.includes(chest.id)){if(automatic)return;fail('You already claimed this treasure this week.');}
-  if(!stackable(personal.rolls[chest.id])&&slotsUsed(state.loadout.inventory)>=config.inventory_capacity){if(automatic){state.dive.lootNotice='Inventory full. Treasure remains here.';state.dive.lootNoticeAt=now();return;}fail('Inventory full. This treasure remains unclaimed.');}
-  if(!personal.rolls[chest.id])personal.rolls[chest.id]=rollLoot(lootEdition(record.edition),c.id,chest,personal.rolls); // Capacity was checked first; only successful claims consume the allowance.
-  const item=clone(personal.rolls[chest.id]);if(origins)origins.mint(c.id,item);addToInventory(state.loadout.inventory,item);personal.claimed.push(chest.id);saveProgress(c,record.edition,personal);
-  const bundle=!chest.kind&&record.floor.chests.some(ch=>ch.id===chest.id)?rollLoot.ingredient(lootEdition(record.edition),c.id,chest):null; // Ingredient bundles share the weekly treasure clock; loose pickups never receive a bundle.
+  const ingredientSpot=chest.kind==='ingredient'; // Wilderness ingredient spots hold only a stacking bundle (dietWilderness), so they never need a free slot.
+  if(!ingredientSpot&&!stackable(personal.rolls[chest.id])&&slotsUsed(state.loadout.inventory)>=config.inventory_capacity){if(automatic){state.dive.lootNotice='Inventory full. Treasure remains here.';state.dive.lootNoticeAt=now();return;}fail('Inventory full. This treasure remains unclaimed.');}
+  if(!personal.rolls[chest.id])personal.rolls[chest.id]=(ingredientSpot?rollLoot.ingredient(lootEdition(record.edition),c.id,chest,1,true):null)??rollLoot(lootEdition(record.edition),c.id,chest,personal.rolls); // Capacity was checked first; only successful claims consume the allowance. An ingredient spot stores its forced bundle as the receipt (an ordinary item only if no alchemy table is shipped).
+  const rolled=clone(personal.rolls[chest.id]),item=ingredientSpot&&rolled.category==='ingredient'?null:rolled; // The bundle is the whole find at an ingredient spot.
+  if(item){if(origins)origins.mint(c.id,item);addToInventory(state.loadout.inventory,item);}personal.claimed.push(chest.id);saveProgress(c,record.edition,personal);
+  const bundle=item?(!chest.kind&&record.floor.chests.some(ch=>ch.id===chest.id)?rollLoot.ingredient(lootEdition(record.edition),c.id,chest):null):rolled; // Ordinary room chests may add a bonus bundle on top of their item; loose pickups never receive one.
   if(bundle){ // Ingredients stack and never use a slot, so a full bag cannot block them.
    if(origins){const tokens=[],prices=new Map();for(let n=0;n<bundle.quantity;n++){const unit=clone(bundle);delete unit.quantity;origins.mint(c.id,unit);if(unit.online_item){tokens.push(unit.online_item);prices.set(unit.online_item,unit.online_sell_price);}}setStackTokens(bundle,tokens,prices);} // one resale right per unit, like bought stacks
    addToInventory(state.loadout.inventory,bundle);
   }
   if(chest.trapped)dungeonRules?.trap(c,state,record,chest.id); // A personal trap shares the committed chest receipt.
-  state.dive.lootNotice='Found '+(item.name??item.item_id)+(bundle?' and '+bundle.name+(bundle.quantity>1?' x'+bundle.quantity:''):'')+'.';state.dive.lootNoticeAt=now();
+  const bundleText=bundle?bundle.name+(bundle.quantity>1?' x'+bundle.quantity:''):''; // e.g. "Chamomile x3"
+  state.dive.lootNotice='Found '+(item?(item.name??item.item_id)+(bundle?' and '+bundleText:''):bundleText)+'.';state.dive.lootNoticeAt=now();
  } // Inventory, deterministic item roll and personal claim commit together inside the zone transaction.
  function handles(input,p){return input.action==='dive_enter'&&(input.zone??DIVE_ZONE)===zoneId||input.action==='enter'&&input.zone===zoneId||p?.zone===zoneId;}
  function act(i,c,state,input,p){
