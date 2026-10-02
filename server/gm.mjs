@@ -8,6 +8,7 @@ import {readFileSync} from 'node:fs';
 import {hubCatalog,hubRooms,campaignDives} from './hubs.mjs';
 import {createRoleplay} from './roleplay.mjs';
 import {createRpp} from './rpp.mjs';
+import {createTestingStore} from './gm-testing.mjs';
 import {routeCategory,ZONE_CATEGORY} from './zone-categories.mjs';
 
 const ONLINE_WINDOW=30000; // Matches the presence freshness window every other module already uses.
@@ -75,6 +76,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
  const guildStore=()=>{const store=typeof guilds==='function'?guilds():guilds;if(!store)fail(409,'Guilds are not available on this server.','gm_unknown_action');return store;}; // guilds.mjs, likewise lazy.
  const rp=createRoleplay(db,{now}); // RP journals use the same live staff authorization as every moderation tool.
  const rpp=createRpp(db,{now}); // Staff-only RPP gifts and purchase history never touch premium currencies.
+ const testing=createTestingStore(db,{now}); // Testing tab: shared QA checklist per build (gm-testing.mjs).
  db.exec(`CREATE TABLE IF NOT EXISTS gm_sanctions(owner TEXT NOT NULL,kind TEXT NOT NULL,until INTEGER NOT NULL,reason TEXT NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(owner,kind));
  CREATE TABLE IF NOT EXISTS gm_audit(id INTEGER PRIMARY KEY AUTOINCREMENT,action TEXT NOT NULL,target TEXT NOT NULL,detail TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE INDEX IF NOT EXISTS gm_audit_target ON gm_audit(target,id);`);
@@ -230,6 +232,11 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
 
  const actions={
   tutor_settings(input,actor){if(!tutor)fail(409,'The tutor NPC is not available on this server.');const saved=tutor.gmSet(input,actor);record(actor,'tutor_settings','tutor',{enabled:saved.enabled,name:saved.name,greeting:saved.greeting});return saved;}, // Pip on/off, name and greeting (tutor.mjs).
+  test_build_start(input,actor){const build=testing.startBuild(input,actor);record(actor,'test_build_start','testing',{build:build.id,label:build.label});return build;}, // New build under test; audited because it resets everyone's view.
+  test_build_notes(input,actor){const build=testing.buildNotes(input);record(actor,'test_build_notes','testing',{build:build.id,label:build.label});return build;}, // "What changed" note on a version.
+  test_mark(input,actor){return testing.mark(input,actor);}, // Pass/fail/blocked marks keep their own who/when, so they stay out of the moderation audit log.
+  test_item_save(input,actor){const item=testing.saveItem(input);record(actor,'test_item_save','testing',{id:item.id,area:item.area,title:item.title});return item;}, // Add or edit a checklist item.
+  test_item_retire(input,actor){const r=testing.retireItem(input);record(actor,'test_item_retire','testing',r);return r;}, // Hide or restore a checklist item.
   rpp_gift(input,actor){const result=rpp.gift(input,actor);if(!result.replayed)record(actor,'rpp_gift',result.characterId,{...result,reason:input.reason});return result;},
   rp_award(input,actor){const result=rp.award(input,actor);record(actor,'rp_award',result.characterId,result);return result;},
   kick(input,actor){
@@ -484,6 +491,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    if(url.pathname==='/gm/crafting'&&req.method==='GET')return send(200,craftingStore.view());
    if(url.pathname==='/gm/alchemy'&&req.method==='GET')return send(200,alchemyView()); // Chest odds and brewing rules (alchemy-store.mjs).
    if(url.pathname==='/gm/rp'&&req.method==='GET')return send(200,rp.journal(Object.fromEntries(url.searchParams)));
+   if(url.pathname==='/gm/testing'&&req.method==='GET')return send(200,testing.view(url.searchParams.get('build'))); // Testing tab: checklist, builds and results.
    if(url.pathname==='/gm/rpp'&&req.method==='GET')return send(200,rpp.journal(url.searchParams.get('character')??''));
    if(url.pathname==='/gm/chat'&&req.method==='GET'){
     const limit=Number(url.searchParams.get('limit')??'60');
@@ -510,6 +518,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
   }
  }
 
- return {route,muted,suspended,sanction,overview,chat,player,record, // record: in-game GM tools write to the same audit log as the web panel.
+ return {route,muted,suspended,sanction,overview,chat,player,record,clientVersion:testing.seen, // clientVersion: service.mjs reports each game command's client_version to the Testing tab.
+  // record: in-game GM tools write to the same audit log as the web panel.
   act:(action,payload={},who='')=>Object.hasOwn(actions,action)?actions[action](payload,who):fail(400,'Unknown action.','gm_unknown_action')};
 } // Gamemaster rights live in Little Log's participant_access table; this service only reads the decision and records who acted.

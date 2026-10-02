@@ -28,6 +28,13 @@ button:focus-visible,.tab-panel:focus-visible{outline:2px solid var(--mint);outl
 .tab-panel{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:14px;align-items:start}
 .tab-panel>section{min-width:0;overflow-x:auto}
 @media(max-width:600px){header{padding:10px}.tabs{gap:4px}main{padding:10px}.tab-panel{grid-template-columns:minmax(0,1fr)}.row>*{max-width:100%}}
+.testbar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:#1b1226;border:1px solid var(--edge);margin:0 0 12px}.testbar span{display:block;height:100%;transition:width .3s}#testBarpass{background:var(--mint)}#testBarfail{background:var(--red)}#testBarblocked{background:var(--amber)}
+.testarea{margin:16px 0 6px;font-size:15px;color:var(--rose)}
+.testitem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;border:1px solid var(--edge);border-left:4px solid var(--edge);border-radius:8px;padding:8px 10px;margin-bottom:6px;background:#1b1226}.testitem.pass{border-left-color:var(--mint)}.testitem.fail{border-left-color:var(--red)}.testitem.blocked{border-left-color:var(--amber)}
+.testitem .ctl{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;justify-content:flex-end}.testitem .ctl button{padding:4px 9px}.testitem input.testnote{grid-column:1/-1;width:100%;box-sizing:border-box}
+.testitem .ctl button.mark-pass[aria-pressed="true"]{background:var(--mint);border-color:var(--mint);color:#10241d}.testitem .ctl button.mark-fail[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:#2a0d14}.testitem .ctl button.mark-blocked[aria-pressed="true"]{background:var(--amber);border-color:var(--amber);color:#2a1d08}
+.pill{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:1px 8px;border-radius:999px;border:1px solid var(--edge);color:var(--dim);margin-right:8px}.pill.pass{color:var(--mint);border-color:var(--mint)}.pill.fail{color:var(--red);border-color:var(--red)}.pill.blocked{color:var(--amber);border-color:var(--amber)}
+@media(max-width:640px){.testitem{grid-template-columns:minmax(0,1fr)}.testitem .ctl{justify-content:flex-start}}
 section{background:var(--panel);border:1px solid var(--edge);border-radius:var(--radius);padding:14px}
 section.wide{grid-column:1/-1}
 table{width:100%;border-collapse:collapse}
@@ -127,6 +134,7 @@ tr.sel td{background:#2c1e3d}
   <button type="button" role="tab" id="tab-guilds" aria-controls="panel-guilds" aria-selected="false" tabindex="-1">Guilds</button>
   <button type="button" role="tab" id="tab-moderation" aria-controls="panel-moderation" aria-selected="false" tabindex="-1">Moderation</button>
   <button type="button" role="tab" id="tab-performance" aria-controls="panel-performance" aria-selected="false" tabindex="-1">Performance</button>
+  <button type="button" role="tab" id="tab-testing" aria-controls="panel-testing" aria-selected="false" tabindex="-1">Testing</button>
 <button type="button" role="tab" id="tab-monsters" aria-controls="panel-monsters" aria-selected="false" tabindex="-1">Monsters</button>
 <button type="button" role="tab" id="tab-npcs" aria-controls="panel-npcs" aria-selected="false" tabindex="-1">NPCs</button>
 <button type="button" role="tab" id="tab-quests" aria-controls="panel-quests" aria-selected="false" tabindex="-1">Quests</button>
@@ -503,6 +511,28 @@ tr.sel td{background:#2c1e3d}
   <section>
     <h2>Recent gamemaster actions</h2>
     <div id="audit" class="log"></div>
+  </section>
+</div>
+<div class="tab-panel" id="panel-testing" role="tabpanel" aria-labelledby="tab-testing" tabindex="0" hidden>
+  <section class="wide">
+    <h2>Testing checklist</h2>
+    <p class="note">Every multiplayer feature, one line each, tracked per game version (GAME_VERSION in the client, e.g. 0.2.1). A new version appears here by itself the first time a game client running it connects, and the highest version is the one being tested. Mark each item Pass, Fail or Blocked with a note. Results are shared with every GM and kept per version, and each item shows how it did on the version before.</p>
+    <div class="row"><label for="testBuild">Viewing version</label><select id="testBuild"></select><span id="testBuildInfo" class="note"></span></div>
+    <div class="row"><label for="testBuildNotes">What changed</label><input id="testBuildNotes" class="grow" maxlength="1000" placeholder="Notes for this version (optional)"><button id="testBuildNotesSave" type="button">Save note</button></div>
+    <div class="row"><label for="testNewBuild">Add a version early</label><input id="testNewBuild" maxlength="40" placeholder="0.2.1" style="width:140px"><button class="go" id="testStartBuild" type="button">Add version</button><span class="note">Only needed before anyone has connected with it.</span></div>
+    <div class="tot">
+      <div><b id="testDone">&mdash;</b><span>tested</span></div>
+      <div><b id="testPass">&mdash;</b><span>pass</span></div>
+      <div><b id="testFail">&mdash;</b><span>fail</span></div>
+      <div><b id="testBlocked">&mdash;</b><span>blocked</span></div>
+      <div><b id="testUntested">&mdash;</b><span>untested</span></div>
+    </div>
+    <div class="testbar" aria-hidden="true"><span id="testBarpass"></span><span id="testBarfail"></span><span id="testBarblocked"></span></div>
+    <div class="row"><label for="testArea">Area</label><select id="testArea"></select><label for="testStatus">Show</label><select id="testStatus"><option value="">Everything</option><option value="untested">Untested</option><option value="attention">Fail or blocked</option><option value="pass">Pass</option><option value="fail">Fail</option><option value="blocked">Blocked</option></select><input id="testSearch" class="grow" maxlength="60" placeholder="Search items and notes" aria-label="Search checklist"><label for="testTester">Your name</label><input id="testTester" maxlength="40" placeholder="Shown on your marks" style="width:150px"><button id="testCopy" type="button">Copy summary</button></div>
+    <div id="testList"></div>
+    <h2 style="margin-top:18px">Add a checklist item</h2>
+    <div class="row"><input id="testItemArea" list="testAreaList" maxlength="40" placeholder="Area" aria-label="Item area" style="width:180px"><datalist id="testAreaList"></datalist><input id="testItemTitle" maxlength="120" placeholder="Feature" aria-label="Item title" style="width:220px"><input id="testItemDetail" class="grow" maxlength="600" placeholder="What to check" aria-label="Item detail"><button class="go" id="testItemSave" type="button">Add item</button><button id="testItemCancel" type="button" hidden>Cancel</button></div>
+    <details><summary class="note">Retired items</summary><div id="testRetired"></div></details>
   </section>
 </div>
 <div class="tab-panel" id="panel-performance" role="tabpanel" aria-labelledby="tab-performance" tabindex="0" hidden>
@@ -1877,6 +1907,92 @@ tr.sel td{background:#2c1e3d}
   if(!window.confirm("Reset ALL alchemy changes, chests and brewing?"))return;
   act("alchemy_reset",{scope:"all"},"Every alchemy setting reset to the shipped values.").then(loadAlchemy);
  });
+
+ var testData=null,testBuildSel="",testEpoch=0,testEditing=null,TESTER="gm_tester_name";
+ try{$("testTester").value=localStorage.getItem(TESTER)||"";}catch(error){} // The tester's name is remembered on this browser only.
+ function testWhen(ms){return ms?new Date(ms).toLocaleString():"";}
+ function loadTesting(){
+  if(!token)return;var epoch=++testEpoch,session=perfEpoch;
+  return api("/gm/testing"+(testBuildSel?"?build="+encodeURIComponent(testBuildSel):"")).then(function(data){
+   if(epoch!==testEpoch||session!==perfEpoch||!token)return;testData=data;renderTesting();
+  }).catch(function(error){say("err",error.message);});
+ } // Testing tab: one fetch returns the builds, the checklist and the chosen build's marks.
+ function renderTesting(){
+  var d=testData;if(!d)return;
+  var pick=$("testBuild");clear(pick);
+  if(!d.builds.length){var none=el("option",null,"No versions yet");none.value="";pick.appendChild(none);}
+  d.builds.forEach(function(b){var o=el("option",null,b.label+(d.current&&b.id===d.current.id?" (current)":"")+" · "+b.marked+" marked");o.value=String(b.id);if(d.selected&&b.id===d.selected.id)o.selected=true;pick.appendChild(o);});
+  var s=d.selected;
+  $("testBuildInfo").textContent=!s?"Waiting for a game client to connect, or add a version below.":(d.current&&s.id!==d.current.id?"Older version: marks here correct its record. ":"")+(s.source==="client"?"First seen from the game "+testWhen(s.created)+(s.last_seen?" · last seen "+testWhen(s.last_seen):""):"Added by hand "+testWhen(s.created));
+  if(document.activeElement!==$("testBuildNotes"))$("testBuildNotes").value=s?s.notes:"";$("testBuildNotes").disabled=!s;$("testBuildNotesSave").disabled=!s; // Keep a half-typed note while auto-refreshing.
+  var c=d.counts;
+  $("testDone").textContent=(c.pass+c.fail+c.blocked)+" / "+c.total;$("testPass").textContent=String(c.pass);$("testFail").textContent=String(c.fail);$("testBlocked").textContent=String(c.blocked);$("testUntested").textContent=String(c.untested);
+  ["pass","fail","blocked"].forEach(function(k){$("testBar"+k).style.width=(c.total?c[k]/c.total*100:0)+"%";});
+  var area=$("testArea"),keep=area.value;clear(area);var all=el("option",null,"All areas");all.value="";area.appendChild(all);
+  d.areas.forEach(function(a){var o=el("option",null,a);o.value=a;area.appendChild(o);});area.value=d.areas.indexOf(keep)>=0?keep:"";
+  var known=$("testAreaList");clear(known);d.areas.forEach(function(a){var o=el("option");o.value=a;known.appendChild(o);});
+  renderTestList();
+  var retired=$("testRetired");clear(retired);
+  d.retired.forEach(function(r){var line=el("p",null,r.area+" · "+r.title+" "),back=el("button",null,"Restore");back.type="button";back.addEventListener("click",function(){testAct("test_item_retire",{id:r.id,retired:false},"Restored "+r.title+".");});line.appendChild(back);retired.appendChild(line);});
+  if(!d.retired.length)retired.appendChild(el("p","note","Nothing retired."));
+ } // Build picker, tallies, progress bar, filters, then the list.
+ function renderTestList(){
+  var d=testData,list=$("testList");clear(list);if(!d)return;
+  var area=$("testArea").value,status=$("testStatus").value,q=$("testSearch").value.trim().toLowerCase(),last="",shown=0;
+  d.items.forEach(function(item){
+   if(area&&item.area!==area)return;
+   if(status==="attention"?(item.status!=="fail"&&item.status!=="blocked"):(status&&item.status!==status))return;
+   if(q&&(item.area+" "+item.title+" "+item.detail+" "+item.note).toLowerCase().indexOf(q)<0)return;
+   if(item.area!==last){last=item.area;list.appendChild(el("h3","testarea",item.area));}
+   list.appendChild(testRow(item));shown++;
+  });
+  if(!shown)list.appendChild(el("p","note",d.selected?"No items match these filters.":"No version to test yet."));
+ } // Filters run locally, so typing in the search box never refetches.
+ function testRow(item){
+  var row=el("div","testitem "+item.status),main=el("div"),ctl=el("div","ctl"),head=el("div");
+  head.appendChild(el("span","pill "+item.status,item.status));head.appendChild(el("b",null,item.title));main.appendChild(head);
+  if(item.detail)main.appendChild(el("p","note",item.detail));
+  var meta=[];
+  if(item.updated)meta.push(item.status+" by "+(item.tester||short(item.actor||"unknown"))+" · "+testWhen(item.updated));
+  if(item.previous)meta.push(item.previous.label+": "+item.previous.status);
+  if(meta.length)main.appendChild(el("p","note",meta.join(" · ")));
+  var noteBox=el("input","testnote");noteBox.maxLength=1000;noteBox.placeholder="Note: what you saw, steps, bug link";noteBox.value=item.note;noteBox.setAttribute("aria-label","Note for "+item.title);
+  noteBox.addEventListener("change",function(){if(item.status!=="untested")testMark(item,item.status,noteBox.value);}); // Editing the note re-saves the current mark.
+  [["pass","Pass"],["fail","Fail"],["blocked","Blocked"],["untested","Clear"]].forEach(function(pair){
+   var b=el("button","mark-"+pair[0],pair[1]);b.type="button";b.setAttribute("aria-pressed",String(item.status===pair[0]&&pair[0]!=="untested"));
+   b.addEventListener("click",function(){testMark(item,pair[0],noteBox.value);});ctl.appendChild(b);
+  });
+  var edit=el("button",null,"Edit");edit.type="button";edit.addEventListener("click",function(){testEditStart(item);});ctl.appendChild(edit);
+  var retire=el("button",null,"Retire");retire.type="button";retire.addEventListener("click",function(){if(confirm("Retire '"+item.title+"'? Its results are kept and you can restore it."))testAct("test_item_retire",{id:item.id,retired:true},"Retired "+item.title+".");});ctl.appendChild(retire);
+  row.appendChild(main);row.appendChild(ctl);row.appendChild(noteBox);return row;
+ } // One checklist row: status pill, what to check, who marked it, last build's result, buttons and a note.
+ function testMark(item,status,noteText){
+  if(!testData||!testData.selected)return say("err","There is no version to test yet.");
+  api("/gm/action",{method:"POST",body:{action:"test_mark",build:testData.selected.id,item:item.id,status:status,note:noteText,tester:$("testTester").value.trim()}}).then(function(){loadTesting();}).catch(function(error){say("err",error.message);});
+ } // Marks refresh quietly; the row's colour change is the confirmation.
+ function testAct(action,body,done){
+  api("/gm/action",{method:"POST",body:Object.assign({action:action},body)}).then(function(response){say("ok",typeof done==="function"?done(response.result):done);loadTesting();}).catch(function(error){say("err",error.message);});
+ } // Audited checklist changes: new build, add/edit item, retire/restore.
+ function testEditStart(item){
+  testEditing=item.id;$("testItemArea").value=item.area;$("testItemTitle").value=item.title;$("testItemDetail").value=item.detail;
+  $("testItemSave").textContent="Save changes";$("testItemCancel").hidden=false;$("testItemArea").scrollIntoView({block:"center"});$("testItemTitle").focus();
+ } // Edits reuse the add form.
+ function testEditEnd(){testEditing=null;$("testItemArea").value="";$("testItemTitle").value="";$("testItemDetail").value="";$("testItemSave").textContent="Add item";$("testItemCancel").hidden=true;}
+ function testSummary(){
+  var d=testData;if(!d||!d.selected)return "";
+  var c=d.counts,lines=["Version "+d.selected.label+": "+c.pass+" pass, "+c.fail+" fail, "+c.blocked+" blocked, "+c.untested+" untested of "+c.total];
+  [["fail","FAILED"],["blocked","BLOCKED"]].forEach(function(pair){var hit=d.items.filter(function(i){return i.status===pair[0];});if(!hit.length)return;lines.push("",pair[1]+":");hit.forEach(function(i){lines.push("- "+i.area+": "+i.title+(i.note?" ("+i.note+")":""));});});
+  return lines.join("\n");
+ } // Plain text for pasting into Discord or a bug report.
+ $("tab-testing").addEventListener("click",function(){loadTesting();});
+ $("testBuild").addEventListener("change",function(){testBuildSel=$("testBuild").value;loadTesting();});
+ $("testStartBuild").addEventListener("click",function(){var label=$("testNewBuild").value.trim();if(!label)return say("err","Type the version number first, like 0.2.1.");testAct("test_build_start",{label:label},function(b){$("testNewBuild").value="";testBuildSel=String(b.id);return "Added version "+b.label+".";});});
+ $("testBuildNotesSave").addEventListener("click",function(){if(!testData||!testData.selected)return;testAct("test_build_notes",{build:testData.selected.id,notes:$("testBuildNotes").value},function(b){return "Saved the note for "+b.label+".";});});
+ $("testArea").addEventListener("change",renderTestList);$("testStatus").addEventListener("change",renderTestList);$("testSearch").addEventListener("input",renderTestList);
+ $("testTester").addEventListener("change",function(){try{localStorage.setItem(TESTER,$("testTester").value.trim());}catch(error){}});
+ $("testItemSave").addEventListener("click",function(){var body={area:$("testItemArea").value,title:$("testItemTitle").value,detail:$("testItemDetail").value};if(testEditing)body.id=testEditing;testAct("test_item_save",body,function(item){testEditEnd();return (body.id?"Saved ":"Added ")+item.title+".";});});
+ $("testItemCancel").addEventListener("click",testEditEnd);
+ $("testCopy").addEventListener("click",function(){var text=testSummary();if(!text)return say("err","There is no version to summarise yet.");(navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject(new Error("no clipboard"))).then(function(){say("ok","Summary copied.");}).catch(function(){window.prompt("Copy this summary:",text);});});
 
  (function resume(){ // A grant kept from a previous visit is proven against the server before the panel is shown.
   var saved=storedGrant();

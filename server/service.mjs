@@ -153,6 +153,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
     else {identity=verified;try{result=zones.inspect(token,url.searchParams.get('character_id'),url.searchParams.get('target'),url.searchParams.get('controller'));}finally{identity=null;}result.social=await walletClient.profile(token,result.account_id);}
     res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));return;
    }
+   if(req.method==='POST'&&url.pathname==='/zones/action')gm.clientVersion(input?.client_version); // Testing tab: a new game version opens its checklist the first time it connects.
    await settleFollowers(verified.owner,token);
    await settlePurchases(verified.owner,token);
    const rawPage=url.searchParams.get('bank_page'); // The companion reads its own bank from anywhere and pages without disturbing the in-game drawer.
