@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
-import {createQuestZones,hauntedWoodsData,taigaData,highDesertData,HAUNTED_WOODS_ZONE,TAIGA_ZONE,HIGH_DESERT_ZONE,WILDERNESS_LINKS} from '../server/zones.mjs';
+import {createQuestZones,hauntedWoodsData,taigaData,highDesertData,HAUNTED_WOODS_ZONE,TAIGA_ZONE,HIGH_DESERT_ZONE,UTOPIA_ZONE,WILDERNESS_LINKS} from '../server/zones.mjs';
 import {generateForest} from '../server/forest-generation.mjs';
 import {generateDesert,validateDesert} from '../server/desert-generation.mjs';
 import {pathTo,walkable} from '../server/dive-generation.mjs';
@@ -80,6 +80,15 @@ test('a character walks Honeydew -> Woods -> Taiga -> Woods -> High Desert -> Wo
  assert.ok(f.floor('alice').exits.some(e=>e.zone===HAUNTED_WOODS_ZONE&&e.side==='left'));
  f.cross('alice',HAUNTED_WOODS_ZONE);assert.equal(f.snap('alice').zone,HAUNTED_WOODS_ZONE);
  const home=f.cross('alice',HONEYDEW);assert.equal(home.zone,HONEYDEW);assert.deepEqual(home.position,{x:24,y:1}); // Back one tile inside Honeydew's north gate.
+}finally{f.close();}});
+
+test('walking into a different hub than you left arrives beside the gate you came through (Honeydew -> Woods -> Taiga -> Utopia)',()=>{const f=fixture();try{
+ f.player('alice');
+ f.place('alice',{x:24,y:1});f.act('alice','move',{direction:'north',world_step:true});assert.equal(f.snap('alice').zone,HAUNTED_WOODS_ZONE);
+ f.cross('alice',TAIGA_ZONE);assert.equal(f.snap('alice').zone,TAIGA_ZONE); // hubEntryZone is now the Woods: the trail Alice first left a hub by.
+ const city=f.cross('alice',UTOPIA_ZONE);assert.equal(city.zone,UTOPIA_ZONE);
+ const gate=wildernessGates(UTOPIA_ZONE).find(g=>g.target===TAIGA_ZONE);
+ assert.ok(Math.abs(city.position.x-gate.x)<=2&&city.position.y===gate.y-1,'beside the south gate, not the Workshop door mid-plaza: '+JSON.stringify(city.position)); // Regression 2026-10-01: the stale Woods trail sent every multi-overworld walk to Utopia's centre.
 }finally{f.close();}});
 
 function orbFixture(){
