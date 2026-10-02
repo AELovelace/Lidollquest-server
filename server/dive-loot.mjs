@@ -49,14 +49,28 @@ export function createDiveLootRoller(data,{enchantments=null,table=data.enchantm
   return lootCache.roller;
  };
  const routeKey=data.config.zone_id??data.config.route??'default';
+ // Base item pool (/gm Loot tab, loot-store.mjs): removed ids stop dropping and GM-added items join the general pool on
+ // every route. Rebuilt only when the store's revision changes; with nothing left after filtering, the shipped list stays.
+ let poolCache={revision:null,items:data.items,general,diapers,priority:data.priority_pool,removed:new Set()};
+ const livePools=()=>{
+  if(!loot?.itemPool)return poolCache; // No store (tests, tools): the shipped pools as built above.
+  const revision=loot.revision();if(revision===poolCache.revision)return poolCache;
+  const items={...loot.customItems(),...data.items},removed=loot.removedItems(); // Shipped definitions win on an id clash (the store refuses clashes anyway).
+  const liveGeneral=loot.itemPool(general).filter(id=>items[id]),liveDiapers=liveGeneral.filter(id=>items[id]?.category==='panties'&&items[id].is_diaper&&!items[id].quest_item);
+  const priority=data.priority_pool?loot.itemPool(data.priority_pool,{addCustom:false}):data.priority_pool;
+  poolCache={revision,items,general:liveGeneral.length?liveGeneral:general,diapers:liveDiapers.length?liveDiapers:diapers,priority:priority?.length?priority:data.priority_pool,removed};
+  return poolCache;
+ };
+ const keep=(ids,removed)=>{const left=(ids??[]).filter(id=>!removed.has(id));return left.length?left:ids;}; // Filter a fixed pool, but never down to nothing.
  function roll(edition,character,chest,rolls,depth=1){
   if(rolls[chest.id])return structuredClone(rolls[chest.id]); // Preserve receipts and older rolls even when previous tuning allowed more panties.
   const key=`${data.config.route}:${edition}:${depth}:${character}:${chest.id}`,rnd=seeded(key);
-  const preferred=data.priority_pool?.length&&rnd(100)<(data.campaign?.loot_priority_chance??0)?data.priority_pool:general;
-  const pool=chest.item_id?[chest.item_id]:chest.loot_pool??(chest.kind==='food'?data.food_pool:chest.kind==='potion'?data.potion_pool:chest.kind==='diaper'&&diapers.length?diapers:preferred); // Wilderness diaper spots draw only from the route's diapers; a route without any falls back to its general pool.
-  let item=structuredClone(data.items[pool[rnd(pool.length)]]);
+  const live=livePools(); // This revision's items and pools (see above).
+  const preferred=live.priority?.length&&rnd(100)<(data.campaign?.loot_priority_chance??0)?live.priority:live.general;
+  const pool=chest.item_id?[chest.item_id]:chest.loot_pool?keep(chest.loot_pool,live.removed):(chest.kind==='food'?keep(data.food_pool,live.removed):chest.kind==='potion'?keep(data.potion_pool,live.removed):chest.kind==='diaper'&&live.diapers.length?live.diapers:preferred); // Wilderness diaper spots draw only from the route's diapers; a route without any falls back to its general pool. A GM-placed chest item always stays.
+  let item=structuredClone(live.items[pool[rnd(pool.length)]]);
   if(plainPanties(item)&&Object.values(rolls).filter(plainPanties).length>=limit){
-   item=structuredClone(data.items[diapers[seeded(key+':diaper-replacement')(diapers.length)]]);
+   item=structuredClone(live.items[live.diapers[seeded(key+':diaper-replacement')(live.diapers.length)]]);
   } // Chests and loose treasure share one personal floor allowance; excess panty rolls become existing diapers.
   if(item.atk_min!==undefined){item.atk=item.atk_min+rnd(item.atk_max-item.atk_min+1);if(typeof item.desc==='string')item.desc=item.desc.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}
   const roller=lootRoller();

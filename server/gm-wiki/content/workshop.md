@@ -105,3 +105,17 @@ NPC and quest forms now have a fixed toolbar for **Save asset drafts**, **Publis
 ## Ask the GM wiki assistant
 
 Open **Ask the GM wiki assistant** from Story Workshop or the GM panel for a separate chat window. It uses your staff sign-in and can show matching handbook sections and pictures. See [Using the GM assistant](ai-help.md) for follow-ups, image controls and troubleshooting.
+
+
+## Included online story sheets
+
+Included NPC, scene, service and quest sheets carry a permanent **Built-in** marker plus **Needs human re-authoring**. Saving, publishing or restoring a revision does not clear that task. After a human has re-authored the sheet, use **Mark human re-authoring complete** in its inspector; **Mark as needing human re-authoring** reopens it. The Built-in marker remains, and custom-created sheets do not receive it. Search the library for **Needs human re-authoring** to find remaining work. This editorial status persists separately from content drafts and publication, so marking it never activates quests or changes player progress.
+
+
+Open **Included online stories**, choose a region, then an NPC, service or story scene. These are the game's shipped definitions. Select a card and use **Open ?**, **Up one level** and **Sheet overview** to navigate trees, pages, choices, checks and effects. **Add entry** and **Add supported field** expose supported authoring controls. Named page connections are editable; keep stable page IDs and once-only keys. Native service and quest choices remain available when editing source sheets.
+
+Hub residents expose a greeting and optional **topics** with a **topic label**. **online ? Shared NPC choices and service confirmations** holds service wording; retain placeholders such as {price}. Companion voice/example/fallback and tutorial settings have sheets too. Generated replies and service transactions remain runtime behavior.
+
+**Save content drafts** keeps edits private. **Publish content** changes subsequent interactions. **Compare shipped default** and published revision history can restore a draft for review. Source changes never overwrite your saved edits. Existing conversations and accepted quest definitions retain their pinned data.
+
+The included quest library also shows optional weekly pack definitions as drafts until enabled or published. Opening or saving them does not activate offers. Existing placements are reused; no duplicate NPC or map regeneration is needed. New client builds read published tours/topics/service wording; older clients retain packaged text.

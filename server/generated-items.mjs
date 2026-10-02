@@ -14,9 +14,9 @@ let store=null,cache={revision:undefined,items:{}},merged=new WeakMap();
 export function configureGeneratedItems(value){if(gameContext()){gameContext().generated={store:value,revision:null,items:null};return;}store=value??null;cache={revision:undefined,items:{}};merged=new WeakMap();} // zones.mjs hands over the live loot store, as it does for shop stock.
 
 export function generatedItems(){
- const local=gameContext()?.generated;if(local){const revision=local.store?.revision();if(!local.items||local.revision!==revision){local.revision=revision;local.items=createBaseGenerator(local.store?local.store.applyBases(shipped):shipped).catalog();}return local.items;}
+ const local=gameContext()?.generated;if(local){const revision=local.store?.revision();if(!local.items||local.revision!==revision){local.revision=revision;local.items={...(local.store?.customItems?.()??{}),...createBaseGenerator(local.store?local.store.applyBases(shipped):shipped).catalog()};}return local.items;}
  const revision=store?store.revision():'shipped';
- if(revision!==cache.revision)cache={revision,items:createBaseGenerator(store?store.applyBases(shipped):shipped).catalog()};
+ if(revision!==cache.revision)cache={revision,items:{...(store?.customItems?.()??{}),...createBaseGenerator(store?store.applyBases(shipped):shipped).catalog()}}; // GM-added pool items (loot-store customItems) resolve by id too, so outfit, faith and companion checks see them.
  return cache.items;
 }
 

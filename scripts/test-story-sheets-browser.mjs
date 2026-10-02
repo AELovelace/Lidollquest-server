@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+import {mkdir} from 'node:fs/promises';
+import {createQuestService} from '../server/service.mjs';
+import {sheetId} from '../server/story-sheets.mjs';
+
+const modulePath=process.env.QUEST_PUPPETEER_MODULE;
+if(!modulePath)throw Error('Set QUEST_PUPPETEER_MODULE to an installed Puppeteer module.');
+const {default:puppeteer}=await import(pathToFileURL(modulePath));
+process.env.QUEST_FLOWS_ENABLED='true';
+const token='s'.repeat(43),owner='a'.repeat(64),service=createQuestService({walletClient:{async authenticate(value){if(value!==token)throw Object.assign(Error('Unauthorized'),{status:401});return {owner,id:'test-grant',client:'lidollquest',gamemaster:true,scope:'wallet:read'};}},now:()=>Date.parse('2026-10-02T12:00:00Z'),log:()=>{}});
+await new Promise(resolve=>service.server.listen(0,'127.0.0.1',resolve));
+let browser,phase='launch',page;try{
+ const firefox=process.env.QUEST_BROWSER==='firefox';browser=await puppeteer.launch({browser:firefox?'firefox':'chrome',executablePath:process.env.QUEST_BROWSER_PATH??(firefox?'C:/Program Files/Mozilla Firefox/firefox.exe':'C:/Program Files/Google/Chrome/Application/chrome.exe'),headless:true,args:firefox?['--no-remote']:[]});
+ page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());await page.setViewport({width:1500,height:1000});
+ await page.evaluateOnNewDocument(token=>localStorage.setItem('lidollquest.gm.grant',JSON.stringify({token})),token);
+ const id=sheetId('native_npc','dungeon-castle-dungeon','objFriendlyTest'),base='http://127.0.0.1:'+service.server.address().port;
+ phase='open';await page.goto(base+'/gm/flow-editor?kind=sheet&id='+id);await page.waitForFunction(()=>document.querySelector('#workspaceTitle')?.textContent.includes('sheet blocks'));
+ const click=async text=>{const found=await page.evaluate(text=>{const b=[...document.querySelectorAll('#properties button')].find(b=>b.textContent===text);if(!b)return false;b.click();return true;},text);assert.ok(found,'Missing button '+text);};
+ phase='authorship markers';
+ assert.ok(await page.evaluate(()=>document.querySelector('#properties [data-authorship="pending"]')?.textContent.includes('Built-in')));
+ assert.ok(await page.evaluate(()=>[...document.querySelectorAll('#library button')].some(b=>b.textContent.includes('Needs human re-authoring'))));
+ const caverns=service.live.entry('quest','caverns_survey');assert.equal(caverns.authorship.builtin,true);
+ phase='open tree';await click('Open dialogue covered');await page.waitForFunction(()=>document.querySelector('#properties')?.textContent.includes('dialogue_covered'));
+ await page.click('[data-node="field:0"] strong');await page.waitForFunction(()=>[...document.querySelectorAll('#properties label')].some(l=>l.firstChild.textContent==='text'));
+ await page.evaluate(()=>{const input=[...document.querySelectorAll('#properties label')].find(l=>l.firstChild.textContent==='text').querySelector('textarea');input.value='Browser-authored greeting.';input.dispatchEvent(new Event('change',{bubbles:true}));});
+ phase='save';await page.click('#save');await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Asset drafts saved.'));
+ assert.notEqual(service.live.entry('sheet',id).published.body.dialogue_covered[0].text,'Browser-authored greeting.');
+ phase='publish';await page.click('#publish');await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Shared assets published.'));assert.equal(service.live.entry('sheet',id).published.body.dialogue_covered[0].text,'Browser-authored greeting.');
+ assert.equal(service.live.entry('sheet',id).authorship.needs_reauthoring,true);
+ phase='mark re-authoring';await click('Mark human re-authoring complete');await page.waitForFunction(()=>document.querySelector('#properties [data-authorship="complete"]'));
+ assert.equal(service.live.entry('sheet',id).authorship.needs_reauthoring,false);
+ phase='reload';await page.reload();await page.waitForFunction(()=>document.querySelector('#workspaceTitle')?.textContent.includes('sheet blocks'));await click('Sheet overview');await click('Open dialogue covered');await page.click('[data-node="field:0"] strong');
+ assert.equal(await page.evaluate(()=>[...document.querySelectorAll('#properties label')].find(l=>l.firstChild.textContent==='text').querySelector('textarea').value),'Browser-authored greeting.');
+ assert.ok(await page.evaluate(()=>document.querySelector('#properties [data-authorship="complete"]')?.textContent.includes('Built-in')));
+ await click('Mark as needing human re-authoring');await page.waitForFunction(()=>document.querySelector('#properties [data-authorship="pending"]'));
+ await page.click('#validate');await page.waitForFunction(()=>document.querySelector('#status').textContent==='Sheet validation passed.');
+ await mkdir('artifacts/story-sheets',{recursive:true});await page.screenshot({path:'artifacts/story-sheets/workshop.png',fullPage:true});
+ phase='add service';const serviceId=sheetId('npc_services','dungeon-castle-dungeon','Basil');await page.goto(base+'/gm/flow-editor?kind=sheet&id='+serviceId);await page.waitForFunction(()=>document.querySelector('#workspaceTitle')?.textContent.includes('Basil'));
+ await click('Add entry');await page.click('#validate');await page.waitForFunction(()=>document.querySelector('#status').textContent==='Sheet validation passed.');
+ await page.click('#save');await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Asset drafts saved.'));await page.click('#publish');await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Shared assets published.'));
+ const added=service.live.entry('sheet',serviceId).published.body.at(-1);assert.equal(added.label,'New service');assert.deepEqual(added.campaign_effects,[]);assert.equal(added.once_key,undefined);assert.deepEqual(errors,[]);
+ console.log('PASS: built-in/re-authoring markers, explicit completion/reopen/reload, NPC edit/save/publish, sheet validation, and adding a service without copied gifts or receipt keys.');
+}catch(error){console.error('Browser failure at',phase,await page?.evaluate(()=>({status:document.querySelector('#status')?.textContent,title:document.querySelector('#workspaceTitle')?.textContent})).catch(()=>null));throw error;}finally{await browser?.close();service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));}

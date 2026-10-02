@@ -1,0 +1,29 @@
+{
+  "_comment": "Presentation-only events offered by online NPCs after server-approved conversations. Keys are zone:avatar. Player chat stays in the action log. Beat fields: text, sprite, sprite_side, sprite_index, title_override.",
+  "events": {
+    "princess-rose-garden:objNPCGigglyGuard": {
+      "label": "Show me around the castle.",
+      "title": "The Castle's Open Doors",
+      "beats": [
+        {"text": "The Castle Greeter holds a door open for you. Beyond it, pink corridors join quiet rooms filled with polished furniture, rose pots and pools of lamplight. Somewhere down the hall, a music box plays a few bright notes.", "sprite": "sprPQDetailMusicBox", "sprite_side": "right"},
+        {"text": "The greeter points back towards the eastern passage. However the rooms are arranged next month, that route will lead you home to Rose Court. For now, there is time to wander and find a comfortable place to meet your friends."}
+      ]
+    },
+    "honeydew-lantern-garden:objNPCMerchant": {
+      "label": "Show me around the square.",
+      "title": "An Afternoon in Market Square",
+      "beats": [
+        {"text": "The Market Host gestures along the broad paths between the stalls. Canvas awnings stir above neat displays, while a cart waits beside a stack of crates. The fountain lends a soft, steady rhythm to the square.", "sprite": "sprTownEnvMarketStall", "sprite_side": "right"},
+        {"text": "A few residents exchange greetings as they pass. The host leaves you with an easy landmark: follow the paths east to return to Lantern Court, where the merchants, bank and Dive Hall are waiting."}
+      ]
+    },
+    "littlebig-clockwork-garden:objNPCBarmaid": {
+      "label": "Tell me about these streets.",
+      "title": "Lights Along the District",
+      "beats": [
+        {"text": "The Velvet Lounge Host indicates the softly lit storefronts and sheltered doorways. Red lamps warm the pavement, and voices drift from the evening meeting places. There is room here to linger without hurrying into another adventure."},
+        {"text": "The host points out the eastern passage to Clockwork Coliseum before returning to greet another visitor. The streets will be rearranged with the new month; tonight, their familiar lights offer a quiet place to gather."}
+      ]
+    }
+  }
+}

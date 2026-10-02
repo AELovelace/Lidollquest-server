@@ -1,3 +1,4 @@
+import {storyText} from './story-presentation.mjs';
 import {fullDungeons,fullDungeonContent} from './full-dungeons.mjs';
 import {campaignDialogue} from './full-dungeon-rules.mjs';
 import {inside} from './dive-generation.mjs';
@@ -44,15 +45,20 @@ export function fullDungeonQuestPack(){
  });
 } // Online quest engine owns journaling, deliveries, sharing rules and capped reward receipts.
 
-export function fullDungeonNpc(n,key,s){
- const d=dungeonDataFor(key.split(':')[0]),npc=d?.npcs[n.content];if(!npc)return null;
+export function nativeNpcSource(n,key,live){
+ const d=dungeonDataFor(key.split(':')[0]),raw=d?.npcs[n.content];if(!raw)return null;
+ const npc=live?.sheet('native_npc',d.config.zone_id,n.content)??raw;
+ return {npc,services:live?.sheet('npc_services',d.config.zone_id,raw.name)??d.adaptations?.npc_services?.[raw.name]??[],careNarrative:npc.diaper_change?.narrative_chunk?(live?.sheet('narrative',d.config.zone_id,npc.diaper_change.narrative_chunk)??d.narratives[npc.diaper_change.narrative_chunk]):null};
+} // Pin editable input data, not a single state-selected greeting, for accepted quest attempts.
+export function fullDungeonNpc(n,key,s,source=null,live=null){
+ const d=dungeonDataFor(key.split(':')[0]),npc=source?.npc??d?.npcs[n.content];if(!npc)return null;
  const dialogue=campaignDialogue(npc,s);
  const p=s.loadout.player_info;for(const [slot,ids] of [['mouth',['cursed_paci','cursed_paci_forest']],['weapon',['cursed_teddy']]])if(ids.includes(p['equipped_'+slot])){
-  const id='full_release_'+slot;dialogue[0].actions.unshift({label:'Ask for help removing the binding',next:id,effect:'none',conditions:[],campaign_effects:[{type:'release_campaign_curse',slot}]});dialogue.push({id,text:npc.name+' releases the binding. You are free to continue.',next:'close',actions:[]});
+  const id='full_release_'+slot;dialogue[0].actions.unshift({label:storyText(live,'native_release'),next:id,effect:'none',conditions:[],campaign_effects:[{type:'release_campaign_curse',slot}]});dialogue.push({id,text:storyText(live,'native_released',{name:npc.name}),next:'close',actions:[]});
  } // Only the campaign's friendly-removal items qualify; declining leaves equipment unchanged.
- for(const [i,service] of (d.adaptations?.npc_services?.[npc.name]??[]).entries()){const id='full_service_'+i;dialogue[0].actions.push({...service,next:id,effect:'none',conditions:[]});dialogue.push({id,text:service.text,next:dialogue[0].id,actions:[]});}
- if(npc.diaper_change){dialogue[0].actions.push({label:'Ask for a change',next:'full_change',effect:'none',conditions:[],campaign_change:true});dialogue.push({id:'full_change',text:'',next:dialogue[0].id,actions:[]});}
- return {id:key,name:npc.name,sprite:npc.sprite,dialogue,quests:[],campaign_zone:d.config.zone_id,campaign_npc:n.content};
+ for(const [i,service] of (source?.services??d.adaptations?.npc_services?.[npc.name]??[]).entries()){const id='full_service_'+i;dialogue[0].actions.push({...service,next:id,effect:'none',conditions:[]});dialogue.push({id,text:service.text,next:dialogue[0].id,actions:[]});}
+ if(npc.diaper_change){dialogue[0].actions.push({label:storyText(live,'native_change'),next:'full_change',effect:'none',conditions:[],campaign_change:true});dialogue.push({id:'full_change',text:'',next:dialogue[0].id,actions:[]});}
+ return {id:key,name:npc.name,sprite:npc.sprite,dialogue,quests:[],campaign_zone:d.config.zone_id,campaign_npc:n.content,campaign_care:structuredClone(npc.diaper_change??null),campaign_care_narrative:structuredClone(source?.careNarrative??null)};
 }
 
 export function fullDungeonQuestMovement(c,s,input,p,map,event){

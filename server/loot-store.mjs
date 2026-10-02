@@ -219,6 +219,46 @@ export function validateStyle(input,garments=[]){
  return out;
 }
 
+// ── Base item pool (2026-10-02): the items chests and drops pick from, editable from the /gm Loot tab ──────────────
+// Stored as kind 'item' rows in gm_loot_bases, so the existing revision() fingerprint already covers them.
+//  • Removing a shipped item writes a tombstone (retired=1): it stops dropping on every route, and Restore brings it back.
+//  • A GM-added item is a full definition copied from a shipped template, flagged gm_custom. Removing it also only
+//    retires it: copies already in players' bags and outfits keep resolving by id, on the server and in the client
+//    (which learns the definitions from the snapshot's customItems section).
+const ITEM_NUMBER_BOUNDS={value:[0,100000],atk:[-100,1000],def:[-100,1000],atk_mod:[-100,100],def_mod:[-100,100],dex_mod:[-100,100],wet_resist:[-100,100],tum_resist:[-100,100],hp_restore:[0,10000],hp_regen:[0,1000],hunger_restore:[0,250],thirst_restore:[0,250],childish:[0,10],bulk:[0,20]}; // Every number the panel edits.
+const ITEM_FLAGS=['is_diaper','conceals_panties','is_bloomers','is_drink']; // Yes/no switches the panel edits.
+const ITEM_BLOCKED_CATEGORIES=['quest','currency','ingredient']; // Never loot-pool items.
+export const ITEM_STAT_KEYS=Object.freeze([...Object.keys(ITEM_NUMBER_BOUNDS),...ITEM_FLAGS]);
+const isPoolDiaper=item=>item?.category==='panties'&&item.is_diaper===true&&!item.quest_item; // Same test the dive roller uses for its diaper list.
+
+export function validateLootItem(input,{shipped={},catalog={},custom={}}={}){ // A GM item: a copy of a template (or of itself when edited) with the panel's fields applied.
+ if(!input||typeof input!=='object'||Array.isArray(input))fail('Send an item to save.');
+ const id=clean(input.id,48).toLowerCase();
+ if(!ID.test(id))fail('Id must be 3-48 characters: a lowercase letter, then letters, digits or underscores.');
+ if(id.startsWith('gen_'))fail('Ids starting with gen_ belong to generated garments; pick another id.');
+ if(Object.hasOwn(shipped,id)||Object.hasOwn(catalog,id))fail(`'${id}' is already a shipped item. Pick a new id.`); // Never shadow an item the game ships.
+ const templateId=clean(input.template,64);
+ const base=Object.hasOwn(custom,id)?custom[id]:templateId?(shipped[templateId]??fail('Pick the item to copy from the pool list.')):fail('Pick an existing item to copy from.');
+ const out=structuredClone(base);
+ delete out.quest_item;delete out.pool_template; // A GM item always drops as itself, never swapped for a generated garment.
+ const categories=new Set(Object.values(shipped).map(i=>i?.category).filter(c=>typeof c==='string'&&!ITEM_BLOCKED_CATEGORIES.includes(c)));
+ const category=clean(input.category??out.category,24);
+ if(!categories.has(category))fail(`'${category}' is not a loot category.`);
+ out.item_id=id;out.category=category;
+ out.name=clean(input.name,40)||fail('Give the item a name.');
+ out.desc=clean(input.desc??out.desc,240);
+ for(const [key,[min,max]] of Object.entries(ITEM_NUMBER_BOUNDS)){
+  if(!Object.hasOwn(input,key))continue; // Not sent: keep the template's value.
+  if(input[key]===null||input[key]===''){delete out[key];continue;} // Blank in the panel: no such stat.
+  out[key]=number(input[key],{min,max,label:key,integer:true});
+ }
+ if(Object.hasOwn(input,'atk')&&out.atk!==undefined){delete out.atk_min;delete out.atk_max;} // A typed attack replaces the template's random range.
+ for(const key of ITEM_FLAGS){if(!Object.hasOwn(input,key))continue;if(input[key]===true)out[key]=true;else delete out[key];}
+ if(out.is_diaper&&category!=='panties')fail('Only a panties item can be a diaper.');
+ out.gm_custom=true; // Marks GM definitions, so the client may update them but never overwrite a shipped item.
+ return out;
+}
+
 export function createLootStore(db,{now=Date.now}={}){
  db.exec(`CREATE TABLE IF NOT EXISTS gm_loot_tuning(key TEXT PRIMARY KEY,value TEXT NOT NULL,updated INTEGER NOT NULL,actor TEXT NOT NULL DEFAULT '');
  CREATE TABLE IF NOT EXISTS gm_loot_affixes(id TEXT PRIMARY KEY,payload TEXT NOT NULL,retired INTEGER NOT NULL DEFAULT 0,updated INTEGER NOT NULL,actor TEXT NOT NULL DEFAULT '');
@@ -303,7 +343,8 @@ export function createLootStore(db,{now=Date.now}={}){
   const what=String(scope??'all');
   if(what==='all'||what==='affixes')db.prepare('DELETE FROM gm_loot_affixes').run();
   if(what==='all'||what==='tuning')db.prepare('DELETE FROM gm_loot_tuning').run();
-  if(what==='all'||what==='bases')db.prepare('DELETE FROM gm_loot_bases').run();
+  if(what==='all'||what==='bases')db.prepare("DELETE FROM gm_loot_bases WHERE kind IN ('garment','style')").run(); // Garments and styles.
+  if(what==='all'||what==='items')db.prepare("DELETE FROM gm_loot_bases WHERE kind='item'").run(); // The base item pool: GM items and removals.
   return {scope:what};
  }
 
@@ -362,9 +403,63 @@ export function createLootStore(db,{now=Date.now}={}){
   db.prepare('DELETE FROM gm_loot_bases WHERE kind=? AND id=?').run(kind,key);
   return {kind,id:key,restored:true,actor:String(actor??'')};
  }
- function resetBases(){db.prepare('DELETE FROM gm_loot_bases').run();return {scope:'bases'};}
+ function resetBases(){db.prepare("DELETE FROM gm_loot_bases WHERE kind IN ('garment','style')").run();return {scope:'bases'};} // Garments and styles only; the item pool has its own reset.
+
+ // ── Base item pool (kind 'item' rows; see validateLootItem above) ──
+ let itemCache={revision:null,custom:{},removed:new Set()};
+ const itemState=()=>{ // Custom definitions and removed ids, re-read only when an override changed.
+  const rev=revision();
+  if(rev!==itemCache.revision){
+   const custom={},removed=new Set();
+   for(const row of baseRows('item')){const payload=JSON.parse(row.payload);if(row.retired)removed.add(row.id);if(payload.gm_custom)custom[row.id]=payload;}
+   itemCache={revision:rev,custom,removed};
+  }
+  return itemCache;
+ };
+ const customItems=()=>itemState().custom; // Every GM-added definition, removed ones included, so copies players already hold keep resolving.
+ const removedItems=()=>itemState().removed; // Ids that no longer drop.
+ function itemPool(ids,{addCustom=true}={}){ // A route's pool with removed ids taken out and (for the general pool) live GM items added.
+  const {custom,removed}=itemState(),out=(ids??[]).filter(id=>!removed.has(id));
+  if(addCustom)for(const id of Object.keys(custom))if(!removed.has(id)&&!out.includes(id))out.push(id);
+  return out;
+ }
+ function listItems(shipped){ // The panel roster: every shipped pool item plus GM items, each marked live or removed.
+  const {custom,removed}=itemState(),out=[];
+  const stats=item=>Object.fromEntries(ITEM_STAT_KEYS.filter(k=>item?.[k]!==undefined&&item[k]!==false).map(k=>[k,item[k]])); // Only the fields the panel edits, so "Copy from" can fill the form.
+  for(const [id,item] of Object.entries(shipped??{}))out.push({...stats(item),id,name:item?.name??id,category:item?.category??'',desc:item?.desc??'',value:item?.value??0,source:'shipped',removed:removed.has(id)});
+  for(const [id,item] of Object.entries(custom))out.push({...item,id,source:'custom',removed:removed.has(id)});
+  out.sort((a,b)=>a.id.localeCompare(b.id));
+  return out;
+ }
+ function saveItem(input,{shipped={},catalog={}}={},actor=''){ // Add a GM item, or edit one; saving puts it (back) in the pool.
+  const item=validateLootItem(input,{shipped,catalog,custom:customItems()});
+  db.prepare('INSERT INTO gm_loot_bases(kind,id,payload,retired,updated,actor) VALUES (?,?,?,0,?,?) ON CONFLICT(kind,id) DO UPDATE SET payload=excluded.payload,retired=0,updated=excluded.updated,actor=excluded.actor')
+   .run('item',item.item_id,JSON.stringify(item),now(),String(actor??''));
+  return item;
+ }
+ function removeItem(id,shipped={},actor=''){ // Take an item out of every loot pool; Restore undoes it.
+  const key=clean(id,48).toLowerCase(),custom=customItems()[key],base=shipped?.[key];
+  if(!base&&!custom)fail('That item is not in the loot pool.','gm_unknown_loot');
+  if(removedItems().has(key))fail('That item is already removed.','gm_unknown_loot');
+  if(isPoolDiaper(base??custom)){ // Chests swap extra plain panties for diapers, so at least one must stay.
+   const others=[...Object.entries(shipped??{}),...Object.entries(customItems())].filter(([other,item])=>other!==key&&!removedItems().has(other)&&isPoolDiaper(item));
+   if(!others.length)fail('Keep at least one diaper in the loot pool.');
+  }
+  db.prepare('INSERT INTO gm_loot_bases(kind,id,payload,retired,updated,actor) VALUES (?,?,?,1,?,?) ON CONFLICT(kind,id) DO UPDATE SET payload=excluded.payload,retired=1,updated=excluded.updated,actor=excluded.actor')
+   .run('item',key,JSON.stringify(custom??{id:key}),now(),String(actor??'')); // A custom item keeps its definition; a shipped one only needs a tombstone.
+  return {id:key,removed:true,source:custom?'custom':'shipped'};
+ }
+ function restoreItem(id,actor=''){ // Put a removed item back in the pool.
+  const key=clean(id,48).toLowerCase();
+  const row=db.prepare('SELECT * FROM gm_loot_bases WHERE kind=? AND id=?').get('item',key);
+  if(!row?.retired)fail('That item is not removed.','gm_unknown_loot');
+  if(JSON.parse(row.payload).gm_custom)db.prepare('UPDATE gm_loot_bases SET retired=0,updated=?,actor=? WHERE kind=? AND id=?').run(now(),String(actor??''),'item',key); // GM item: live again.
+  else db.prepare('DELETE FROM gm_loot_bases WHERE kind=? AND id=?').run('item',key); // Shipped item: drop the tombstone.
+  return {id:key,restored:true};
+ }
 
  return {revision,apply,list,tune,save,remove,restore,reset,applyBases,listBases,saveBase,removeBase,restoreBase,resetBases,
+  customItems,removedItems,itemPool,listItems,saveItem,removeItem,restoreItem,itemStatKeys:ITEM_STAT_KEYS,itemBounds:ITEM_NUMBER_BOUNDS,
   generatedCategories:GENERATED_CATEGORIES,garmentStatKeys:GARMENT_STAT_KEYS,garmentBounds:GARMENT_NUMBER_BOUNDS,
   tuningKeys:TUNING_KEYS,scalarBounds:SCALAR_BOUNDS,rarityBounds:RARITY_BOUNDS,slots:LOOT_SLOTS,statKeys:LOOT_STAT_KEYS,rarityOrder:RARITY_ORDER,overcapStats:OVERCAP_STATS};
 }

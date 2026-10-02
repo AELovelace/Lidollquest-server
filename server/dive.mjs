@@ -203,7 +203,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  } // Story foes pin their published stats and use the normal party/follower combat roster.
  function sweepDue(){return now()>=nextSweep;} // The sweep schedules itself from the soonest real deadline it saw, so recovery still lands on its exact second.
  function maintain(){
-  if(live&&data.contentRevision!==live.published().revision){const fresh=live.resolve(baseline);Object.assign(config,fresh.config);data.enemies=fresh.enemies;data.enemy_types=fresh.enemy_types;data.contentRevision=fresh.contentRevision;}
+  if(live&&data.contentRevision!==live.published().revision){const fresh=live.resolve(baseline);Object.assign(config,fresh.config);data.enemies=fresh.enemies;data.enemy_types=fresh.enemy_types;for(const key of ['npcs','narratives','adaptations'])if(fresh[key])data[key]=fresh[key];data.contentRevision=fresh.contentRevision;}
   controls?.tick();
   ensure();
   const edition=latest(),idleKey=edition+'|'+(live?.published().revision??'');

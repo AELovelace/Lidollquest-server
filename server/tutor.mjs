@@ -24,7 +24,7 @@ const FALLBACK="Hmm, my thoughts are all tangled up right now. Could you ask me 
 const fail=(status,message,code='tutor_unavailable')=>{throw Object.assign(Error(message),{status,code});};
 const cleanText=v=>String(v??'').replace(/[\u0000-\u001f\u007f]+/g,' ').replace(/\s+/g,' ').trim(); // One line, no control characters.
 
-export function createTutor(db,{url=process.env.NPC_RAG_URL||'',key=process.env.NPC_RAG_KEY||'',now=Date.now,fetch=globalThis.fetch,log=console.warn,
+export function createTutor(db,{live=null,url=process.env.NPC_RAG_URL||'',key=process.env.NPC_RAG_KEY||'',now=Date.now,fetch=globalThis.fetch,log=console.warn,
  timeoutMs=Number(process.env.NPC_RAG_TIMEOUT_MS||45000),dailyLimit=Number(process.env.TUTOR_DAILY_LIMIT||100),cooldownMs=4000,concurrency=3}={}){
  const base=String(url).replace(/\/+$/,''); // Empty = not configured: Pip stays hidden whatever the GM switch says.
  db.exec(`CREATE TABLE IF NOT EXISTS quest_tutor(id TEXT PRIMARY KEY,owner TEXT NOT NULL,character_id TEXT NOT NULL,player_name TEXT NOT NULL,
@@ -37,11 +37,12 @@ export function createTutor(db,{url=process.env.NPC_RAG_URL||'',key=process.env.
 
  let cached=null; // Settings are read on every zone lookup, so keep them in memory until a GM changes them.
  function settings(){
-  if(cached)return cached;
+  if(cached)return {...cached,...(live?.sheet('tutor','online','guide')??{})};
   const out={...TUTOR_DEFAULTS};
   for(const row of db.prepare('SELECT key,value FROM quest_tutor_settings').all())if(Object.hasOwn(TUTOR_DEFAULTS,row.key))out[row.key]=JSON.parse(row.value);
-  return cached=out;
+  cached=out;return {...out,...(live?.sheet('tutor','online','guide')??{})};
  }
+ if(live){const current=settings();live.registerSheet('tutor','online','guide',{name:current.name,greeting:current.greeting,fallback:FALLBACK},{name:'Tutorial guide',source:'tutor.mjs / imported tutor settings'});}
  const active=()=>!!base&&settings().enabled; // Visible and answering only when configured AND switched on.
 
  // ── Placement ──────────────────────────────────────────────────────────────
@@ -115,14 +116,14 @@ export function createTutor(db,{url=process.env.NPC_RAG_URL||'',key=process.env.
    const detail=error?.name==='TimeoutError'?'timed out after '+timeoutMs+' ms':String(error?.message??error).slice(0,200);
    Object.assign(health,{ok:false,at:now(),detail});log('tutor_answer_failed',detail); // Never log the question or player names.
    const attempts=(row.attempts??0)+1;
-   if(attempts>=2)db.prepare("UPDATE quest_tutor SET status='failed',reply=?,attempts=?,detail=?,answered=? WHERE id=? AND status='pending'").run(FALLBACK,attempts,JSON.stringify({error:detail}),now(),row.id);
+   if(attempts>=2)db.prepare("UPDATE quest_tutor SET status='failed',reply=?,attempts=?,detail=?,answered=? WHERE id=? AND status='pending'").run(settings().fallback??FALLBACK,attempts,JSON.stringify({error:detail}),now(),row.id);
    else db.prepare('UPDATE quest_tutor SET attempts=?,next_try=? WHERE id=?').run(attempts,now()+RETRY_MS,row.id);
   }finally{inFlight.delete(row.id);}
  }
 
  function kick(){ // Start npc-rag calls for due pending rows; returns a promise that settles when the calls started here finish.
   const t=now();
-  db.prepare("UPDATE quest_tutor SET status='failed',reply=?,answered=? WHERE status='pending' AND created<?").run(FALLBACK,t,t-STALE_MS); // Give up on anything stuck.
+  db.prepare("UPDATE quest_tutor SET status='failed',reply=?,answered=? WHERE status='pending' AND created<?").run(settings().fallback??FALLBACK,t,t-STALE_MS); // Give up on anything stuck.
   if(!base)return Promise.resolve();
   const free=concurrency-inFlight.size;if(free<=0)return Promise.resolve();
   const rows=db.prepare("SELECT * FROM quest_tutor WHERE status='pending' AND next_try<=? ORDER BY created LIMIT ?").all(t,free+inFlight.size).filter(r=>!inFlight.has(r.id)).slice(0,free);
@@ -151,8 +152,10 @@ export function createTutor(db,{url=process.env.NPC_RAG_URL||'',key=process.env.
   if(input.name!==undefined){const name=cleanText(input.name);if(!/^[A-Za-z][A-Za-z '\-]{0,23}$/.test(name))fail(400,'Name: 1-24 letters, spaces, apostrophes or hyphens.','tutor_invalid');next.name=name;}
   if(input.greeting!==undefined){const greeting=cleanText(input.greeting);if(!greeting||greeting.length>300)fail(400,'Greeting: 1-300 characters.','tutor_invalid');next.greeting=greeting;}
   if(!Object.keys(next).length)fail(400,'Nothing to change.','tutor_invalid');
+  if(live&&(next.name!==undefined||next.greeting!==undefined)){const row=live.view().sheets.find(r=>r.draft.category==='tutor');if(row.published&&JSON.stringify(row.draft)!==JSON.stringify(row.published))fail(409,'Finish the pending tutorial sheet edits in Story Workshop before changing its profile here.');live.change({action:'content_publish',kind:'sheet',id:row.id,revision:row.revision,entry:{...row.draft,body:{...row.draft.body,...Object.fromEntries(Object.entries(next).filter(([k])=>k!=='enabled'))}}},actor);} // A legacy settings change cannot accidentally publish someone else's pending sheet edits.
   const put=db.prepare('INSERT INTO quest_tutor_settings(key,value,updated,actor) VALUES (?,?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated=excluded.updated,actor=excluded.actor');
   for(const [k,v] of Object.entries(next))put.run(k,JSON.stringify(v),now(),actor);
+
   cached=null;return settings();
  }
 

@@ -147,6 +147,10 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
   if(body.retired&&list().some(f=>f.published&&!f.published.retired&&JSON.stringify(f.published).includes(JSON.stringify(body.id))))fail('Update or retire flows referencing this asset first.');
  }); // Advanced editors use the same flag and dependency checks as the workshop.
  function gm(input,actor){
+  if(input.action==='flow_content_authorship')return live.markAuthorship(input,actor); // Staff-only editorial tracking, independent of publication.
+  if(input.action==='flow_sheet_default')return live.sheetDefault(input.id);
+  if(input.action==='flow_sheet_history')return live.sheetHistory(input.id,input.target_revision);
+  if(input.action==='flow_sheet_validate')return live.validateSheet(input.entry);
   if(['flow_assets_save','flow_assets_publish'].includes(input.action)){
    const assets=input.assets,publish=input.action==='flow_assets_publish';
    if(publish&&!enabled)fail('Workshop publication is disabled during rollout.');

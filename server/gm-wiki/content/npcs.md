@@ -78,3 +78,8 @@ Once you publish an explicit binding, the selected interaction can start the flo
 ## Test the NPC in context
 
 Place the published NPC on a reachable tile. Approach with an eligible character and verify the default greeting, each overlapping reaction, quest offers, progress options, turn-in, and the story offer. Repeat with another character whose flags are false. Finally change an applicable requirement while an offer is open and verify a clean stale-choice rejection.
+
+
+## Editing shipped residents
+
+Use [Included online story sheets](workshop.md#included-online-story-sheets) to change a built-in resident or dungeon NPC while retaining its native service and quest routes. Clicking an imported engine NPC opens its sheet; dragging an engine NPC onto a flow still creates an explicit replacement interaction.

@@ -84,9 +84,9 @@ export function applyDungeonEffects(effects,c,s,context){
 }
 
 export function campaignDialogue(npc,s){
- const p=s.loadout.player_info,score=num(s.loadout.childish);
- const flags=campaignState(s).flags,branch=(npc.dialogue_flag_branches??[]).find(b=>(b.all_flags??[]).every(k=>flags[k])&&(!(b.any_flags?.length)||b.any_flags.some(k=>flags[k]))&&(b.no_flags??[]).every(k=>!flags[k])),band=score>=7?'high':score>=4?'mid':'low';
- let tree=s.loadout.world?.panties_showing&&p.had_tum_accident&&npc.dialogue_tum_accident?'dialogue_tum_accident':s.loadout.world?.panties_showing&&p.had_wet_accident&&npc.dialogue_wet_accident?'dialogue_wet_accident':branch?(branch.tree??branch.tree_childish?.[band]):npc.dialogue_mode==='covered_showing'?(s.loadout.world?.panties_showing?'dialogue_showing':'dialogue_covered'):'dialogue_childish_'+band;
+ const p=s.loadout.player_info,score=num(s.loadout.childish),routing=npc.story_routing??{};
+ const flags=campaignState(s).flags,branch=(npc.dialogue_flag_branches??[]).find(b=>(b.all_flags??[]).every(k=>flags[k])&&(!(b.any_flags?.length)||b.any_flags.some(k=>flags[k]))&&(b.no_flags??[]).every(k=>!flags[k])),band=score>=(routing.childish_high??7)?'high':score>=(routing.childish_mid??4)?'mid':'low';
+ let tree=routing.visible_tum!==false&&s.loadout.world?.panties_showing&&p.had_tum_accident&&npc.dialogue_tum_accident?'dialogue_tum_accident':routing.visible_wet!==false&&s.loadout.world?.panties_showing&&p.had_wet_accident&&npc.dialogue_wet_accident?'dialogue_wet_accident':branch?(branch.tree??branch.tree_childish?.[band]):npc.dialogue_mode==='covered_showing'?(s.loadout.world?.panties_showing?'dialogue_showing':'dialogue_covered'):'dialogue_childish_'+band;
  if(!Array.isArray(npc[tree]))tree=npc.default_tree;
  const pages=structuredClone(npc[tree]??[]).map(p=>typeof p==='string'?{text:p}:p),ids=pages.map((p,i)=>p.id??'page_'+i),next=v=>typeof v==='number'?(ids[v]??'close'):v??'close';
  if(!pages.length)pages.push({text:Array.isArray(npc.single_line_cycle)?npc.single_line_cycle[0]:'Hello.',actions:[]});

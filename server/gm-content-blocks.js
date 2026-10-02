@@ -1,11 +1,12 @@
 // Shared content is projected onto the canvas; edits write to the original bundle record.
 // These cards are authoring views, never new executable flow node types.
 let workspace=null;
-const contentKinds=['quest','npc','orb'];
-const blockNames={root:'Settings',stage:'Quest stage',objective:'Objective',completion_flags:'Set flag on completion',branch:'Quest branch',page:'Dialogue page',action:'Player choice',reaction:'Greeting reaction',complete:'Rewards / complete',failed:'Quest failed',close:'End conversation'};
+const contentKinds=['quest','npc','orb','sheet'];
+const blockNames={sheet:'Story sheet',root:'Settings',stage:'Quest stage',objective:'Objective',completion_flags:'Set flag on completion',branch:'Quest branch',page:'Dialogue page',action:'Player choice',reaction:'Greeting reaction',complete:'Rewards / complete',failed:'Quest failed',close:'End conversation'};
 function contentAsset(){return workspace?assets.find(a=>a.kind===workspace.kind&&a.id===workspace.id):null;}
 function graph(){return contentAsset()?contentGraph():flow;} // Existing canvas gestures share the active graph's positions.
 function contentGraph(){
+ if(contentAsset()?.kind==='sheet')return sheetGraph();
  const a=contentAsset(),d=a.entry,nodes=[],edges=[],positions=workspace.positions;
  const add=(id,role,data,parent=null,x=0,y=0)=>{
   positions[id]??={x,y};const n={id,role,type:role,data,parent,label:['failed','complete','close'].includes(role)?blockNames[role]:data.name??data.label??blockNames[role],text:data.text??'',outputs:[]};
@@ -54,6 +55,7 @@ function openContent(a){
 }
 function closeContent(){workspace=null;activeAsset=null;pending=null;issues=[];selected.clear();const url=new URL(location.href);for(const key of ['kind','id','new'])url.searchParams.delete(key);window.history.replaceState(null,'',url);library();draw();properties();}
 function contentPalette(){
+ if(contentAsset()?.kind==='sheet')return {};
  const kind=contentAsset().kind;
  return kind==='quest'?{stage:'Quest stage',objective:'Objective',pickup:'Collect item pickup',token:'Collect quest token',delivery:'Deliver quest token',completion_flags:'Set flag on completion',branch:'Quest branch'}:
   kind==='npc'?{page:'Dialogue page',action:'Player choice',reaction:'Greeting reaction'}:{page:'Narrative page'};
@@ -87,6 +89,7 @@ function contentAdd(type,x,y,target=''){
  if(key&&Number.isFinite(x)&&Number.isFinite(y))workspace.positions[key]={x,y};selected=new Set([key]);changed();library();properties();
 } // New stages splice into the selected route, and objectives belong to an explicit stage.
 function contentConnect(to){
+ if(contentAsset()?.kind==='sheet')return sheetConnect(to);
  const g=contentGraph(),source=g.nodes.find(n=>n.id===pending?.from),dest=g.nodes.find(n=>n.id===to),output=source?.outputs.find(p=>p.id===pending?.port);
  if(!output||!dest)return;
  const allowed=source.role==='root'?(contentAsset().kind==='quest'?['stage']:['page']):source.role==='reaction'?['page']:['stage','branch'].includes(source.role)?['stage','complete','failed']:['page','close'];
@@ -113,8 +116,10 @@ function contentSelect(parent,label,obj,key,options){
  return field(parent,label,obj,key,'text',opts);
 } // Preserve existing native or draft references even when they are absent from a filtered catalogue.
 function contentProperties(){
+ if(contentAsset()?.kind==='sheet')return sheetProperties();
  const a=contentAsset(),d=a.entry,host=$('properties'),g=contentGraph(),n=g.nodes.find(n=>selected.has(n.id))??g.nodes[0];host.replaceChildren();
  el('h2',blockNames[n.role],host);el('p',a.kind+' · '+a.id,host).className='hint';
+ contentAuthorship(host,a);
  if(n.role==='root'){
   if(a.kind==='orb'){field(host,'Hidden until revealed',d,'hidden_until_revealed','checkbox');el('p','Place this orb on the map, then use Reveal orb or Hide orb in a story flow to control its visibility for each character. Reading requirements still apply.',host).className='hint';}
   for(const key of Object.keys(d))if(!['stages','dialogue','pages','story_reactions','rewards','story_default','reset_flags'].includes(key)){
@@ -217,6 +222,7 @@ function contentReferences(host,label,obj,key,options){
  button(box,'Add '+label.toLowerCase(),()=>{checkpoint();obj[key].push(options.find(o=>!obj[key].includes(o.id))?.id??'');changed();properties();});
 } // Named references keep quest-giver and prerequisite editing free of memorized content IDs.
 function contentRemove(){
+ if(contentAsset()?.kind==='sheet')throw Error('Open the sheet section and use Remove entry.');
  const a=contentAsset(),d=a.entry,g=contentGraph(),targets=g.nodes.filter(n=>selected.has(n.id));
  if(pending){say('Reconnect this route to another stage or an ending. Ownership links are removed by deleting their child block.');pending=null;return;}
  if(targets.length!==1)throw Error('Select one content block to delete.');const n=targets[0];if(n.role==='completion_flags'){checkpoint();delete n.parent.on_complete_flags;selected=new Set([n.id.slice(0,-':completion'.length)]);changed();properties();return;}if(!['stage','objective','branch','page','action','reaction'].includes(n.role))throw Error('Settings and ending blocks stay in the content graph.');
@@ -232,6 +238,7 @@ function contentRemove(){
  selected=new Set(['root']);changed();library();properties();
 } // Deleting stages/pages repairs incoming routes; undo restores the complete original record.
 function contentDuplicate(){
+ if(contentAsset()?.kind==='sheet')throw Error('Open a sheet section and use Add entry.');
  const a=contentAsset(),d=a.entry,g=contentGraph(),targets=g.nodes.filter(n=>selected.has(n.id));if(targets.length!==1)throw Error('Select one content block to duplicate.');const n=targets[0];
  if(!['stage','objective','branch','page','action','reaction'].includes(n.role))throw Error('Select a stage, objective, page, choice or reaction to duplicate.');checkpoint();const value=copy(n.data);let key;
  if(n.role==='stage'){value.id=uid('stage');value.name+=' copy';for(const o of value.objectives??[])o.id=uid('objective');for(const b of value.branches??[])b.id=uid('branch');d.stages.splice(d.stages.indexOf(n.data)+1,0,value);if(n.data.branches?.length)n.data.branches[0].to=value.id;else n.data.next=value.id;key='stage:'+value.id;
@@ -240,6 +247,7 @@ function contentDuplicate(){
  workspace.positions[key]={x:n.x+45,y:n.y+80};selected=new Set([key]);changed();properties();
 }
 function checkContentBlocks(report=true){
+ if(contentAsset()?.kind==='sheet'){issues=[];if(report)void attempt(async()=>{await action('flow_sheet_validate',{entry:contentAsset().entry});say('Sheet validation passed.');});return [];}
  const a=contentAsset(),g=contentGraph(),errors=[],seen=new Set(),stack=new Set();
  const problem=(n,message)=>errors.push({severity:'error',node:n.id,message});
  if(a.kind==='quest'&&a.entry.reset_flags?.length){

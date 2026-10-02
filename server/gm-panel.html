@@ -29,6 +29,7 @@ button:focus-visible,.tab-panel:focus-visible{outline:2px solid var(--mint);outl
 .tab-panel>section{min-width:0;overflow-x:auto}
 @media(max-width:600px){header{padding:10px}.tabs{gap:4px}main{padding:10px}.tab-panel{grid-template-columns:minmax(0,1fr)}.row>*{max-width:100%}}
 .testbar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:#1b1226;border:1px solid var(--edge);margin:0 0 12px}.testbar span{display:block;height:100%;transition:width .3s}#testBarpass{background:var(--mint)}#testBarfail{background:var(--red)}#testBarblocked{background:var(--amber)}
+body.popout header,body.popout #testPopout{display:none}body:not(.popout) #testReload{display:none}
 .testarea{margin:16px 0 6px;font-size:15px;color:var(--rose)}
 .testitem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;border:1px solid var(--edge);border-left:4px solid var(--edge);border-radius:8px;padding:8px 10px;margin-bottom:6px;background:#1b1226}.testitem.pass{border-left-color:var(--mint)}.testitem.fail{border-left-color:var(--red)}.testitem.blocked{border-left-color:var(--amber)}
 .testitem .ctl{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;justify-content:flex-end}.testitem .ctl button{padding:4px 9px}.testitem input.testnote{grid-column:1/-1;width:100%;box-sizing:border-box}
@@ -144,7 +145,7 @@ tr.sel td{background:#2c1e3d}
 <button type="button" role="tab" id="tab-guide" aria-controls="panel-guide" aria-selected="false" tabindex="-1">GM Guide</button>
 </nav>
 <a href="/gm/wiki/" target="lidollquest-gm-wiki" rel="noopener">GM wiki / Quest creation guide</a>
- <a href="/gm/help" target="lidollquest-gm-help" rel="noopener" onclick="const chat=window.open(this.href,this.target,'popup,width=900,height=850');if(chat){chat.opener=null;event.preventDefault();}">Ask the GM wiki assistant</a> <a href="/gm/flow-editor" target="lidollquest-flow" id="flowWorkshop">Open Story Workshop</a><button type="button" onclick="window.open('/gm/flow-editor','lidollquest-flow','popup,width=1500,height=950')">Pop out Story Workshop</button>
+ <a href="/gm/help" target="lidollquest-gm-help" rel="noopener" onclick="const chat=window.open(this.href,this.target,'popup,width=900,height=850');if(chat){chat.opener=null;event.preventDefault();}">Ask the GM wiki assistant</a> <a href="/gm/flow-editor" target="lidollquest-flow" id="flowWorkshop">Open Story Workshop</a><button type="button" onclick="window.open('/gm/flow-editor','lidollquest-flow','popup,width=1500,height=950')">Pop out Story Workshop</button><button type="button" onclick="window.open('/gm#testing','lidollquest-testing','popup,width=1150,height=950')">Pop out Testing checklist</button>
 </header>
 <div id="flash" class="flash"></div>
 <main>
@@ -372,6 +373,33 @@ tr.sel td{background:#2c1e3d}
       <div class="row"><input id="aReason" class="grow" maxlength="240" placeholder="Why (recorded in the audit log)"><button class="go" id="aSave">Save affix</button><button id="aCancel">Cancel</button></div>
     </div>
 
+    <h2 style="margin-top:14px">Base item pool</h2>
+    <p class="note">Every item chests and drops pick from, on every route. <b>Remove</b> takes an item out of all loot pools on the next chest; copies players already own are untouched, and <b>Restore</b> puts it back. <b>Add an item</b> (or <b>Copy</b> on any row) makes a new item from an existing one with your own name and numbers; it starts dropping right away, and game clients learn it automatically. Hub shop shelves keep their own stock lists and are not changed here.</p>
+    <div class="row">
+      <select id="itemPoolFilter" aria-label="Item category"><option value="">Every category</option></select>
+      <select id="itemPoolShow" aria-label="Which items"><option value="">In the pool and removed</option><option value="live">In the pool</option><option value="removed">Removed</option><option value="custom">GM items</option></select>
+      <input id="itemPoolSearch" class="grow" placeholder="Search id or name" maxlength="60" aria-label="Search items">
+      <button class="go" id="itemPoolNew">Add an item</button>
+      <button class="bad" id="lootResetItems">Reset the item pool</button>
+    </div>
+    <p id="itemPoolCount" class="note"></p>
+    <div class="scroll"><table><thead><tr><th>Item</th><th>Category</th><th>Value</th><th>Source</th><th></th></tr></thead><tbody id="itemPoolList"></tbody></table></div>
+    <p id="itemPoolEmpty" class="empty" hidden>Nothing matches that filter.</p>
+    <div id="itemEditor" class="ench-form" hidden>
+      <h2 id="itemEditorTitle">Add an item</h2>
+      <div class="ench">
+        <div id="iTemplateWrap"><label for="iTemplate">Copy from</label><select id="iTemplate"></select></div>
+        <div><label for="iId">Id</label><input id="iId" maxlength="48" placeholder="lowercase_with_underscores"></div>
+        <div><label for="iName">Name</label><input id="iName" maxlength="40"></div>
+        <div><label for="iCategory">Category</label><select id="iCategory"></select></div>
+        <div style="grid-column:1/-1"><label for="iDesc">Description</label><input id="iDesc" maxlength="240"></div>
+      </div>
+      <label class="src">Numbers (blank = none). Picking an item to copy fills them in.</label>
+      <div class="ench" id="iNumbers"></div>
+      <div class="row" id="iFlags"></div>
+      <div class="row"><input id="iReason" class="grow" maxlength="240" placeholder="Why (recorded in the audit log)"><button class="go" id="iSave">Save item</button><button id="iCancel">Cancel</button></div>
+    </div>
+
     <h2 style="margin-top:14px">Garments</h2>
     <p class="note">The slot and every number of a generated base. Numbered pool items are replaced by a style dressed onto one of these when they drop; a diaper template only ever becomes a diaper garment. Retiring a garment is refused while a style still names it, and each category keeps at least one.</p>
     <div class="row">
@@ -517,7 +545,7 @@ tr.sel td{background:#2c1e3d}
   <section class="wide">
     <h2>Testing checklist</h2>
     <p class="note">Every multiplayer feature, one line each, tracked per game version (GAME_VERSION in the client, e.g. 0.2.1). A new version appears here by itself the first time a game client running it connects, and the highest version is the one being tested. Mark each item Pass, Fail or Blocked with a note. Results are shared with every GM and kept per version, and each item shows how it did on the version before.</p>
-    <div class="row"><label for="testBuild">Viewing version</label><select id="testBuild"></select><span id="testBuildInfo" class="note"></span></div>
+    <div class="row"><label for="testBuild">Viewing version</label><select id="testBuild"></select><span id="testBuildInfo" class="note grow"></span><button id="testReload" type="button">Reload</button><button id="testPopout" type="button">Pop out</button></div>
     <div class="row"><label for="testBuildNotes">What changed</label><input id="testBuildNotes" class="grow" maxlength="1000" placeholder="Notes for this version (optional)"><button id="testBuildNotesSave" type="button">Save note</button></div>
     <div class="row"><label for="testNewBuild">Add a version early</label><input id="testNewBuild" maxlength="40" placeholder="0.2.1" style="width:140px"><button class="go" id="testStartBuild" type="button">Add version</button><span class="note">Only needed before anyone has connected with it.</span></div>
     <div class="tot">
@@ -1491,6 +1519,72 @@ tr.sel td{background:#2c1e3d}
  }
 
 
+ // ---- Base item pool: add, remove, restore -------------------------------------
+ var itemEditing=null; // Id of the GM item being edited, or null when adding.
+ var ITEM_FLAGS=["is_diaper","conceals_panties","is_bloomers","is_drink"];
+ function itemPoolRows(){return lootData&&lootData.poolItems?lootData.poolItems:[];}
+ function lootRenderItems(){
+  var rows=itemPoolRows(),filter=$("itemPoolFilter"),show=$("itemPoolShow").value,query=$("itemPoolSearch").value.toLowerCase().trim();
+  var cats=[];rows.forEach(function(r){if(r.category&&cats.indexOf(r.category)<0)cats.push(r.category);});cats.sort();
+  if(filter.options.length!==cats.length+1){var keep=filter.value;clear(filter);var all=el("option",null,"Every category");all.value="";filter.appendChild(all);cats.forEach(function(c){var o=el("option",null,c);o.value=c;filter.appendChild(o);});filter.value=cats.indexOf(keep)>=0?keep:"";}
+  var custom=0,removed=0;rows.forEach(function(r){if(r.source==="custom")custom++;if(r.removed)removed++;});
+  $("itemPoolCount").textContent=(rows.length-custom)+" shipped · "+custom+(custom===1?" GM item":" GM items")+" · "+removed+" removed · "+(rows.length-removed)+" in the pool";
+  var body=$("itemPoolList");clear(body);var shown=0;
+  rows.forEach(function(r){
+   if(filter.value&&r.category!==filter.value)return;
+   if(show==="live"&&r.removed||show==="removed"&&!r.removed||show==="custom"&&r.source!=="custom")return;
+   if(query&&(r.id+" "+r.name).toLowerCase().indexOf(query)<0)return;
+   shown++;if(shown>300)return; // Long lists stay quick; the filter narrows the rest.
+   var tr=el("tr"),name=el("td");name.appendChild(el("span",null,r.name||r.id));
+   if(r.is_diaper)name.appendChild(el("span","tag dive","diaper"));
+   name.appendChild(el("div","mono",r.id));tr.appendChild(name);
+   tr.appendChild(el("td",null,r.category));tr.appendChild(el("td",null,String(r.value===undefined?"":r.value)));
+   tr.appendChild(el("td","src "+(r.removed?"retired":r.source==="custom"?"custom":"shipped"),r.removed?"removed":r.source==="custom"?"GM item":"shipped"));
+   var actions=el("td");
+   var copy=el("button","sm","Copy");copy.addEventListener("click",function(){openItemEditor(null,r.id);});actions.appendChild(copy);
+   if(r.source==="custom"){var edit=el("button","sm","Edit");edit.addEventListener("click",function(){openItemEditor(r,null);});actions.appendChild(edit);}
+   if(r.removed){var back=el("button","sm","Restore");back.addEventListener("click",function(){act("loot_item_restore",{id:r.id},"Restored "+r.id+" to the loot pool.").then(loadLoot);});actions.appendChild(back);}
+   else{var drop=el("button","sm bad","Remove");drop.addEventListener("click",function(){if(!window.confirm("Remove "+(r.name||r.id)+" from every loot pool? Copies players already own are kept, and you can restore it."))return;act("loot_item_delete",{id:r.id,reason:$("iReason").value.trim()},(r.name||r.id)+" removed from the loot pool.").then(loadLoot);});actions.appendChild(drop);}
+   tr.appendChild(actions);body.appendChild(tr);
+  });
+  if(shown>300){var more=el("tr"),cell=el("td","note",(shown-300)+" more; search or filter to narrow the list.");cell.colSpan=5;more.appendChild(cell);body.appendChild(more);}
+  $("itemPoolEmpty").hidden=shown>0;
+ } // Pool roster: shipped and GM items, each live or removed.
+ function itemFill(source){
+  $("iName").value=source?(source.name||""):"";$("iDesc").value=source?(source.desc||""):"";
+  var cat=$("iCategory");if(source&&source.category)cat.value=source.category;
+  Object.keys(lootData.itemBounds).forEach(function(k){$("in_"+k).value=source&&source[k]!==undefined?String(source[k]):"";});
+  ITEM_FLAGS.forEach(function(k){$("if_"+k).checked=Boolean(source&&source[k]);});
+ } // Fill the form from a template (new item) or the item itself (edit).
+ function openItemEditor(item,templateId){
+  var rows=itemPoolRows(),shipped=rows.filter(function(r){return r.source==="shipped";});
+  itemEditing=item?item.id:null;
+  $("itemEditorTitle").textContent=item?("Edit "+item.id):"Add an item";
+  $("iId").value=item?item.id:"";$("iId").disabled=Boolean(item);$("iTemplateWrap").hidden=Boolean(item);
+  var cat=$("iCategory");clear(cat);var cats=[];rows.forEach(function(r){if(r.category&&cats.indexOf(r.category)<0)cats.push(r.category);});cats.sort().forEach(function(c){var o=el("option",null,c);o.value=c;cat.appendChild(o);});
+  var pick=$("iTemplate");clear(pick);shipped.slice().sort(function(a,b){return (a.name||a.id).localeCompare(b.name||b.id);}).forEach(function(r){var o=el("option",null,(r.name||r.id)+" ("+r.id+")");o.value=r.id;pick.appendChild(o);});
+  var nums=$("iNumbers");clear(nums);
+  Object.keys(lootData.itemBounds).forEach(function(k){var b=lootData.itemBounds[k],wrap=el("div"),label=el("label",null,k.replace(/_/g," "));label.setAttribute("for","in_"+k);var input=el("input");input.id="in_"+k;input.type="number";input.step="1";input.min=String(b[0]);input.max=String(b[1]);wrap.appendChild(label);wrap.appendChild(input);nums.appendChild(wrap);});
+  var flags=$("iFlags");clear(flags);
+  ITEM_FLAGS.forEach(function(k){var label=el("label"),box=el("input");box.type="checkbox";box.id="if_"+k;label.appendChild(box);label.appendChild(document.createTextNode(" "+k.replace(/_/g," ")));flags.appendChild(label);});
+  if(item)itemFill(item);
+  else{var start=templateId&&rows.some(function(r){return r.id===templateId;})?templateId:(shipped[0]?shipped[0].id:"");var source=rows.filter(function(r){return r.id===start;})[0];if(source&&source.source==="shipped")pick.value=start;itemFill(source);}
+  $("itemEditor").hidden=false;$("itemEditor").scrollIntoView({block:"nearest"});(item?$("iName"):$("iId")).focus();
+ } // Edit a GM item, or add one copied from any item (Copy on a GM item copies its numbers too).
+ function collectItem(){
+  var out={id:$("iId").value.trim().toLowerCase(),name:$("iName").value.trim(),category:$("iCategory").value,desc:$("iDesc").value.trim()};
+  if(!itemEditing)out.template=$("iTemplate").value;
+  Object.keys(lootData.itemBounds).forEach(function(k){var raw=$("in_"+k).value.trim();out[k]=raw===""?"":Number(raw);});
+  ITEM_FLAGS.forEach(function(k){out[k]=$("if_"+k).checked;});
+  return out;
+ } // Blank numbers are sent as "" so the server drops that stat.
+ $("itemPoolNew").addEventListener("click",function(){openItemEditor(null,null);});
+ $("iTemplate").addEventListener("change",function(){var id=$("iTemplate").value,source=itemPoolRows().filter(function(r){return r.id===id;})[0];itemFill(source);});
+ $("iCancel").addEventListener("click",function(){$("itemEditor").hidden=true;itemEditing=null;});
+ $("iSave").addEventListener("click",function(){var item=collectItem();act("loot_item_save",{item:item,reason:$("iReason").value.trim()},"Saved "+item.id+"; it drops from the next chest.").then(function(result){if(!result)return;$("itemEditor").hidden=true;itemEditing=null;$("iReason").value="";return loadLoot();});});
+ $("itemPoolFilter").addEventListener("change",lootRenderItems);$("itemPoolShow").addEventListener("change",lootRenderItems);$("itemPoolSearch").addEventListener("input",lootRenderItems);
+ $("lootResetItems").addEventListener("click",function(){if(!window.confirm("Put the item pool back to what the last content export shipped? Every removed item returns, and every GM-added item is deleted, including its definition for copies players already own."))return;act("loot_reset",{scope:"items"},"Item pool reset.").then(loadLoot);});
+
  // ---- Generated bases: garments and styles -------------------------------------
  function garmentNumbers(g){
   return lootData.garmentStatKeys.filter(function(k){return g[k]!==undefined&&g[k]!==false&&g[k]!==null;}).map(function(k){return g[k]===true?k:k+" "+g[k];}).join(", ");
@@ -1587,7 +1681,7 @@ tr.sel td{background:#2c1e3d}
    lootData=payload;
    lootRenderRarity();lootRenderScalars();lootRenderLuck();lootRenderOvercap();lootRenderRoutes();lootRenderShops();
    $("lootTitles").value=(payload.legendary_titles||[]).join("\n");
-   lootRenderList();lootRenderGarments();lootRenderStyles();lootRenderPreviewPickers();
+   lootRenderList();lootRenderItems();lootRenderGarments();lootRenderStyles();lootRenderPreviewPickers();
   }).catch(function(error){say("err",error.message);});
  }
 
@@ -1668,6 +1762,7 @@ tr.sel td{background:#2c1e3d}
 
  function enter(){ // A confirmed gamemaster grant swaps the gate for the live panel.
   stopSignin();$("gateErr").className="flash";
+  if(POPOUT){selectTab("tab-testing",false);$("gate").hidden=true;$("app").hidden=false;loadTesting();return;} // Pop-out window: checklist only.
   selectTab("tab-players",false);$("gate").hidden=true;$("app").hidden=false;
   refresh();loadChat();loadRp();loadRpp();loadTutor();schedule();
  }
@@ -1909,6 +2004,8 @@ tr.sel td{background:#2c1e3d}
  });
 
  var testData=null,testBuildSel="",testEpoch=0,testEditing=null,TESTER="gm_tester_name";
+ var POPOUT=location.hash==="#testing"; // Opened by "Pop out Testing checklist": this window shows only the checklist.
+ if(POPOUT){document.body.classList.add("popout");document.title="Testing checklist - LiDollQuest GM";}
  try{$("testTester").value=localStorage.getItem(TESTER)||"";}catch(error){} // The tester's name is remembered on this browser only.
  function testWhen(ms){return ms?new Date(ms).toLocaleString():"";}
  function loadTesting(){
@@ -1992,6 +2089,8 @@ tr.sel td{background:#2c1e3d}
  $("testTester").addEventListener("change",function(){try{localStorage.setItem(TESTER,$("testTester").value.trim());}catch(error){}});
  $("testItemSave").addEventListener("click",function(){var body={area:$("testItemArea").value,title:$("testItemTitle").value,detail:$("testItemDetail").value};if(testEditing)body.id=testEditing;testAct("test_item_save",body,function(item){testEditEnd();return (body.id?"Saved ":"Added ")+item.title+".";});});
  $("testItemCancel").addEventListener("click",testEditEnd);
+ $("testReload").addEventListener("click",function(){loadTesting();});
+ $("testPopout").addEventListener("click",function(){window.open("/gm#testing","lidollquest-testing","popup,width=1150,height=950");}); // Same window name, so a second click focuses the open one.
  $("testCopy").addEventListener("click",function(){var text=testSummary();if(!text)return say("err","There is no version to summarise yet.");(navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject(new Error("no clipboard"))).then(function(){say("ok","Summary copied.");}).catch(function(){window.prompt("Copy this summary:",text);});});
 
  (function resume(){ // A grant kept from a previous visit is proven against the server before the panel is shown.

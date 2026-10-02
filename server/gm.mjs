@@ -5,7 +5,7 @@ import {createEnchanter,describeItem} from './enchantment.mjs';
 import {createLootRoller,describeLoot,DEFAULT_TUNING} from './loot.mjs';
 import {BlockList,isIPv4,isIPv6} from 'node:net';
 import {readFileSync} from 'node:fs';
-import {hubCatalog,hubRooms,campaignDives} from './hubs.mjs';
+import {hubCatalog,hubRooms,campaignDives,hubData} from './hubs.mjs';
 import {createRoleplay} from './roleplay.mjs';
 import {createRpp} from './rpp.mjs';
 import {createTestingStore} from './gm-testing.mjs';
@@ -16,7 +16,7 @@ const HUB_SPAWN={x:10,y:9}; // hubDefinition() falls back to this same tile when
 const KINDS=Object.freeze(['mute','suspend']); // The only two sanctions a gamemaster can place on an account.
 const CONTROL=/[\x00-\x1f\x7f]/g; // Stripped from every stored string so no reason or announcement can smuggle in line breaks.
 const SIGNIN_SCOPE='wallet:read'; // The panel needs identity alone: no balance changes, saves, social data or character access.
-const flowPage=readFileSync(new URL('./gm-flow-editor.html',import.meta.url),'utf8').replace('/* FLOW_EDITOR */',()=>readFileSync(new URL('./gm-flow-editor.js',import.meta.url),'utf8').replace('/* CONTENT_BLOCKS */',()=>readFileSync(new URL('./gm-content-blocks.js',import.meta.url),'utf8')));
+const flowPage=readFileSync(new URL('./gm-flow-editor.html',import.meta.url),'utf8').replace('/* FLOW_EDITOR */',()=>readFileSync(new URL('./gm-flow-editor.js',import.meta.url),'utf8').replace('/* CONTENT_BLOCKS */',()=>readFileSync(new URL('./gm-content-blocks.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-story-sheets.js',import.meta.url),'utf8')));
 const helpPage=readFileSync(new URL('./gm-help.html',import.meta.url),'utf8').replace('/* GM_HELP */',()=>readFileSync(new URL('./gm-help.js',import.meta.url),'utf8'));
 const panelPage=readFileSync(new URL('./gm-panel.html',import.meta.url),'utf8').replace('<!-- GM_GUIDE -->',()=>readFileSync(new URL('./gm-guide.html',import.meta.url),'utf8')).replace('/* GM_GUIDE_SCRIPT */',()=>readFileSync(new URL('./gm-guide.js',import.meta.url),'utf8')).replace('/* WORLD_PANEL */',()=>readFileSync(new URL('./gm-world-panel.js',import.meta.url),'utf8').replace('/* MONSTER_EDITOR */',()=>readFileSync(new URL('./gm-monster-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-quest-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-orb-editor.js',import.meta.url),'utf8'))); // Read once at boot so a moderation click never touches the disk.
 
@@ -119,7 +119,8 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
   return {tuning:{...DEFAULT_TUNING,...liveTable.tuning}, // Defaults fill scalars the shipped table predates (shop prices), so every panel input starts filled and a save is never refused for a blank.
    legendary_titles:liveTable.legendary_titles,affixes:store.list(lootBase()),revision:store.revision(),
    slots:store.slots,statKeys:store.statKeys,rarityOrder:store.rarityOrder,tuningKeys:store.tuningKeys,scalarBounds:store.scalarBounds,rarityBounds:store.rarityBounds,overcapStats:store.overcapStats,
-   items:Object.keys(lootCatalog()).sort(),
+   items:[...new Set([...Object.keys(lootCatalog()),...Object.keys(store.customItems())])].sort(), // Preview picker: shipped pool items plus GM items.
+   poolItems:store.listItems(lootCatalog()),itemStatKeys:store.itemStatKeys,itemBounds:store.itemBounds, // Base item pool roster (Add / Remove / Restore).
    garments:store.listBases(lootBaseTable(),'garment'),styles:store.listBases(lootBaseTable(),'style'),generatedCategories:store.generatedCategories,garmentStatKeys:store.garmentStatKeys,garmentBounds:store.garmentBounds,
    counts:{affixes:liveTable.affixes.length,titles:liveTable.legendary_titles.length,garments:store.applyBases(lootBaseTable()).garments.length,styles:store.applyBases(lootBaseTable()).styles.length}};
  };
@@ -347,7 +348,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
   },
   loot_reset(input,actor){
    const scope=String(input.scope??'all');
-   if(!['all','tuning','affixes','bases'].includes(scope))fail(400,'Reset tuning, affixes, bases or all.','gm_invalid_loot');
+   if(!['all','tuning','affixes','bases','items'].includes(scope))fail(400,'Reset tuning, affixes, bases, items or all.','gm_invalid_loot');
    const result=lootStore().reset(scope);
    record(actor,'loot_reset','loot',{...result,reason:clean(input.reason,240)});
    return {...result,revision:lootStore().revision()};
@@ -382,8 +383,23 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    record(actor,'loot_style_restore',result.id,{reason:clean(input.reason,240)});
    return {...result,revision:lootStore().revision()};
   },
+  loot_item_save(input,actor){ // Add a GM item to the base item pool (copied from a template), or edit one.
+   const item=lootStore().saveItem(input.item,{shipped:lootCatalog(),catalog:hubData.equipment??{}},actor); // Refused if the id shadows any shipped item.
+   record(actor,'loot_item_save',item.item_id,{name:item.name,category:item.category,template:clean(input.item?.template,64),reason:clean(input.reason,240)});
+   return {item,revision:lootStore().revision()};
+  },
+  loot_item_delete(input,actor){ // Take an item out of every loot pool; copies players already own are untouched.
+   const result=lootStore().removeItem(input.id,lootCatalog(),actor);
+   record(actor,'loot_item_delete',result.id,{...result,reason:clean(input.reason,240)});
+   return {...result,revision:lootStore().revision()};
+  },
+  loot_item_restore(input,actor){ // Put a removed item back in the pool.
+   const result=lootStore().restoreItem(input.id,actor);
+   record(actor,'loot_item_restore',result.id,{reason:clean(input.reason,240)});
+   return {...result,revision:lootStore().revision()};
+  },
   loot_preview(input){ // Rolls one sample item with the live table; never touches chest receipts or the audit log.
-   const catalog=lootCatalog(),id=clean(input.item_id,64);
+   const catalog={...lootStore().customItems(),...lootCatalog()},id=clean(input.item_id,64); // GM items can be previewed too.
    const base=catalog[id]??fail(400,'Pick an item from the dive catalog.','gm_unknown_item');
    const roller=createLootRoller(lootStore().apply(lootBase()),lootStore().applyBases(lootBaseTable()));
    const enchant=createEnchanter(enchantStore().apply(baseTable()));
