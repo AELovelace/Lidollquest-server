@@ -1,4 +1,3 @@
-import {readFileSync} from 'node:fs';
 import {registerInteractionPresentation} from './story-presentation.mjs';
 import {createStorySheets,sheetId} from './story-sheets.mjs';
 import {validateFlagCondition} from './story-flags.mjs';
@@ -15,7 +14,7 @@ const text=(value,max=4000)=>typeof value==='string'&&value.length<=max&&!/[\u00
 const number=(value,min,max)=>Number.isFinite(value)&&value>=min&&value<=max?value:fail(`Use a number between ${min} and ${max}.`);
 const integer=(value,min,max)=>Number.isSafeInteger(value)?number(value,min,max):fail('Use a whole number.');
 
-export function createWorldContent(db,{now=Date.now,spells={},equipment={},defeatEquipment={},questPack=[]}={}){
+export function createWorldContent(db,{now=Date.now,spells={},equipment={},defeatEquipment={},questPack=[],questLibraryPack=[]}={}){
  const storySheets=createStorySheets(); // Shipped online dialogue is editable without mutating exported source files.
  registerDefaultScenes(db);
  db.exec(`CREATE TABLE IF NOT EXISTS world_content(kind TEXT NOT NULL,id TEXT NOT NULL,revision INTEGER NOT NULL,draft TEXT NOT NULL,published TEXT,PRIMARY KEY(kind,id));
@@ -194,7 +193,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  }
  let referenceCheck=null,storyReferenceCheck=null;
  registerQuestPack(questPack); // Before any caller reads published(), so the first snapshot already carries the pack.
- registerQuestLibrary(JSON.parse(readFileSync(new URL('../content/weekly_quests.json',import.meta.url),'utf8')).quests);
+ registerQuestLibrary(questLibraryPack); // The service supplies optional drafts with its item/spell catalogues; standalone stores need no quest content.
  registerInteractionPresentation({registerSheet}); // Load editable presentation defaults once; saved rows remain overlays.
  return {mapReady:null,questEvent:null,placementPositions:null,setReferenceCheck(fn){referenceCheck=fn;},setStoryReferenceCheck(fn){storyReferenceCheck=fn;},register,registerQuestPack,registerSheet,fixtureSheet,sheet,sheetHistory,sheetDefault,validateSheet,published,entry,markAuthorship,change,bundle,view,resolve,putAsset,asset,assetRef,once,invalidate(){cache=null;}}; // Placements share the editor's compiled/immutable artwork validation.
 }

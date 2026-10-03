@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
+import {readFileSync} from 'node:fs';
 import {createWorldContent} from '../server/world-content.mjs';
 import {createQuestZones} from '../server/zones.mjs';
 import {fullDungeons} from '../server/full-dungeons.mjs';
@@ -12,7 +13,22 @@ import {sheetId} from '../server/story-sheets.mjs';
 import {createFollowers} from '../server/followers.mjs';
 import {createTutor} from '../server/tutor.mjs';
 
-function fixture(){const db=new DatabaseSync(':memory:'),start=()=>{const live=createWorldContent(db,{spells:combatData.spells,equipment:hubData.equipment});for(const d of fullDungeons)live.register(d);return live;};return {db,live:start(),start};} // Reopening content on the same DB simulates service restart without recreating saves.
+const questLibraryPack=JSON.parse(readFileSync(new URL('../content/weekly_quests.json',import.meta.url),'utf8')).quests;
+function fixture(){const db=new DatabaseSync(':memory:'),start=()=>{const live=createWorldContent(db,{spells:combatData.spells,equipment:hubData.equipment,questLibraryPack});for(const d of fullDungeons)live.register(d);return live;};return {db,live:start(),start};} // Reopening content on the same DB simulates service restart without recreating saves.
+
+test('standalone content stores need no quest catalogue; supplied library rewards remain validated',()=>{
+ const db=new DatabaseSync(':memory:');
+ try{
+  const live=createWorldContent(db);
+  assert.deepEqual(live.view().quests,[],'A monster/artwork store does not implicitly import optional quest rewards');
+  const quest={...structuredClone(questLibraryPack[0]),rewards:{items:[{id:'missing_reward_item',count:1}]}};
+  assert.throws(()=>createWorldContent(db,{questLibraryPack:[quest]}),/Choose existing equipment or items/,'Explicit library imports still reject unknown rewards');
+  const imported=createWorldContent(db,{equipment:{missing_reward_item:{name:'Test item'}},questLibraryPack:[quest]});
+  assert.equal(imported.entry('quest',quest.id).published,null,'Importing the library does not activate its quests');
+  assert.equal(imported.view().quests.length,1);
+  assert.throws(()=>createWorldContent(db,{questLibraryPack:[{...quest,rewards:{spells:['missing_reward_spell']}}]}),/Choose existing spells/);
+ }finally{db.close();}
+}); // The deployment regression came from hidden weekly-pack loading in otherwise valid minimal stores.
 const state=(score=0,world={},info={},flags={})=>({loadout:{player_info:{...info},childish:score,world},fullDungeon:{flags,counters:{},once:{}}});
 function change(live,row,body,publish=true){return live.change({action:publish?'content_publish':'content_save',kind:'sheet',id:row.id,revision:row.revision,entry:{...row.draft,body}},'test-gm');}
 
@@ -97,6 +113,20 @@ test('older accepted quests gain native snapshots once without changing progress
 test('optional weekly quests are editable drafts without live offers until explicitly published',()=>{
  const f=fixture();try{const optional=f.live.view().quests.filter(r=>!r.published);assert.equal(optional.length,26);assert.equal(Object.keys(f.live.published().quests).length,0);const row=optional[0];f.live.change({action:'content_save',kind:'quest',id:row.id,revision:row.revision,entry:row.draft},'gm');assert.equal(f.live.published().quests[row.id],undefined);assert.equal(f.live.entry('quest',row.id).published,null);}finally{f.db.close();}
 });
+
+test('the game service supplies all optional weekly sheets without enabling the live pack',async()=>{
+ const {createQuestService}=await import('../server/service.mjs');
+ const service=createQuestService({questPack:[],now:()=>Date.parse('2026-10-02T12:00:00Z'),log:()=>{}});
+ try{
+  for(const quest of questLibraryPack){
+   const row=service.live.entry('quest',quest.id);
+   assert.equal(row.draft.name,quest.name);
+   assert.equal(row.published,null);
+   assert.equal(service.live.published().quests[quest.id],undefined);
+   assert.equal(row.authorship.builtin,true);
+  }
+ }finally{service.server.emit('close');}
+}); // Exercise the production composition, so moving pack loading cannot silently empty the workshop.
 
 
 test('built-in provenance and explicit human re-authoring status survive saves, publication, rollback and restart',()=>{
