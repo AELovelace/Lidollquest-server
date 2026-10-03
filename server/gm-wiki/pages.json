@@ -162,7 +162,7 @@
   {
     "slug": "maps",
     "source": "maps.md",
-    "title": "Zones & placements",
+    "title": "Zones, placements & Map Editor",
     "kicker": "World editing",
     "description": "Place content on valid tiles and work with spawn settings and map regeneration.",
     "group": "Authoring reference"

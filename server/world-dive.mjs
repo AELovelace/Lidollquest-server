@@ -24,6 +24,17 @@ export function createDiveControls(db,{now,data,live,current,getFloor,saveFloor,
   db.prepare('INSERT INTO world_regeneration VALUES (?,?,?,?,?,?,NULL,NULL,?)').run(id,route,week,record.edition,week+'-dm-'+id,'queued',now());return view();
  }
  function cancel(input){const job=activeJob();if(!job||input.job!==job.id)fail('Regeneration job changed.');db.prepare("UPDATE world_regeneration SET status='cancelled' WHERE id=?").run(job.id);return view();}
+ function nearest(f,p,ok){for(let d=1;d<=8;d++)for(let dy=-d;dy<=d;dy++)for(let dx=-d;dx<=d;dx++){if(Math.abs(dx)+Math.abs(dy)!==d)continue;const x=p.x+dx,y=p.y+dy;if(ok({x,y}))return {x,y};}return null;} // Nearest ring first, like dive.mjs gmPlace.
+ function patch(input,patches,{destinations=null}={}){ // world_patch_*: store the new patch revision, re-apply it to the live floor (strict), then move monsters and visitors out of new walls and re-realize placements; any failure rolls the whole transaction back.
+  const record=check(input);if(activeJob())fail('Wait for regeneration to finish.');const f=record.floor;
+  const result=patches.act(input,{zone,floor:f,kind:'dive',openings:[],destinations,actor:input.actor??'gamemaster',commit:()=>{
+   for(const foe of f.enemies){if(foe.dead||walkable(f,foe.x,foe.y))continue;if(foe.engaged)fail('Finish the fight with '+(foe.definition?.name??foe.type)+' before changing its tile.');const spot=nearest(f,foe,q=>walkable(f,q.x,q.y)&&!f.enemies.some(e=>e!==foe&&e.x===q.x&&e.y===q.y));if(spot){Object.assign(foe,spot);foe.spawn={...spot};}else foe.remove=true;}
+   f.enemies=f.enemies.filter(e=>!e.remove);
+   for(const c of visitors()){const s=JSON.parse(c.state);if(s.dive?.edition!==record.edition)continue;const p=s.dive.position;if(walkable(f,p.x,p.y))continue;if(s.run||s.pendingDefeat)fail(c.name+' is mid-battle on a tile you are changing. Wait for that fight to end.');const spot=nearest(f,p,q=>walkable(f,q.x,q.y)&&!f.enemies.some(e=>e.x===q.x&&e.y===q.y))??entry(f,s.dive.origin);s.dive.position={...spot};s.dive.safeUntil=now()+10000;saveCharacter(c,s);db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(spot.x,spot.y,now(),c.id);}
+   saveFloor(record);live.mapReady?.(zone,record.edition,f); // Placements move to the nearest reachable tile on the new geometry; an active-quest conflict throws here.
+  }});
+  return {...view(),patch:result};
+ }
  function tick(){
   const job=activeJob();if(!job||closed)return;
   if(!data.config.static&&job.week!==weeklyWindow(now()).edition){ /* Static routes never roll over, so a queued regeneration survives the Monday boundary. */db.prepare("UPDATE world_regeneration SET status='cancelled',error='Weekly reset superseded this request.' WHERE id=?").run(job.id);return;}
@@ -76,5 +87,5 @@ export function createDiveControls(db,{now,data,live,current,getFloor,saveFloor,
   }
   f.enemies=f.enemies.filter(e=>!e.remove);if(changed)saveFloor(record);
  }
- return {view,place,regenerate,cancel,tick,reconcile,draining:()=>activeJob()?.status==='draining',close(){closed=true;}};
+ return {view,place,patch,regenerate,cancel,tick,reconcile,draining:()=>activeJob()?.status==='draining',close(){closed=true;}};
 }

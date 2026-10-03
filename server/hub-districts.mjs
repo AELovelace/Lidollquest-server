@@ -176,7 +176,7 @@ export function generateDistrict(definition,window,data=districtData){
  return f;
 } // Host-specific geometry replaces the old universal path lattice; ordinary movement and monthly resets remain shared.
 
-export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActivate=()=>{},cleanFloor=()=>false,readOnly=false}={}){
+export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActivate=()=>{},cleanFloor=()=>false,patchFloor=()=>false,readOnly=false}={}){ // patchFloor(id,f): zones.mjs applies the GM floor patch layer (floor-patches.mjs) to a saved or freshly generated month.
  db.exec('CREATE TABLE IF NOT EXISTS hub_district_editions(zone TEXT NOT NULL,edition TEXT NOT NULL,content TEXT NOT NULL,PRIMARY KEY(zone,edition)); CREATE TABLE IF NOT EXISTS hub_district_current(zone TEXT PRIMARY KEY,edition TEXT NOT NULL);');
  const cache=new Map();
  db.exec('CREATE TABLE IF NOT EXISTS hub_district_controls(zone TEXT PRIMARY KEY,locked INTEGER NOT NULL,pinned TEXT,month TEXT,reroll INTEGER NOT NULL)'); // GM lock / regenerate state per monthly hub map; survives restarts.
@@ -213,14 +213,14 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
   f.fixtures=f.fixtures.filter(x=>x.kind!=='scenery'||buildings.has(x.id)||!Array.from({length:(x.span_w??1)*(x.span_h??1)},(_,i)=>(x.x+i%(x.span_w??1))+','+(x.y+Math.floor(i/(x.span_w??1)))).some(k=>cells.has(k))); // Loose scenery sitting on the new road is cleared; plaza buildings and people stay.
   return true;
  };
- const upgrade=(id,f,def)=>{const gate=addEdgeGate(f,def,'north')|addEdgeGate(f,def,'south')|addSideGate(f,def,'west')|addSideGate(f,def,'east')|(def.lobby?addOuthouses(f,def,data)|addChangers(f,def,data)|addPayToilets(f,def,data):false)|addArcadiaAir(f,def)|addCastleTemple(f,def)|addLobbyBuildings(f,def),pot=addCauldron(f,def)||gate,residents=(f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)),cleared=cleanFloor(f);if(residents||pot||cleared)persist(id,f);};
+ const upgrade=(id,f,def)=>{const gate=addEdgeGate(f,def,'north')|addEdgeGate(f,def,'south')|addSideGate(f,def,'west')|addSideGate(f,def,'east')|(def.lobby?addOuthouses(f,def,data)|addChangers(f,def,data)|addPayToilets(f,def,data):false)|addArcadiaAir(f,def)|addCastleTemple(f,def)|addLobbyBuildings(f,def),pot=addCauldron(f,def)||gate,residents=(f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)),cleared=cleanFloor(f),patched=patchFloor(id,f);if(residents||pot||cleared||patched)persist(id,f);};
  const persist=(id,f)=>db.prepare('UPDATE hub_district_editions SET content=? WHERE zone=? AND edition=?').run(JSON.stringify(f),id,f.district.layoutKey);
  function ensure(def){
   if(readOnly){const id=districtZone(def);if(cache.has(id))return cache.get(id);const row=db.prepare('SELECT e.content FROM hub_district_editions e JOIN hub_district_current c ON c.zone=e.zone AND c.edition=e.edition WHERE e.zone=?').get(id);if(!row)throw Error('Zone snapshot requested before district preparation');const floor=JSON.parse(row.content);cache.set(id,floor);return floor;} // Readers use the committed active edition; only the coordinator generates, upgrades or activates maps.
   const id=districtZone(def),window=windowFor(id),layoutKey=`${window.edition}:v${data.version}`,cached=cache.get(id);if(cached?.district.layoutKey===layoutKey){upgrade(id,cached,def);return cached;}
   const row=db.prepare('SELECT content FROM hub_district_editions WHERE zone=? AND edition=?').get(id,layoutKey);
   const f=row?JSON.parse(row.content):generateDistrict(def,window,data);
-  if(!row)cleanFloor(f); // New months use the same NPC policy as existing saved months.
+  if(!row){cleanFloor(f);patchFloor(id,f);} // New months use the same NPC policy as existing saved months, and carry the GM's terrain patch.
   const prior=db.prepare('SELECT edition FROM hub_district_current WHERE zone=?').get(id);
   if(prior&&prior.edition!==layoutKey){const old=db.prepare('SELECT content FROM hub_district_editions WHERE zone=? AND edition=?').get(id,prior.edition);try{beforeActivate(id,f);}catch(error){if(old)return JSON.parse(old.content);throw error;}}
   if(!row)db.prepare('INSERT INTO hub_district_editions VALUES (?,?,?)').run(id,layoutKey,JSON.stringify(f));
@@ -255,5 +255,6 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
   saveControl({...c,month:base.edition,reroll,pinned:c.locked?JSON.stringify(next):null}); // Fresh seed: <month>-r<n>.
   cache.delete(id);ensure(def);return status(id); // Activates immediately, or waits (pending) while someone in the hub is mid-battle.
  }
- return {refresh,resolve,tick,status,lock,regenerate,invalidate(){cache.clear();}};
+ function edit(id,mutate){const def=defFor(id);if(!def)throw Object.assign(Error('Only monthly hub maps can be edited this way.'),{status:400});const f=ensure(def);mutate(f);persist(id,f);cache.set(id,f);return f;} // GM patch actions: change the active month's map in place and persist it (zones.mjs patchAct).
+ return {refresh,resolve,tick,status,lock,regenerate,edit,invalidate(){cache.clear();}};
 } // Materialized monthly editions survive service restarts and mid-month content deployments.

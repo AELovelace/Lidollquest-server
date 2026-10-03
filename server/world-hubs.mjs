@@ -57,7 +57,8 @@ export function createHubEncounters(db,{now,roll,parties,live,definition,ids}){
     }
    }r.floor.enemies=r.floor.enemies.filter(e=>!e.remove);if(changed)saveFloor(r);
   }
-  const api={view,place,act,tick,storyEncounter,snapshot:s=>encounters.snapshot(s),monsters:()=>record().floor.enemies.filter(e=>!e.dead).map(e=>({...e,definition:undefined,name:e.definition.name,sprite:e.definition.sprite}))};engines.set(zone,api);return api;
+  function relocateBlocked(){const r=record();let changed=false;for(const foe of r.floor.enemies){if(walkable(r.floor,foe.x,foe.y))continue;if(foe.engaged)fail('Finish the fight with '+(foe.definition?.name??foe.type)+' before changing its tile.');let spot=null;for(let d=1;d<=8&&!spot;d++)for(let dy=-d;dy<=d&&!spot;dy++)for(let dx=-d;dx<=d;dx++){if(Math.abs(dx)+Math.abs(dy)!==d)continue;const x=foe.x+dx,y=foe.y+dy;if(walkable(r.floor,x,y)&&!r.floor.enemies.some(e=>e!==foe&&e.x===x&&e.y===y)){spot={x,y};break;}}if(spot){Object.assign(foe,spot);foe.spawn={...spot};}else foe.remove=true;changed=true;}r.floor.enemies=r.floor.enemies.filter(e=>!e.remove);if(changed)saveFloor(r);return changed;} // After a GM terrain patch (zones.mjs patchAct): nearest free tile, or gone if boxed in.
+  const api={view,place,act,tick,storyEncounter,relocateBlocked,snapshot:s=>encounters.snapshot(s),monsters:()=>record().floor.enemies.filter(e=>!e.dead).map(e=>({...e,definition:undefined,name:e.definition.name,sprite:e.definition.sprite}))};engines.set(zone,api);return api;
  }
  const idleUntil=new Map(); // zone -> when an empty hub gets its next catch-up tick.
  return {engine,tick(){const occupiedZones=new Set(db.prepare('SELECT DISTINCT zone FROM quest_presence WHERE seen>?').all(now()-30000).map(row=>row.zone)); // One presence query per tick answers "is anyone here?" for every hub, instead of one query per room (a flat ~4 ms per tick with nobody online).

@@ -1,8 +1,8 @@
-# Zones and placements
+# Zones, placements and the Map Editor
 
 [Wiki home](index.md)
 
-Content becomes discoverable when it is placed in the world. Story Workshop uses the existing zone-map, placement and regeneration services. It does not paint terrain or construct new zones.
+Content becomes discoverable when it is placed in the world. Story Workshop uses the existing zone-map, placement and regeneration services. Terrain itself is edited in the **Map Editor** pop-out (below), which paints every zone with the game's real tile and scenery sprites and keeps GM edits in a per-zone patch layer.
 
 ![The map tools keep content kind, content ID, lifetime and the generated map together.](../assets/tutorial/reference-map-placement.png)
 
@@ -68,3 +68,52 @@ Regeneration is not a preview of your flow. It can replace live generated geomet
 GM-placed `token` objects appear in the game only for an active, incomplete `collect` objective with token enabled and a matching target ID. Any zone restriction and objective conditions must also match. Accept the quest first. Walk onto the token, click it while beside it, or press **E** beside it. Walking through it in a confirmed movement batch also collects it. A placement grants at most one token per accepted quest stage; clicking after walking cannot grant another. Collection hides that placement for the collecting character and leaves it available to other eligible characters. Abandoning or finishing the collection stage hides tokens that are no longer needed.
 
 The GM map retains every authored placement. If it is visible there but absent in the game, check the accepted quest's current stage, exact target ID, token checkbox, conditions and zone. Published changes do not rewrite already accepted quest definitions; test a changed quest with a fresh eligible character or fresh isolated test state. For count greater than one, place distinct tokens with the same content ID.
+
+## Map pictures
+
+`GET /gm/map.png?zone=<id>&scale=32|16|8&layers=terrain,scenery,content,players,grid,safe` returns a PNG of any zone painted square by square with the game's atlases and scenery sprites, exactly as the client paints it (server `tile-painter.mjs` mirrors `scrTilePainter.gml`). The Zones tab has a **Download painted PNG** button and the Map Editor has one with a scale picker. Pictures are GM-only and are cached per zone revision.
+
+What the picture approximates: themes the client paints from random pools (Dustbreak Desert, the Woods, the campaign dungeons, Princess' Quarters, generic hub halls) use a stable per-tile pick from the same pools, so they are close but not pixel-identical. Time-based effects are frozen: lava at frame 0, the Coast at low tide, the Gulch wash dry, the Caverns at ebb. The artwork ships in `server/tile-artwork.json`, exported from the game project with `python python/export_tile_artwork.py`; re-run it after adding or changing `sprTile*` atlases or scenery sprites.
+
+## The Map Editor pop-out
+
+**Pop out Map Editor** in the panel header (or **Open in Map Editor** on the Zones tab, or **Open the full Map Editor** in the Story Workshop map dialog) opens `/gm/map-editor`. It uses the grant stored by the panel, so sign in to Advanced GM tools first. Wheel zooms, right-drag or Space-drag pans, and the readout on the right names everything under the pointer (terrain, cover, scenery, fixtures, exits, monsters, placements, players, reachability).
+
+Tools:
+
+| Tool | What it does | Commits |
+| --- | --- | --- |
+| Inspect / select | Read a tile; select a placement or DM monster to move, re-lifetime or remove it | immediately |
+| Place content | The Zones-tab placer: monsters, NPCs, interaction objects, quest tokens, location objectives, story orbs, uploads, remove mode, orb scatter | immediately |
+| Terrain brush | Wall, floor, prop and clear-prop brushes (1 to 5 tiles), Shift-drag rectangles; tiled hubs pick atlas cells for floor (left click) and wall (right click) | pending change |
+| Scenery stamp | Any shipped sprite by name, footprint, solid and toilet flags; eraser removes scenery | pending change |
+| Safe room | Drag a rectangle (Dives and overworlds); Alt-click removes one | pending change |
+| Arrival spawn | Move the default arrival or a neighbour's arrival tile | pending change |
+| Biome layers | Paint tall-grass cover and sheltered spots (Plains, Coast), the Gulch wash, the Coast shoreline per row, Pink Mist tiles, or move the Caldera crater (the heat zone follows) | pending change |
+| Exits & pads | Slide a wall gate along its wall (the old opening closes, the arrival tile follows), move a warp pad to any walkable tile, or add a new gate or pad to a linked wilderness route, a hub, or a neighbour the map already reaches | pending change |
+
+Pending changes preview on the canvas and queue on the right until **Apply**; Undo/Redo and Discard act on the queue. Full dungeons (`dungeon-*`) allow Inspect and Place only. The overlays toggle a grid, reachability (red = walkable but cut off from every arrival), safe rooms, biome layers and players.
+
+## The patch layer: what persists and when it re-applies
+
+Applied changes are stored per zone (`world_floor_patches`, with a history) and re-applied over every new edition: the weekly Dive floors, GM regenerations, rerolled or new monthly hub layouts, and the code-defined authored rooms (inns, halls, temples, the Farmstead, the Prospector's Camp). Each application records an undo log on the floor, so **Remove** (one stored change), **Roll back to** (an earlier revision) and **Clear patch** revert in place without regenerating.
+
+Every change is validated against the live floor: the outer wall stays solid except at gates and exits; arrivals, exits, doors, chests, pickups and every fixture the patch did not add stay uncovered; the flood from the arrival tiles must still reach every exit, entry, chest, pickup and hub service (beds, shops, toilets, changers, cauldrons, altars, residents). A refused change names the tile and the reason and nothing is stored. When a later edition's layout forbids a stored change, that change is skipped for that edition and listed in the Patch layer panel.
+
+Applying a change also moves DM monsters and visitors standing on a newly solid tile to the nearest open tile, re-realizes quest placements on the new geometry (active-quest conflicts refuse the change), and bumps the floor's geometry version so connected clients rebuild collision and the minimap. A player mid-battle on an affected tile blocks the change until the fight ends.
+
+## Limits in this version
+
+- Hub visitors already standing in a room repaint the terrain on re-entry; collision is server-side, so play stays safe.
+- A gate keeps its size and wall. A new crossing can only lead where the travel rules already allow (linked routes, hubs, existing neighbours); arrivals from the other side use your gate's inside tile, and the other zone's own exits are unchanged.
+- Hub visitors see a GM reshape on their next snapshot (the room rebuilds in place with a log line); older clients built before 2026-10-03 repaint on re-entry.
+- Hub doors and gates are code-defined; the patch cannot move them.
+- Full dungeons keep their generated layout, fixtures and puzzles.
+
+## Map Editor acceptance checklist
+
+1. The painted PNG of a zone matches what players see in that zone.
+2. A painted wall collides in the game client after the next snapshot, and survives a Regenerate.
+3. Clear patch returns the generated layout at once.
+4. A refused change explains which tile or service it would strand.
+5. Placements still have a walkable tile after terrain changes, and the quest guide still routes to them.
