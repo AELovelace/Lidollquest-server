@@ -145,7 +145,7 @@ test('patch actions over HTTP are audited, replayed by request id, and visible t
   const second=await render();assert.equal(second.zones.find(z=>z.id==='honeydew-lantern-beds').walls[spot.y][spot.x],1,'the worker saw the patch epoch change and rebuilt the room');
   assert.ok(!logs.some(parts=>parts[0]==='zone_request_failed'),JSON.stringify(logs));
   const png=await fetch(base+'/gm/map.png?zone=honeydew-lantern-beds&scale=8',{headers:{Authorization:'Bearer '+staff}});assert.equal(png.status,200);
- }finally{service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));rmSync(directory,{recursive:true,force:true});}
+ }finally{service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));rmSync(directory,{recursive:true,force:true,maxRetries:20,retryDelay:250});} // Worker threads release the SQLite file a moment after close; retry instead of failing on Windows EPERM.
 });
 
 test('biome layers and exits patch overworld floors: cover, wash, shoreline, mist and crater, and gates slide along their wall',()=>{
