@@ -198,6 +198,20 @@ export function generateFullDungeon(data,edition,depth=1){
  // Optional scenery keeps native sprite footprints. Validate after tentative placement.
  for(const [i,r] of f.rooms.entries()){
   const profiles=data.detail_profiles.filter(p=>!p.narrative_chunk&&(!p.room_types||p.room_types.includes(r.type)));if(!profiles.length)continue;
+  const dressing=c.room_dressing?.[r.type];
+  if(c.industrial&&Number.isInteger(dressing)){
+   const candidates=shuffle(cells(r).filter(p=>(p.x-r.x)%3===0&&(p.y-r.y)%3===0));let placed=0;
+   for(const p of candidates){
+    if(placed>=dressing)break;
+    const profile=profiles[placed%profiles.length],span=[];
+    for(let dy=0;dy<profile.span_h;dy++)for(let dx=0;dx<profile.span_w;dx++)span.push({x:p.x+dx,y:p.y+dy});
+    if(span.some(q=>!inside(r,q.x,q.y)||!walkable(f,q.x,q.y)||occupied.has(key(q))||safe(q)||Math.abs(q.x-r.cx)<=1||Math.abs(q.y-r.cy)<=1))continue; // Three-tile cross aisles protect room entrances and production lanes.
+    for(const q of span)f.props[q.y][q.x]=1;
+    try{validateFullDungeon(f);}catch{for(const q of span)f.props[q.y][q.x]=0;continue;} // Reject clutter that seals a service, reward, or passage.
+    span.forEach(q=>occupied.add(key(q)));f.decorations.push({...profile,...p,id:`scenery-${i}-${placed++}`});
+   } // Repeated work bays use native sprite footprints; failed placements reserve no cells.
+   continue;
+  }
   for(let n=0;n<2;n++){const profile=profiles[rnd(profiles.length)],p=free(r);if(!p)continue;const span=[];for(let dy=0;dy<profile.span_h;dy++)for(let dx=0;dx<profile.span_w;dx++)span.push({x:p.x+dx,y:p.y+dy});
    if(span.some(q=>!inside(r,q.x,q.y)||!walkable(f,q.x,q.y)||(key(q)!==key(p)&&occupied.has(key(q)))||safe(q)))continue;
    for(const q of span)f.props[q.y][q.x]=1;

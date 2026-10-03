@@ -9,6 +9,30 @@ import {createWorldContent} from '../server/world-content.mjs';
 import {craftingData,planCraft} from '../server/crafting.mjs';
 
 const routes=fullDungeons.filter(d=>d.config.industrial);
+test('factory departments have dense distinct work bays, clear aisles and themed rewards',()=>{
+ const data=routes.find(d=>d.config.industrial.kind==='production');
+ for(let seed=0;seed<30;seed++){
+  const f=generateFullDungeon(data,'factory-dressing-'+seed);
+  assert.equal(validateFullDungeon(f),true);
+  for(const [i,r] of f.rooms.entries()){
+   const scenery=f.decorations.filter(p=>p.id.startsWith(`scenery-${i}-`));
+   assert.ok(scenery.length>=6,`${r.type} too sparse in seed ${seed}: ${scenery.length}`);
+   assert.ok(scenery.length<=data.config.room_dressing[r.type]);
+   for(const p of scenery){
+    assert.ok(data.detail_profiles.some(v=>v.sprite===p.sprite&&v.room_types.includes(r.type)));
+    for(let y=p.y;y<p.y+p.span_h;y++)for(let x=p.x;x<p.x+p.span_w;x++){
+     assert.ok(Math.abs(x-r.cx)>1&&Math.abs(y-r.cy)>1,'central aisle covered');
+     assert.equal(f.props[y][x],1);
+    }
+   }
+   if(data.room_items[r.type])assert.deepEqual(f.pickups.find(p=>p.kind==='treasure'&&p.room_type===r.type).loot_pool,data.room_items[r.type]);
+   for(const enemy of f.enemies.filter(e=>e.id.startsWith(`enemy-${i}-`)))assert.ok(data.room_enemies[r.type].includes(enemy.type));
+  }
+  for(const fix of f.fixtures.filter(p=>p.hazard))for(let x=fix.hazard.x;x<fix.hazard.x+fix.hazard.w;x++){
+   assert.ok(!f.decorations.some(p=>p.id.startsWith('scenery-')&&x>=p.x&&x<p.x+p.span_w&&fix.hazard.y>=p.y&&fix.hazard.y<p.y+p.span_h));
+  } // Dressing may surround production lanes, but cannot hide them with solid scenery.
+ }
+});
 test('industrial boss editing preserves phases and crafting consumes both new salvage materials',()=>{
  const db=new DatabaseSync(':memory:');
  try{
