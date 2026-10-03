@@ -96,3 +96,12 @@ test('dungeons and dives have no beacons and old saved links cannot be used',()=
   assert.equal(f.snap('alice').zone,'princess-rose');
  }finally{f.close();}
 });
+test('talking to an NPC earlier never blocks fast travel (the talk receipt is not an unfinished action)',()=>{
+ const f=fixture();try{
+  f.create('alice');f.act('alice','leave');f.enter('alice','honeydew-lantern'); // Link both lobbies by visiting them.
+  f.patch('alice',s=>{s.npcInteraction={request_id:randomUUID(),npc:'honeydew-lantern:npc-innkeeper',source:'default'};}); // What hub_talk leaves behind for the client to match request ids against; it is never cleared.
+  f.place('alice');const arrived=f.act('alice','fast_travel',{zone:'princess-rose'});assert.equal(arrived.zone,'princess-rose');
+  assert.ok(f.state('alice').npcInteraction); // The receipt stays for the client; travel only stops caring about it.
+  f.patch('alice',s=>{s.trade='open-trade';});f.place('alice');assert.throws(()=>f.act('alice','fast_travel',{zone:'honeydew-lantern'}),/finish their current action/); // Real unfinished actions still block.
+ }finally{f.close();}
+});

@@ -42,7 +42,7 @@ export function createFastTravel(db,{now,info,parties,relocate,busy=()=>false}){
   for(const other of roster){
    const s=other.id===c.id?state:JSON.parse(other.state),at=other.id===c.id?p:presence(other.id);
    parties.available(other);
-   if(s.run||s.pendingDefeat||s.worldTurnDue||s.pendingPurchase||s.duel||s.trade||s.dungeonScene||s.npcInteraction||busy(other))fail(other.name+' must finish their current action before fast travel.');
+   if(s.run||s.pendingDefeat||s.worldTurnDue||s.pendingPurchase||s.duel||s.trade||s.dungeonScene||busy(other))fail(other.name+' must finish their current action before fast travel.'); // npcInteraction is deliberately absent: it is the receipt of the last NPC talk (kept so the client can match request ids) and is never cleared, so blocking on it locked fast travel forever after one chat; an unfinished story conversation is what busy() reports.
    if(!at||at.seen<=now()-30000||at.zone!==p.zone||s.dive?.edition!==state.dive?.edition||distance(at,source)>1)fail('Gather the whole party beside this beacon.');
    const def=info(target);if(def.full&&(s.fullDungeonVersion!==1||s.questVersion!==1)||def.cavern&&s.cavernVersion!==1)fail(other.name+' needs to update the game before travelling there.');
   }
