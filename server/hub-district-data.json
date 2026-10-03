@@ -898,7 +898,9 @@
           "y": 27
         },
         "gates": {
-          "north": "overworld-autumnal-plains"
+          "north": "overworld-autumnal-plains",
+          "south": "dungeon-brassworks-factory",
+          "east": "dungeon-eastwater-dockyard"
         },
         "buildings": [
           {

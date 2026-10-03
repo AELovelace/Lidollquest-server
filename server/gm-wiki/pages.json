@@ -144,6 +144,14 @@
     "group": "Authoring reference"
   },
   {
+    "slug": "welcome-tutorial",
+    "source": "welcome-tutorial.md",
+    "title": "Welcome tutorial",
+    "kicker": "GM panel tab",
+    "description": "Edit the one-time welcome pages new characters read in their first hub.",
+    "group": "Authoring reference"
+  },
+  {
     "slug": "maps",
     "source": "maps.md",
     "title": "Zones & placements",

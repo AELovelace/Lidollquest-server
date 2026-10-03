@@ -1,5 +1,23 @@
 # LiDollQuest server
 
+Online fast travel uses the campaign beacon artwork and destination picker. Each
+major hub or route has a marker on reachable floor near its entrance; visiting
+links that logical zone in `quest_fast_travel`, independently of campaign saves.
+`fast_travel` requires an owned character, its controller/revision, proximity to
+the current marker and a discovered destination. Party travel is initiated by
+the leader; everyone must be nearby, connected and free of combat, story scenes
+and pending actions, but passengers do not need to know the destination. Existing
+party and companion transfers commit with the same request receipt. Arrival links
+new destinations for passengers, without copying the leader's story flags.
+Auto-Nursery's own beacon retains the personal Rosalind victory gate. Coordinates
+resolve against the current map edition, preserving inventory and loot claims.
+Deploy the server and rebuilt game for markers, cyan minimap icons and the shared
+scrolling picker. No campaign/editor export change is needed. Checks:
+`node --test test/fast-travel.test.mjs test/zone-snapshots.test.mjs test/parties.test.mjs`;
+the game checkout's `online_hubs_browser.mjs --fast-travel-only` checks real UI and
+party arrival. Read-only zone workers only render discoveries; the coordinator
+registers them, and character deletion removes that character's discovery rows.
+
 Active companion contracts can be extended by their hirer for one diamond per additional 60 minutes through Party or companion dialogue. `follower_extend` binds the purchase to the current rental; `quest_follower_extensions` stores pending payments and receipts. Confirmation adds time without restoring HP/MP. Lost replies retry the same wallet key and retain the reservation across expiry/restart; a definitive decline keeps the old expiry. Existing hires can be extended even if an operator disables new recruitment. Deploy the server and rebuilt client for these controls. Validation: `node --test test/followers.test.mjs test/followers-http.test.mjs`.
 
 Online story cleanup: production starts with essential service NPCs, the retained Coastal Caverns story, the seven hireable companions, Pip and GM-authored content. Other old town residents, nonservice dungeon NPCs, the campaign quest pack and optional weekly quest library no longer load. Existing maps are cleaned in place; terrain, treasure receipts, inventories and payouts remain intact. A one-time startup migration moves removed quest definitions/attempts and old NPC sheets into `world_story_archive`, outside the live workshop. Caverns definitions, revisions, flow, placements and player progress are explicitly preserved. The offline campaign exports remain source/compatibility material. Companion recruitment defaults to enabled; existing environments explicitly set to `QUEST_FOLLOWERS_ENABLED=false` must opt back in. The `online-companions-restored-v1` migration recovers archived companion/Pip sheets, authorship and history where no newer live sheet exists, without restoring retired quests. Deploy/restart the server and reload the GM panel; the restoration itself needs no game rebuild. See `test/blank-canvas.test.mjs` for restart and preservation checks.
@@ -823,6 +841,17 @@ repository. It requires Fedora with systemd and enabled repositories providing
 
 ### Updates and recovery
 
+If `public-quest-editor.test.mjs` fails immediately with `ERR_MODULE_NOT_FOUND`
+for `scripts/build-public-quest-editor.mjs`, update the source checkout to the
+installer fix that includes `scripts/` in `RELEASE_FILES` in `deploy/release.mjs`.
+Older installers copied the test but omitted its imported builder. Worker
+environment variables do not fix this packaging error. Rerun deployment from the
+updated checkout; an already-created release still has the old missing files.
+`node --test test/release-package.test.mjs test/deployment.test.mjs` verifies a
+copied release from a separate working directory, including the public editor
+tests with both worker variables absent. Candidate tests run before stopping or
+switching the live service.
+
 If candidate tests fail with `Choose existing equipment or items` at `registerQuestLibrary`, update to the fix that supplies `questLibraryPack` from `service.mjs`. The content store must not implicitly load weekly quest rewards when callers have no item catalogue (for example, monster artwork tests). The game service still imports all weekly quests as validated draft sheets; this does not enable their live offers. Rerun the normal deployment after updating both service modules. Candidate tests run before the live release is stopped or switched.
 
 If `/gm/flow-editor` has no **Included online stories** catalogue, check that the deployed checkout includes the story-sheet release (`41368a4` or later). The workshop shell is read at service startup; an older running release cannot gain the 401 converted sheets through a browser refresh. The current editor puts the catalogue above the block palette and provides **Included stories** to clear search and reveal it while preserving canvas edits.
@@ -1367,8 +1396,13 @@ latency. Regression tests: `node --test test/*.test.mjs`, especially
 - A look may wear at most `accessory_limit` (3).
 - When ownership is checked, every worn accessory must be unlocked.
 
+**Premium items**
+- A catalog asset flagged `premium: true` needs the same unlock in any slot (hair, torso, legs, shoes). `needsUnlock(asset)` is true for accessories and premium assets.
+- Premium items in ordinary slots do not count toward `accessory_limit`.
+- The Premium_Expansion_v1 pack adds 32 premium assets (6 hair, 14 clothing, 12 accessories). Unflagged hair and clothes stay free.
+
 **Unlocking**
-- `look_unlock {asset}` is a zone action needing presence, the controller and a revision, like other actions; `asset` joined the input allowlist.
+- `look_unlock {asset}` (an accessory or premium asset) is a zone action needing presence, the controller and a revision, like other actions; `asset` joined the input allowlist.
 - It reserves a `hub_purchases` row `{look_unlock, name, currency:'diamonds'}` priced at one diamond. `settlePurchases` debits it with the durable `shop-<id>` request id, and `hubs.mjs complete()` routes it to `purchaseHooks.lookUnlock`, which records the unlock in `look_unlocks(owner, asset, created, purchase)`.
 - Unlocks are per account. A declined debit unlocks nothing; a replayed settlement grants nothing twice.
 
@@ -1396,6 +1430,33 @@ Part C, 2026-10-03.
 - Peers and party members carry `lookKey` (the look's content hash).
 - `looks` maps each key to its look once per snapshot; opted-in clients get `1` for keys they already hold (`MAX_KNOWN` 256).
 - `lookUnlocks` is the account's list even without a character.
+
+## NPC looks in the GM workshop
+
+2026-10-03. Staff can dress an authored NPC with Sprite Lab layers instead of a generated or uploaded walking sprite.
+
+**Authoring**
+- The designer is `server/gm-sprite-lab.js`. It appears on the NPC **Settings** card in Story Workshop (`/gm/flow-editor`) and on the NPC **Artwork** step in the GM panel.
+- It offers every catalog layer (premium ones marked ★, no unlock needed), swatches, custom colours, tint strength, **Randomize** and **Remove look**, with a four-direction walking preview.
+- `GET /gm/sprite-lab` (staff only) returns the layer catalog and `server/sprite-lab-sheets.json`. The game's `python/import_layered_sprite_lab.py` writes that file whenever layers are imported; ship it with the server.
+- The public quest editor keeps an NPC's look but cannot edit or preview it.
+
+**Rules**
+- An NPC definition's optional `look` is validated by `validateLook` on every save: registered layers, slot fit, colours and the three-accessory limit. Definitions without a look are unchanged.
+- The look replaces the walking `sprite` on the map. `battle_sprite` still wins as the conversation portrait; without one the look is shown there.
+
+**Snapshots**
+- An NPC placement carries `lookKey`; the look sits once in the snapshot `looks` map, cached like player looks.
+- `onlineQuests.conversation.look` is present when the NPC has a look and no portrait.
+
+**Hub residents**
+- Every built-in resident (court, room and district `kind:'npc'` fixtures) already has a **Resident / service NPC** story sheet. Its body takes the same optional `look`; open the sheet in Story Workshop and use the designer on its overview card.
+- The look follows the sheet's draft/publish/history: only a published look reaches players, and restoring the shipped default removes it.
+- `story-sheets.mjs` validates it with `validateLook`. In snapshots the fixture carries `lookKey` (current room only) and keeps its `avatar` for older clients.
+
+**Not covered yet:** merchants (`kind:'shop'` fixtures), NPCs inside Dive floors and full dungeons, and story-page portraits still use compiled sprites.
+
+**Deploy** the server with `sprite-lab-sheets.json` before the rebuilt client; older clients draw the NPC's `sprite` (or the default item icon when it has none). Tests: `node --test test/npc-looks.test.mjs`.
 - `zones/inspect` adds `avatar` and `look`.
 
 **Tests:** `test/player-looks.test.mjs`.

@@ -3,7 +3,7 @@ import {resolve, join, dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {randomUUID} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
-import {validateEnvironment, activateRelease} from './release.mjs';
+import {validateEnvironment, activateRelease, RELEASE_FILES} from './release.mjs';
 
 const ROOT = '/opt/lidollquest-server', CONFIG = '/etc/lidollquest', DATA = '/var/lib/lidollquest-server';
 const BACKUPS = '/var/backups/lidollquest-server', NODE = '/usr/bin/node-24', USER = 'lidollquest-server';
@@ -90,7 +90,7 @@ async function main() { // Prepare configuration first; require a usable reward 
   const environment = validateEnvironment(readFileSync(envPath, 'utf8'));
   const release = join(ROOT, 'releases', `${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}`);
   mkdirSync(release, {mode: 0o755});
-  for (const name of ['package.json', 'README.md', 'server', 'deploy', 'test', 'python', 'content']) {
+  for (const name of RELEASE_FILES) {
     regularTree(join(source, name)); cpSync(join(source, name), join(release, name), {recursive: true, errorOnExist: true, force: false});
   }
   run('/usr/bin/chown', ['-R', 'root:root', release]);

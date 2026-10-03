@@ -15,10 +15,11 @@ export function validateObjectiveFlags(value,action='Objective completion can on
  const flags=list(value,16);if(flags.some(flag=>typeof flag!=='string'||!/^story_[a-z0-9_]{1,74}$/.test(flag)))fail(action+' authored story_ flags.');
  return [...new Set(flags)];
 } // Drafts retain a bounded list of authored IDs; publication checks their active definitions.
-export function validateQuestContent(kind,v,{assetRef,spells,equipment}){
+export function validateQuestContent(kind,v,{assetRef,spells,equipment,look}){
  const out={id:id(v.id),name:text(v.name??'',100),description:text(v.description??''),retired:!!v.retired};
  if(kind==='npc'){
   out.sprite=assetRef(v.sprite??'');out.battle_sprite=assetRef(v.battle_sprite??'');out.wander_radius=num(v.wander_radius??0,0,8);
+  if(v.look!=null)out.look=look?look(v.look):fail('Sprite Lab looks are not available here.'); // Optional layered appearance (sprite-looks.mjs validateLook); absent on older definitions, so their hashes are unchanged.
   out.quests=list(v.quests??[],32).map(id);out.dialogue=unique(list(v.dialogue??[]).map((p,i)=>({id:id(p.id??'page_'+i),text:text(p.text??''),next:p.next??'close',actions:list(p.actions??[],8).map(a=>({label:text(a.label??'',160),next:a.next??'close',effect:choose(a.effect??'none',['none','offer','turn_in','branch']),...(a.quest?{quest:id(a.quest)}:{}),...(a.branch?{branch:id(a.branch)}:{}),conditions:validateConditions(a.conditions)}))})));
   const names=new Set(out.dialogue.map(p=>p.id));for(const p of out.dialogue)for(const link of [p,...p.actions]){if(Number.isInteger(link.next))link.next=out.dialogue[link.next]?.id;if(link.next!=='close'&&!names.has(link.next))fail('Dialogue points to an unknown page.');if(link.effect&&link.effect!=='none'&&!link.quest)fail('Choose a quest for this dialogue action.');}
   out.story_reactions=list(v.story_reactions??[],32).map(r=>({conditions:validateFlagCondition(r.conditions),page:r.page?id(r.page):'',entry:r.entry?id(r.entry):''}));

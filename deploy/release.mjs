@@ -4,6 +4,8 @@ import {createWalletClient} from '../server/wallet.mjs';
 import {worldWorkerBudget} from '../server/zone-shards.mjs';
 import {authCacheMs} from '../server/auth-cache.mjs';
 
+export const RELEASE_FILES=Object.freeze(['package.json','README.md','server','deploy','test','scripts','python','content']); // Ship build helpers imported by candidate tests; the installer and packaged-release regression share this explicit allowlist.
+
 export function validateEnvironment(text) { // Check settings without printing or executing environment-file contents.
   const env = parseEnv(text);
   worldWorkerBudget(env.QUEST_ZONE_WORKERS??'auto',env.QUEST_COMPUTE_WORKERS??'auto'); // Reject either invalid pool setting before stopping the running release.

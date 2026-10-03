@@ -10,6 +10,7 @@ import {applyDefeatAftermath} from './defeat-aftermath.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,enemyAction,tickEnemyEffects,awardExperience,defeatPresentation,combatData,currentTuning} from './combat.mjs';
 import {levelEnemy,encounterLevel,routeLevelFor,pickTarget,rowSwapCostsTurn} from './scaling.mjs';
 import {isCrawling} from './crawl.mjs';
+import {prepareIndustrialBoss} from './arcadia-industrial.mjs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
 import {reviveDowned} from './revive.mjs'; // Healing Poultices: stand a knocked-out ally back up mid-fight.
 
@@ -85,6 +86,7 @@ export function createDiveEncounters(db,{origins,live=null,now,roll,data,parties
   const tuning=currentTuning(),fightLevel=encounterLevel(tuning,routeLevelFor(tuning,route,record.depth),rows.map(row=>row.s.loadout.player_info.level)); // Floor band, raised toward the strongest party member (party_level_slack); hub events use the default band.
   for(const selected of (lineup??(context||foe.storyOwner?[foe]:selectEncounterEnemies({...record.floor,enemies:record.floor.enemies.filter(v=>!gone(v)&&!v.storyOwner)},foe,data,roll,now())))){selected.engaged=e.id;const enemy=pinDefeat(clone(selected.definition??data.enemies[selected.type]));enemy.maxHp=enemy.hp;enemy.turn=0;
    levelEnemy(tuning,enemy,fightLevel,{boss:selected.type===data.config.boss_id||enemy.tier==='boss'||enemy.boss===true}); // str/def/exp by the loot level curve, HP by turns-to-kill for the tier.
+   prepareIndustrialBoss(enemy,record.floor);
    const duration=enemyActionDelay(enemy.dex??0,roll)+e.enemies.length*encounterTuning.enemy_initial_stagger_ms;
    e.enemies.push({id:selected.id,data:enemy,duration,readyAt:now()+duration,dots:[],debuffs:[]});
   } // Opening stagger separates identical enemies; later cycles reroll their own bounded delay.

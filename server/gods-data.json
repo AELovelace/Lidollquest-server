@@ -11,6 +11,64 @@
     "tribute_diamonds": 1,
     "tribute_stars": 5
   },
+  "creation_intro": "Five gods watch over the kingdom, and each keeps a temple in one of its towns. Follow one and you earn piety by living the way they ask, which grows into a blessing. Your first vow is free, now or later at any temple. Swearing to a different god afterwards costs a tribute of 1 diamond or 5 stars.",
+  "start_hubs": [
+    {
+      "id": "honeydew-lantern",
+      "label": "Honeydew Village",
+      "tone": "Cosy and forgiving",
+      "blurb": "A lantern-lit farming village where nobody minds a little mess. The Community Hall and Inn are steps from the square, Bramble sells reagents, and the gentle Autumnal Plains lie just south for your first trips outside.",
+      "perks": [
+        "Inn beds and a Community Hall",
+        "Cauldron and reagent seller",
+        "Gates to the Plains, Tundra, Desert and Haunted Woods"
+      ]
+    },
+    {
+      "id": "princess-rose",
+      "label": "Rose Court",
+      "tone": "Gentle and grand",
+      "blurb": "A walled courtyard garden at the foot of the Castle. Sleep in the Castle dormitory, visit the market, and brave the Princess' Quarters Dive when you feel ready. Sable's quiet sanctum waits inside the Castle.",
+      "perks": [
+        "Castle dormitory beds",
+        "Market and the Princess' Quarters Dive",
+        "Tundra gate"
+      ]
+    },
+    {
+      "id": "littlebig-clockwork",
+      "label": "LittleBigCity",
+      "tone": "Busy and bright",
+      "blurb": "A clockwork city of storefronts and avenues. Merchants trade behind labelled shopfronts, the Inn and the Clockwork Coliseum face the plaza, and the Seafoam Coast begins at the south gate.",
+      "perks": [
+        "Hotel rooms on the plaza",
+        "Coliseum and storefront shops",
+        "Gates to the Desert and the Coast"
+      ]
+    },
+    {
+      "id": "utopia-arcanum",
+      "label": "Utopia",
+      "tone": "Soft and accepting",
+      "blurb": "A magitek city where diapers are simply how people dress. Free Auto-Changing Stations and Nap Pods sit in every building, and Padded Pride means nobody will look twice at a crinkle. Sula's temple is here.",
+      "perks": [
+        "Free changers and nap pods everywhere",
+        "Hospital and Nursery paths",
+        "Diapers welcome, never judged"
+      ]
+    },
+    {
+      "id": "arcadia-foundry",
+      "label": "Arcadia",
+      "tone": "Strict and demanding",
+      "blurb": "An industrial city of bigs that runs on Big Rules: scrutiny at the door, pay toilets, and a little tax on anything childish. The Iron Chapel of Orthain rewards those who keep themselves together. A tougher start.",
+      "perks": [
+        "Pay toilets and the shift whistle",
+        "Orthain's Iron Chapel",
+        "Smog, scrutiny and a little tax"
+      ]
+    }
+  ],
   "gods": [
     {
       "id": "orthain",

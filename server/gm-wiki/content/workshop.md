@@ -96,6 +96,20 @@ Open an item in the content library or click a block's **Reference** button. The
 
 Choose **Keep edits in bundle**, then **Save draft** on the flow. These edits are part of the current bundle, not an unrelated copy of the content. Publishing that bundle changes the shared asset for future users of the asset, including other stories.
 
+### Dress an NPC with Sprite Lab
+
+Open an NPC from the content library and select its **Settings** card. Under the ordinary fields is **Sprite Lab look**:
+
+1. Choose **Design a Sprite Lab look**. The NPC starts as a dressed body in its original colours.
+2. Pick an item for each slot (Body, Hair, Torso, Legs, Shoes, and up to three of Head, Face, Neck and Back). Items marked ★ are premium for players; staff can use them freely.
+3. Colour each part with a swatch or the colour picker, and drag the slider for tint strength. Tick **Original** to return a part to its drawn colours.
+4. Watch the preview: front, left, right and back, walking. **Randomize** rolls a whole outfit.
+5. Save and publish the NPC as usual.
+
+Players then see the look on the map instead of the walking sprite, and in the conversation portrait unless the NPC has its own portrait art. **Remove look** returns the NPC to its walking sprite. The same designer is on the **Artwork** step of the GM panel's NPCs tab.
+
+Built-in town residents work the same way. Open the resident's **Resident / service NPC** sheet from the content library; the designer sits at the bottom of its overview card. Publish the sheet to show the look to players. Merchants and NPCs inside dungeons keep their original sprites for now.
+
 Some canonical fields use technical labels such as `next`, `target`, `mode`, or `sharing`. Their supported values are documented in the relevant chapters. No JSON editor is required. If a specialized control is absent from the generic form, use the existing advanced editor for that same record, then reload to obtain its current revision.
 
 Quest references include **[draft]** journal records and unsaved bundle records. Newly referenced unpublished dependencies are included in the flow?s publication bundle; existing published assets are not replaced by their separate draft edits unless you explicitly edit them in the bundle. A flow itself is not a quest reference: use **Create journal quest for this flow** on an empty quest reference to start a linked journal record. See [Piety check](blocks.md#piety-check) for the new faith branch block.

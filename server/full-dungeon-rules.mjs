@@ -1,6 +1,7 @@
 // Authoritative campaign interactions. Every caller runs inside the existing zone
 // request transaction; presentation is a receipt, never a request to run GML effects.
 import {randomUUID} from 'node:crypto';
+import {industrialControl,industrialStep} from './arcadia-industrial.mjs';
 import {walkable,inside} from './dive-generation.mjs';
 import {dungeonReachable} from './full-dungeon-generation.mjs';
 import {changeEquipment} from './companion-equipment.mjs';
@@ -143,6 +144,8 @@ export function createDungeonRules({db,data,now,roll,origins,adjust,progress,sav
  }
  function step(c,s,record,x,y){
   let personal=progress(c,record.edition);personal.events??={room:-1,left:0,count:0,once:[],last:''};const tracker=personal.events,f=record.floor;
+  const industrialDamage=industrialStep(f,personal,{x,y});
+  if(industrialDamage){s.loadout.player_info.playerHealth=Math.max(1,s.loadout.player_info.playerHealth-industrialDamage);s.dive.lootNotice='Active production line: '+industrialDamage+' damage.';s.dive.lootNoticeAt=now();}
   for(const e of personal.lingering??[]){if(e.delay>0){e.delay--;continue;}if(e.turns-->0)applyDungeonEffects([{type:'wet',amount:e.wet},{type:'tum',amount:e.tum}],c,s,context(record));}personal.lingering=(personal.lingering??[]).filter(e=>e.turns>0);
   const room=f.rooms.findIndex(r=>inside(r,x,y)),settings=data.event_settings;
   if(room>=0)campaignState(s).flags['visited:'+data.config.zone_id+':'+f.rooms[room].type]=true;
@@ -189,6 +192,10 @@ export function createDungeonRules({db,data,now,roll,origins,adjust,progress,sav
   }
   else if(fix.kind==='bed'){
    if(now()-(personal.fixtures[fix.id]??-Infinity)<1000)fail('Wait for the next rest turn.');personal.fixtures[fix.id]=now();applyDungeonEffects([{type:'heal',amount:2},{type:'stamina_heal',amount:5}],c,s,context(record));present(s,fix.name,'You rest for a moment.');
+  }else if(fix.kind==='industrial'){
+   const visitors=db.prepare('SELECT x,y FROM quest_presence WHERE zone=? AND seen>?').all(data.config.zone_id,now()-30000);
+   const text=industrialControl(record.floor,fix,input,[p,...visitors,...record.floor.enemies.filter(e=>!e.dead&&e.respawnAt<=now())]);
+   saveFloor(record);present(s,fix.name,text);
   }else if(fix.kind==='detail')present(s,fix.name,'',fix.narrative);
   else if(fix.kind==='quest_board')present(s,'Quest Board','Your online journal records your tasks.');
   else fail('Use the conversation or shop controls for this fixture.');

@@ -8,7 +8,7 @@
 // and is sent in full. Clients that never send `known` get the classic response.
 import {createHash} from 'node:crypto';
 
-export const CACHED_SECTIONS=Object.freeze(['avatars','rpp','questNpcLinks','dungeons','dignityTuning','alchemy','guildLeaderboard','customItems']); // Top-level snapshot keys that rarely change and that no client code edits in place.
+export const CACHED_SECTIONS=Object.freeze(['avatars','rpp','questNpcLinks','dungeons','dignityTuning','alchemy','guildLeaderboard','customItems','welcome']); // Top-level snapshot keys that rarely change and that no client code edits in place. welcome: the GM-edited tutorial pages (welcome.mjs); welcomeDue stays uncached.
 const KEY=/^[0-9a-f]{16}$/,MAX_KNOWN=256; // 16 hex chars of SHA-1; ~40 rooms and sections plus up to ~70 player looks (64 peers, a party).
 
 export function cacheKey(value){return createHash('sha1').update(JSON.stringify(value)).digest('hex').slice(0,16);} // Same content -> same key, on every server and after restarts.

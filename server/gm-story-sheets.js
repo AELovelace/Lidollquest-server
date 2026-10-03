@@ -20,7 +20,7 @@ function sheetGraph(){
  const {value}=sheetFocus(),nodes=[],edges=[],positions=workspace.positions;
  const add=(id,data,key,x,y)=>{const label=id==='root'?(workspace.sheetPath?.at(-1)??contentAsset().entry.name):data?.label??data?.name??data?.title??(typeof data?.text==='string'?'Page '+(Number(key)+1):data?.id??String(key));positions[JSON.stringify(workspace.sheetPath)+id]??={x,y};const pos=positions[JSON.stringify(workspace.sheetPath)+id];const n={id,role:'sheet',type:'sheet',label:String(label),text:typeof data==='string'?data:data?.text??data?.line??'',data,key,outputs:[]};for(const axis of ['x','y'])Object.defineProperty(n,axis,{get:()=>pos[axis],set:v=>{pos[axis]=v;}});nodes.push(n);return n;};
  add('root',value,null,0,0);
- if(value&&typeof value==='object')for(const [i,[key,data]] of Object.entries(value).filter(([,v])=>v&&typeof v==='object').entries()){
+ if(value&&typeof value==='object')for(const [i,[key,data]] of Object.entries(value).filter(([k,v])=>v&&typeof v==='object'&&!sheetLookField(value,k)).entries()){
   add('field:'+key,data,key,320+(i%3)*310,Math.floor(i/3)*420);edges.push({from:'root',port:key,to:'field:'+key,locked:true});
  }
  if(Array.isArray(value))for(const [i,data] of value.entries())if(data===null||typeof data!=='object'){add('field:'+i,data,String(i),320+(i%3)*310,Math.floor(i/3)*240);edges.push({from:'root',port:String(i),to:'field:'+i,locked:true});}
@@ -40,6 +40,7 @@ function sheetDefault(schema){
  return copy(schema.sample??(schema.types.includes('object')?{}:schema.types.includes('number')?0:schema.types.includes('boolean')?false:''));
 } // Newly added checks and effects never inherit another NPC's gifts or once-only receipt keys.
 function sheetConnect(to){const g=sheetGraph(),source=g.nodes.find(n=>n.id===pending?.from),dest=g.nodes.find(n=>n.id===to),output=source?.outputs.find(o=>o.id===pending?.port);if(!output||!dest||dest.id==='root')return;checkpoint();output.set(dest);pending=null;changed();properties();}
+const sheetLookField=(value,key)=>key==='look'&&contentAsset()?.entry.category==='fixture'&&value===contentAsset().entry.body; // A resident's look is edited by the Sprite Lab designer, never as raw cards or fields.
 function sheetForm(host,value,schema,path){
  if(Array.isArray(value)){
   el('p',value.length+' entries. Open a card to edit its pages, choices or effects.',host);
@@ -47,11 +48,12 @@ function sheetForm(host,value,schema,path){
   return;
  }
  for(const [key,v] of Object.entries(value??{})){
+  if(sheetLookField(value,key))continue;
   if(v&&typeof v==='object'){button(host,'Open '+key.replaceAll('_',' '),()=>sheetOpen([...path,key]));continue;}
   const control=field(host,key.replaceAll('_',' '),value,key,typeof v==='boolean'?'checkbox':typeof v==='number'?'number':/text|line|message|description/.test(key)?'textarea':'text',key==='default_tree'?Object.keys(contentAsset().entry.body).filter(k=>k.startsWith('dialogue_')&&k!=='dialogue_flag_branches'&&Array.isArray(contentAsset().entry.body[k])):null);
   if(key==='id')control.readOnly=true; // IDs anchor page links and accepted story state.
  }
- const missing=Object.keys(schema.fields??{}).filter(k=>!Object.hasOwn(value,k));
+ const missing=Object.keys(schema.fields??{}).filter(k=>!Object.hasOwn(value,k)&&!sheetLookField(value,k));
  if(missing.length){const state={key:missing[0]};field(host,'Add supported field',state,'key','text',missing);button(host,'Add field',()=>{checkpoint();value[state.key]=sheetDefault(schema.fields[state.key]);changed();properties();});}
 } // Only schema-supported fields are offered; no raw JSON or executable scripts are needed.
 function sheetProperties(){
@@ -75,6 +77,7 @@ function sheetProperties(){
    button(host,'Remove entry',()=>{checkpoint();focus.value.splice(index,1);selected=new Set(['root']);changed();properties();});
   }
  }else sheetForm(host,focus.value,focus.schema,path);
+ if(!path.length&&node.id==='root'&&a.entry.category==='fixture'&&cat.records.sheetSchemas.fixture?.fields?.look)spriteLabDesigner(host,{look:a.entry.body.look??null,api,onChange:look=>{checkpoint();if(look)a.entry.body.look=look;else delete a.entry.body.look;changed();}}); // Dress this resident; drawn instead of its generated avatar once published (gm-sprite-lab.js).
  const revisions=row?.history??[];if(revisions.length){const state={revision:String(revisions[0].revision)};field(host,'Published revision',state,'revision','text',revisions.map(r=>({id:String(r.revision),name:'Revision '+r.revision})));button(host,'Restore revision as draft',async()=>{if(!confirm('Replace this sheet draft with the selected published revision?'))return;const result=await action('flow_sheet_history',{id:a.id,target_revision:Number(state.revision)});checkpoint();a.entry=result;changed();properties();});}
  el('p','Saving keeps a draft. Publishing changes future interactions; active conversations and accepted quests retain their saved definitions.',host).className='hint';
 } // Restore goes through the ordinary draft/publish review, never publishes merely by selecting history.

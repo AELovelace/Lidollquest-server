@@ -39,7 +39,7 @@ test('GM crafting authoring requires staff, saves validated sections and detects
  const request=async(path,body,token=staff)=>{const response=await fetch(url+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});return {status:response.status,body:await response.json()};};
  try{
   assert.equal((await request('/gm/crafting',null,player)).status,403);
-  const initial=await request('/gm/crafting');assert.equal(initial.status,200);assert.equal(initial.body.data.recipes.length,96);
+  const initial=await request('/gm/crafting');assert.equal(initial.status,200);assert.equal(initial.body.data.recipes.length,98);
   const edit={action:'crafting_save',section:'tuning',revision:initial.body.revision,value:{...initial.body.data.tuning,burn_base:18},reason:'Test tuning'};
   assert.equal((await request('/gm/action',edit,player)).status,403);assert.equal((await request('/gm/action',edit)).status,200);assert.equal((await request('/gm/action',edit)).status,409);
   assert.equal((await request('/gm/action',{...edit,revision:1,section:'recipes',value:{}})).status,400);

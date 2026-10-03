@@ -42,6 +42,7 @@ Each guide has real editor pictures, field-by-field instructions, a publication 
 | Make a readable orb or illustrated scene | [Orbs, narratives and artwork](orbs-art.md) |
 | Trigger a fight or award an item | [Battles, rewards and effects](monsters-rewards.md) |
 | Put the content into an existing dungeon | [Zones and placements](maps.md) |
+| Change the pages a new character reads on arrival | [Welcome tutorial](welcome-tutorial.md) |
 | Try a story without affecting real progression | [Preview and isolated tests](testing.md) |
 | Release or restore an earlier version | [Save, publish and rollback](publishing.md) |
 | Fix a missing offer or a stalled objective | [Troubleshooting and recipes](troubleshooting.md) |

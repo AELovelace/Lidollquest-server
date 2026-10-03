@@ -62,7 +62,7 @@ export function renderPage(snapshot,{title='LiDollQuest Quest Editor',wikiHref='
  const links=html.match(/<a class="live-link"[^>]*>[^<]*<\/a>/g)??[];if(links.length!==2)throw Error('Public editor build expects two live-only links.');
  for(const link of links)html=html.replace(link,()=>'');
  swap('href="/gm/wiki/"','href="'+wikiHref+'"');
- const editor=read('gm-flow-editor.js').replace('/* CONTENT_BLOCKS */',()=>read('gm-content-blocks.js')+'\n'+read('gm-story-sheets.js')),runtime=renderRuntime(snapshot),bundle=read('gm-quest-bundle.js');
+ const editor=read('gm-flow-editor.js').replace('/* CONTENT_BLOCKS */',()=>read('gm-content-blocks.js')+'\n'+read('gm-story-sheets.js')+'\n'+read('gm-sprite-lab.js')),runtime=renderRuntime(snapshot),bundle=read('gm-quest-bundle.js');
  for(const [label,source] of [['editor',editor],['runtime',runtime],['bundle',bundle]])if(/<\/script/i.test(source))throw Error('Inline '+label+' script would close its tag early.');
  swap('<script>/* QUEST_BUNDLE */</script>','<script>'+bundle+'</script>');
  swap('<script>/* FLOW_EDITOR */</script>','<script>'+runtime+'</script><script>'+editor+'</script>');

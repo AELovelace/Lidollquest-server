@@ -9,16 +9,18 @@ import {hubCatalog,hubRooms,campaignDives,hubData} from './hubs.mjs';
 import {createRoleplay} from './roleplay.mjs';
 import {createRpp} from './rpp.mjs';
 import {createTestingStore} from './gm-testing.mjs';
+import {lookCatalog} from './sprite-looks.mjs';
 import {routeCategory,ZONE_CATEGORY} from './zone-categories.mjs';
 
 const ONLINE_WINDOW=30000; // Matches the presence freshness window every other module already uses.
 const HUB_SPAWN={x:10,y:9}; // hubDefinition() falls back to this same tile when a lobby declares no spawn of its own.
 const KINDS=Object.freeze(['mute','suspend']); // The only two sanctions a gamemaster can place on an account.
 const CONTROL=/[\x00-\x1f\x7f]/g; // Stripped from every stored string so no reason or announcement can smuggle in line breaks.
+const spriteLabSheets=(()=>{try{return JSON.parse(readFileSync(new URL('./sprite-lab-sheets.json',import.meta.url),'utf8')).sheets;}catch{return {};}})(); // Exported by the game's import_layered_sprite_lab.py; without it the designer lists layers but cannot preview them.
 const SIGNIN_SCOPE='wallet:read'; // The panel needs identity alone: no balance changes, saves, social data or character access.
-const flowPage=readFileSync(new URL('./gm-flow-editor.html',import.meta.url),'utf8').replace('/* QUEST_BUNDLE */',()=>readFileSync(new URL('./gm-quest-bundle.js',import.meta.url),'utf8')).replace('/* FLOW_EDITOR */',()=>readFileSync(new URL('./gm-flow-editor.js',import.meta.url),'utf8').replace('/* CONTENT_BLOCKS */',()=>readFileSync(new URL('./gm-content-blocks.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-story-sheets.js',import.meta.url),'utf8')));
+const flowPage=readFileSync(new URL('./gm-flow-editor.html',import.meta.url),'utf8').replace('/* QUEST_BUNDLE */',()=>readFileSync(new URL('./gm-quest-bundle.js',import.meta.url),'utf8')).replace('/* FLOW_EDITOR */',()=>readFileSync(new URL('./gm-flow-editor.js',import.meta.url),'utf8').replace('/* CONTENT_BLOCKS */',()=>readFileSync(new URL('./gm-content-blocks.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-story-sheets.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-sprite-lab.js',import.meta.url),'utf8')));
 const helpPage=readFileSync(new URL('./gm-help.html',import.meta.url),'utf8').replace('/* GM_HELP */',()=>readFileSync(new URL('./gm-help.js',import.meta.url),'utf8'));
-const panelPage=readFileSync(new URL('./gm-panel.html',import.meta.url),'utf8').replace('<!-- GM_GUIDE -->',()=>readFileSync(new URL('./gm-guide.html',import.meta.url),'utf8')).replace('/* GM_GUIDE_SCRIPT */',()=>readFileSync(new URL('./gm-guide.js',import.meta.url),'utf8')).replace('/* CRAFTING_EDITOR */',()=>readFileSync(new URL('./gm-crafting-editor.js',import.meta.url),'utf8')).replace('/* WORLD_PANEL */',()=>readFileSync(new URL('./gm-world-panel.js',import.meta.url),'utf8').replace('/* MONSTER_EDITOR */',()=>readFileSync(new URL('./gm-monster-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-quest-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-orb-editor.js',import.meta.url),'utf8'))); // Read once at boot so a moderation click never touches the disk.
+const panelPage=readFileSync(new URL('./gm-panel.html',import.meta.url),'utf8').replace('<!-- GM_GUIDE -->',()=>readFileSync(new URL('./gm-guide.html',import.meta.url),'utf8')).replace('/* GM_GUIDE_SCRIPT */',()=>readFileSync(new URL('./gm-guide.js',import.meta.url),'utf8')).replace('/* CRAFTING_EDITOR */',()=>readFileSync(new URL('./gm-crafting-editor.js',import.meta.url),'utf8')).replace('/* WORLD_PANEL */',()=>readFileSync(new URL('./gm-world-panel.js',import.meta.url),'utf8').replace('/* MONSTER_EDITOR */',()=>readFileSync(new URL('./gm-monster-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-quest-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-orb-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-sprite-lab.js',import.meta.url),'utf8'))); // Read once at boot so a moderation click never touches the disk.
 
 export const gmZones=Object.freeze([
  {id:'global:ooc',name:'Global chat (OOC)',kind:'chat',category:null,warp:false}, // Staff can review and remove global messages through the existing chat tools.
@@ -70,9 +72,10 @@ export function buildAllowList(text){ // Comma-separated addresses and CIDR bloc
  return list;
 } // Rejected loudly at construction so a typo cannot silently admit the whole network.
 
-export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=null,guilds=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn,helpOptions={}}={}){
+export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=null,welcome=null,guilds=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn,helpOptions={}}={}){
  const help=createGmHelp(helpOptions); // Separate read-only service; staff authentication stays in this router.
  const announcementStore=()=>typeof announcements==='function'?announcements():announcements; // Passed lazily by service.mjs because the zones module is created after the panel.
+ const welcomeStore=()=>{const store=typeof welcome==='function'?welcome():welcome;if(!store)fail(409,'The welcome tutorial is not available on this server.','gm_unknown_action');return store;}; // welcome.mjs, likewise lazy.
  const guildStore=()=>{const store=typeof guilds==='function'?guilds():guilds;if(!store)fail(409,'Guilds are not available on this server.','gm_unknown_action');return store;}; // guilds.mjs, likewise lazy.
  const rp=createRoleplay(db,{now}); // RP journals use the same live staff authorization as every moderation tool.
  const rpp=createRpp(db,{now}); // Staff-only RPP gifts and purchase history never touch premium currencies.
@@ -233,6 +236,8 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
 
  const actions={
   tutor_settings(input,actor){if(!tutor)fail(409,'The tutor NPC is not available on this server.');const saved=tutor.gmSet(input,actor);record(actor,'tutor_settings','tutor',{enabled:saved.enabled,name:saved.name,greeting:saved.greeting});return saved;}, // Pip on/off, name and greeting (tutor.mjs).
+  welcome_settings(input,actor){const saved=welcomeStore().gmSet(input,actor);record(actor,'welcome_settings','welcome',{enabled:saved.enabled,show_to_existing:saved.show_to_existing,title:saved.title,pages:saved.pages.length});return saved;}, // Welcome tutorial switches, title and pages (welcome.mjs); the audit row keeps the page count, not the prose.
+  welcome_reset(input,actor){const saved=welcomeStore().reset(actor);record(actor,'welcome_reset','welcome',{pages:saved.pages.length});return saved;}, // Back to the shipped four pages.
   test_build_start(input,actor){const build=testing.startBuild(input,actor);record(actor,'test_build_start','testing',{build:build.id,label:build.label});return build;}, // New build under test; audited because it resets everyone's view.
   test_build_notes(input,actor){const build=testing.buildNotes(input);record(actor,'test_build_notes','testing',{build:build.id,label:build.label});return build;}, // "What changed" note on a version.
   test_mark(input,actor){return testing.mark(input,actor);}, // Pass/fail/blocked marks keep their own who/when, so they stay out of the moderation audit log.
@@ -500,11 +505,13 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    if(url.pathname==='/gm/content'&&req.method==='GET')return send(200,{...live.view(),worldZones:world().catalog(),onlineNpcs:world().npcCatalog?.()??[]});
    if(url.pathname==='/gm/map'&&req.method==='GET')return send(200,world().map(url.searchParams.get('zone')));
    if(url.pathname==='/gm/jobs'&&req.method==='GET')return send(200,{jobs:artJobs.list()});
+   if(url.pathname==='/gm/sprite-lab'&&req.method==='GET')return send(200,{catalog:lookCatalog(),sheets:spriteLabSheets}); // Layer catalog and sheets for the NPC look designer (gm-sprite-lab.js).
    if(url.pathname==='/gm/asset'&&req.method==='GET')return send(200,live.asset(url.searchParams.get('id')));
    if(url.pathname==='/gm/enchantments'&&req.method==='GET')return send(200,enchantView()); // Content tuning, behind the same staff identity as every moderation tool.
    if(url.pathname==='/gm/loot'&&req.method==='GET')return send(200,lootView()); // Adjective + Item + Rarity tuning and affix authoring.
    if(url.pathname==='/gm/guilds'&&req.method==='GET'){const store=guildStore(),id=url.searchParams.get('id');return send(200,{guilds:store.gm.list(url.searchParams.get('q')??''),detail:id?store.gm.detail(id):null,tuning:store.gm.tuning()});} // Player guilds (guilds.mjs): search, one guild's roster/ledger/weeks, and the live guild_* tuning values.
    if(url.pathname==='/gm/tutor'&&req.method==='GET')return send(200,tutor?tutor.gmView():{configured:false,settings:null,recent:[]}); // Pip's switch, npc-rag health and the latest questions/answers.
+   if(url.pathname==='/gm/welcome'&&req.method==='GET')return send(200,welcomeStore().gmView()); // Welcome tutorial: current settings, code defaults, link targets, install epoch and limits.
    if(url.pathname==='/gm/crafting'&&req.method==='GET')return send(200,craftingStore.view());
    if(url.pathname==='/gm/alchemy'&&req.method==='GET')return send(200,alchemyView()); // Chest odds and brewing rules (alchemy-store.mjs).
    if(url.pathname==='/gm/rp'&&req.method==='GET')return send(200,rp.journal(Object.fromEntries(url.searchParams)));

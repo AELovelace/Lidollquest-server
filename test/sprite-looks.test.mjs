@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
 import {createQuestZones} from '../server/zones.mjs';
-import {validateLook,lookCatalog,accessorySlots} from '../server/sprite-looks.mjs';
+import {validateLook,lookCatalog,accessorySlots,needsUnlock} from '../server/sprite-looks.mjs';
 import {validateShopAppearance} from '../server/player-stores.mjs';
 
 const base={version:1,slots:{base:'piko_woman',hair:'pixie_cut',torso:'hoodie'},facing:0};
@@ -23,6 +23,19 @@ test('a look wears at most three accessories, and only unlocked ones when owners
  assert.equal(validateLook(three,{unlocked:new Set(['cat_ears','round_glasses','knit_scarf'])}).slots.neck,'knit_scarf');
  assert.equal(validateLook(base,{unlocked:new Set()}).slots.head,'','clothes and hair never need unlocking');
  assert.throws(()=>validateLook({...base,slots:{...base.slots,head:'hoodie'}}),/Unsupported/,'items only fit their own slot');
+});
+
+test('premium hair, clothes and shoes need the same unlock; ordinary ones never do',()=>{
+ const premium=lookCatalog().assets.filter(a=>a.premium);
+ assert.equal(premium.length,32,'the Premium_Expansion_v1 pack');
+ for(const slot of ['hair','torso','legs','shoes','head','face','neck','back'])assert.ok(premium.some(a=>a.slot===slot),slot+' has premium art');
+ assert.ok(lookCatalog().assets.filter(a=>!a.premium&&!accessorySlots().has(a.slot)).every(a=>!needsUnlock(a)),'everything else in an ordinary slot stays free');
+ const look={...base,slots:{...base.slots,hair:'mohawk',torso:'crop_top',legs:'shorts',shoes:'sneakers'}};
+ assert.equal(validateLook(look).slots.torso,'crop_top','previews accept them');
+ assert.throws(()=>validateLook(look,{unlocked:new Set(['crop_top','shorts','sneakers'])}),/Unlock Mohawk/);
+ assert.throws(()=>validateLook(look,{unlocked:new Set(['mohawk','shorts','sneakers'])}),/Unlock Crop Top/);
+ assert.equal(validateLook(look,{unlocked:new Set(['mohawk','crop_top','shorts','sneakers'])}).slots.hair,'mohawk');
+ assert.equal(validateLook({...look,slots:{...look.slots,head:'crown',face:'sunglasses',neck:'bow_tie'}},{unlocked:new Set(['mohawk','crop_top','shorts','sneakers','crown','sunglasses','bow_tie'])}).slots.head,'crown','premium clothes do not count toward the accessory limit');
 });
 
 test('shopkeepers follow the same accessory rules',()=>{
@@ -56,9 +69,11 @@ test('one diamond unlocks an accessory for the whole account; declines and repea
   assert.match(w.read().character.hubNotice??'',/Unlocked Cat Ears/);
   w.zones.completePurchase(id,true);assert.deepEqual(w.read().lookUnlocks,['cat_ears'],'a replayed settlement grants nothing twice');
   assert.throws(()=>w.act('look_unlock',{asset:'cat_ears'}),/already own/);
-  assert.throws(()=>w.act('look_unlock',{asset:'hoodie'}),/Only accessories/,'clothes are never sold this way');
+  assert.throws(()=>w.act('look_unlock',{asset:'hoodie'}),/Only accessories and premium/,'ordinary clothes are never sold this way');
+  w.act('look_unlock',{asset:'crop_hoodie'});w.zones.completePurchase(w.pending(),true);
+  assert.deepEqual(w.read().lookUnlocks,['cat_ears','crop_hoodie'],'premium clothes unlock the same way');
   w.act('look_unlock',{asset:'pacifier'});w.zones.completePurchase(w.pending(),false);
-  assert.deepEqual(w.read().lookUnlocks,['cat_ears'],'a declined debit unlocks nothing');
+  assert.deepEqual(w.read().lookUnlocks,['cat_ears','crop_hoodie'],'a declined debit unlocks nothing');
   assert.match(w.read().character.hubNotice??'',/Not enough diamonds/);
  }finally{w.close();}
 });

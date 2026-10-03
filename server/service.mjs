@@ -22,6 +22,7 @@ import {dailyCoinCap} from './hubs.mjs';
 import {createOnlineFeed} from './online-feed.mjs';
 import {createMommybotProfile} from './mommybot-profile.mjs';
 import {createTutor} from './tutor.mjs'; // Pip, the tutorial NPC answered by npc-rag (NPC_RAG_URL / NPC_RAG_KEY).
+import {welcomeLinks} from './welcome.mjs'; // Wiki / store / Discord links the welcome tutorial and the client's menus share (LIDOLLQUEST_*_URL).
 import {createGameMasterPanel} from './gm.mjs';
 import {createEnchantmentStore} from './enchantment-store.mjs';
 import {createLootStore} from './loot-store.mjs';
@@ -61,7 +62,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
  const live=createWorldContent(db,{now,blankCanvas,spells:combatData.spells,equipment:{...hubData.equipment,...combatData.defeat_items},defeatEquipment:combatData.defeat_equipment,questPack,questLibraryPack:blankCanvas?[]:loadQuestPack('content/weekly_quests.json')}); // Legacy imports remain available to offline compatibility fixtures, not the production workshop.
  const artJobs=createWorldJobs(db,{live,now,...artJobOptions});
  const tutor=createTutor(db,{now,log,live}); // Created before the GM panel (which edits its settings) and handed to zones below.
- const gm=createGameMasterPanel(db,{helpOptions:gmHelpOptions,tutor,walletClient,announcements:()=>zones.announcements,guilds:()=>zones.guilds,live,artJobs,world:()=>zones.world,performanceSnapshot:metrics.snapshot,enchantments:createEnchantmentStore(db,{now}),enchantmentTable:()=>diveData.enchantments,loot:createLootStore(db,{now}),lootTable:()=>diveData.loot,lootItems:()=>diveData.items,lootBases:()=>diveData.bases,alchemy:createAlchemyStore(db,{now}),alchemyTable:()=>diveData.alchemy,allow:gmAllow,trustProxy:gmTrustProxy,requireTls:gmRequireTls,enabled:gmEnabled,now,log}); // Staff moderation owns its own tables and never touches wallet credentials.
+ const gm=createGameMasterPanel(db,{helpOptions:gmHelpOptions,tutor,walletClient,announcements:()=>zones.announcements,welcome:()=>zones.welcome,guilds:()=>zones.guilds,live,artJobs,world:()=>zones.world,performanceSnapshot:metrics.snapshot,enchantments:createEnchantmentStore(db,{now}),enchantmentTable:()=>diveData.enchantments,loot:createLootStore(db,{now}),lootTable:()=>diveData.loot,lootItems:()=>diveData.items,lootBases:()=>diveData.bases,alchemy:createAlchemyStore(db,{now}),alchemyTable:()=>diveData.alchemy,allow:gmAllow,trustProxy:gmTrustProxy,requireTls:gmRequireTls,enabled:gmEnabled,now,log}); // Staff moderation owns its own tables and never touches wallet credentials.
  const zones=createQuestZones(db,{now,roll,compute,live,followerOptions,followerChatOptions,measure:metrics.measure,onPresence:onlineFeed.record,enabled:owner=>!gm.suspended(owner),muted:gm.muted,audit:gm.record,grant:()=>{if(!identity)throw Error('Missing request identity');return identity;},wallet:owner=>({coins:db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(owner)?.coins??0}),adjust:(owner,asset,amount,id,reason)=>{
   if(asset!=='coins'||!Number.isSafeInteger(amount)||amount<1||amount>dailyCoinCap())throw Error('Invalid server award'); // A single entitlement can never exceed one day's whole allowance.
   db.prepare('INSERT INTO reward_outbox(id,owner,amount,reason) VALUES (?,?,?,?)').run(id,owner,amount,reason);
@@ -76,7 +77,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
  const sprites=createPrivateSprites(db,{walletClient,provider:spriteProvider,now,log});zones.setPrivateSprites(sprites);
  const management=createCharacterManagement(db,{walletClient,cloud,sprites,now,log});
  if(zoneCount){installZoneSnapshotEpochs(db);shards=createZoneShards({size:zoneCount,filename:resolve(filename),blankCanvas,questPack,followerEnabled:zones.followers.enabled,observe:metrics.observe});}
- const capabilities={followers:zones.followers.enabled,followerVersion:1,unifiedCreation:true,inspection:true,friends:true,cloudSaves:true,saveManagement:true,characterManagement:true,characterDescriptions:true,companionEquipment:true,companionBank:true,bankSales:true,companionShops:true,companionWithdraw:true,companionConsume:true,companionItemDetails:true,companionDiamondRolls:true,snapshotCache:true,guilds:true};
+ const capabilities={followers:zones.followers.enabled,followerVersion:1,unifiedCreation:true,inspection:true,friends:true,cloudSaves:true,saveManagement:true,characterManagement:true,characterDescriptions:true,companionEquipment:true,companionBank:true,bankSales:true,companionShops:true,companionWithdraw:true,companionConsume:true,companionItemDetails:true,companionDiamondRolls:true,snapshotCache:true,guilds:true,welcome:true,links:welcomeLinks()}; // welcome: the snapshot carries welcome/welcomeDue and accepts welcome_done; links: where the client's wiki/store/Discord buttons go.
  const deliveries=new Map();
  async function flush(owner,token){
   if(deliveries.has(owner))return deliveries.get(owner);

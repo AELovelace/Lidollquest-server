@@ -137,6 +137,7 @@ tr.sel td{background:#2c1e3d}
   <button type="button" role="tab" id="tab-crafting" aria-controls="panel-crafting" aria-selected="false" tabindex="-1">Crafting</button>
   <button type="button" role="tab" id="tab-alchemy" aria-controls="panel-alchemy" aria-selected="false" tabindex="-1">Alchemy</button>
   <button type="button" role="tab" id="tab-tutor" aria-controls="panel-tutor" aria-selected="false" tabindex="-1">Tutor NPC</button>
+  <button type="button" role="tab" id="tab-welcome" aria-controls="panel-welcome" aria-selected="false" tabindex="-1">Welcome</button>
   <button type="button" role="tab" id="tab-guilds" aria-controls="panel-guilds" aria-selected="false" tabindex="-1">Guilds</button>
   <button type="button" role="tab" id="tab-moderation" aria-controls="panel-moderation" aria-selected="false" tabindex="-1">Moderation</button>
   <button type="button" role="tab" id="tab-performance" aria-controls="panel-performance" aria-selected="false" tabindex="-1">Performance</button>
@@ -522,6 +523,20 @@ tr.sel td{background:#2c1e3d}
     <div class="row"><label for="tutorGreeting">Greeting</label><input id="tutorGreeting" class="grow" maxlength="300"><button class="go" id="tutorSave">Save tutor</button><button id="tutorLoad">Refresh</button></div>
     <h2>Latest questions</h2>
     <div id="tutorLog" class="log"></div>
+  </section>
+</div>
+<div class="tab-panel" id="panel-welcome" role="tabpanel" aria-labelledby="tab-welcome" tabindex="0" hidden>
+  <section class="wide">
+    <h2>Welcome tutorial</h2>
+    <p class="note">A short page flow that greets each new character once, in their first hub, and then stays out of the way. Characters created before this feature was installed never see it unless <strong>Show to existing characters too</strong> is on, which shows it once to everyone who has not seen it yet. Headings and the title take up to 60 characters, bodies 600 (line breaks allowed), button labels 24; up to 8 pages. Button links must start with https:// and point at lidoll.dev (or a subdomain) or discord.gg. Changes apply on the next refresh of each player's screen.</p>
+    <p id="welcomeStatus" role="status"></p>
+    <div class="row"><label for="welcomeEnabled">Tutorial is on</label><input id="welcomeEnabled" type="checkbox"><label for="welcomeExisting">Show to existing characters too</label><input id="welcomeExisting" type="checkbox"></div>
+    <div class="row"><label for="welcomeTitle">Title</label><input id="welcomeTitle" class="grow" maxlength="60"></div>
+    <div id="welcomePages"></div>
+    <div class="row"><button id="welcomeAddPage">Add page</button><button class="go" id="welcomeSave">Save welcome</button><button id="welcomeReset">Reset to defaults</button><button id="welcomeLoad">Refresh</button></div>
+    <h2>Preview</h2>
+    <p class="note">What players see, one card per page, as currently saved on the server (save first to update it).</p>
+    <div id="welcomePreview" class="log"></div>
   </section>
 </div>
 <div class="tab-panel" id="panel-guilds" role="tabpanel" aria-labelledby="tab-guilds" tabindex="0" hidden>
@@ -1016,6 +1031,75 @@ tr.sel td{background:#2c1e3d}
   var body={action:"tutor_settings",enabled:$("tutorEnabled").checked,name:$("tutorName").value.trim(),greeting:$("tutorGreeting").value.trim()};
   $("tutorSave").disabled=true;
   api("/gm/action",{method:"POST",body:body}).then(function(response){say("ok","Tutor saved: "+(response.result.enabled?"on":"off")+", named "+response.result.name+".");loadTutor();}).catch(function(error){say("err",error.message);}).finally(function(){$("tutorSave").disabled=false;});
+ });
+
+ var welcomeEpoch=0,welcomeLinks={},welcomeLimits={title:60,heading:60,body:600,label:24,pages:8}; // Links and limits come from /gm/welcome; the numbers here only cover the moment before the first load.
+ function welcomeField(label,input){var wrap=el("label");wrap.appendChild(document.createTextNode(label+" "));wrap.appendChild(input);wrap.style.display="block";wrap.style.margin="4px 0";return wrap;} // One labelled input per line inside a page block.
+ function welcomePageBlock(page){ // Builds the editor block for one page; the page order is the DOM order, so Up/Down just move nodes.
+  var block=el("div","ench-form");block.className="welcome-page";block.style.border="1px solid var(--edge)";block.style.borderRadius="8px";block.style.padding="8px";block.style.marginBottom="8px";
+  var heading=el("input");heading.maxLength=welcomeLimits.heading;heading.className="wp-heading";heading.value=page.heading||"";heading.style.width="100%";
+  var body=el("textarea");body.maxLength=welcomeLimits.body;body.className="wp-body";body.rows=4;body.value=page.body||"";body.style.width="100%";body.style.font="inherit";body.style.color="var(--ink)";body.style.background="#1b1226";body.style.border="1px solid var(--edge)";body.style.borderRadius="6px";body.style.padding="6px 9px";
+  var label=el("input");label.maxLength=welcomeLimits.label;label.className="wp-label";label.value=page.button?page.button.label||"":"";label.placeholder="(no button)";label.style.width="200px";
+  var url=el("input");url.className="wp-url";url.value=page.button?page.button.url||"":"";url.placeholder="https://lidoll.dev/...";url.style.width="100%";
+  var tools=el("div","row");
+  var up=el("button",null,"Up"),down=el("button",null,"Down"),remove=el("button",null,"Remove");
+  up.type="button";down.type="button";remove.type="button";
+  up.addEventListener("click",function(){if(block.previousElementSibling)block.parentNode.insertBefore(block,block.previousElementSibling);welcomeNumber();});
+  down.addEventListener("click",function(){if(block.nextElementSibling)block.parentNode.insertBefore(block.nextElementSibling,block);welcomeNumber();});
+  remove.addEventListener("click",function(){if($("welcomePages").children.length<=1){say("err","Keep at least one page.");return;}block.parentNode.removeChild(block);welcomeNumber();});
+  tools.appendChild(el("strong","wp-number","Page"));tools.appendChild(up);tools.appendChild(down);tools.appendChild(remove);
+  block.appendChild(tools);
+  block.appendChild(welcomeField("Heading",heading));block.appendChild(welcomeField("Body",body));
+  var buttonRow=el("div","row");buttonRow.appendChild(welcomeField("Button label",label));buttonRow.appendChild(welcomeField("Button link",url));buttonRow.lastChild.className="grow";
+  block.appendChild(buttonRow);
+  return block;
+ }
+ function welcomeNumber(){Array.from($("welcomePages").children).forEach(function(block,index){block.querySelector(".wp-number").textContent="Page "+(index+1);});} // Renumber after a move, add or remove.
+ function welcomeRenderPages(pages){clear($("welcomePages"));(pages||[]).forEach(function(page){$("welcomePages").appendChild(welcomePageBlock(page));});welcomeNumber();}
+ function welcomeCollect(){ // Reads the editor blocks back into the shape welcome_settings expects; an empty label means no button.
+  return Array.from($("welcomePages").children).map(function(block){
+   var label=block.querySelector(".wp-label").value.trim(),url=block.querySelector(".wp-url").value.trim();
+   return {heading:block.querySelector(".wp-heading").value.trim(),body:block.querySelector(".wp-body").value.replace(/\s+$/,""),button:label||url?{label:label,url:url}:null};
+  });
+ }
+ function welcomeRenderPreview(settings){ // Read-only cards of what players see.
+  clear($("welcomePreview"));
+  if(!settings.enabled)$("welcomePreview").appendChild(el("p","note","The tutorial is switched off; nobody sees it."));
+  $("welcomePreview").appendChild(el("h3",null,settings.title||""));
+  (settings.pages||[]).forEach(function(page,index){
+   var card=el("div");card.style.border="1px solid var(--edge)";card.style.borderRadius="8px";card.style.padding="8px";card.style.marginBottom="8px";
+   card.appendChild(el("strong",null,(index+1)+". "+page.heading));
+   String(page.body||"").split("\n").forEach(function(line){card.appendChild(el("p",null,line));});
+   if(page.button){var link=el("a",null,page.button.label+" -> "+page.button.url);link.href=page.button.url;link.target="_blank";link.rel="noopener";card.appendChild(link);}
+   $("welcomePreview").appendChild(card);
+  });
+ }
+ function loadWelcome(){
+  var epoch=++welcomeEpoch,session=perfEpoch;
+  return api("/gm/welcome").then(function(data){
+   if(epoch!==welcomeEpoch||session!==perfEpoch||!token)return;
+   var s=data.settings||{};welcomeLinks=data.links||{};if(data.limits)welcomeLimits=data.limits;
+   $("welcomeEnabled").checked=!!s.enabled;$("welcomeExisting").checked=!!s.show_to_existing;
+   if(document.activeElement!==$("welcomeTitle"))$("welcomeTitle").value=s.title||"";
+   if(!$("welcomePages").contains(document.activeElement))welcomeRenderPages(s.pages); // Never rebuild the blocks under a GM who is typing in one.
+   $("welcomeStatus").textContent=(s.enabled?"On":"Off")+" · "+(s.pages||[]).length+" page(s) · "+(s.show_to_existing?"shown to every character who has not seen it":"new characters only (created after "+new Date(data.installed).toLocaleDateString()+")")+" · links: wiki "+(welcomeLinks.wiki||"?")+", store "+(welcomeLinks.store||"?")+", Discord "+(welcomeLinks.discord||"?");
+   welcomeRenderPreview(s);
+  }).catch(function(error){say("err",error.message);});
+ }
+ $("tab-welcome").addEventListener("click",loadWelcome);$("welcomeLoad").addEventListener("click",loadWelcome);
+ $("welcomeAddPage").addEventListener("click",function(){
+  if($("welcomePages").children.length>=welcomeLimits.pages){say("err","At most "+welcomeLimits.pages+" pages.");return;}
+  $("welcomePages").appendChild(welcomePageBlock({heading:"",body:"",button:null}));welcomeNumber();
+ });
+ $("welcomeSave").addEventListener("click",function(){
+  var body={action:"welcome_settings",enabled:$("welcomeEnabled").checked,show_to_existing:$("welcomeExisting").checked,title:$("welcomeTitle").value.trim(),pages:welcomeCollect()};
+  $("welcomeSave").disabled=true;
+  api("/gm/action",{method:"POST",body:body}).then(function(response){say("ok","Welcome saved: "+(response.result.enabled?"on":"off")+", "+response.result.pages.length+" page(s).");loadWelcome();}).catch(function(error){say("err",error.message);}).finally(function(){$("welcomeSave").disabled=false;});
+ });
+ $("welcomeReset").addEventListener("click",function(){
+  if(!confirm("Throw away the edited welcome pages and go back to the shipped defaults?"))return;
+  $("welcomeReset").disabled=true;
+  api("/gm/action",{method:"POST",body:{action:"welcome_reset"}}).then(function(){say("ok","Welcome tutorial reset to defaults.");loadWelcome();}).catch(function(error){say("err",error.message);}).finally(function(){$("welcomeReset").disabled=false;});
  });
  var guildEpoch=0,guildSelected="";
  function loadGuilds(){

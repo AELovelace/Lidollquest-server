@@ -1,4 +1,4 @@
-const domains={content:['world_content','world_content_history'],districts:['hub_district_editions','hub_district_current','hub_district_controls'],guilds:['quest_guilds','quest_guild_members','quest_guild_weeks'],tutor:['quest_tutor_settings']};
+const domains={content:['world_content','world_content_history'],districts:['hub_district_editions','hub_district_current','hub_district_controls'],guilds:['quest_guilds','quest_guild_members','quest_guild_weeks'],tutor:['quest_tutor_settings'],welcome:['quest_welcome_settings']}; // welcome: a GM edit on the Welcome tab must reach the snapshot workers' cached settings (welcome.mjs).
 
 export function installZoneSnapshotEpochs(db){
  db.exec('CREATE TABLE IF NOT EXISTS zone_snapshot_epochs(domain TEXT PRIMARY KEY,revision INTEGER NOT NULL)');

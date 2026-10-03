@@ -4,6 +4,7 @@ import {createStorySheets,sheetId} from './story-sheets.mjs';
 import {validateFlagCondition} from './story-flags.mjs';
 import {validateQuestContent,checkQuestReferences,objectiveTypes,stateFields,questStats} from './quest-content.mjs';
 import {validateWorldPng} from './world-png.mjs';
+import {validateLook,lookCatalog} from './sprite-looks.mjs';
 import {createHash} from 'node:crypto';
 import {defaultScenes,compiledArtwork,defaultSceneRefs,registerDefaultScenes,pinDefeat} from './defeat-scenes.mjs';
 import {AFTERMATH_EFFECTS} from './defeat-aftermath.mjs';
@@ -16,7 +17,7 @@ const number=(value,min,max)=>Number.isFinite(value)&&value>=min&&value<=max?val
 const integer=(value,min,max)=>Number.isSafeInteger(value)?number(value,min,max):fail('Use a whole number.');
 
 export function createWorldContent(db,{now=Date.now,spells={},equipment={},defeatEquipment={},questPack=[],questLibraryPack=[],blankCanvas=false}={}){
- const storySheets=createStorySheets(); // Shipped online dialogue is editable without mutating exported source files.
+ const storySheets=createStorySheets({look:{slots:lookCatalog().order,validate:value=>validateLook(value,{fail})}}); // Shipped online dialogue is editable without mutating exported source files.
  registerDefaultScenes(db);
  db.exec(`CREATE TABLE IF NOT EXISTS world_content(kind TEXT NOT NULL,id TEXT NOT NULL,revision INTEGER NOT NULL,draft TEXT NOT NULL,published TEXT,PRIMARY KEY(kind,id));
  CREATE TABLE IF NOT EXISTS world_content_history(kind TEXT NOT NULL,id TEXT NOT NULL,revision INTEGER NOT NULL,body TEXT NOT NULL,actor TEXT NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(kind,id,revision));
@@ -90,13 +91,15 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  function validate(kind,value){
   if(!value||!id(value.id))fail('Choose a stable lowercase content ID.');
   if(kind==='sheet')return storySheets.validate(value);
-  if(['npc','quest'].includes(kind))return validateQuestContent(kind,value,{assetRef,spells,equipment});
+  if(['npc','quest'].includes(kind))return validateQuestContent(kind,value,{assetRef,spells,equipment,look:value=>validateLook(value,{fail})}); // NPC looks: registered layers only, no ownership check (staff design them).
   if(kind==='monster'){
    const out={id:value.id,enemy_id:value.enemy_id??value.id,name:text(value.name,100),retired:!!value.retired};if(!id(out.enemy_id))fail('Invalid enemy identity.');
    for(const key of ['hp','str','def','dex','exp'])out[key]=integer(value[key],key==='hp'?1:0,key==='hp'?100000:10000);
    out.spell_cast_chance=number(value.spell_cast_chance??0,0,1);out.enemy_spells=value.enemy_spells??[];
    if(!Array.isArray(out.enemy_spells)||out.enemy_spells.length>32||out.enemy_spells.some(s=>!Object.hasOwn(spells,s)))fail('Choose existing spells.');
    out.sprite=assetRef(value.sprite??'');out.battle_sprite=assetRef(value.battle_sprite??'');out.roaming=!!value.roaming;
+   const industrial=baselines.monster.get(value.id);
+   if(industrial?.industrial_phases){out.industrial_phases=clone(industrial.industrial_phases);out.boss=true;out.tier='boss';} // Stat/art edits preserve authored industrial boss phases and scaling.
    if(value.defeat){out.defeat={};if(value.defeat.schema===2){out.defeat.schema=2;for(const variant of ['first','repeat','charm']){const scene=value.defeat[variant];if(!scene){if(variant==='charm')continue;fail('First and repeat scenes are required.');}out.defeat[variant]={};for(const key of ['dialogues','aftermaths']){const list=scene[key];if(!Array.isArray(list)||!list.length||list.length>16||new Set(list.map(v=>v.id)).size!==list.length)fail('Use one to sixteen uniquely named scene variants.');out.defeat[variant][key]=list.map(v=>({id:text(v.id,80),...(key==='aftermaths'?{title:text(v.title??'After the battle',100)}:{}),pages:beats(v.pages??[])}));}}}else for(const variant of ['first','repeat']){const scene=value.defeat[variant];if(scene)out.defeat[variant]={title:text(scene.title??'After the battle',100),dialogue:beats(scene.dialogue??[]),aftermath:beats(scene.aftermath??[])};}}
    if(value.defeat_equipment){out.defeat_equipment={};for(const variant of ['first','repeat']){const kit=value.defeat_equipment[variant]??[];if(!Array.isArray(kit)||kit.length>16||kit.some(k=>!Object.hasOwn(equipment,k)&&!(defeatEquipment[out.enemy_id]?.[variant]??[]).includes(k)))fail('Choose existing defeat equipment.');out.defeat_equipment[variant]=[...kit];}}
    if(Buffer.byteLength(JSON.stringify(out))>256*1024)fail('Keep monster text and choices below 256 KiB.');

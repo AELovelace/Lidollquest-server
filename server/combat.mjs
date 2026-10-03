@@ -147,6 +147,14 @@ export function enemyAction(state,z,roll){ // One enemy acts independently in sh
  syncCrawl(state.loadout);
  const r=state.run;r.enemy.turn++;
  if(godMode(state)){r.log.push(r.enemy.name+' cannot touch you. (GM god mode)');return 'continue';} // No hit, spell, debuff or knockdown lands; HP stays where it is.
+ if(r.enemy.industrial_phases){
+  const phase=(r.enemy.turn-1)%3,labels=r.enemy.industrial_phases,suppression=Math.min(3,r.enemy.industrialSuppression??0);
+  if(phase===0){r.log.push(r.enemy.name+': '+labels[0]+'. Heavy machinery is preparing; brace before '+labels[2]+'.');return 'continue';}
+  const power=Math.max(1,Math.round(r.enemy.str*(phase===2?1.5:0.8)*(1-suppression*0.15)));
+  const hit=Math.max(1,Math.floor(mitigate(currentTuning(),power,r.defense??blessedDef(state.loadout))*rowDamageTaken(currentTuning(),r.row,r.rowAlone===true)));
+  r.hp=Math.max(0,r.hp-hit);r.log.push(labels[phase]+': '+hit+' damage'+(suppression?' ('+suppression+' support stations disabled).':'.'));
+  syncRunHealth(state,r);return r.hp<=0?'defeat':'continue';
+ } // Industrial bosses telegraph a three-turn cycle; committed support controls reduce both attack phases.
  if(r.enemy.enemy_id==='breakwater_hermit'){
   r.enemy.cavernBaseDef??=r.enemy.def;const phase=(r.enemy.turn-1)%3;
   r.enemy.def=Math.max(0,r.enemy.cavernBaseDef+(phase===2?-4:5));

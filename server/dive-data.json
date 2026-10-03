@@ -20894,6 +20894,22 @@
         }
       },
       "route_levels": {
+        "brassworks-factory": {
+          "base": 20,
+          "per_floor": 0
+        },
+        "eastwater-dockyard": {
+          "base": 20,
+          "per_floor": 0
+        },
+        "dungeon-brassworks-factory": {
+          "base": 20,
+          "per_floor": 0
+        },
+        "dungeon-eastwater-dockyard": {
+          "base": 20,
+          "per_floor": 0
+        },
         "quarters-pilot": {
           "base": 3,
           "per_floor": 2
@@ -20941,6 +20957,10 @@
         "farmstead": {
           "base": 10,
           "per_floor": 0
+        },
+        "coastal-caverns": {
+          "base": 20,
+          "per_floor": 2
         },
         "seafoam-coast": {
           "base": 18,
@@ -20992,10 +21012,6 @@
         },
         "default": {
           "base": 5,
-          "per_floor": 2
-        },
-        "coastal-caverns": {
-          "base": 20,
           "per_floor": 2
         }
       },

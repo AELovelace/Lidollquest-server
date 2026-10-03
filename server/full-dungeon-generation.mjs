@@ -1,6 +1,7 @@
 // Full-sized campaign layouts. Geometry and population use independent seeded streams;
 // story orbs, campaign flags and the Nursery's control door never enter this generator.
 import {seeded,walkable,inside} from './dive-generation.mjs';
+import {installIndustrial} from './arcadia-industrial.mjs';
 
 const directions=[[1,0],[-1,0],[0,1],[0,-1]],key=p=>`${p.x},${p.y}`;
 export function fullDungeonAmbientPool(data){
@@ -86,7 +87,7 @@ export function generateFullDungeon(data,edition,depth=1){
   for(let i=0;i<s.extra_halls;i++)hall(f.rooms[rnd(f.rooms.length)],f.rooms[rnd(f.rooms.length)]);
   let bag=[];f.rooms.forEach((r,i)=>{if(!bag.length)bag=shuffle(source.room_types.pool);r.type=i===0?source.room_types.entrance:i===f.rooms.length-1?source.room_types.deepest:bag.pop();});
  }else{
-  const cols=s.sector_cols,rows=s.sector_rows,sw=Math.floor(W/cols),sh=Math.floor(H/rows),types=shuffle(source.type_pool),fixed=c.theme==='nursery'?'control':c.entrance_type;
+  const cols=s.sector_cols,rows=s.sector_rows,sw=Math.floor(W/cols),sh=Math.floor(H/rows),types=c.industrial?[...source.type_pool]:shuffle(source.type_pool),fixed=c.theme==='nursery'?'control':c.entrance_type;
   const put=(type,index)=>{const at=types.indexOf(type);if(at<0)throw Error('Missing campaign room type '+type);[types[at],types[index]]=[types[index],types[at]];};
   put(fixed,0);if(c.theme==='nursery')put('intake',cols*rows-1);
   for(let col=0;col<cols;col++)for(let row=0;row<rows;row++){
@@ -123,12 +124,20 @@ export function generateFullDungeon(data,edition,depth=1){
   }
  }
  const start=f.rooms.find(r=>r.type===c.entrance_type)||f.rooms[0],end=f.rooms.at(-1);
+ if(c.industrial){for(const r of f.rooms)r.name=c.room_names[r.type];}
  c.endpoints.forEach((e,i)=>{const r=i?end:start,p={x:r.cx,y:r.cy};f.exits.push({...e,...p});f.entries[e.zone]={x:p.x,y:p.y+1};f.safeRooms.push({x:p.x-1,y:p.y-1,w:3,h:4});rectangle(p.x-1,p.y-1,3,4);});
  f.entrance={...f.entries[c.endpoints[0].zone]};
+ if(c.industrial){
+  const e=f.exits[0],at=c.entrance_side==='north'?{x:start.cx,y:1}:{x:1,y:start.cy};
+  hall({cx:at.x,cy:at.y},start,true,3);Object.assign(e,at);
+  f.entries[c.endpoints[0].zone]=c.entrance_side==='north'?{x:at.x,y:at.y+1}:{x:at.x+1,y:at.y};
+  f.entrance={...f.entries[c.endpoints[0].zone]};f.safeRooms.push({x:at.x-1,y:at.y-1,w:4,h:4});
+ }
  const occupied=new Set(f.exits.concat(Object.values(f.entries)).map(key)),safe=p=>f.safeRooms.some(r=>inside(r,p.x,p.y));
  const cells=r=>{const out=[];for(let y=r.y;y<r.y+r.h;y++)for(let x=r.x;x<r.x+r.w;x++)if(walkable(f,x,y)&&!occupied.has(`${x},${y}`)&&!safe({x,y}))out.push({x,y});return out;};
  const free=r=>{const list=cells(r);if(!list.length)return null;const p=list[rnd(list.length)];occupied.add(key(p));return p;};
  function fixture(profile,preferred=f.rooms){
+  if(c.industrial&&profile.room_types)preferred=preferred.filter(r=>profile.room_types.includes(r.type));
   for(const r of shuffle(preferred))for(const p of shuffle(cells(r))){
    const span=[];for(let dy=0;dy<(profile.span_h??1);dy++)for(let dx=0;dx<(profile.span_w??1);dx++)span.push({x:p.x+dx,y:p.y+dy});
    if(span.some(q=>!inside(r,q.x,q.y)||!walkable(f,q.x,q.y)||occupied.has(key(q))||safe(q)))continue;
@@ -158,11 +167,12 @@ export function generateFullDungeon(data,edition,depth=1){
  if(f.puzzles.length!==1)throw Error('Could not reserve the required campaign puzzle');
  if(c.theme==='hospital')fixture({id:'token-admission-form',kind:'token',content:'admission_form',name:'Admission Form',sprite:'sprItem'});
  // Required services and campaign residents are placed before optional clutter.
- fixture({id:'objNPCMerchant',kind:'shop',shop:'objNPCMerchant',name:'Mira',sprite:'sprNPCBarmaid'}); // Mira's avatar art (avatars.json objNPCMerchant); sprFriendly is only a green placeholder square.
- fixture({id:'quest-board',kind:'quest_board',name:'Quest Board',...data.service_profiles.board});
+ fixture({id:'objNPCMerchant',kind:'shop',shop:'objNPCMerchant',name:c.industrial?'Supply Counter':'Mira',sprite:'sprNPCBarmaid',...(c.industrial?{room_types:[c.recovery_room]}:{})}); // Industrial supplies stay in the protected recovery room.
+ if(!c.industrial)fixture({id:'quest-board',kind:'quest_board',name:'Quest Board',...data.service_profiles.board});
  for(let i=0;i<(source.guaranteed_fixtures?.adult_toilets??2);i++)fixture({id:'toilet-'+i,kind:'toilet',style:'porcelain',name:'Toilet',...data.service_profiles.toilet});
  for(let i=0;i<(source.guaranteed_fixtures?.potty_chairs??3);i++)fixture({id:'potty-'+i,kind:'toilet',style:'potty',name:'Potty Chair',...data.service_profiles.potty});
  for(const profile of data.fixture_profiles)fixture(profile);
+ installIndustrial(f,data,{fixture,free});
  for(const [id,npc] of Object.entries(data.npcs))fixture({id:'npc-'+id,kind:'npc',content:id,avatar:id,name:npc.name,sprite:npc.sprite});
  for(const profile of data.detail_profiles.filter(p=>p.narrative_chunk)){
   const rooms=f.rooms.filter(r=>!profile.room_types||profile.room_types.includes(r.type));
@@ -175,7 +185,7 @@ export function generateFullDungeon(data,edition,depth=1){
  const weighted=fullDungeonAmbientPool(data); // Never fall back to the live catalogue: it contains monsters from unrelated regions.
  const fallback=weighted;
  for(const [i,r] of f.rooms.entries()){
-  if(r===start)continue;
+  if(r===start||r.type===c.recovery_room)continue;
   const pool=(data.room_enemies[r.type]??(r.is_atrium?data.room_enemies.atrium:undefined)??(c.theme==='dungeon'?fallback:[])).filter(id=>!bossTypes.has(id));
   const chance=c.theme==='dungeon'?source.spawn_chances.enemy_chance:r.is_atrium?(s.atrium_patrol_chance??25):(c.room_enemy_chance??50); // Castle: its campaign enemy_chance (46%). Nursery/School/Hospital rooms used to be guarded 100% of the time; room_enemy_chance (config) thins them out.
   if(pool.length&&rnd(100)<chance)for(let n=0;n<c.enemies_per_room;n++){const p=free(r);if(p)spawn(pool[rnd(pool.length)],p,`enemy-${i}-${n}`);}
@@ -195,6 +205,7 @@ export function generateFullDungeon(data,edition,depth=1){
    span.forEach(q=>occupied.add(key(q)));f.decorations.push({...profile,...p,id:`scenery-${i}-${n}`});
   }
  }
+ if(c.industrial){const r=f.rooms.find(r=>r.type===c.recovery_room);f.safeRooms.push({x:r.x,y:r.y,w:r.w,h:r.h});}
  validateFullDungeon(f);for(const puzzle of f.puzzles)if(solveDungeonPuzzle(f,puzzle)===null)throw Error('Unsolvable campaign puzzle: '+puzzle.stamp);return f;
 }
 

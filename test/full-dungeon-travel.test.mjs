@@ -21,6 +21,37 @@ function fixture(){
  return {db,live,ids,snap,act,send,command,place,create,map,get api(){return api;},advance(ms){time+=ms;},restart(){api.close();start();},close(){api.close();db.close();}};
 }
 
+for(const [route,side] of [['dungeon-brassworks-factory','bottom'],['dungeon-eastwater-dockyard','right']])test('Arcadia gate and persistent industrial controls: '+route,()=>{
+ const f=fixture();try{
+  f.create('a','arcadia-foundry');const portal=f.map().portals.find(p=>p.target===route);
+  assert.equal(portal.side,side);const landing={x:portal.x-(side==='right'?1:0),y:portal.y-(side==='bottom'?1:0)};
+  f.place('a',landing);f.act('a','move',{direction:side==='right'?'east':'south'});
+  assert.equal(f.snap().zone,route);
+  const map=f.map(),control=map.fixtures.find(v=>v.kind==='industrial');
+  const near=[[1,0],[-1,0],[0,-1],[0,control.span_h]].map(([dx,dy])=>({x:control.x+dx,y:control.y+dy})).find(p=>map.walls[p.y]?.[p.x]===0&&!map.props[p.y]?.[p.x]);
+  assert.ok(near);f.place('a',near);
+  const request=f.command('a','dungeon_interact',{fixture:control.id,mechanism_revision:map.mechanismRevision});
+  f.send('a',request);f.send('a',request);
+  assert.equal(f.map().fixtures.find(v=>v.id===control.id).state,1,'duplicate request cannot advance the crane twice');
+  const scene=f.snap().dive.scene;f.act('a','dungeon_scene_choice',{scene:scene.id,page:scene.page,mechanism_revision:scene.revision,choice:-1});
+  assert.throws(()=>f.act('a','dungeon_interact',{fixture:control.id,mechanism_revision:map.mechanismRevision}),/changed/);
+  const salvage=f.snap().dive.chests.find(ch=>ch.requires_machine===control.id);
+  if(control.mode==='cargo'){
+   f.place('a',salvage);assert.throws(()=>f.act('a','dive_claim',{chest:salvage.id}),/berth 3/);
+   f.place('a',near);f.act('a','dungeon_interact',{fixture:control.id,mechanism_revision:f.map().mechanismRevision});
+   const parked=f.snap().dive.scene;f.act('a','dungeon_scene_choice',{scene:parked.id,page:parked.page,mechanism_revision:parked.revision,choice:-1});
+  }
+  f.place('a',salvage);const claim=f.command('a','dive_claim',{chest:salvage.id});f.send('a',claim);f.send('a',claim);
+  const material=control.mode==='cargo'?'dock_fittings':'clockwork_parts';
+  assert.equal(f.snap().character.loadout.inventory.filter(i=>i.item_id===material).reduce((n,i)=>n+(i.quantity??1),0),1);
+  const state=control.mode==='cargo'?2:1;
+  f.restart();assert.equal(f.map().fixtures.find(v=>v.id===control.id).state,state);
+  f.act('a','dive_exit');assert.equal(f.snap().zone,'arcadia-foundry');
+  f.create('b','arcadia-foundry');f.place('b',landing);f.act('b','move',{direction:side==='right'?'east':'south'});
+  assert.equal(f.snap('b').dive.claimed,0);assert.equal(f.map('b').fixtures.find(v=>v.id===control.id).state,state);
+ }finally{f.close();}
+});
+
 test('a fresh character sees and collects a GM parcel in the full Castle Dungeon only after accepting its quest',()=>{
  const f=fixture();try{
   f.create('a','princess-rose');f.place('a',f.map().portals.find(p=>p.target==='princess-rose-garden'));f.act('a','hub_visit',{zone:'princess-rose-garden'});
