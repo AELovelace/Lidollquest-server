@@ -11,6 +11,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {fileURLToPath} from 'node:url';
 import {createQuestZones} from '../server/zones.mjs';
 import {randomUUID} from 'node:crypto';
+import {RELEASE_FILES} from '../deploy/release.mjs';
 
 // content/weekly_quests.json goes live either by being named in LIDOLLQUEST_QUEST_PACK, which
 // loads it at boot, or by scripts/upload-weekly-quests.mjs. Both run the same validation the
@@ -119,8 +120,8 @@ test('a saved row overlays a shipped quest, so the panel can still retire one',(
 
 test('the release ships the directories the pack and this test need',()=>{
  const installer=readFileSync(new URL('../deploy/fedora.mjs',import.meta.url),'utf8');
- const listed=installer.match(/for \(const name of \[([^\]]+)\]\)/)?.[1]??'';
- const names=[...listed.matchAll(/'([^']+)'/g)].map(m=>m[1]);
+ assert.match(installer,/for \(const name of RELEASE_FILES\)/,'deploy/fedora.mjs must stage exactly the shared RELEASE_FILES allowlist.');
+ const names=RELEASE_FILES; // The installer's allowlist lives in deploy/release.mjs since 2026-10-03.
  assert.ok(names.includes('content'),"deploy/fedora.mjs must copy 'content' into each release, or LIDOLLQUEST_QUEST_PACK has no file to read and this test cannot run on the server.");
  assert.ok(names.includes('test'),"deploy/fedora.mjs must copy 'test', which is how the installer verifies a candidate.");
 }); // The installer runs this suite from the staged release as nobody, so anything the tests read has to be staged too.

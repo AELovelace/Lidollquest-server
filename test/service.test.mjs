@@ -15,8 +15,8 @@ test('worker startup prepares every route and HTTP commands/reads each build one
  const count=()=>service.metrics.snapshot().current.timings.find(t=>t.name==='snapshot.build')?.calls??0;
  const act=async input=>{const before=count(),res=await fetch(url+'/zones/action',{method:'POST',headers,body:JSON.stringify(input)});const data=await res.json();assert.equal(res.status,200,JSON.stringify(data));assert.equal(count(),before+1);return data;};
  try{
-  assert.equal(service.db.prepare('SELECT COUNT(*) n FROM dive_editions').get().n,24); // Existing twenty routes (Echo Gulch and Coastal Caverns since 2026-09-29) plus four independent full campaign dungeons.
-  assert.equal(service.metrics.snapshot().current.workers.workers.reduce((n,w)=>n+w.completed,0),24); // Every full dungeon prepares its edition through the worker pool too.
+  assert.equal(service.db.prepare('SELECT COUNT(*) n FROM dive_editions').get().n,26); // Existing twenty routes (Echo Gulch and Coastal Caverns since 2026-09-29) plus six independent full campaign dungeons (Brassworks Factory and Eastwater Dockyard since 2026-10-03).
+  assert.equal(service.metrics.snapshot().current.workers.workers.reduce((n,w)=>n+w.completed,0),26); // Every full dungeon prepares its edition through the worker pool too.
   const created=await act({action:'create',request_id:randomUUID(),controller:'window',name:'Snapshot tester'});
   const command={action:'enter',character_id:created.character.id,revision:created.character.revision,request_id:randomUUID(),controller:'window',zone:'honeydew-lantern'};
   const entered=await act(command),replay=await act(command);assert.deepEqual(replay.receipt,entered.receipt);assert.equal(replay.character.revision,entered.character.revision);

@@ -19,7 +19,7 @@ const covers=(p,x,y)=>x>=p.x&&y>=p.y&&x<p.x+(p.span_w??1)&&y<p.y+(p.span_h??1);
 test('Arcadia is a 60x60 industrial lobby town with a north gate onto the Plains, a rail line and smokestack yards every month',()=>{
  const root=hubCatalog.find(h=>h.id===ARCADIA_ZONE);
  assert.equal(root.name,'Arcadia');assert.equal(root.hub,'arcadia');assert.equal(root.town,true);assert.equal(root.width,60);assert.equal(root.height,60);
- assert.deepEqual(wildernessGates(ARCADIA_ZONE).map(g=>[g.target,g.side]),[[AUTUMNAL_PLAINS_ZONE,'top']]); // The only road out runs north into the Autumnal Plains.
+ assert.deepEqual(wildernessGates(ARCADIA_ZONE).map(g=>[g.target,g.side]),[['dungeon-eastwater-dockyard','right'],[AUTUMNAL_PLAINS_ZONE,'top'],['dungeon-brassworks-factory','bottom']]); // The road north runs into the Autumnal Plains; the east and south gates open onto Arcadia's own dungeons (2026-10-03).
  assert.deepEqual(hubRooms.filter(r=>r.parent===ARCADIA_ZONE).map(r=>[r.kind,r.name]),[['beds','Boarding House'],['dives','Rail Depot'],['tower',"Clockmakers' Guildhall"],['temple','The Iron Chapel of Orthain']]);
  const layouts=new Set();
  for(const month of ['2026-09','2026-10','2026-11','2027-01']){
@@ -77,7 +77,7 @@ test('walking to Arcadia: Honeydew -> Plains -> south trail in, doorsteps into a
    const room=act('hub_visit',{zone:ARCADIA_ZONE+'-'+kind});assert.equal(room.zone,ARCADIA_ZONE+'-'+kind);
    const exit=zoneOf(room).exit;place(exit.x+1,exit.y);const out=act('move',{direction:'west',world_step:true});assert.equal(out.zone,ARCADIA_ZONE,kind+' walks back out');
   }
-  const gate=wildernessGates(ARCADIA_ZONE)[0];place(gate.x,gate.y+1);
+  const gate=wildernessGates(ARCADIA_ZONE).find(g=>g.target===AUTUMNAL_PLAINS_ZONE);place(gate.x,gate.y+1);
   const back=act('move',{direction:'north',world_step:true});assert.equal(back.zone,AUTUMNAL_PLAINS_ZONE);assert.equal(c.dive.gate,true);assert.equal(c.dive.returnZone,ARCADIA_ZONE);
   assert.ok(back.position.y>=77,'arrivals from Arcadia stand at the bottom of the Plains');
   const home=act('dive_exit');assert.equal(home.zone,ARCADIA_ZONE,'escaping a Plains entered from Arcadia goes home to Arcadia');assert.ok(home.position.y<=2);
