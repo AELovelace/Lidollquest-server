@@ -60,8 +60,9 @@ export function createHubEncounters(db,{now,roll,parties,live,definition,ids}){
   const api={view,place,act,tick,storyEncounter,snapshot:s=>encounters.snapshot(s),monsters:()=>record().floor.enemies.filter(e=>!e.dead).map(e=>({...e,definition:undefined,name:e.definition.name,sprite:e.definition.sprite}))};engines.set(zone,api);return api;
  }
  const idleUntil=new Map(); // zone -> when an empty hub gets its next catch-up tick.
- return {engine,tick(){for(const row of db.prepare('SELECT zone FROM world_hub_maps').all()){if(!ids.includes(row.zone))continue; // Skip maps saved for rooms a later deployment retired, so boot never crash-loops on old DM monsters.
-  const occupied=!!db.prepare('SELECT 1 FROM quest_presence WHERE zone=? AND seen>? LIMIT 1').get(row.zone,now()-30000);
+ return {engine,tick(){const occupiedZones=new Set(db.prepare('SELECT DISTINCT zone FROM quest_presence WHERE seen>?').all(now()-30000).map(row=>row.zone)); // One presence query per tick answers "is anyone here?" for every hub, instead of one query per room (a flat ~4 ms per tick with nobody online).
+  for(const row of db.prepare('SELECT zone FROM world_hub_maps').all()){if(!ids.includes(row.zone))continue; // Skip maps saved for rooms a later deployment retired, so boot never crash-loops on old DM monsters.
+  const occupied=occupiedZones.has(row.zone);
   if(!occupied&&now()<(idleUntil.get(row.zone)??0))continue; // Nobody online here: rebuilding the room and its monsters every second changes nothing anyone can see.
   if(!occupied)idleUntil.set(row.zone,now()+15000); // Empty hubs still tick every 15 s, so respawns, retired monsters and offline defeat recoveries catch up.
   engine(row.zone).tick();}}};

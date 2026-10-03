@@ -1220,7 +1220,12 @@ and player identities/positions, then uses fresh character/party state. A valid
 result delivered after more than one second still moves enemies once, using its
 delivery time to prevent catch-up bursts. `worker.delayed.paths` counts these
 batches; elapsed time alone must not freeze an otherwise unchanged map. Stale results wait
-for another tick. Generation failures retry after a minute; pursuit failures
+for another tick. Each path batch names its floor with a key (zone, edition and a
+hash of every wall and prop cell); a worker that already holds that floor is sent
+the key alone, so the grid crosses the thread boundary once per worker rather than
+every second. Workers keep the 64 most recent floors; if one has been evicted the
+worker answers `floor_missing` and the pool resends the whole floor inside the
+same job (`worker.floor.sent/cached/resent` count these). Generation failures retry after a minute; pursuit failures
 retry on later ticks. The pool has a 64-job waiting queue and a 60-second job
 timeout. Crashed workers are replaced on demand. Shutdown cancels pending work
 before closing the database. Do not run duplicate service instances against
@@ -1299,7 +1304,9 @@ threads. Combat, monthly district maintenance and database writes remain on the
 coordinator. In `/gm`, compare request p95, event-loop delay, worker busy/queued
 counts and memory. `worker.paths/generate` measure execution;
 `worker.queue.*` measures waiting; `worker.roundtrip.*` includes dispatch through
-delivery; `worker.stale.paths` counts discarded batches. `floor.read/decode/encode/write`
+delivery; `worker.stale.paths` counts discarded batches; `worker.floor.sent`,
+`worker.floor.cached` and `worker.floor.resent` count path batches that shipped the
+whole floor, only its key, or had to resend after a worker-side eviction. `floor.read/decode/encode/write`
 separates SQLite and JSON costs. Timings overlap and are not additive CPU usage.
 Worker completed/failed counters are lifetime totals. Process CPU includes all
 threads, with 100% representing one occupied core.

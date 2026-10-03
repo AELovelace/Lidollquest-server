@@ -35,6 +35,7 @@ import {createDungeonRules,recordDungeonVictories} from './full-dungeon-rules.mj
 import {repairFullDungeonContent} from './full-dungeon-generation.mjs';
 import {industrialUnlocked,prepareIndustrialBoss} from './arcadia-industrial.mjs';
 import {findShop,shopOffers,shopperLevel,hubData} from './hubs.mjs';
+import {floorKey} from './compute-tasks.mjs'; // Names the floor so pursuit path batches only ship the grid to a worker once.
 
 export const diveData=JSON.parse(readFileSync(new URL('./dive-data.json',import.meta.url),'utf8'));
 export const DIVE_ZONE='dive-quarters';
@@ -256,7 +257,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const f=active.floor,starts=f.enemies.filter(e=>!e.engaged&&!gone(e)&&enemyRoams(data,e)).map(e=>({id:e.id,x:e.x,y:e.y})); // Include imminent respawns so time passing during calculation cannot leave a roaming enemy without a plan.
   const positions=rows=>JSON.stringify(rows.map(p=>[p.character_id,p.x,p.y]));
   const expectedPositions=positions(players),scheduledAt=now();
-  roamingPending=compute.submit('paths',{floor:{width:f.width,height:f.height,walls:f.walls,props:f.props},starts,targets:players.map(p=>({x:p.x,y:p.y})),limit:pursuitLimit()}).then(paths=>{
+  roamingPending=compute.submit('paths',{floor:{key:floorKey(zoneId,active.edition,f),width:f.width,height:f.height,walls:f.walls,props:f.props},starts,targets:players.map(p=>({x:p.x,y:p.y})),limit:pursuitLimit()}).then(paths=>{
    if(closed)return;
    measure('simulation.apply.'+zoneId,()=>{
     db.exec('BEGIN IMMEDIATE');try{
