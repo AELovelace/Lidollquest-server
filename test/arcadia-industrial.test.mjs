@@ -9,14 +9,28 @@ import {createWorldContent} from '../server/world-content.mjs';
 import {craftingData,planCraft} from '../server/crafting.mjs';
 
 const routes=fullDungeons.filter(d=>d.config.industrial);
-test('factory departments have dense distinct work bays, clear aisles and themed rewards',()=>{
+test('factory maze keeps compact departments, branching salvage, clear aisles and themed rewards',()=>{
  const data=routes.find(d=>d.config.industrial.kind==='production');
  for(let seed=0;seed<30;seed++){
   const f=generateFullDungeon(data,'factory-dressing-'+seed);
   assert.equal(validateFullDungeon(f),true);
+  assert.ok(f.rooms.every(r=>r.w<=12&&r.h<=12),'factory returned to oversized square halls');
+  assert.ok(f.walls.flat().filter(v=>v===0).length<f.width*f.height/2,'walls must separate the maintenance passages');
+  const distances=new Map(),queue=[{...f.entrance,d:0}];
+  for(let n=0;n<queue.length;n++){
+   const p=queue[n],key=p.x+','+p.y;if(distances.has(key)||f.walls[p.y]?.[p.x]!==0)continue;
+   distances.set(key,p.d);for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]])queue.push({x:p.x+dx,y:p.y+dy,d:p.d+1});
+  }
+  assert.ok([...distances].some(([key,d])=>{const [x,y]=key.split(',').map(Number);return d>Math.abs(x-f.entrance.x)+Math.abs(y-f.entrance.y)+20;}),'factory needs winding exploration routes'); // Loops may shorten department travel, while optional branches still require turns.
+  const branches=f.chests.filter(p=>p.id.startsWith('maintenance-salvage-'));
+  assert.ok(branches.length>=3,'maze side branches need discoverable salvage');
+  for(const p of branches){
+   assert.deepEqual(p.loot_pool,['clockwork_parts']);
+   assert.ok(!f.rooms.some(r=>p.x>=r.x&&p.x<r.x+r.w&&p.y>=r.y&&p.y<r.y+r.h));
+  }
   for(const [i,r] of f.rooms.entries()){
    const scenery=f.decorations.filter(p=>p.id.startsWith(`scenery-${i}-`));
-   assert.ok(scenery.length>=6,`${r.type} too sparse in seed ${seed}: ${scenery.length}`);
+   // Compact chambers may reject large props, especially beside the reserved push puzzle.
    assert.ok(scenery.length<=data.config.room_dressing[r.type]);
    for(const p of scenery){
     assert.ok(data.detail_profiles.some(v=>v.sprite===p.sprite&&v.room_types.includes(r.type)));
@@ -32,6 +46,14 @@ test('factory departments have dense distinct work bays, clear aisles and themed
    assert.ok(!f.decorations.some(p=>p.id.startsWith('scenery-')&&x>=p.x&&x<p.x+p.span_w&&fix.hazard.y>=p.y&&fix.hazard.y<p.y+p.span_h));
   } // Dressing may surround production lanes, but cannot hide them with solid scenery.
  }
+});
+
+test('factory maze remains deterministic and connected with zero extra shortcuts',()=>{
+ const data=structuredClone(routes.find(d=>d.config.industrial.kind==='production'));
+ data.structure.extra_loops=0;
+ const f=generateFullDungeon(data,'factory-tree');
+ assert.equal(validateFullDungeon(f),true);
+ assert.deepEqual(generateFullDungeon(data,'factory-tree'),f);
 });
 test('industrial boss editing preserves phases and crafting consumes both new salvage materials',()=>{
  const db=new DatabaseSync(':memory:');

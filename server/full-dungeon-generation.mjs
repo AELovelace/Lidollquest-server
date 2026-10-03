@@ -2,6 +2,7 @@
 // story orbs, campaign flags and the Nursery's control door never enter this generator.
 import {seeded,walkable,inside} from './dive-generation.mjs';
 import {installIndustrial} from './arcadia-industrial.mjs';
+import {carveBrassworksMaze} from './brassworks-layout.mjs';
 
 const directions=[[1,0],[-1,0],[0,1],[0,-1]],key=p=>`${p.x},${p.y}`;
 export function fullDungeonAmbientPool(data){
@@ -76,7 +77,9 @@ export function generateFullDungeon(data,edition,depth=1){
   stamp();while(x!==b.cx||y!==b.cy){if(verticalFirst&&y!==b.cy)y+=Math.sign(b.cy-y);else if(x!==b.cx)x+=Math.sign(b.cx-x);else y+=Math.sign(b.cy-y);stamp();}
  } // Campaign L-shaped halls use the authored width; Nursery control exits downward only.
  const shuffle=values=>{const a=[...values];for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;};
- if(c.theme==='dungeon'){
+ if(c.theme==='arcadia_factory'&&s.layout==='maintenance_maze'){
+  carveBrassworksMaze(f,data,{rnd,open,rectangle}); // Factory walls form a maze before any encounters or furniture are placed.
+ }else if(c.theme==='dungeon'){
   function split(x,y,w,h,d){
    let horizontal=rnd(2)===0;if(w>h*1.25)horizontal=false;else if(h>w*1.25)horizontal=true;
    const size=horizontal?h:w,min=s.min_partition;
@@ -194,6 +197,10 @@ export function generateFullDungeon(data,edition,depth=1){
   if(rnd(100)<(s.trap_chance??source.spawn_chances?.trap_chance??0)){const p=free(r);if(p)f.traps.push({id:'trap-'+i,...p});}
  }
  if(c.theme==='dungeon')f.lullabyRooms=f.rooms.slice(Math.floor(f.rooms.length*(s.lullaby_zone_depth??0.6))).map(r=>({x:r.x,y:r.y,w:r.w,h:r.h}));
+ for(const p of shuffle(f.maintenanceEnds??[]).slice(0,5)){
+  if(!walkable(f,p.x,p.y)||occupied.has(key(p))||safe(p))continue;
+  occupied.add(key(p));f.chests.push({id:'maintenance-salvage-'+f.chests.length,...p,loot_pool:[c.industrial.material]});
+ } // Optional maintenance branches reward exploration with personal clockwork-parts chests.
  for(const puzzle of f.puzzles){for(const b of [...puzzle.blocks,...puzzle.fixed])f.props[b.y][b.x]=1;for(const [i,b] of puzzle.fixed.entries())f.decorations.push({id:puzzle.id+'-wall-'+i,...b,sprite:puzzle.wall_sprite,span_w:1,span_h:1,solid:true});} // Activate the authored stamp after fixture placement.
  // Optional scenery keeps native sprite footprints. Validate after tentative placement.
  for(const [i,r] of f.rooms.entries()){
