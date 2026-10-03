@@ -20,9 +20,10 @@ export function createRoleplay(db,{now=Date.now,roll=randomInt}={}){
   const current=level(c);
   let r=db.prepare('SELECT * FROM quest_rp_progress WHERE character_id=?').get(c.id);
   if(!r)r={character_id:c.id,total_words:0,total_chars:0,level_words:0,level_chars:0,last_level:current,awards:0};
-  else if(r.last_level!==current){db.prepare('UPDATE quest_rp_progress SET level_words=0,level_chars=0,last_level=? WHERE character_id=?').run(current,c.id);r={...r,level_words:0,level_chars:0,last_level:current};} // Combat and admin level changes both start a new writing window; ordinary polls do not write.
+  else if(r.last_level!==current)r={...r,level_words:0,level_chars:0,last_level:current}; // Combat and admin level changes both start a new writing window; computed in memory only, because snapshots also run inside read-only zone workers (zone-snapshot-database.mjs) where any UPDATE throws "attempt to write a readonly database".
   return {...r,target:rpTarget(r.awards),eligible:r.level_words>=rpTarget(r.awards)};
  }
+ function sync(c){const r=progress(c);db.prepare('UPDATE quest_rp_progress SET level_words=?,level_chars=?,last_level=? WHERE character_id=?').run(r.level_words,r.level_chars,r.last_level,c.id);return r;} // Persist the level-window reset; only the writable coordinator paths (post, award) call this.
  const partners=id=>db.prepare('SELECT character_id AS id,name FROM quest_rp_partners WHERE post_id=? ORDER BY name').all(id);
  const summary=r=>({id:r.id,author:r.author,name:r.name,area:r.area,words:r.words,chars:r.chars,created:r.created,partners:partners(r.id)});
  function read(c,id,area,restricted=[]){
@@ -46,7 +47,7 @@ export function createRoleplay(db,{now=Date.now,roll=randomInt}={}){
   const chosen=input.partners.map(id=>candidates.find(p=>p.id===id));
   if(chosen.some(p=>!p||p.owner===c.owner))fail(409,'Choose players in this area-chat room; refresh if someone has moved.');
   if(db.prepare('SELECT 1 FROM quest_rp_posts WHERE owner=? AND created>?').get(c.owner,now()-10000))fail(429,'Wait ten seconds between RP posts.');
-  db.prepare('INSERT OR IGNORE INTO quest_rp_progress(character_id,last_level) VALUES (?,?)').run(c.id,level(c));progress(c);
+  db.prepare('INSERT OR IGNORE INTO quest_rp_progress(character_id,last_level) VALUES (?,?)').run(c.id,level(c));sync(c); // Close out any stale level window before this post's words are added to it.
   const appearance=inspectionProjection(c);delete appearance.account_id;
   const id=Number(db.prepare('INSERT INTO quest_rp_posts(author,owner,name,area,text,appearance,words,chars,created) VALUES (?,?,?,?,?,?,?,?,?)').run(c.id,c.owner,c.name,area,text,JSON.stringify(appearance),words,chars,now()).lastInsertRowid);
   for(const p of chosen)db.prepare('INSERT INTO quest_rp_partners VALUES (?,?,?)').run(id,p.id,p.name);
@@ -69,7 +70,7 @@ export function createRoleplay(db,{now=Date.now,roll=randomInt}={}){
   try{
    const c=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(String(input.character_id??''));
    if(!c)fail(404,'Choose an existing character.');
-   const s=JSON.parse(c.state),p=s.loadout?.player_info,r=progress(c);
+   const s=JSON.parse(c.state),p=s.loadout?.player_info,r=sync(c); // Inside BEGIN IMMEDIATE on the coordinator: safe to persist the level-window reset here.
    if(!p||s.run||s.pendingDefeat||s.worldTurnDue||s.pendingPurchase||db.prepare("SELECT 1 FROM quest_management WHERE character_id=? AND status='pending'").get(c.id))fail(409,'This character must finish their current action before a level can be awarded.');
    if(input.expected_awards!==r.awards||input.expected_level!==p.level)fail(409,'Progress changed. Refresh the RP journal before awarding.');
    if(!r.eligible)fail(409,'This character has not reached the current word target.');
