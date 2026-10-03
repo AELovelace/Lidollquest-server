@@ -80,10 +80,20 @@ function sheetProperties(){
 } // Restore goes through the ordinary draft/publish review, never publishes merely by selecting history.
 function sheetLibrary(host,q){
  const rows=cat.records.sheets??[],matches=rows.filter(r=>(r.draft.name+' '+r.draft.zone+' '+r.draft.key+' '+r.draft.category+authorshipLabel(r)).toLowerCase().includes(q));
- const box=el('details',undefined,host);box.open=!!q||showIncluded;el('summary','Included online stories · '+matches.length,box);
+ const box=el('details',undefined,host);box.id='includedStories';box.open=true;el('summary','Included online stories · '+matches.length,box);
+ el('p',rows.length+' converted source sheets · '+cat.records.quests.length+' quest sheets. Open a region below, or search by character, scene or zone. These sheets are separate from the saved-flow selector.',box).className='hint';
+ if(!Array.isArray(cat.records.sheets))el('p','This server has not loaded the converted story catalogue. Update and restart the game server, then reload this workshop.',box).className='issue';
+ else if(!matches.length)el('p',q?'No included stories match this search. Clear the search to see all regions.':'No included stories are available from this server.',box).className='hint';
  for(const zone of [...new Set(matches.map(r=>r.draft.zone))].sort()){
   const region=el('details',undefined,box);region.open=!!q;el('summary',cat.zones.find(z=>z.id===zone)?.name??zone,region);
   for(const r of matches.filter(r=>r.draft.zone===zone)){const b=button(region,r.draft.name+' · '+sheetLabels[r.draft.category]+authorshipLabel(r)+(r.revision?' [edited]':''),()=>editAsset('sheet',r));b.className='library reference';}
  }
- el('p',rows.length+' imported source sheets · '+cat.records.quests.length+' quest sheets',box).className='hint';
 } // The catalogue is independent of saved drafts; untouched shipped interactions are visible too.
+function revealIncludedStories(){
+ if(!cat)return say('The story catalogue is still loading. Try again when the workshop is ready.');
+ $('search').value='';library();
+ const box=$('includedStories'),summary=box.querySelector('summary');box.open=true;
+ summary.tabIndex=0;summary.focus({preventScroll:true});box.scrollIntoView({block:'nearest'});
+ say('Included online stories: open a region and select a sheet. Included quests are in the quest section below.');
+} // Browsing clears only the library filter; current canvas edits and draft recovery stay intact.
+$('openIncludedStories').onclick=()=>attempt(revealIncludedStories);

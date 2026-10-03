@@ -109,6 +109,8 @@ Open **Ask the GM wiki assistant** from Story Workshop or the GM panel for a sep
 
 ## Included online story sheets
 
+Click **Included stories** in the toolbar to reveal the converted catalogue and clear its search while preserving current edits. **Included online stories** opens at the top of the content library by default; open a region to select its sheets. These source sheets are separate from the **Choose a flow** dropdown. If this section is missing entirely, the game server needs the story-sheet update deployed and restarted before reloading the browser.
+
 Included NPC, scene, service and quest sheets carry a permanent **Built-in** marker plus **Needs human re-authoring**. Saving, publishing or restoring a revision does not clear that task. After a human has re-authored the sheet, use **Mark human re-authoring complete** in its inspector; **Mark as needing human re-authoring** reopens it. The Built-in marker remains, and custom-created sheets do not receive it. Search the library for **Needs human re-authoring** to find remaining work. This editorial status persists separately from content drafts and publication, so marking it never activates quests or changes player progress.
 
 

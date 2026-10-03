@@ -15,7 +15,16 @@ let browser,phase='launch',page;try{
  page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());await page.setViewport({width:1500,height:1000});
  await page.evaluateOnNewDocument(token=>localStorage.setItem('lidollquest.gm.grant',JSON.stringify({token})),token);
  const id=sheetId('native_npc','dungeon-castle-dungeon','objFriendlyTest'),base='http://127.0.0.1:'+service.server.address().port;
- phase='open';await page.goto(base+'/gm/flow-editor?kind=sheet&id='+id);await page.waitForFunction(()=>document.querySelector('#workspaceTitle')?.textContent.includes('sheet blocks'));
+ phase='discover included sheets';await page.goto(base+'/gm/flow-editor');await page.waitForSelector('#includedStories');
+ assert.equal(await page.$eval('#includedStories',box=>box.open),true,'Converted stories are expanded on the ordinary workshop URL');
+ assert.ok(await page.$eval('#includedStories',box=>{const rect=box.querySelector('summary').getBoundingClientRect();return rect.top>=0&&rect.bottom<innerHeight;}),'Included stories are visible without scrolling past the block palette');
+ assert.equal(await page.$$eval('#includedStories button',buttons=>buttons.length),service.live.view().sheets.length,'Every converted source is listed');
+ await page.type('#search','this-does-not-match-any-story');await page.waitForFunction(()=>document.querySelector('#includedStories').textContent.includes('No included stories match'));
+ await page.click('#openIncludedStories');assert.equal(await page.$eval('#search',input=>input.value),'');
+ const npcName=service.live.entry('sheet',id).draft.name;
+ await page.type('#search',npcName);await page.waitForFunction(name=>[...document.querySelectorAll('#includedStories button')].some(b=>b.textContent.startsWith(name+' ·')),{},npcName);
+ await page.evaluate(name=>[...document.querySelectorAll('#includedStories button')].find(b=>b.textContent.startsWith(name+' ·')).click(),npcName);
+ await page.waitForFunction(()=>document.querySelector('#workspaceTitle')?.textContent.includes('sheet blocks'));
  const click=async text=>{const found=await page.evaluate(text=>{const b=[...document.querySelectorAll('#properties button')].find(b=>b.textContent===text);if(!b)return false;b.click();return true;},text);assert.ok(found,'Missing button '+text);};
  phase='authorship markers';
  assert.ok(await page.evaluate(()=>document.querySelector('#properties [data-authorship="pending"]')?.textContent.includes('Built-in')));
@@ -24,13 +33,15 @@ let browser,phase='launch',page;try{
  phase='open tree';await click('Open dialogue covered');await page.waitForFunction(()=>document.querySelector('#properties')?.textContent.includes('dialogue_covered'));
  await page.click('[data-node="field:0"] strong');await page.waitForFunction(()=>[...document.querySelectorAll('#properties label')].some(l=>l.firstChild.textContent==='text'));
  await page.evaluate(()=>{const input=[...document.querySelectorAll('#properties label')].find(l=>l.firstChild.textContent==='text').querySelector('textarea');input.value='Browser-authored greeting.';input.dispatchEvent(new Event('change',{bubbles:true}));});
+ phase='browse with unsaved edits';await page.click('#openIncludedStories');
+ assert.equal(await page.evaluate(()=>[...document.querySelectorAll('#properties label')].find(l=>l.firstChild.textContent==='text').querySelector('textarea').value),'Browser-authored greeting.','Opening the catalogue preserves unsaved sheet edits');
  phase='save';await page.click('#save');await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Asset drafts saved.'));
  assert.notEqual(service.live.entry('sheet',id).published.body.dialogue_covered[0].text,'Browser-authored greeting.');
  phase='publish';await page.click('#publish');await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Shared assets published.'));assert.equal(service.live.entry('sheet',id).published.body.dialogue_covered[0].text,'Browser-authored greeting.');
  assert.equal(service.live.entry('sheet',id).authorship.needs_reauthoring,true);
  phase='mark re-authoring';await click('Mark human re-authoring complete');await page.waitForFunction(()=>document.querySelector('#properties [data-authorship="complete"]'));
  assert.equal(service.live.entry('sheet',id).authorship.needs_reauthoring,false);
- phase='reload';await page.reload();await page.waitForFunction(()=>document.querySelector('#workspaceTitle')?.textContent.includes('sheet blocks'));await click('Sheet overview');await click('Open dialogue covered');await page.click('[data-node="field:0"] strong');
+ phase='reload';await page.goto(base+'/gm/flow-editor?kind=sheet&id='+id);await page.waitForFunction(()=>document.querySelector('#workspaceTitle')?.textContent.includes('sheet blocks'));await click('Sheet overview');await click('Open dialogue covered');await page.click('[data-node="field:0"] strong');
  assert.equal(await page.evaluate(()=>[...document.querySelectorAll('#properties label')].find(l=>l.firstChild.textContent==='text').querySelector('textarea').value),'Browser-authored greeting.');
  assert.ok(await page.evaluate(()=>document.querySelector('#properties [data-authorship="complete"]')?.textContent.includes('Built-in')));
  await click('Mark as needing human re-authoring');await page.waitForFunction(()=>document.querySelector('#properties [data-authorship="pending"]'));
@@ -40,5 +51,5 @@ let browser,phase='launch',page;try{
  await click('Add entry');await page.click('#validate');await page.waitForFunction(()=>document.querySelector('#status').textContent==='Sheet validation passed.');
  await page.click('#save');await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Asset drafts saved.'));await page.click('#publish');await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Shared assets published.'));
  const added=service.live.entry('sheet',serviceId).published.body.at(-1);assert.equal(added.label,'New service');assert.deepEqual(added.campaign_effects,[]);assert.equal(added.once_key,undefined);assert.deepEqual(errors,[]);
- console.log('PASS: built-in/re-authoring markers, explicit completion/reopen/reload, NPC edit/save/publish, sheet validation, and adding a service without copied gifts or receipt keys.');
+ console.log('PASS: visible converted catalogue on the default URL, search and draft-preserving browse, built-in/re-authoring markers, explicit completion/reopen/reload, NPC edit/save/publish, sheet validation, and adding a service without copied gifts or receipt keys.');
 }catch(error){console.error('Browser failure at',phase,await page?.evaluate(()=>({status:document.querySelector('#status')?.textContent,title:document.querySelector('#workspaceTitle')?.textContent})).catch(()=>null));throw error;}finally{await browser?.close();service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));}
