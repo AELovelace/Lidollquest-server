@@ -273,7 +273,10 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
   handles(input,p){return [...engines.values()].some(route=>route.handles(input,p));},
   act(i,c,state,input,p){const id=state.dive?.zone??(state.dive?DIVE_ZONE:input.zone??p?.zone);return engine(id).act(i,c,state,input,p);}}; // Share settlement and leases, while keeping weekly maps and claims route-scoped.
  const fastTravel=createFastTravel(db,{now,parties,busy:c=>!!flows?.active(c),
-  info:id=>{const route=engines.get(id);if(route)return {...route.beacon,enabled:route.available(),map:floor=>route.beaconMap(floor),blocked:(floor,x,y)=>!beaconWalkable(floor,x,y)};
+  info:id=>{const route=engines.get(id);if(route){
+    if(route.category===ZONE_CATEGORY.DIVE||route.beacon.full||id.startsWith('dungeon-')||id==='overworld-spooky-mansion')return null; // Dives and dungeons (including the older Mansion id) have no beacon, discovery or travel destination, even for previously saved links.
+    return {...route.beacon,enabled:route.available(),map:floor=>route.beaconMap(floor),blocked:(floor,x,y)=>!beaconWalkable(floor,x,y)};
+   }
    const base=hubCatalog.find(h=>h.id===id);return base?{name:base.name,enabled:true,map:floor=>({floor:floor??hubDefinition(zone(id),now(),1,{offers:false})}),blocked}:null;},
   relocate(c,state,id,marker,visit){
    if(engines.has(id)){engine(id).gmPlace(c,state,{...visit,origin:visit.origin??state.homeHub??'princess-rose',returnZone:visit.returnZone??state.homeHub??'princess-rose',near:marker});

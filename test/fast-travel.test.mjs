@@ -45,12 +45,12 @@ test('the leader can bring undiscovered party members, while distance and busy a
  }finally{f.close();}
 });
 
-test('dungeon beacon travel preserves inventory and progress, and refuses combat',()=>{
+test('overworld beacon travel preserves inventory and progress, and refuses combat',()=>{
  const f=fixture();try{
-  f.create('alice');f.act('alice','dive_enter',{zone:'dive-quarters'});const start=f.snap('alice');assert.ok(start.fastTravel.marker);
-  f.place('alice');f.patch('alice',s=>{s.run={kind:'dive',phase:'fight'};});assert.throws(()=>f.act('alice','fast_travel',{zone:'princess-rose'}),/finish/i);f.patch('alice',s=>{s.run=null;});
-  const loadout=f.state('alice').loadout;f.act('alice','fast_travel',{zone:'princess-rose'});f.place('alice');f.act('alice','fast_travel',{zone:'dive-quarters'});
-  const returned=f.snap('alice');assert.equal(returned.zone,'dive-quarters');assert.equal(returned.dive.edition,start.dive.edition);assert.deepEqual(f.state('alice').loadout,loadout);assert.equal(returned.dive.claimed,start.dive.claimed);
+  f.create('alice','honeydew-lantern');f.act('alice','dive_enter',{zone:'overworld-desert'});const start=f.snap('alice');assert.ok(start.fastTravel.marker);
+  f.place('alice');f.patch('alice',s=>{s.run={kind:'dive',phase:'fight'};});assert.throws(()=>f.act('alice','fast_travel',{zone:'honeydew-lantern'}),/finish/i);f.patch('alice',s=>{s.run=null;});
+  const loadout=f.state('alice').loadout;f.act('alice','fast_travel',{zone:'honeydew-lantern'});f.place('alice');f.act('alice','fast_travel',{zone:'overworld-desert'});
+  const returned=f.snap('alice');assert.equal(returned.zone,'overworld-desert');assert.equal(returned.dive.edition,start.dive.edition);assert.deepEqual(f.state('alice').loadout,loadout);assert.equal(returned.dive.claimed,start.dive.claimed);
   assert.ok(Math.abs(returned.position.x-returned.fastTravel.marker.x)+Math.abs(returned.position.y-returned.fastTravel.marker.y)<=1);
  }finally{f.close();}
 });
@@ -61,23 +61,38 @@ test('beacon placement follows reachable floor and avoids exits and fixtures',()
  assert.equal(beaconPosition(floor,()=>true),null);
 });
 
-test('dungeon snapshots and travel agree when treasure occupies the first beacon candidate',()=>{
+test('overworld snapshots and travel agree when treasure occupies the first beacon candidate',()=>{
  const f=fixture();try{
-  f.create('alice');f.act('alice','dive_enter',{zone:'dive-quarters'});const before=f.snap('alice'),visit=f.state('alice').dive;
+  f.create('alice','honeydew-lantern');f.act('alice','dive_enter',{zone:'overworld-desert'});const before=f.snap('alice'),visit=f.state('alice').dive;
   const floor=JSON.parse(f.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=? AND depth=1').get(visit.route,visit.edition).content);
-  floor.chests.push({id:'beacon-obstruction',x:before.fastTravel.marker.x,y:before.fastTravel.marker.y});
+  assert.ok(floor.chests.length);Object.assign(floor.chests[0],{x:before.fastTravel.marker.x,y:before.fastTravel.marker.y}); // Relocate real treasure so wilderness loot maintenance keeps its supported metadata.
   f.db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=? AND depth=1').run(JSON.stringify(floor),visit.route,visit.edition);
   const after=f.snap('alice');assert.notDeepEqual(after.fastTravel.marker,before.fastTravel.marker,'The visible marker avoids the same treasure as the authoritative command');
-  f.place('alice');assert.equal(f.act('alice','fast_travel',{zone:'princess-rose'}).zone,'princess-rose');
+  f.place('alice');assert.equal(f.act('alice','fast_travel',{zone:'honeydew-lantern'}).zone,'honeydew-lantern');
  }finally{f.close();}
 });
 
-test('the Auto-Nursery beacon remains gated by the personal Rosalind victory flag',()=>{
+test('Auto-Nursery has no beacon even after Rosalind is defeated',()=>{
  const f=fixture();try{
   f.create('alice','utopia-arcanum');const portal=f.snap('alice').zones.find(z=>z.id==='utopia-arcanum').portals.find(p=>p.target==='dungeon-auto-nursery');assert.ok(portal);f.place('alice',portal);
   f.act('alice','dive_enter',{zone:'dungeon-auto-nursery'});assert.equal(f.snap('alice').fastTravel.marker,null);
   assert.equal(f.db.prepare('SELECT 1 FROM quest_fast_travel WHERE character_id=? AND zone=?').get(f.ids.alice,'dungeon-auto-nursery'),undefined);
-  f.patch('alice',s=>{s.fullDungeon??={flags:{}};s.fullDungeon.flags.matron_rosalind_defeated=true;});assert.ok(f.snap('alice').fastTravel.marker);
-  assert.ok(f.db.prepare('SELECT 1 FROM quest_fast_travel WHERE character_id=? AND zone=?').get(f.ids.alice,'dungeon-auto-nursery'));
+  f.patch('alice',s=>{s.fullDungeon??={flags:{}};s.fullDungeon.flags.matron_rosalind_defeated=true;});assert.equal(f.snap('alice').fastTravel.marker,null);
+  assert.equal(f.db.prepare('SELECT 1 FROM quest_fast_travel WHERE character_id=? AND zone=?').get(f.ids.alice,'dungeon-auto-nursery'),undefined);
+ }finally{f.close();}
+});
+
+test('dungeons and dives have no beacons and old saved links cannot be used',()=>{
+ const f=fixture();try{
+  f.create('alice');f.act('alice','dive_enter',{zone:'dive-quarters'});
+  assert.equal(f.snap('alice').fastTravel.marker,null);
+  assert.equal(f.db.prepare('SELECT 1 FROM quest_fast_travel WHERE character_id=? AND zone=?').get(f.ids.alice,'dive-quarters'),undefined);
+  assert.throws(()=>f.act('alice','fast_travel',{zone:'princess-rose'}),/beside/);
+  f.act('alice','dive_exit',{edition:f.snap('alice').dive.edition});f.place('alice');
+  const removed=['dive-quarters','dive-forest','dungeon-castle-dungeon','dungeon-auto-nursery','dungeon-coastal-caverns','dungeon-regression-school','dungeon-regression-hospital','overworld-spooky-mansion'];
+  for(const zone of removed)f.db.prepare('INSERT OR IGNORE INTO quest_fast_travel VALUES (?,?,?,?)').run(f.ids.alice,zone,'{}',1);
+  assert.ok(f.snap('alice').fastTravel.destinations.every(d=>!removed.includes(d.zone)),'Retired destinations disappear even when previously discovered');
+  for(const zone of removed)assert.throws(()=>f.act('alice','fast_travel',{zone}),/available linked beacon/);
+  assert.equal(f.snap('alice').zone,'princess-rose');
  }finally{f.close();}
 });

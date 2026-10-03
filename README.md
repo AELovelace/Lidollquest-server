@@ -1,7 +1,7 @@
 # LiDollQuest server
 
 Online fast travel uses the campaign beacon artwork and destination picker. Each
-major hub or route has a marker on reachable floor near its entrance; visiting
+major hub or outdoor overworld has a marker on reachable floor near its entrance; visiting
 links that logical zone in `quest_fast_travel`, independently of campaign saves.
 `fast_travel` requires an owned character, its controller/revision, proximity to
 the current marker and a discovered destination. Party travel is initiated by
@@ -9,7 +9,9 @@ the leader; everyone must be nearby, connected and free of combat, story scenes
 and pending actions, but passengers do not need to know the destination. Existing
 party and companion transfers commit with the same request receipt. Arrival links
 new destinations for passengers, without copying the leader's story flags.
-Auto-Nursery's own beacon retains the personal Rosalind victory gate. Coordinates
+Dives and dungeons (including Auto-Nursery and the Spooky Mansion) have no beacons;
+old discovery rows never re-enable their destinations. Automatic walking routes
+avoid beacon tiles, while deliberate interaction remains available. Coordinates
 resolve against the current map edition, preserving inventory and loot claims.
 Deploy the server and rebuilt game for markers, cyan minimap icons and the shared
 scrolling picker. No campaign/editor export change is needed. Checks:

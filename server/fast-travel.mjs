@@ -1,6 +1,5 @@
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'fast_travel_unavailable'});};
 const distance=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
-const nurseryOpen=(zone,state)=>zone!=='dungeon-auto-nursery'||state?.fullDungeon?.flags?.matron_rosalind_defeated===true;
 
 export function beaconPosition(floor,blocked){
  const start=floor.spawn??floor.entrance;if(!start)return null;
@@ -20,7 +19,7 @@ export function createFastTravel(db,{now,info,parties,relocate,busy=()=>false}){
  const known=(id,zone)=>db.prepare('SELECT visit FROM quest_fast_travel WHERE character_id=? AND zone=?').get(id,zone);
  const presence=id=>db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(id);
  function marker(state,p,floorOverride){
-  const def=p&&info(p.zone);if(!def?.enabled||!nurseryOpen(p.zone,state))return null;
+  const def=p&&info(p.zone);if(!def?.enabled)return null;
   const map=def.map(floorOverride);if(!map||state?.dive?.zone===p.zone&&map.edition!==state.dive.edition)return null;
   const position=beaconPosition(map.floor,(x,y)=>def.blocked(map.floor,x,y));
   return position?{id:'beacon:'+p.zone,zone:p.zone,name:def.name,...position}:null;
@@ -31,13 +30,13 @@ export function createFastTravel(db,{now,info,parties,relocate,busy=()=>false}){
   db.prepare('INSERT OR IGNORE INTO quest_fast_travel VALUES (?,?,?,?)').run(c.id,p.zone,JSON.stringify(visit),now());
  } // Discovery is personal server data; campaign imports and client-supplied destination lists cannot grant it.
  function view(c,state,p,floor){
-  const current=marker(state,p,floor),destinations=c?db.prepare('SELECT zone FROM quest_fast_travel WHERE character_id=? ORDER BY discovered,zone').all(c.id).filter(row=>row.zone!==p?.zone&&info(row.zone)?.enabled&&nurseryOpen(row.zone,state)).map(row=>({zone:row.zone,label:info(row.zone).name})):[];
+  const current=marker(state,p,floor),destinations=c?db.prepare('SELECT zone FROM quest_fast_travel WHERE character_id=? ORDER BY discovered,zone').all(c.id).filter(row=>row.zone!==p?.zone&&info(row.zone)?.enabled).map(row=>({zone:row.zone,label:info(row.zone).name})):[];
   return {marker:current,destinations};
  }
  function travel(c,state,p,target){
   const source=marker(state,p);if(!source||distance(p,source)>1)fail('Stand on or beside a fast travel beacon.');
   if(target===p.zone||!info(target)?.enabled)fail('Choose an available linked beacon.');
-  if(!known(c.id,target)||!nurseryOpen(target,state))fail('You have not linked that destination yet.'); // The leader may bring party members who have never visited; their story flags are not granted by travel.
+  if(!known(c.id,target))fail('You have not linked that destination yet.'); // The leader may bring party members who have never visited; their story flags are not granted by travel.
   const group=parties.party(c.id),roster=group?parties.members(c.id):[c];
   if(group&&group.leader!==c.id)fail('The party leader chooses fast travel.');
   for(const other of roster){
