@@ -8,6 +8,7 @@ const fail=message=>{throw Object.assign(Error(message),{status:409,code:'player
 const integer=(v,min,max,label)=>{if(!Number.isSafeInteger(v)||v<min||v>max)fail(label+' must be between '+min+' and '+max+'.');return v;};
 const publicItem=item=>{const copy={...item};delete copy.online_item;delete copy.online_items;delete copy.online_sell_price;return copy;}; // Public cards describe stock without publishing its ownership tokens.
 const text=(v,max)=>String(v??'').replace(/[\x00-\x1f<>]/g,'').trim().slice(0,max);
+const LEDGER_SIZE=20; // How many recent sales and order fills a shop remembers for its owner.
 export const STORE_ACTIONS=['store_create','store_move','store_style','store_close','store_open','store_deposit','store_withdraw','store_list','store_unlist','store_order','store_cancel_order','store_buy','store_sell'];
 export function validateShopAppearance(input,unlocked=null){return validateLook(input,{unlocked,fail});} // Shopkeepers follow the same look rules as players (registered layers, accessory limit and unlocks) with store errors.
 export function createPlayerStores(db,{now=Date.now,origins,adjust,zone,unlocks=()=>null}){ // unlocks(owner): Set of accessory ids the account owns (sprite-looks.mjs).
@@ -18,6 +19,7 @@ export function createPlayerStores(db,{now=Date.now,origins,adjust,zone,unlocks=
  const get=id=>{const row=db.prepare('SELECT body FROM player_stores WHERE id=?').get(id);return row?JSON.parse(row.body):null;};
  const own=c=>{const row=db.prepare('SELECT body FROM player_stores WHERE character_id=?').get(c.id);return row?JSON.parse(row.body):null;};
  const all=z=>db.prepare("SELECT body FROM player_stores WHERE json_extract(body,'$.zone')=? ORDER BY id").all(z).map(r=>JSON.parse(r.body));
+ const ledger=(s,entry)=>{s.ledger=[{at:now(),...entry},...(s.ledger??[])].slice(0,LEDGER_SIZE);}; // Newest first; the caller saves the shop.
  function fixture(s){return {id:s.id,kind:'player_store',name:s.name,shopkeeper:s.shopkeeper,appearance:s.appearance,x:s.x,y:s.y,solid:true,span_w:1,span_h:1,owner_character:s.character};}
  function decorate(base){
   const z={...base,fixtures:[...(base.fixtures??[])]};for(const s of all(z.id)){if(!s.active)continue;let position={x:s.x,y:s.y};
@@ -61,7 +63,7 @@ export function createPlayerStores(db,{now=Date.now,origins,adjust,zone,unlocks=
    const order=s.orders.find(o=>o.id===input.offer);if(!order||order.price!==input.price||order.remaining<count)fail('The buy order changed.');
    if(state.loadout.inventory[input.index]?.item_id!==order.item_id)fail('The buy order requires this exact item type.');
    const units=take(c,state,input.index,count);put(s,units);order.remaining-=count;order.funds-=count*order.price;
-   adjust(c.owner,'coins',count*order.price,'store-order-'+c.id+'-'+input.request_id,'Sold to '+s.name);s.orders=s.orders.filter(o=>o.remaining>0);save(s);return;
+   adjust(c.owner,'coins',count*order.price,'store-order-'+c.id+'-'+input.request_id,'Sold to '+s.name);ledger(s,{kind:'fill',name:order.name,quantity:count,coins:count*order.price,who:c.name??''});s.orders=s.orders.filter(o=>o.remaining>0);save(s);return;
   }
   if(!s)fail('Open a shop first.');
   if(kind==='store_style'){s.appearance=validateShopAppearance(input.appearance,unlocks(c.owner));s.name=text(input.name,48)||s.name;s.shopkeeper=text(input.shopkeeper,32)||s.shopkeeper;}
@@ -91,14 +93,23 @@ export function createPlayerStores(db,{now=Date.now,origins,adjust,zone,unlocks=
    const s=get(r.shop);if(paid&&s){s.orders.push(r.order);save(s);}else if(paid)adjust(c.owner,'coins',amount,'store-refund-'+id,'Buy order funds returned');
   }else if(r.kind==='buy'){
    const s=get(r.shop);if(!s)throw Error('Reserved store disappeared');const row=s.stock.find(row=>row.id===r.listing);if(!row)throw Error('Reserved stock disappeared');row.pending-=r.tokens.length;
-   if(paid){for(const token of r.tokens){if(!origins.release(token,c.id))throw Error('Reserved item identity missing');addToInventory(state.loadout.inventory,{...r.item,quantity:1,online_item:token,online_items:[token]});}adjust(s.owner,'coins',amount,'store-sale-'+id,'Sale at '+s.name);state.hubNotice='Purchased from '+s.name+'.';}
+   if(paid){for(const token of r.tokens){if(!origins.release(token,c.id))throw Error('Reserved item identity missing');addToInventory(state.loadout.inventory,{...r.item,quantity:1,online_item:token,online_items:[token]});}adjust(s.owner,'coins',amount,'store-sale-'+id,'Sale at '+s.name);ledger(s,{kind:'sale',name:r.item.name,quantity:r.tokens.length,coins:amount,who:c.name??''});state.hubNotice='Purchased from '+s.name+'.';}
    else row.tokens.unshift(...r.tokens);s.stock=s.stock.filter(row=>row.tokens.length||row.pending);save(s);
   }
   if(!paid)state.hubNotice='Payment declined. No coins or goods were lost.';state.hubNoticeAt=now();db.prepare("UPDATE player_store_receipts SET status=? WHERE id=?").run(paid?'done':'declined',id);
  } // Called inside the existing durable wallet-delivery transaction, once per purchase receipt.
  function view(c,p){
   const mine=c?own(c):null,publicStores=p?all(p.zone).filter(s=>s.active).map(s=>({id:s.id,name:s.name,shopkeeper:s.shopkeeper,character:s.character,listings:s.stock.filter(r=>r.price&&r.tokens.length).map(r=>({id:r.id,item:publicItem(r.item),quantity:r.tokens.length,price:r.price})),orders:s.orders.map(({funds,...o})=>o)})):[];
-  return {version:1,cost:1000,mine:mine?{...mine,stock:mine.stock.map(r=>({...r,quantity:r.tokens.length,tokens:undefined}))}:null,stores:publicStores};
- }
- return {act,settle,decorate,view};
+  return {version:1,cost:1000,mine:mine?{...mine,ledger:mine.ledger??[],stock:mine.stock.map(r=>({...r,quantity:r.tokens.length,tokens:undefined}))}:null,stores:publicStores};
+ } // mine.ledger: the owner's last LEDGER_SIZE sales and buy-order fills, newest first (client LEDGER tab).
+ const characterName=id=>{try{return db.prepare('SELECT name FROM quest_characters WHERE id=?').get(id)?.name??'';}catch{return '';}}; // Minimal stores in tools may lack the characters table.
+ const summary=s=>({id:s.id,name:s.name,shopkeeper:s.shopkeeper,owner:s.owner,character:s.character,characterName:characterName(s.character),zone:s.zone,x:s.x,y:s.y,active:!!s.active,created:s.created??0,
+  stored:s.stock.filter(r=>!r.price).reduce((n,r)=>n+r.tokens.length,0),listings:s.stock.filter(r=>r.price>0).length,orders:s.orders.length,escrow:s.orders.reduce((n,o)=>n+(o.funds??0),0)});
+ const gm={ // Gamemaster panel (gm.mjs): read every shop, moderate names, hide or restore a storefront. Stock and funds are never edited here.
+  list(q=''){const needle=String(q??'').trim().toLowerCase();return db.prepare('SELECT body FROM player_stores ORDER BY id').all().map(r=>summary(JSON.parse(r.body))).filter(s=>!needle||[s.name,s.shopkeeper,s.owner,s.characterName,s.zone].some(v=>String(v??'').toLowerCase().includes(needle)));},
+  detail(id){const s=get(id);if(!s)fail('That shop no longer exists.');return {...summary(s),stock:s.stock.map(r=>({id:r.id,name:r.item?.name??r.item?.item_id??'?',item_id:r.item?.item_id??'',quantity:r.tokens.length,price:r.price,pending:r.pending??0})),orders:s.orders.map(o=>({...o})),ledger:s.ledger??[]};},
+  rename(id,{name,shopkeeper}){const s=get(id);if(!s)fail('That shop no longer exists.');const from={name:s.name,shopkeeper:s.shopkeeper};s.name=text(name,48)||s.name;s.shopkeeper=text(shopkeeper,32)||s.shopkeeper;save(s);return {id:s.id,from,to:{name:s.name,shopkeeper:s.shopkeeper}};},
+  setActive(id,active){const s=get(id);if(!s)fail('That shop no longer exists.');s.active=!!active;save(s);return {id:s.id,active:s.active};} // A forced close hides the shopkeeper; the owner can reopen from My shop unless a GM closes it again.
+ };
+ return {act,settle,decorate,view,gm};
 }

@@ -72,10 +72,11 @@ export function buildAllowList(text){ // Comma-separated addresses and CIDR bloc
  return list;
 } // Rejected loudly at construction so a typo cannot silently admit the whole network.
 
-export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=null,welcome=null,guilds=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn,helpOptions={}}={}){
+export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=null,welcome=null,guilds=null,playerStores=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn,helpOptions={}}={}){
  const help=createGmHelp(helpOptions); // Separate read-only service; staff authentication stays in this router.
  const announcementStore=()=>typeof announcements==='function'?announcements():announcements; // Passed lazily by service.mjs because the zones module is created after the panel.
  const welcomeStore=()=>{const store=typeof welcome==='function'?welcome():welcome;if(!store)fail(409,'The welcome tutorial is not available on this server.','gm_unknown_action');return store;}; // welcome.mjs, likewise lazy.
+ const storeGm=()=>{const s=typeof playerStores==='function'?playerStores():playerStores;if(!s)fail(409,'Player shops are not available on this server.','gm_unknown_action');return s.gm;}; // player-stores.mjs gm surface, lazy like guilds.
  const guildStore=()=>{const store=typeof guilds==='function'?guilds():guilds;if(!store)fail(409,'Guilds are not available on this server.','gm_unknown_action');return store;}; // guilds.mjs, likewise lazy.
  const rp=createRoleplay(db,{now}); // RP journals use the same live staff authorization as every moderation tool.
  const rpp=createRpp(db,{now}); // Staff-only RPP gifts and purchase history never touch premium currencies.
@@ -291,6 +292,8 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
   guild_transfer(input,actor){const r=guildStore().gm.transfer(String(input.id??''),String(input.character_id??''));record(actor,'guild_transfer',r.id,{...r,reason:clean(input.reason,240)});return r;}, // Hand leadership to another member (for example when the leader vanished).
   guild_motd_clear(input,actor){const r=guildStore().gm.motdClear(String(input.id??''));record(actor,'guild_motd_clear',r.id,{...r,reason:clean(input.reason,240)});return r;},
   guild_treasury(input,actor){const r=guildStore().gm.adjust(String(input.id??''),input.amount,input.note??input.reason);record(actor,'guild_treasury',r.id,{amount:input.amount,balance:r.balance,reason:clean(input.reason,240)});return r;}, // Signed treasury correction; never touches any player's wallet.
+  store_rename(input,actor){const r=storeGm().rename(String(input.id??''),{name:input.name,shopkeeper:input.shopkeeper});record(actor,'store_rename',r.id,{...r,reason:clean(input.reason,240)});return r;}, // Moderation: rename an offensive player shop or its shopkeeper; stock and funds are untouched.
+  store_set_active(input,actor){const r=storeGm().setActive(String(input.id??''),!!input.active);record(actor,input.active?'store_reopen':'store_force_close',r.id,{...r,reason:clean(input.reason,240)});return r;}, // Hide a storefront from every hub (or restore it); the license, stock and funded orders stay with the owner.
   enchant_tune(input,actor){
    const values=enchantStore().tune(input.tuning,actor);
    record(actor,'enchant_tune','enchantments',{values,reason:clean(input.reason,240)});
@@ -510,6 +513,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    if(url.pathname==='/gm/enchantments'&&req.method==='GET')return send(200,enchantView()); // Content tuning, behind the same staff identity as every moderation tool.
    if(url.pathname==='/gm/loot'&&req.method==='GET')return send(200,lootView()); // Adjective + Item + Rarity tuning and affix authoring.
    if(url.pathname==='/gm/guilds'&&req.method==='GET'){const store=guildStore(),id=url.searchParams.get('id');return send(200,{guilds:store.gm.list(url.searchParams.get('q')??''),detail:id?store.gm.detail(id):null,tuning:store.gm.tuning()});} // Player guilds (guilds.mjs): search, one guild's roster/ledger/weeks, and the live guild_* tuning values.
+   if(url.pathname==='/gm/player-stores'&&req.method==='GET'){const gm=storeGm(),id=url.searchParams.get('id');return send(200,{stores:gm.list(url.searchParams.get('q')??''),detail:id?gm.detail(id):null});} // Player shops (player-stores.mjs): every shop, plus one opened shop's stock, orders and ledger.
    if(url.pathname==='/gm/tutor'&&req.method==='GET')return send(200,tutor?tutor.gmView():{configured:false,settings:null,recent:[]}); // Pip's switch, npc-rag health and the latest questions/answers.
    if(url.pathname==='/gm/welcome'&&req.method==='GET')return send(200,welcomeStore().gmView()); // Welcome tutorial: current settings, code defaults, link targets, install epoch and limits.
    if(url.pathname==='/gm/crafting'&&req.method==='GET')return send(200,craftingStore.view());

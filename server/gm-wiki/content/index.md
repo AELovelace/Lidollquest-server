@@ -43,6 +43,7 @@ Each guide has real editor pictures, field-by-field instructions, a publication 
 | Trigger a fight or award an item | [Battles, rewards and effects](monsters-rewards.md) |
 | Put the content into an existing dungeon | [Zones and placements](maps.md) |
 | Change the pages a new character reads on arrival | [Welcome tutorial](welcome-tutorial.md) |
+| Moderate a player shop or read its ledger | [Player shops](player-shops.md) |
 | Try a story without affecting real progression | [Preview and isolated tests](testing.md) |
 | Release or restore an earlier version | [Save, publish and rollback](publishing.md) |
 | Fix a missing offer or a stalled objective | [Troubleshooting and recipes](troubleshooting.md) |

@@ -178,6 +178,7 @@ export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWage
  function complete(id,paid){
   db.exec('BEGIN IMMEDIATE');try{
    const row=db.prepare('SELECT * FROM hub_purchases WHERE id=?').get(id);if(!row||row.status!=='pending'){db.exec('COMMIT');return;}
+   if(!row.character_id){hooks.lookUnlock?.(id,{owner:row.owner},null,paid,row.price,JSON.parse(row.item));db.prepare('UPDATE hub_purchases SET status=? WHERE id=?').run(paid?'delivered':'declined',id);db.exec('COMMIT');return;} // An accessory unlocked in the creation wardrobe, before any character exists (sprite-looks.mjs prepareAccount).
    const char=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(row.character_id),state=JSON.parse(char.state);
    if(state.pendingPurchase!==id)throw Error('Purchase reservation missing');
    const item=JSON.parse(row.item);

@@ -77,3 +77,26 @@ test('one diamond unlocks an accessory for the whole account; declines and repea
   assert.match(w.read().character.hubNotice??'',/Not enough diamonds/);
  }finally{w.close();}
 });
+
+test('the creation wardrobe unlocks for the account before any character exists',()=>{
+ const db=new DatabaseSync(':memory:');
+ const zones=createQuestZones(db,{grant:()=>({owner:'doll',id:'doll',client:'lidollquest'}),wallet:()=>({coins:0}),adjust:()=>{},diveOptions:{log:()=>{}}});
+ try{
+  const unlock=(asset,request_id=randomUUID())=>zones.act('',{action:'look_unlock',request_id,controller:'w',asset});
+  const pending=()=>db.prepare("SELECT id FROM hub_purchases WHERE owner='doll' AND status='pending'").all().map(r=>r.id);
+  const request=randomUUID();
+  assert.deepEqual(unlock('cat_ears',request).lookUnlocks,[],'nothing is granted until the diamond debit settles');
+  unlock('cat_ears',request);assert.equal(pending().length,1,'a retried request reserves once');
+  assert.throws(()=>unlock('tiara'),/purchase/,'one account unlock at a time');
+  zones.completePurchase(pending()[0],true);
+  assert.deepEqual(zones.read('').lookUnlocks,['cat_ears']);
+  unlock('cat_ears',request);assert.equal(pending().length,0,'a replay after settlement charges nothing');
+  assert.throws(()=>unlock('cat_ears'),/already own/);
+  assert.throws(()=>unlock('hoodie'),/Only accessories and premium/);
+  unlock('tiara');zones.completePurchase(pending()[0],false);
+  assert.deepEqual(zones.read('').lookUnlocks,['cat_ears'],'a declined debit unlocks nothing');
+  const look={version:1,slots:{...base.slots,head:'cat_ears'},facing:0};
+  const c=zones.act('',{action:'create',request_id:randomUUID(),controller:'w',name:'Lumi',creation:{look}}).character;
+  assert.equal(zones.read('',c.id).character.look.slots.head,'cat_ears','the new character wears the unlocked accessory');
+ }finally{zones.close();db.close();}
+});

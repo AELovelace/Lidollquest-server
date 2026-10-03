@@ -152,6 +152,14 @@
     "group": "Authoring reference"
   },
   {
+    "slug": "player-shops",
+    "source": "player-shops.md",
+    "title": "Player shops",
+    "kicker": "GM panel tab",
+    "description": "List every player shop, read its stock, orders and ledger, rename or force-close one.",
+    "group": "Authoring reference"
+  },
+  {
     "slug": "maps",
     "source": "maps.md",
     "title": "Zones & placements",

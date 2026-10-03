@@ -139,6 +139,7 @@ tr.sel td{background:#2c1e3d}
   <button type="button" role="tab" id="tab-tutor" aria-controls="panel-tutor" aria-selected="false" tabindex="-1">Tutor NPC</button>
   <button type="button" role="tab" id="tab-welcome" aria-controls="panel-welcome" aria-selected="false" tabindex="-1">Welcome</button>
   <button type="button" role="tab" id="tab-guilds" aria-controls="panel-guilds" aria-selected="false" tabindex="-1">Guilds</button>
+  <button type="button" role="tab" id="tab-stores" aria-controls="panel-stores" aria-selected="false" tabindex="-1">Player shops</button>
   <button type="button" role="tab" id="tab-moderation" aria-controls="panel-moderation" aria-selected="false" tabindex="-1">Moderation</button>
   <button type="button" role="tab" id="tab-performance" aria-controls="panel-performance" aria-selected="false" tabindex="-1">Performance</button>
   <button type="button" role="tab" id="tab-testing" aria-controls="panel-testing" aria-selected="false" tabindex="-1">Testing</button>
@@ -554,6 +555,22 @@ tr.sel td{background:#2c1e3d}
       <h2>Roster</h2><div id="guildRoster" class="log"></div>
       <h2>Ledger</h2><div id="guildLedger" class="log"></div>
       <h2>Weekly goals</h2><div id="guildWeeks" class="log"></div>
+    </div>
+  </section>
+</div>
+<div class="tab-panel" id="panel-stores" role="tabpanel" aria-labelledby="tab-stores" tabindex="0" hidden>
+  <section class="wide">
+    <h2>Player shops</h2>
+    <p class="note">Each character may own one shop (1,000 LiDollCoins, My shop in the game menu). The shopkeeper stands on a hub tile and sells the owner's listed goods and fills funded buy orders while they are away. Search by shop, keeper, owner or zone and open one to see its stock, buy orders and recent sales. Rename an offensive shop or keeper, or force-close a storefront so it disappears from the hub; the owner keeps the license, stock and escrow and may reopen it from My shop unless you close it again. Stock, prices and coins are never edited here; every action is audited.</p>
+    <div class="row"><label for="storeSearch">Search</label><input id="storeSearch" class="grow" maxlength="48" placeholder="Shop name, keeper, owner or zone"><button class="go" id="storeLoad">Search</button></div>
+    <div id="storeList" class="log"></div>
+    <div id="storeDetail" hidden>
+      <h2 id="storeTitle"></h2>
+      <p id="storeSummary" class="note"></p>
+      <div class="row"><label for="storeNewName">Shop</label><input id="storeNewName" maxlength="48" style="width:220px"><label for="storeNewKeeper">Keeper</label><input id="storeNewKeeper" maxlength="32" style="width:160px"><label for="storeReason">Reason</label><input id="storeReason" class="grow" maxlength="240" placeholder="Why (goes in the audit log)"><button class="go" id="storeRename">Rename</button><button id="storeToggle">Force close</button></div>
+      <h2>Stock</h2><div id="storeStock" class="log"></div>
+      <h2>Buy orders</h2><div id="storeOrders" class="log"></div>
+      <h2>Recent sales</h2><div id="storeLedger" class="log"></div>
     </div>
   </section>
 </div>
@@ -1142,6 +1159,43 @@ tr.sel td{background:#2c1e3d}
  $("guildMotdClear").addEventListener("click",function(){guildAction("guild_motd_clear",{},function(){return "MOTD cleared.";});});
  $("guildAdjustGo").addEventListener("click",function(){guildAction("guild_treasury",{amount:Number($("guildAdjust").value)},function(r){$("guildAdjust").value="";return "Treasury now "+r.balance+" coins.";});});
  $("guildDisband").addEventListener("click",function(){if(!confirm("Disband this guild? Members lose it immediately and the treasury is forfeited."))return;guildAction("guild_disband",{},function(r){guildSelected="";return "Disbanded ["+r.tag+"] "+r.name+" ("+r.members+" members).";});});
+ var storeEpoch=0,storeSelected="",storeActive=false;
+ function loadStores(){
+  var epoch=++storeEpoch,session=perfEpoch,q=$("storeSearch").value.trim();
+  return api("/gm/player-stores?q="+encodeURIComponent(q)+(storeSelected?"&id="+encodeURIComponent(storeSelected):"")).then(function(data){
+   if(epoch!==storeEpoch||session!==perfEpoch||!token)return;
+   clear($("storeList"));
+   (data.stores||[]).forEach(function(s){
+    var line=el("p",null,(s.active?"open":"CLOSED")+" · "+s.name+" (keeper "+s.shopkeeper+") · owner "+(s.characterName||s.character)+" · "+s.zone+" "+s.x+","+s.y+" · "+s.listings+" listings · "+s.orders+" orders · "+s.stored+" stored · ");
+    var open=el("button",null,"Open");open.type="button";
+    open.addEventListener("click",function(){storeSelected=s.id;loadStores();});
+    line.appendChild(open);$("storeList").appendChild(line);
+   });
+   if(!(data.stores||[]).length)$("storeList").appendChild(el("p","note","No player shops match."));
+   var d=data.detail;$("storeDetail").hidden=!d;if(!d)return;
+   storeActive=!!d.active;
+   $("storeTitle").textContent=d.name+" · keeper "+d.shopkeeper;
+   $("storeSummary").textContent=(d.active?"Open":"Closed by owner or GM")+" · owner "+(d.characterName||d.character)+" ("+d.owner+") · "+d.zone+" tile "+d.x+","+d.y+" · "+d.listings+"/40 listings · "+d.orders+"/20 buy orders ("+d.escrow+" coins held) · "+d.stored+" stored units · opened "+(d.created?new Date(d.created).toLocaleDateString():"?");
+   if(document.activeElement!==$("storeNewName"))$("storeNewName").value=d.name;
+   if(document.activeElement!==$("storeNewKeeper"))$("storeNewKeeper").value=d.shopkeeper;
+   $("storeToggle").textContent=d.active?"Force close":"Reopen storefront";
+   clear($("storeStock"));(d.stock||[]).forEach(function(r){$("storeStock").appendChild(el("p",null,r.name+" ×"+r.quantity+(r.price?" · listed at "+r.price+" coins":" · stored")+(r.pending?" · "+r.pending+" settling":"")));});
+   if(!(d.stock||[]).length)$("storeStock").appendChild(el("p","note","Nothing stored."));
+   clear($("storeOrders"));(d.orders||[]).forEach(function(o){$("storeOrders").appendChild(el("p",null,o.name+" · wants "+o.remaining+" more at "+o.price+" each · "+(o.funds||0)+" coins held"));});
+   if(!(d.orders||[]).length)$("storeOrders").appendChild(el("p","note","No buy orders."));
+   clear($("storeLedger"));(d.ledger||[]).forEach(function(r){$("storeLedger").appendChild(el("p",null,new Date(r.at).toLocaleString()+" · "+(r.kind==="sale"?"sold":"bought for an order")+" "+r.quantity+" × "+r.name+" · "+r.coins+" coins · "+(r.who||"?")));});
+   if(!(d.ledger||[]).length)$("storeLedger").appendChild(el("p","note","No sales recorded yet."));
+  }).catch(function(error){say("err",error.message);});
+ } // Player shops tab: search list plus one opened shop's stock, orders and ledger.
+ function storeAction(action,extra,done){
+  if(!storeSelected)return say("err","Open a shop first.");
+  var body={action:action,id:storeSelected,reason:$("storeReason").value.trim()};Object.keys(extra||{}).forEach(function(k){body[k]=extra[k];});
+  api("/gm/action",{method:"POST",body:body}).then(function(response){say("ok",done(response.result));loadStores();}).catch(function(error){say("err",error.message);});
+ } // One audited POST per moderation button.
+ $("tab-stores").addEventListener("click",loadStores);$("storeLoad").addEventListener("click",function(){storeSelected="";loadStores();});
+ $("storeSearch").addEventListener("keydown",function(e){if(e.key==="Enter"){storeSelected="";loadStores();}});
+ $("storeRename").addEventListener("click",function(){storeAction("store_rename",{name:$("storeNewName").value.trim(),shopkeeper:$("storeNewKeeper").value.trim()},function(r){return "Shop is now "+r.to.name+" (keeper "+r.to.shopkeeper+").";});});
+ $("storeToggle").addEventListener("click",function(){if(storeActive&&!confirm("Force-close this shop? Its shopkeeper leaves the hub until it is reopened."))return;storeAction("store_set_active",{active:!storeActive},function(r){return r.active?"Storefront reopened.":"Storefront closed.";});});
  $("rppGift").addEventListener("click",function(){
   if(rppBusy)return;
   if(!pendingGift){var amount=Number($("rppAmount").value),reason=$("rppReason").value.trim();if(!$("rppCharacter").value||!Number.isSafeInteger(amount)||amount<1||amount>1000000||!reason){$("rppStatus").textContent="Choose a character, positive whole amount and review note.";return;}pendingGift={action:"rpp_gift",character_id:$("rppCharacter").value,amount:amount,reason:reason,request_id:crypto.randomUUID()};}

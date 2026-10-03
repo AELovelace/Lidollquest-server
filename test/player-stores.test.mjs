@@ -48,3 +48,15 @@ test('partial listings retain unlisted stock and public cards never expose owner
   f.act('owner','store_withdraw',{offer:row.id,amount:3});assert.equal(f.state('owner').loadout.inventory[0].quantity,3);assert.equal(f.stores.view(f.chars.owner,{zone:'town'}).mine.stock[0].quantity,2);
  }finally{f.db.close();}
 });
+test('the owner ledger records sales and buy-order fills newest first, and gm moderation renames or hides a shop',()=>{
+ const f=fixture();try{const shop=f.open();f.mint('owner',craftCatalog.iron,2);f.act('owner','store_deposit',{index:0,amount:2});const row=f.stores.view(f.chars.owner,{zone:'town'}).mine.stock[0];f.act('owner','store_list',{offer:row.id,price:10});
+  const buy=f.act('buyer','store_buy',{shop:shop.id,offer:row.id,amount:2,price:10});f.purchases.complete(buy.pendingPurchase,true);
+  const order=f.act('owner','store_order',{item_id:'steel',amount:3,price:7});f.purchases.complete(order.pendingPurchase,true);const o=f.stores.view(f.chars.owner,{zone:'town'}).mine.orders[0];f.mint('visitor',craftCatalog.steel,1);f.act('visitor','store_sell',{shop:shop.id,offer:o.id,index:0,amount:1,price:7});
+  const ledger=f.stores.view(f.chars.owner,{zone:'town'}).mine.ledger;assert.equal(ledger.length,2);assert.equal(ledger[0].kind,'fill');assert.equal(ledger[0].coins,7);assert.equal(ledger[0].who,'visitor');assert.equal(ledger[1].kind,'sale');assert.equal(ledger[1].quantity,2);assert.equal(ledger[1].coins,20);assert.equal(ledger[1].who,'buyer');
+  assert.equal(f.stores.view(null,{zone:'town'}).stores.length,1,'public cards omit the ledger');assert.equal(f.stores.view(null,{zone:'town'}).stores[0].ledger,undefined);
+  const list=f.stores.gm.list('test');assert.equal(list.length,1);assert.equal(list[0].listings,0);assert.equal(list[0].orders,1);assert.equal(list[0].stored,1);
+  const renamed=f.stores.gm.rename(shop.id,{name:'Nicer <name>',shopkeeper:''});assert.equal(renamed.to.name,'Nicer name');assert.equal(renamed.to.shopkeeper,'Shopkeeper');
+  f.stores.gm.setActive(shop.id,false);assert.equal(f.stores.view(null,{zone:'town'}).stores.length,0,'a force-closed shop leaves the hub');assert.equal(f.stores.gm.detail(shop.id).ledger.length,2);
+  f.stores.gm.setActive(shop.id,true);assert.equal(f.stores.view(null,{zone:'town'}).stores[0].name,'Nicer name');
+ }finally{f.db.close();}
+});

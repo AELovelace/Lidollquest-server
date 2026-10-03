@@ -45,6 +45,15 @@ export function createLookUnlocks(db,{now=Date.now}={}){
   db.prepare('INSERT INTO hub_purchases(id,owner,character_id,item,price) VALUES (?,?,?,?,?)').run(id,i.owner,char.id,JSON.stringify({look_unlock:asset.id,name:asset.name,currency:'diamonds'}),UNLOCK_DIAMONDS);
   state.pendingPurchase=id;state.hubNotice=`Unlocking ${asset.name}…`;state.hubNoticeAt=now();
  }
+ function prepareAccount(i,input){ // The creation wardrobe: no character exists yet, so the reservation belongs to the account alone (character_id '').
+  const id=createHash('sha256').update(i.owner+':'+input.request_id).digest('hex');
+  if(db.prepare('SELECT 1 FROM hub_purchases WHERE id=?').get(id))return; // A retried request keeps its first reservation.
+  const catalog=lookCatalog(),asset=catalog.assets.find(a=>a.id===input.asset);
+  if(!asset||!needsUnlock(asset,accessorySlots(catalog)))fail('Only accessories and premium items are unlocked with diamonds.',400);
+  if(list(i.owner).includes(asset.id))fail(`You already own ${asset.name}.`);
+  if(db.prepare("SELECT 1 FROM hub_purchases WHERE owner=? AND character_id='' AND status='pending'").get(i.owner))fail('Finish your current purchase first.');
+  db.prepare('INSERT INTO hub_purchases(id,owner,character_id,item,price) VALUES (?,?,?,?,?)').run(id,i.owner,'',JSON.stringify({look_unlock:asset.id,name:asset.name,currency:'diamonds'}),UNLOCK_DIAMONDS);
+ }
  function prepareSave(i,char,state,input,look){ // Away from a mirror a new look costs one diamond; the validated look waits in the reservation.
   if(state.pendingPurchase)fail('Finish your current purchase first.');
   const id=createHash('sha256').update(char.id+':'+input.request_id).digest('hex');
@@ -54,7 +63,8 @@ export function createLookUnlocks(db,{now=Date.now}={}){
  function settle(id,char,state,paid,price,item){ // purchaseHooks.lookUnlock, inside hubs.mjs complete()'s transaction.
   if(item.look_save){if(paid){state.look=item.look;state.avatar='look';}state.hubNotice=paid?`New look saved for ${price} diamond. Hub mirrors are free.`:'Not enough diamonds. Your look did not change.';state.hubNoticeAt=now();return;} // A paid wardrobe save.
   if(paid)db.prepare('INSERT OR IGNORE INTO look_unlocks VALUES (?,?,?,?)').run(char.owner,item.look_unlock,now(),id);
+  if(!state)return; // An account-level unlock (prepareAccount) has no character to notify; the snapshot's lookUnlocks shows the result.
   state.hubNotice=paid?`Unlocked ${item.name} for ${price} diamond. Every character on this account can wear it.`:'Not enough diamonds. Nothing was charged.';state.hubNoticeAt=now();
  }
- return {list,prepare,prepareSave,settle,set:owner=>new Set(list(owner))};
+ return {list,prepare,prepareAccount,prepareSave,settle,set:owner=>new Set(list(owner))};
 }
