@@ -108,9 +108,9 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  } // Match the campaign's six-cell circular reveal and structural-wall line of sight.
  function current(){return getFloor(latest());}
  function chatArea(c,p){
-  const state=JSON.parse(c.state),visit=state.dive,record=owns(visit)?getFloor(visit.edition):null;
-  if(!record)return null;
-  return {id:JSON.stringify([zoneId,route,record.edition,record.depth]),name:name+' floor '+record.depth};
+  const state=JSON.parse(c.state),visit=state.dive;
+  if(!owns(visit)||!existsQuery.get(route,visit.edition??null))return null; // Only asks whether the floor exists: decoding the whole floor for its id cost a full JSON.parse per snapshot, per RP candidate and per chat hearer.
+  return {id:JSON.stringify([zoneId,route,visit.edition,1]),name:name+' floor 1'}; // getFloor() only ever reads depth 1, so the id and name are unchanged.
  } // One stream per route, edition and floor; who hears a line is decided by distance from the speaker's tile (chatReach in zones.mjs), not by room walls.
  function ensure(){
   if(closed||!config.enabled)return;

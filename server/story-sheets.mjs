@@ -2,7 +2,8 @@ import {createHash} from 'node:crypto';
 
 const clone=structuredClone;
 const fail=message=>{throw Object.assign(Error(message),{status:400,code:'story_sheet_invalid'});};
-export const sheetId=(category,zone,key)=>'sheet_'+createHash('sha256').update(JSON.stringify([category,zone,key])).digest('hex').slice(0,24);
+const sheetIds=new Map(); // [category,zone,key] text -> id. The id is a pure hash, so remembering it is always safe; NPC fixtures ask for it 3x per room on every lookup.
+export const sheetId=(category,zone,key)=>{const text=JSON.stringify([category,zone,key]);let id=sheetIds.get(text);if(id)return id;id='sheet_'+createHash('sha256').update(text).digest('hex').slice(0,24);if(sheetIds.size>=20000)sheetIds.clear();sheetIds.set(text,id);return id;}; // Same 24-hex id as before; the size cap only stops unbounded growth.
 const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex'); // Identity ignores wording, so content updates never change saved references.
 const forbidden=new Set(['__proto__','prototype','constructor']);
 export const sheetEffectTypes=['wet','wet_delta','tum','tum_delta','excitement','inco_up','incontinence_delta','stamina_heal','stamina_delta','hunger_delta','thirst_delta','wet_tum','shame','shame_delta','shame_relief','set_wet','heal','damage','str_drain','stat_buff','stamina_drain','excitement_down','inco_down','forced_inco','diaper_wet_delta','flag','counter','log','face','dud','give_item','force_equip_item','replace_diaper','release_campaign_curse','gold','xp','spawn_enemy'];

@@ -28,6 +28,7 @@ import {createPerformanceMonitor} from './performance.mjs';
 import {createComputePool,computeWorkerCount} from './compute-pool.mjs';
 import {createAuthCache,authCacheMs} from './auth-cache.mjs';
 import {parseKnown,elide} from './snapshot-cache.mjs';
+import {cacheStatements} from './statement-cache.mjs';
 
 export function loadQuestPack(path){ // LIDOLLQUEST_QUEST_PACK names a shipped quest file; unset means no live quests, exactly as before.
  if(!path)return [];
@@ -42,7 +43,7 @@ export function loadQuestPack(path){ // LIDOLLQUEST_QUEST_PACK names a shipped q
 
 export function createQuestService({filename=':memory:',walletClient,spriteProvider,artJobOptions={},now=Date.now,roll,log=console.warn,performanceOptions={},workerCount=0,authTtlMs=authCacheMs(),onlineToken=process.env.MOMMYBOT_ONLINE_TOKEN||'',gmAllow=process.env.LIDOLLQUEST_GM_ALLOW||'',gmEnabled=envFlag('LIDOLLQUEST_GM_ENABLED',true),gmTrustProxy=process.env.LIDOLLQUEST_GM_TRUST_PROXY||'',gmRequireTls=envFlag('LIDOLLQUEST_GM_REQUIRE_TLS'),questPack=loadQuestPack(process.env.LIDOLLQUEST_QUEST_PACK||''),followerOptions={},followerChatOptions={},gmHelpOptions={}}={}){
  const poolSize=computeWorkerCount(workerCount);let compute=null; // Validate configuration before opening persistent resources.
- const db=new DatabaseSync(filename);db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;'); /* NORMAL is SQLite's recommended setting for WAL: every commit survives an application crash, and only an OS crash or power loss can drop the last few milliseconds of commits. It removes the per-commit fsync that FULL paid for every heartbeat, move and chat line. */
+ const db=cacheStatements(new DatabaseSync(filename));db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;'); /* NORMAL is SQLite's recommended setting for WAL: every commit survives an application crash, and only an OS crash or power loss can drop the last few milliseconds of commits. It removes the per-commit fsync that FULL paid for every heartbeat, move and chat line. */
  migrateZoneIds(db,{log}); // Before any module reads presence, content or maps: saved overworld and full-dungeon ids move to their new names once.
  db.exec(`CREATE TABLE IF NOT EXISTS wallet_cache(owner TEXT PRIMARY KEY,coins INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS reward_outbox(id TEXT PRIMARY KEY,owner TEXT NOT NULL,amount INTEGER NOT NULL,reason TEXT NOT NULL,delivered INTEGER NOT NULL DEFAULT 0);

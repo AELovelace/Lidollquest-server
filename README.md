@@ -1233,6 +1233,24 @@ player. Before this, every route decoded its whole floor every second, which
 showed as `world.timer` ~120 ms and ~40 `simulation.<zone>` rows per minute with
 one player online. Covered by `test/idle-routes.test.mjs`.
 
+Snapshot pass (2026-10-02; live `/gm` showed `snapshot.build` at 20 ms, about 85% of
+every action). Rooms a `combat_version:3` player is not in come from `roomStub()`:
+shape and exits straight from the resolved room, skipping `zone()`'s decorations
+(crafting stations, player stores, Pip and NPC sheets). Those only add fixtures, and
+a stub drops fixtures anyway. While one `snapshot()` runs, `zoneScope` decorates the
+current room once instead of ~5 times and builds the hub map definition once. It is
+null outside snapshots, so commands and ticks always see fresh rooms. `sheetId()`
+remembers its hashes. `dive.chatArea()` asks whether the floor exists instead of
+decoding it. `resourceNodes()` builds the crafting catalog only on a cache miss
+(hubs never). The hub map view reads positions without each character's whole saved
+state. `server/statement-cache.mjs` reuses compiled SQL for every inline
+`db.prepare` (compiling a small join cost ~24 µs against ~3 µs to run it). It never
+caches PRAGMA/DDL, and any CREATE/ALTER/DROP empties it, because a reused `SELECT *`
+keeps its old column list. New rows `snapshot.rooms/views/peers/chat/dive` split
+`snapshot.build`. Local A/B (benchmark-world, 3 rounds): snapshot 5.9 → 1.5 ms,
+read 8.2 → 3.0 ms, tick 3.3 → 2.0 ms. Covered by `test/snapshot-rooms.test.mjs`
+(stubs match the old decorated path key-for-key; the cache survives ALTER).
+
 HTTP actions now build one snapshot after purchase settlement; HTTP reads build
 one snapshot as well. Availability checks no longer decode every dungeon floor.
 Snapshot assembly, combat, monthly districts and database writes remain on the

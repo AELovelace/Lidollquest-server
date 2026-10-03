@@ -21,12 +21,13 @@ export function createHubEncounters(db,{now,roll,parties,live,definition,ids}){
   }
   const encounters=createDiveEncounters(db,{live,now,roll,data,parties,saveFloor,saveCharacter,progress:()=>({}),saveProgress:()=>{},pay:()=>0,back:()=>{},entry:f=>f.entrance,relocate,context:{eligible:(s,c)=>s.contentVersion===1&&db.prepare('SELECT zone FROM quest_presence WHERE character_id=?').get(c.id)?.zone===zone}});
   const players=()=>db.prepare('SELECT c.*,p.x,p.y,p.seen FROM quest_characters c JOIN quest_presence p ON p.character_id=c.id WHERE p.zone=?').all(zone);
-  function view(){const r=record();return {id:zone,kind:'hub',edition:r.edition,revision:mapRevision(r),floor:r.floor,players:players().map(c=>({id:c.id,name:c.name,x:c.x,y:c.y}))};}
+  const positions=()=>db.prepare('SELECT c.id,c.name,p.x,p.y FROM quest_characters c JOIN quest_presence p ON p.character_id=c.id WHERE p.zone=?').all(zone); // Same rows as players() without each character's whole saved state: the map view and placement checks only need where people stand.
+  function view(){const r=record();return {id:zone,kind:'hub',edition:r.edition,revision:mapRevision(r),floor:r.floor,players:positions().map(c=>({id:c.id,name:c.name,x:c.x,y:c.y}))};}
   function place(input){const r=record();if(input.edition!==r.edition||input.revision!==mapRevision(r))fail('The map changed. Refresh first.');
    if(input.action==='world_remove'){const foe=r.floor.enemies.find(e=>e.id===input.monster);if(!foe||foe.engaged)fail('Choose a monster outside combat.');r.floor.enemies=r.floor.enemies.filter(e=>e!==foe);}
    else {if(r.floor.enemies.length>=128)fail('This hub already has 128 DM monsters.');const monster=live.published().monsters[input.monster],z=definition(zone),{x,y}=input;
     if(!monster||monster.retired)fail('Choose a published monster.');
-    if(!walkable(r.floor,x,y)||[...r.floor.enemies,...players(),...(z.fixtures??[]),...(z.portals??[]),z.spawn??{x:10,y:9},...(z.exit?[z.exit]:[])].some(p=>Math.abs(x-p.x)+Math.abs(y-p.y)<=1))fail('Choose a free tile away from players, entrances and fixtures.');
+    if(!walkable(r.floor,x,y)||[...r.floor.enemies,...positions(),...(z.fixtures??[]),...(z.portals??[]),z.spawn??{x:10,y:9},...(z.exit?[z.exit]:[])].some(p=>Math.abs(x-p.x)+Math.abs(y-p.y)<=1))fail('Choose a free tile away from players, entrances and fixtures.');
     r.floor.enemies.push({id:'dm-'+randomUUID(),type:input.monster,definition:structuredClone(monster),x,y,spawn:{x,y},manual:true,respawning:!!input.respawning,roaming:!!input.aggressive,engaged:null,respawnAt:0});
    }saveFloor(r);return view();
   }

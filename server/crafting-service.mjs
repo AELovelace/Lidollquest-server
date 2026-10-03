@@ -38,9 +38,10 @@ export function craftingStations(z){
  }if(stationCache.size>100)stationCache.clear();stationCache.set(cacheKey,result.fixtures.slice(z.fixtures.length));return result;
 }
 export function resourceNodes(zone,floor){
- const craftingData=currentCraftingData(),craftCatalog=craftingCatalog(craftingData);
- const region=craftingData.regions[regionFor(zone)];if(!region||!floor)return [];
+ const craftingData=currentCraftingData();
+ const region=craftingData.regions[regionFor(zone)];if(!region||!floor)return []; // Hubs pass no floor: answer before any catalog work.
  const cacheKey=JSON.stringify(craftingData.regions)+':'+zone+':'+floor.edition+':'+(floor.geometryVersion??0)+':'+(floor.contentVersion??0);if(resourceCache.has(cacheKey))return resourceCache.get(cacheKey);
+ const craftCatalog=craftingCatalog(craftingData); // Built only on a cache miss: copying every item and material was ~20% of a snapshot when it ran on every call.
  const rnd=seeded(zone+':resources'),tiles=reachableTiles(floor).filter(p=>(floor.chests??[]).every(c=>c.x!==p.x||c.y!==p.y));if(!tiles.length)return [];
  const materials=[...region.nodes,...region.nodes,...(region.rare??[])],nodes=[];
  for(let i=0;i<materials.length;i++){const at=rnd(tiles.length),p=tiles.splice(at,1)[0];if(!p)break;nodes.push({...p,id:'resource_'+i,item:materials[i],name:craftCatalog[materials[i]]?.name??materials[i],quantity:region.rare?.includes(materials[i])?1:2+rnd(3)});}
