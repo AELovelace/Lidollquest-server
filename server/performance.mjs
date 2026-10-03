@@ -5,11 +5,13 @@ import {randomUUID} from 'node:crypto';
 const RETENTION_MS=24*60*60*1000,MAX_SAMPLES=1440,SAMPLE_MS=60000;
 const rounded=value=>Number.isFinite(value)?Math.round(Math.max(0,value)*100)/100:null;
 const emptyRequests=()=>({completed:0,clientErrors:0,serverErrors:0,throttled:0,aborted:0,totalMs:0,maxMs:0});
+const PROBE_MS=100;
+const emptyLag=()=>({slowRequests:0,severeRequests:0,loopStalls:0,maxLoopLagMs:0,requestThresholdMs:250,severeThresholdMs:1000,loopThresholdMs:100,probeMs:PROBE_MS}); // Store thresholds with each sample so history keeps its original meaning.
 
 export function createPerformanceMonitor(db,{
  now=Date.now,clock=()=>performance.now(),cpuUsage=()=>process.cpuUsage(),memoryUsage=()=>process.memoryUsage(),
  loopUsage=()=>performance.eventLoopUtilization(),delay=monitorEventLoopDelay({resolution:20}),
- cores=availableParallelism(),automatic=true,log=console.warn,workers=()=>null,
+ cores=availableParallelism(),automatic=true,log=console.warn,workers=()=>null,shards=()=>null,
 }={}){
  db.exec('CREATE TABLE IF NOT EXISTS server_performance_samples(id INTEGER PRIMARY KEY,sampled_at INTEGER NOT NULL,data TEXT NOT NULL)');
  const insert=db.prepare('INSERT INTO server_performance_samples(sampled_at,data) VALUES (?,?)');
@@ -20,7 +22,7 @@ export function createPerformanceMonitor(db,{
  prune();
  const session=randomUUID(),startedAt=now();
  const requestLatency=createHistogram(); // A bounded histogram records request percentiles without storing individual requests.
- let baseline={at:clock(),cpu:cpuUsage(),loop:loopUsage()},requests=emptyRequests(),timings=new Map(),active=0,peakActive=0,closed=false,recordingError=false;
+ let baseline={at:clock(),cpu:cpuUsage(),loop:loopUsage()},requests=emptyRequests(),lag=emptyLag(),lastProbe=baseline.at,timings=new Map(),active=0,peakActive=0,closed=false,recordingError=false;
  delay.enable(); // This histogram observes stalls without recording request bodies or account identifiers.
 
  function observe(name,elapsed,failed=false){
@@ -41,6 +43,8 @@ export function createPerformanceMonitor(db,{
   function finish(){
    if(finished)return;finished=true;active--;res.off('finish',finish);res.off('close',finish);
    const elapsed=clock()-start;requests.completed++;requests.totalMs+=elapsed;requests.maxMs=Math.max(requests.maxMs,elapsed);requestLatency.record(Math.max(1,Math.round(elapsed*1e6)));
+   if(elapsed>=lag.requestThresholdMs)lag.slowRequests++;
+   if(elapsed>=lag.severeThresholdMs)lag.severeRequests++; // One-second responses are a subset of slow responses, including errors and disconnected requests.
    if(!res.writableFinished)requests.aborted++;
    else if(res.statusCode>=500)requests.serverErrors++;
    else if(res.statusCode>=400)requests.clientErrors++;
@@ -56,7 +60,7 @@ export function createPerformanceMonitor(db,{
    cpuPercent:elapsed>0?rounded(((cpu.user-baseline.cpu.user)+(cpu.system-baseline.cpu.system))/(elapsed*10)):null,
    eventLoopPercent:busy+idle>0?rounded(100*busy/(busy+idle)):null,
    delayP95Ms:delay.count?rounded(delay.percentile(95)/1e6):null,delayMaxMs:delay.count?rounded(delay.max/1e6):null,
-   rssMiB:rounded(memory.rss/1048576),heapMiB:rounded(memory.heapUsed/1048576),workers:workers(),
+   rssMiB:rounded(memory.rss/1048576),heapMiB:rounded(memory.heapUsed/1048576),workers:workers(),shards:shards(),lag:{...lag,maxLoopLagMs:rounded(lag.maxLoopLagMs)},
    requests:{...requests,totalMs:rounded(requests.totalMs),maxMs:rounded(requests.maxMs),active,peakActive,
     perSecond:elapsed>0?rounded(requests.completed*1000/elapsed):null,meanMs:requests.completed?rounded(requests.totalMs/requests.completed):null,p95Ms:requestLatency.count?rounded(requestLatency.percentile(95)/1e6):null},
    timings:[...timings.values()].map(t=>({...t,totalMs:rounded(t.totalMs),maxMs:rounded(t.maxMs),meanMs:rounded(t.totalMs/t.calls)})).sort((a,b)=>b.totalMs-a.totalMs)};
@@ -67,9 +71,13 @@ export function createPerformanceMonitor(db,{
   const value=capture();if(value.row.elapsedMs<1)return;
   try{insert.run(value.row.at,JSON.stringify(value.row));prune();recordingError=false;}
   catch{recordingError=true;log('quest_performance_recording_failed');} // A telemetry write failure must not stop gameplay or expose database details.
-  baseline=value.baseline;requests=emptyRequests();timings=new Map();peakActive=active;delay.reset();requestLatency.reset();
+  baseline=value.baseline;requests=emptyRequests();lag=emptyLag();timings=new Map();peakActive=active;delay.reset();requestLatency.reset();
   return value.row;
  }
+ const probe=automatic?setInterval(()=>{
+  const at=clock(),late=Math.max(0,at-lastProbe-PROBE_MS);lastProbe=at;
+  lag.maxLoopLagMs=Math.max(lag.maxLoopLagMs,late);if(late>=lag.loopThresholdMs)lag.loopStalls++;
+ },PROBE_MS):null;probe?.unref(); // Count one delayed heartbeat when the loop resumes, not every missed beat; subtract the scheduled wait.
  const timer=automatic?setInterval(sample,SAMPLE_MS):null;timer?.unref();
  function snapshot(){
   const cutoff=now()-RETENTION_MS;
@@ -77,6 +85,6 @@ export function createPerformanceMonitor(db,{
   const last=db.prepare('SELECT data FROM server_performance_samples WHERE sampled_at>=? AND json_valid(data) ORDER BY id DESC LIMIT 1').get(cutoff);
   return {startedAt,session,availableCores:cores,sampleMs:SAMPLE_MS,retentionMs:RETENTION_MS,recordingError,current:capture().row,latest:last?JSON.parse(last.data):null,history};
  } // Reading the panel never resets counters; history continues collecting while the panel is closed.
- function close(){if(closed)return;clearInterval(timer);if(clock()-baseline.at>=1000)sample();closed=true;delay.disable();}
+ function close(){if(closed)return;clearInterval(timer);clearInterval(probe);if(clock()-baseline.at>=1000)sample();closed=true;delay.disable();}
  return {measure,measureAsync,observe,request,sample,snapshot,close};
 }

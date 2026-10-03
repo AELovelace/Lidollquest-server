@@ -55,7 +55,7 @@ export function createDiveLootRoller(data,{enchantments=null,table=data.enchantm
  const livePools=()=>{
   if(!loot?.itemPool)return poolCache; // No store (tests, tools): the shipped pools as built above.
   const revision=loot.revision();if(revision===poolCache.revision)return poolCache;
-  const items={...loot.customItems(),...data.items},removed=loot.removedItems(); // Shipped definitions win on an id clash (the store refuses clashes anyway).
+  const items=loot.applyItems(data.items),removed=loot.removedItems(); // Apply explicit weapon edits only to future rolls; receipts above keep existing loot intact.
   const liveGeneral=loot.itemPool(general).filter(id=>items[id]),liveDiapers=liveGeneral.filter(id=>items[id]?.category==='panties'&&items[id].is_diaper&&!items[id].quest_item);
   const priority=data.priority_pool?loot.itemPool(data.priority_pool,{addCustom:false}):data.priority_pool;
   poolCache={revision,items,general:liveGeneral.length?liveGeneral:general,diapers:liveDiapers.length?liveDiapers:diapers,priority:priority?.length?priority:data.priority_pool,removed};

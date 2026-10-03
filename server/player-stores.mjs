@@ -2,22 +2,15 @@ import {randomUUID,createHash} from 'node:crypto';
 import {craftingData,resolveCraftItem} from './crafting.mjs';
 import {validBusinessTile,reachableTiles} from './crafting-service.mjs';
 import {stackable,stackTokens,setStackTokens,addToInventory,slotsUsed} from './loadout.mjs';
+import {validateLook} from './sprite-looks.mjs';
 
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'player_store_failed'});};
 const integer=(v,min,max,label)=>{if(!Number.isSafeInteger(v)||v<min||v>max)fail(label+' must be between '+min+' and '+max+'.');return v;};
 const publicItem=item=>{const copy={...item};delete copy.online_item;delete copy.online_items;delete copy.online_sell_price;return copy;}; // Public cards describe stock without publishing its ownership tokens.
 const text=(v,max)=>String(v??'').replace(/[\x00-\x1f<>]/g,'').trim().slice(0,max);
 export const STORE_ACTIONS=['store_create','store_move','store_style','store_close','store_open','store_deposit','store_withdraw','store_list','store_unlist','store_order','store_cancel_order','store_buy','store_sell'];
-export function validateShopAppearance(input){
- if(!input||input.version!==1||!input.slots)fail('Design a shopkeeper in Sprite Lab.');
- const out={version:1,slots:{},colors:{},strength:{},enabled:{},visible:{},facing:integer(input.facing??0,0,3,'Direction')};
- for(const slot of craftingData.sprite_lab.order){const id=input.slots[slot]??'',asset=craftingData.sprite_lab.assets.find(a=>a.id===id&&a.slot===slot);if(!asset){if(slot==='base'||id)fail('Unsupported shopkeeper layer.');out.slots[slot]='';out.colors[slot]=[];out.strength[slot]=[];out.enabled[slot]=[];out.visible[slot]=true;continue;}
-  out.slots[slot]=id;out.visible[slot]=slot==='base'||input.visible?.[slot]!==false;
-  out.colors[slot]=asset.channels.map((c,i)=>{const rgb=input.colors?.[slot]?.[i]??c.default_rgb??[255,255,255];if(!Array.isArray(rgb)||rgb.length!==3)fail('Choose valid RGB colours.');return rgb.map(v=>integer(v,0,255,'Colour'));});
-  out.strength[slot]=asset.channels.map((_,i)=>{const n=input.strength?.[slot]?.[i]??1;if(!Number.isFinite(n)||n<0||n>1)fail('Invalid tint strength.');return n;});out.enabled[slot]=asset.channels.map((_,i)=>input.enabled?.[slot]?.[i]===true);
- }return out;
-} // Only registered layers and numeric tint channels are published; no client asset URLs or shader code.
-export function createPlayerStores(db,{now=Date.now,origins,adjust,zone}){
+export function validateShopAppearance(input,unlocked=null){return validateLook(input,{unlocked,fail});} // Shopkeepers follow the same look rules as players (registered layers, accessory limit and unlocks) with store errors.
+export function createPlayerStores(db,{now=Date.now,origins,adjust,zone,unlocks=()=>null}){ // unlocks(owner): Set of accessory ids the account owns (sprite-looks.mjs).
  db.exec(`CREATE TABLE IF NOT EXISTS player_stores(id TEXT PRIMARY KEY,character_id TEXT NOT NULL UNIQUE,owner TEXT NOT NULL,body TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS player_store_receipts(id TEXT PRIMARY KEY,kind TEXT NOT NULL,body TEXT NOT NULL,status TEXT NOT NULL);
  CREATE INDEX IF NOT EXISTS player_stores_zone ON player_stores(json_extract(body,'$.zone'));`);
@@ -52,7 +45,7 @@ export function createPlayerStores(db,{now=Date.now,origins,adjust,zone}){
   if(kind==='store_create'){
    if(s)fail('This character already owns a shop.');const z=zone(p.zone);if(z.kind==='dungeon'||!validBusinessTile(z,input.x,input.y))fail('Choose an open hub tile that preserves paths and services.');
    if(db.prepare("SELECT 1 FROM player_store_receipts WHERE kind='create' AND status='pending' AND json_extract(body,'$.zone')=? AND json_extract(body,'$.x')=? AND json_extract(body,'$.y')=?").get(p.zone,input.x,input.y))fail('Another shop is reserving that tile.');
-   const appearance=validateShopAppearance(input.appearance),name=text(input.name,48)||c.name+"'s Shop",shopkeeper=text(input.shopkeeper,32)||'Shopkeeper';
+   const appearance=validateShopAppearance(input.appearance,unlocks(c.owner)),name=text(input.name,48)||c.name+"'s Shop",shopkeeper=text(input.shopkeeper,32)||'Shopkeeper';
    const draft={id:'store_'+randomUUID(),character:c.id,owner:c.owner,zone:p.zone,x:input.x,y:input.y,name,shopkeeper,appearance,active:true,stock:[],orders:[],created:now()};
    const id=charge(c,state,input,1000,{kind:'create',draft});db.prepare('INSERT INTO player_store_receipts VALUES (?,?,?,?)').run(id,'create',JSON.stringify(draft),'pending');return;
   }
@@ -71,7 +64,7 @@ export function createPlayerStores(db,{now=Date.now,origins,adjust,zone}){
    adjust(c.owner,'coins',count*order.price,'store-order-'+c.id+'-'+input.request_id,'Sold to '+s.name);s.orders=s.orders.filter(o=>o.remaining>0);save(s);return;
   }
   if(!s)fail('Open a shop first.');
-  if(kind==='store_style'){s.appearance=validateShopAppearance(input.appearance);s.name=text(input.name,48)||s.name;s.shopkeeper=text(input.shopkeeper,32)||s.shopkeeper;}
+  if(kind==='store_style'){s.appearance=validateShopAppearance(input.appearance,unlocks(c.owner));s.name=text(input.name,48)||s.name;s.shopkeeper=text(input.shopkeeper,32)||s.shopkeeper;}
   else if(kind==='store_move'){const z=zone(p.zone),without={...z,fixtures:z.fixtures.filter(f=>f.id!==s.id)};if(z.kind==='dungeon'||!validBusinessTile(without,input.x,input.y))fail('Choose a valid hub tile.');s.zone=p.zone;s.x=input.x;s.y=input.y;}
   else if(kind==='store_close')s.active=false;
   else if(kind==='store_open')s.active=true;

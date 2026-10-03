@@ -39,7 +39,7 @@ test('free descriptions work online, preserve loadouts, survive imports and prot
   assert.equal((await f.manager().act('owner','token',{...valid,description:'🌸'.repeat(2000)})).description.length,4000);
  }finally{f.db.close();}
 });
-test('paid names and paperdolls charge once, survive lost responses, preserve gameplay and keep NPC sprites free',async()=>{
+test('paid names charge once and survive lost responses; the paperdoll makeover is retired and NPC sprites are refused',async()=>{ // 2026-10-03: Sprite Lab looks replace both.
  const f=fixture();try{
   let c=f.create();c=f.act(c,'enter',{zone:'honeydew-lantern',loadout:{player_info:{name:'Campaign',class_id:'mage',level:4,str:11,gender:'Female',hair_color:'Brown'},inventory:[]}});c=f.act(c,'leave');
   const input={action:'rename',character_id:c.id,revision:c.revision,name:'New Name',request_id:'rename'};f.lose();
@@ -47,11 +47,11 @@ test('paid names and paperdolls charge once, survive lost responses, preserve ga
   assert.throws(()=>f.act(c,'enter',{zone:'honeydew-lantern'}),e=>e.code==='character_change_pending');
   await f.manager().recover('owner','new-token');const renamed=await f.manager().act('owner','token',input);assert.equal(renamed.name,'New Name');assert.equal(f.stars,15);assert.equal(f.payments.size,1);
   await assert.rejects(()=>f.manager().act('owner','token',{...input,name:'Another'}),/request ID/);
-  const changed=await f.manager().act('owner','token',{action:'appearance',character_id:c.id,revision:renamed.revision,appearance,request_id:'look'});assert.equal(f.stars,14);
-  c=f.zones.read('token',c.id).character;assert.equal(c.loadout.player_info.str,11);assert.equal(c.loadout.player_info.class_id,'mage');assert.equal(c.loadout.player_info.gender,'Male');
-  c=f.act(c,'enter',{zone:'honeydew-lantern',loadout:{player_info:{name:'Old name',gender:'Female',hair_color:'Brown'},inventory:[]}});assert.equal(c.name,'New Name');assert.equal(c.loadout.player_info.gender,'Male');
-  const sprite=f.zones.read('token').avatars.find(a=>a.id!=='player').id;c=f.act(c,'appearance',{avatar:sprite});assert.equal(c.avatar,sprite);assert.equal(f.stars,14);
-  assert.equal(changed.cost,1);
+  await assert.rejects(()=>f.manager().act('owner','token',{action:'appearance',character_id:c.id,revision:renamed.revision,appearance,request_id:'look'}),e=>e.status===410,'the paperdoll makeover is retired');assert.equal(f.stars,15,'and charges nothing');
+  c=f.zones.read('token',c.id).character;assert.equal(c.loadout.player_info.str,11);assert.equal(c.loadout.player_info.class_id,'mage');
+  c=f.act(c,'enter',{zone:'honeydew-lantern',loadout:{player_info:{name:'Old name',gender:'Female',hair_color:'Brown'},inventory:[]}});assert.equal(c.name,'New Name');
+  const sprite=f.zones.read('token').avatars.find(a=>a.id!=='player').id;assert.throws(()=>f.act(c,'appearance',{avatar:sprite}),e=>e.status===400,'NPC sprites are no longer player avatars');
+  c=f.act(c,'appearance',{avatar:'player'});assert.equal(c.avatar,'player');assert.equal(f.stars,15);
  }finally{f.db.close();}
 });
 test('management rejects wrong owners, stale revisions, class edits, insufficient stars and active visits',async()=>{

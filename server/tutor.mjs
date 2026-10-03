@@ -24,7 +24,7 @@ const FALLBACK="Hmm, my thoughts are all tangled up right now. Could you ask me 
 const fail=(status,message,code='tutor_unavailable')=>{throw Object.assign(Error(message),{status,code});};
 const cleanText=v=>String(v??'').replace(/[\u0000-\u001f\u007f]+/g,' ').replace(/\s+/g,' ').trim(); // One line, no control characters.
 
-export function createTutor(db,{live=null,url=process.env.NPC_RAG_URL||'',key=process.env.NPC_RAG_KEY||'',now=Date.now,fetch=globalThis.fetch,log=console.warn,
+export function createTutor(db,{live=null,url=process.env.NPC_RAG_URL??process.env.QUEST_FOLLOWER_AGENT_URL??'http://192.168.1.188:9092',key=process.env.NPC_RAG_KEY||process.env.QUEST_FOLLOWER_AGENT_KEY||'',now=Date.now,fetch=globalThis.fetch,log=console.warn,
  timeoutMs=Number(process.env.NPC_RAG_TIMEOUT_MS||45000),dailyLimit=Number(process.env.TUTOR_DAILY_LIMIT||100),cooldownMs=4000,concurrency=3}={}){
  const base=String(url).replace(/\/+$/,''); // Empty = not configured: Pip stays hidden whatever the GM switch says.
  db.exec(`CREATE TABLE IF NOT EXISTS quest_tutor(id TEXT PRIMARY KEY,owner TEXT NOT NULL,character_id TEXT NOT NULL,player_name TEXT NOT NULL,
@@ -43,7 +43,7 @@ export function createTutor(db,{live=null,url=process.env.NPC_RAG_URL||'',key=pr
   cached=out;return {...out,...(live?.sheet('tutor','online','guide')??{})};
  }
  if(live){const current=settings();live.registerSheet('tutor','online','guide',{name:current.name,greeting:current.greeting,fallback:FALLBACK},{name:'Tutorial guide',source:'tutor.mjs / imported tutor settings'});}
- const active=()=>!!base&&settings().enabled; // Visible and answering only when configured AND switched on.
+ const active=()=>!!base&&settings().enabled; // Pip is a retained guide service; the GM switch and an explicitly empty URL still disable him.
 
  // ── Placement ──────────────────────────────────────────────────────────────
  const spots=new Map(); // zone id + month edition -> chosen tile (or null), so monthly towns place Pip once per edition.
@@ -161,5 +161,5 @@ export function createTutor(db,{live=null,url=process.env.NPC_RAG_URL||'',key=pr
 
  function prune(){db.prepare('DELETE FROM quest_tutor WHERE created<?').run(now()-KEEP_MS);}
 
- return {decorate,ask,kick,view,gmView,gmSet,prune,settings,configured:()=>!!base,busy:()=>inFlight.size};
+ return {decorate,ask,kick,view,gmView,gmSet,prune,settings,invalidate(){cached=null;},configured:()=>!!base,busy:()=>inFlight.size};
 }

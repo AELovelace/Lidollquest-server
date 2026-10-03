@@ -1,5 +1,13 @@
 # LiDollQuest server
 
+Active companion contracts can be extended by their hirer for one diamond per additional 60 minutes through Party or companion dialogue. `follower_extend` binds the purchase to the current rental; `quest_follower_extensions` stores pending payments and receipts. Confirmation adds time without restoring HP/MP. Lost replies retry the same wallet key and retain the reservation across expiry/restart; a definitive decline keeps the old expiry. Existing hires can be extended even if an operator disables new recruitment. Deploy the server and rebuilt client for these controls. Validation: `node --test test/followers.test.mjs test/followers-http.test.mjs`.
+
+Online story cleanup: production starts with essential service NPCs, the retained Coastal Caverns story, the seven hireable companions, Pip and GM-authored content. Other old town residents, nonservice dungeon NPCs, the campaign quest pack and optional weekly quest library no longer load. Existing maps are cleaned in place; terrain, treasure receipts, inventories and payouts remain intact. A one-time startup migration moves removed quest definitions/attempts and old NPC sheets into `world_story_archive`, outside the live workshop. Caverns definitions, revisions, flow, placements and player progress are explicitly preserved. The offline campaign exports remain source/compatibility material. Companion recruitment defaults to enabled; existing environments explicitly set to `QUEST_FOLLOWERS_ENABLED=false` must opt back in. The `online-companions-restored-v1` migration recovers archived companion/Pip sheets, authorship and history where no newer live sheet exists, without restoring retired quests. Deploy/restart the server and reload the GM panel; the restoration itself needs no game rebuild. See `test/blank-canvas.test.mjs` for restart and preservation checks.
+
+Player quest logs have a separate startup migration, `online-removed-questlogs-v1`, so worlds already marked `online-npcs-quests-v1` also receive it. It archives and removes every affected quest attempt, including completed/failed/abandoned history, for online and offline characters. Matching event rows, scheduled flag resets, stale quest conversations, tracking and reward notices are cleared atomically. Archived attempts identify leftover references from the earlier cleanup. Paid reward receipts, balances, XP, inventory, story flags, Caverns and GM quests stay intact. The marker commits only on success; subsequent restarts skip this migration.
+
+The GM **Loot → Base item pool** can edit shipped weapons (fixed attack or attack range, wand/gun class, mana cost, power and other stats), with a per-weapon reset. These overrides affect future loot and previews; previously issued rolls and the client's shipped item catalogue stay intact. **Crafting** now has searchable forms for recipes, materials, culinary tags, cooking, regions, wildlife, tuning and catalysts, with add/duplicate/delete, retained section drafts, full-content validation and revision checks. Raw JSON is under Advanced. Deploy/restart the server and reload `/gm` to use the new forms; no client build is required. Browser verification: set `QUEST_PUPPETEER_MODULE` to Puppeteer and run `node scripts/test-loot-crafting-browser.mjs`.
+
 For tonight's move of gallery, tracker, auth and Quest from `10.1.1.23` to Fedora
 `10.1.1.24`, see [the migration runbook](MIGRATION_10.1.1.24.md). The Bash entry point
 is `deploy/migrate-lidoll-services.sh`; its default mode only inventories the source.
@@ -318,6 +326,8 @@ intervals appear as gaps. Each sample carries its actual duration and process se
 - Gameplay request throughput, active/peak requests, mean/max response time, 4xx/5xx,
   429 throttles and disconnects. Health probes and staff traffic are excluded from
   these request counters; process CPU still includes the entire service.
+- Lag counters: gameplay requests taking **at least 250 ms**, with **at least 1 second** as a subset, plus event-loop stalls. A separate 100 ms heartbeat counts one stall when it resumes at least 100 ms late; its maximum lateness excludes the scheduled wait. The existing 20 ms histogram still reports loop delay p95/max. These are server timings, not browser frame rate or complete network round trips.
+- Live cards show request p95, slow requests and loop stalls. The selected work interval shows all lag counts and delay measurements; history totals cover the selected hour/day and exclude the live interval. Counters reset with each sample and persist in its JSON across restarts. Old samples display unavailable lag counts and are excluded from totals. Thresholds are stored per sample; intervals with different thresholds are not combined. Requests finishing or disconnecting across a sample boundary count once in their completion interval, using their full elapsed time.
 - Expand **Work timings by operation and zone** for current or latest recorded calls,
   total/mean/max elapsed milliseconds and thrown errors. Simulation, generation and
   pathfinding are grouped by authored zone; snapshots, zone actions/reads, response
@@ -1165,8 +1175,8 @@ corrections preserve the loot cap, pursuit, and category assertions without chan
 gameplay rules. Verify the complete checkout with
 `node --test --test-concurrency=2 test/*.test.mjs`.
 
-`QUEST_COMPUTE_WORKERS=auto` uses up to six persistent CPU workers while leaving
-two available cores of headroom (six workers on an eight-core VM). Explicit
+`QUEST_COMPUTE_WORKERS=auto` uses up to six persistent CPU workers after subtracting
+zone workers and leaving two available cores of headroom. Explicit
 values 0 through 32 are supported; 0 uses synchronous calculations. Restart
 after changing `/etc/lidollquest/server.env`. The startup path prepares missing
 weekly floors before listening; existing editions, claims and receipts remain.
@@ -1253,7 +1263,8 @@ read 8.2 → 3.0 ms, tick 3.3 → 2.0 ms. Covered by `test/snapshot-rooms.test.m
 
 HTTP actions now build one snapshot after purchase settlement; HTTP reads build
 one snapshot as well. Availability checks no longer decode every dungeon floor.
-Snapshot assembly, combat, monthly districts and database writes remain on the
+With zone workers enabled, snapshot assembly and encoding run across worker
+threads. Combat, monthly district maintenance and database writes remain on the
 coordinator. In `/gm`, compare request p95, event-loop delay, worker busy/queued
 counts and memory. `worker.paths/generate` measure execution;
 `worker.queue.*` measures waiting; `worker.roundtrip.*` includes dispatch through
@@ -1261,6 +1272,82 @@ delivery; `worker.stale.paths` counts discarded batches. `floor.read/decode/enco
 separates SQLite and JSON costs. Timings overlap and are not additive CPU usage.
 Worker completed/failed counters are lifetime totals. Process CPU includes all
 threads, with 100% representing one occupied core.
+
+### Shared-world zone workers
+
+For the 12-core Fedora server, set both values in `/etc/lidollquest/server.env`:
+
+```dotenv
+QUEST_ZONE_WORKERS=5
+QUEST_COMPUTE_WORKERS=5
+```
+
+This assigns five workers to zone snapshots and five to generation/pathfinding,
+leaving two cores of headroom. The example environment uses these explicit values;
+redeployment preserves an existing environment file, so update that file separately
+and restart. Generic `auto` caps zone workers at four, then gives compute workers
+the remaining budget minus two cores, capped at six. Explicit values override
+automatic sizing. `QUEST_ZONE_WORKERS=0` restores coordinator-only snapshots.
+No client rebuild or world reset is required. This is worker-thread parallelism,
+not operating-system CPU pinning.
+
+All workers read the same persistent SQLite WAL database; there are no separate
+world copies. A zone has a stable preferred worker, and spare workers can serve
+its queued reads. The coordinator owns commands, purchase settlement, stories,
+AI jobs, timers, combat mutation and cross-zone transfers. It performs read-side
+maintenance before dispatching an authenticated, ownership-checked snapshot job.
+Workers build the snapshot and encode JSON, returning a transferable byte buffer.
+This offloads reads; authoritative zone simulation is still on the coordinator.
+
+Worker connections are read-only. During startup only, their database adapter
+suppresses shared module constructors' schema/seed writes: the primary already
+completed those migrations. After startup SQLite rejects all writes. A read
+transaction pairs each view with committed cache epochs for published content,
+districts, guilds and Pip settings. Epoch triggers commit or roll back with the
+underlying changes. Story Workshop's isolated test sessions stay on the primary.
+
+The shared queue accepts at most 256 waiting reads; a full queue returns 429.
+Queueing and execution share a ten-second deadline. Crashes/timeouts fail affected
+reads with 503; workers restart on demand. Actions have already used their durable
+request receipts, so clients must retry with the original request ID. Shutdown
+settles pending work before terminating the threads. No duplicate service process
+should write the database for scaling.
+
+GM Performance shows zone workers separately from compute workers, including
+queued/busy/rejected work, lifetime completions/failures/restarts and zones served.
+`shard.queue`, `shard.snapshot` and `shard.roundtrip` distinguish waiting,
+worker execution and dispatch-to-response time; `shard.snapshot.*` gives the
+worker's component timings. Keep watching coordinator loop load, p95 and RSS.
+
+Run the synthetic populated-hub comparison sequentially, outside other tests:
+
+```sh
+node deploy/benchmark-zone-shards.mjs --workers=0 --players=200 --seconds=30 --hz=2
+node deploy/benchmark-zone-shards.mjs --workers=5 --compute-workers=5 --players=200 --seconds=30 --hz=2
+```
+
+It uses a temporary database, fake wallets and a separate paced load-client process,
+with heartbeat, movement and Area chat in five populated safe hubs. It reports
+missed scheduled requests rather than hiding saturation. It excludes combat, AI,
+external wallet latency, remote networking and client rendering. Compute workers
+prepare maps but these safe hubs do not exercise sustained pursuit work; repeat
+representative combat loads on Fedora before promising 200-player capacity.
+Worker memory is additive, so compare RSS against available RAM as well as CPU.
+
+Local Windows run (2026-10-03, 200 players at 2 requests/sec, 30 seconds):
+
+| Zone / compute workers | Achieved requests/sec | Request p95 | Missed scheduled requests | Server RSS |
+| --- | ---: | ---: | ---: | ---: |
+| 0 / 0 | 261.3 | 821.8 ms | 3,908 | 449 MiB |
+| 5 / 5 | 399.9 | 61.0 ms | 0 | 1,576 MiB |
+
+The 5/5 run completed all 12,000 requests without HTTP errors. Its p99 was
+414 ms, with 181 responses at least 250 ms, zero at least one second, and one
+heartbeat stall. Coordinator loop utilization was 41.3%; process CPU was
+226.8% (about 2.27 occupied cores). These are synthetic measurements on the
+development machine, not a production capacity guarantee or a combat benchmark.
+
+Focused regressions: `node --test test/zone-shards.test.mjs test/zone-snapshots.test.mjs test/zone-workers-http.test.mjs test/deployment.test.mjs`.
 
 Run `node deploy/benchmark-compute.mjs --workers=0,1,2,4,6` off-peak for an isolated
 synthetic comparison (in-memory databases, no real wallet or accounts). It measures
@@ -1270,6 +1357,48 @@ the empty-lobby HTTP benchmark does not exercise roaming, disk writes or wallet
 latency. Regression tests: `node --test test/*.test.mjs`, especially
 `compute-pool.test.mjs`, `parallel-dive.test.mjs`, `service.test.mjs` and
 `performance.test.mjs`.
+
+## Sprite Lab looks and accessory unlocks
+
+`server/sprite-looks.mjs` (2026-10-03) holds the one validator for layered appearances, `validateLook`. Shopkeepers use it today and player looks will next. It checks registered layers, slot fit, RGB and strength.
+
+**Accessory rules**
+- Accessories are the catalog slots flagged `accessory: true`: head, face, neck and back.
+- A look may wear at most `accessory_limit` (3).
+- When ownership is checked, every worn accessory must be unlocked.
+
+**Unlocking**
+- `look_unlock {asset}` is a zone action needing presence, the controller and a revision, like other actions; `asset` joined the input allowlist.
+- It reserves a `hub_purchases` row `{look_unlock, name, currency:'diamonds'}` priced at one diamond. `settlePurchases` debits it with the durable `shop-<id>` request id, and `hubs.mjs complete()` routes it to `purchaseHooks.lookUnlock`, which records the unlock in `look_unlocks(owner, asset, created, purchase)`.
+- Unlocks are per account. A declined debit unlocks nothing; a replayed settlement grants nothing twice.
+
+**Snapshots** carry `lookUnlocks` (the account's asset ids) and `lookRules {accessoryLimit, unlockDiamonds}`.
+
+**Shopkeepers:** `store_create`/`store_style` validate with the owner's unlocks.
+
+**Deploy:** the new table is created on boot (no migration). Re-export `server/crafting-data.json` from the game repo after catalog changes (`python python/export_crafting.py`). Tests: `node --test test/sprite-looks.test.mjs test/player-stores.test.mjs`.
+
+## Player looks
+
+Part C, 2026-10-03.
+
+**Saving a look**
+- A character's Sprite Lab look is `state.look`, worn when `state.avatar === 'look'`.
+- Creation accepts `creation.look`, validated with the account's unlocks. Without an explicit avatar the character wears it.
+- The zone action `look {look}` is free beside a hub `mirror` fixture. Elsewhere it reserves a one-diamond `hub_purchases` row `{look_save, look}`, applied on settlement.
+- `hub-mirrors.mjs` decorates every hub room with beds with a 2x2 vanity mirror (`sprPQDetailVanity`) on a spot that keeps the room connected.
+
+**Avatar rules**
+- `chooseAvatar` allows `look` (needs a look), `player` and owned private sprites, and refuses NPC catalog ids (existing ones stay).
+- The paperdoll makeover in `characters/action` answers 410 for new requests.
+
+**Snapshots**
+- Peers and party members carry `lookKey` (the look's content hash).
+- `looks` maps each key to its look once per snapshot; opted-in clients get `1` for keys they already hold (`MAX_KNOWN` 256).
+- `lookUnlocks` is the account's list even without a character.
+- `zones/inspect` adds `avatar` and `look`.
+
+**Tests:** `test/player-looks.test.mjs`.
 
 ## Market dumpsters
 
@@ -1504,8 +1633,8 @@ chat box (now labelled "To Pip") and press Enter. The answer comes from the **np
 (`C:/Scripts/npc-rag`), which classifies the question, looks it up in the public player wiki and has the AI model
 write Pip's reply.
 
-- **Configuration:** `NPC_RAG_URL` (for example `http://47.51.162.106:9092`) and `NPC_RAG_KEY` (npc-rag's
-  `NPC_API_KEY`). Without `NPC_RAG_URL` Pip never appears. Optional: `NPC_RAG_TIMEOUT_MS` (45000) and
+- **Configuration:** `NPC_RAG_URL` overrides `QUEST_FOLLOWER_AGENT_URL`, then defaults to `http://192.168.1.188:9092`.
+  `NPC_RAG_KEY` falls back to `QUEST_FOLLOWER_AGENT_KEY` (npc-rag's `NPC_API_KEY`). An explicitly empty URL hides Pip. Optional: `NPC_RAG_TIMEOUT_MS` (45000) and
   `TUTOR_DAILY_LIMIT` (100 questions per account per UTC day). The AI server's firewall must allow this host on 9092.
 - **Flow:** `tutor_ask` (zones.mjs) checks the player stands beside Pip and stores the question in `quest_tutor` as
   `pending` inside the ordinary command transaction. `service.mjs` then calls `tutor.kick()`, which posts pending
@@ -1526,7 +1655,9 @@ write Pip's reply.
 
 ## Hired NPC followers
 
-Seven globally exclusive companions can be hired for one diamond per real-time hour. One rental per player account and one per party, including pending payments; every NPC consumes one of three allied slots. Rentals remain attached to the hiring character. Enable new hires with QUEST_FOLLOWERS_ENABLED=true only after deploying the follower_version:1 game client. Server-owned rental receipts, persistent NPC XP, automatic PvE actors and asynchronous area-chat replies are stored in additive quest_follower_* tables. Existing rentals remain valid when new hiring is disabled.
+Seven globally exclusive companions can be hired for one diamond per real-time hour. One rental per player account and one per party, including pending payments; every NPC consumes one of three allied slots. Rentals remain attached to the hiring character. Recruitment defaults to enabled and requires a follower_version:1 game client; explicit QUEST_FOLLOWERS_ENABLED=false disables new hires. Server-owned rental receipts, persistent NPC XP, automatic PvE actors and asynchronous area-chat replies are stored in additive quest_follower_* tables. Existing rentals remain valid when new hiring is disabled.
+
+Any nearby player can address a companion by name or alias in ordinary Area chat, whether unhired or hired by someone else. Hearing uses the same zone, edition and screen bounds as player Area chat. Other channels and emotes do not trigger AI. Pending jobs recheck the speaker's location and companion's hire context before and after the request; each NPC shares one pending slot and a ten-second cooldown across speakers. History is isolated per speaker and hire/idle context. The startup queue upgrade discards old pending jobs rather than exposing the former hirer's context. Validation includes `test/follower-earshot.test.mjs` and compiled two-client browser checks with stubbed AI.
 
 Export server/followers-data.json from the game registry with python/export_online_followers.py. Classifier requests use 192.168.1.188:9091, casual character replies use :9090, and grounded game answers use npc-rag at :9092. Configure QUEST_FOLLOWER_CLASSIFIER_URL, QUEST_FOLLOWER_LLM_URL, QUEST_FOLLOWER_AGENT_URL and optional QUEST_FOLLOWER_AGENT_KEY on the server only. Run node --test test/followers.test.mjs test/followers-http.test.mjs and the full suite. Detailed deployment, editing and browser checks are in the game checkout's ONLINE_FOLLOWERS_GUIDE.md.
 
@@ -1546,6 +1677,28 @@ Run `node --test test/story-flows.test.mjs test/flow-integration.test.mjs`, the 
 ### GM quest-creation wiki
 
 Open `/gm/wiki/` or the **GM wiki / Quest creation guide** links in the GM panel and Story Workshop. The Markdown chapters cover the worked rescue quest, every flow block, canonical quests/NPCs/monsters/orbs, persistent flags, map placements, testing, publication and troubleshooting. Sources are in `server/gm-wiki/content/`; the existing server serves them and local JavaScript renders/searches them in the browser. No documentation build or separate service is required. See [wiki maintenance](server/gm-wiki/README.md). The handbook shares the GM surface's enabled/TLS/address restrictions and contains no live staff data; editing APIs still require staff authentication.
+
+## Public quest editor and quest bundles
+
+`node scripts/build-public-quest-editor.mjs [outDir]` (also `npm run build:quest-editor`) writes a statically
+hosted copy of Story Workshop to `public-quest-editor/` (git-ignored): a single `index.html` plus the GM wiki beside
+it. Upload the folder to any static host, or open `index.html` from disk; the wiki needs a web server for its
+Markdown fetches. The page is the same editor code as `/gm/flow-editor` with a browser-local stand-in for the
+authenticated API (`server/gm-public-workshop.js`): the shipped catalogue is snapshotted from a fresh in-memory
+world at build time, so no live content, accounts or placements are included, and drafts live in the visitor's
+`localStorage`. The server's own validators (`story-flags.mjs`, `quest-content.mjs`, `flow-faith.mjs`,
+`flow-content.mjs`) are inlined, so public drafts fail for the same reasons the live console would reject them.
+Publishing, rollback, map placement, isolated tests, artwork uploads and monster tuning are hidden; the player
+preview runs the same simulation walk as the server.
+
+**Export bundle** / **Import bundle…** in both editors move work as `*.lidollquest.json` files
+(`server/gm-quest-bundle.js`, format `lidollquest-quest-bundle` version 1: a flow, up to 64 quest/NPC/orb/monster
+drafts and up to 128 authored flags). Importing into the live workshop creates missing flags, loads the flow as a
+draft and queues the records as bundle edits; saving and publishing then run the ordinary server validation and
+review. The live export also packs referenced published records so a file stands alone. Rebuild and re-upload the
+public page after shipping new zones, items, sprites or monsters. Validation: `node --test
+test/public-quest-editor.test.mjs`; browser end to end (public authoring, export, live import, save and publish):
+`QUEST_PUPPETEER_MODULE=<puppeteer> node scripts/test-public-quest-editor-browser.mjs`.
 
 ## GM wiki assistant
 

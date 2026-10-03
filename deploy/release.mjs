@@ -1,12 +1,12 @@
 import {parseEnv} from 'node:util';
 import {isIP} from 'node:net';
 import {createWalletClient} from '../server/wallet.mjs';
-import {computeWorkerCount} from '../server/compute-pool.mjs';
+import {worldWorkerBudget} from '../server/zone-shards.mjs';
 import {authCacheMs} from '../server/auth-cache.mjs';
 
 export function validateEnvironment(text) { // Check settings without printing or executing environment-file contents.
   const env = parseEnv(text);
-  computeWorkerCount(env.QUEST_COMPUTE_WORKERS??'auto'); // Reject invalid pool settings before stopping the running release.
+  worldWorkerBudget(env.QUEST_ZONE_WORKERS??'auto',env.QUEST_COMPUTE_WORKERS??'auto'); // Reject either invalid pool setting before stopping the running release.
   authCacheMs(env.QUEST_AUTH_CACHE_MS); // Same for the login cache TTL; unset means the 30 s default.
   if (env.DATA_DIR !== '/var/lib/lidollquest-server') throw Error('DATA_DIR must be /var/lib/lidollquest-server for this installer.');
   if (!isIP(env.HOST ?? '')) throw Error('HOST must be an explicit IPv4 or IPv6 bind address.');

@@ -14,14 +14,17 @@ export function followerStats(def,level){
  return {...values,hp:p.hp_base+(l-1)*p.hp_per_level+values.def*p.hp_def_scale,mp:p.mp_base+values.int*p.mp_int_scale};
 } // The authored companion profiles remain the source of level, stat and mana scaling.
 
-export function createFollowers(db,{now=Date.now,enabled=envFlag('QUEST_FOLLOWERS_ENABLED'),catalog=followerData,live=null}={}){
- if(live){const source=catalog;catalog={};for(const [id,def] of Object.entries(source)){live.registerSheet('follower',def.online.home_zone,id,{name:def.name,aliases:def.online.aliases??[],persona:def.online.persona,hire_text:def.online.hire_text,fallback:def.online.fallback,talk_lines:def.dialogue.talk_lines??[]},{name:def.name,source:'followers-data.json'});Object.defineProperty(catalog,id,{enumerable:true,get(){const story=live.sheet('follower',def.online.home_zone,id);return {...def,name:story.name,online:{...def.online,...story},dialogue:{...def.dialogue,talk_lines:story.talk_lines}};}});}} // Dialogue overrides leave follower stats, placement and hire receipts untouched.
+export function createFollowers(db,{now=Date.now,enabled=envFlag('QUEST_FOLLOWERS_ENABLED',true),catalog=followerData,live=null,readOnly=false}={}){
+ if(live){const source=catalog;catalog={};for(const [id,def] of Object.entries(source)){live.registerSheet('follower',def.online.home_zone,id,{name:def.name,aliases:def.online.aliases??[],persona:def.online.persona,hire_text:def.online.hire_text,fallback:def.online.fallback,talk_lines:def.dialogue.talk_lines??[]},{name:def.name,source:'followers-data.json'});Object.defineProperty(catalog,id,{enumerable:true,get(){const story=live.sheet('follower',def.online.home_zone,id);return {...def,name:story.name,online:{...def.online,...story},dialogue:{...def.dialogue,talk_lines:story.talk_lines}};}});}} // Companions are an explicit exception to the blank-world cleanup; recruitment still has an operator off switch.
  db.exec(`CREATE TABLE IF NOT EXISTS quest_followers(id TEXT PRIMARY KEY,level INTEGER NOT NULL DEFAULT 1,xp INTEGER NOT NULL DEFAULT 0,hp REAL NOT NULL,mp REAL NOT NULL);
  CREATE TABLE IF NOT EXISTS quest_follower_hires(id TEXT PRIMARY KEY,npc TEXT NOT NULL,character_id TEXT NOT NULL,owner TEXT NOT NULL,request_id TEXT NOT NULL,status TEXT NOT NULL,created INTEGER NOT NULL,expires INTEGER,zone TEXT,x INTEGER,y INTEGER,edition TEXT,area TEXT,battle TEXT,UNIQUE(character_id,request_id));
  CREATE UNIQUE INDEX IF NOT EXISTS quest_follower_exclusive ON quest_follower_hires(npc) WHERE status IN ('pending','active');
  CREATE UNIQUE INDEX IF NOT EXISTS quest_follower_one_per_character ON quest_follower_hires(character_id) WHERE status IN ('pending','active');
  CREATE UNIQUE INDEX IF NOT EXISTS quest_follower_one_per_player ON quest_follower_hires(owner) WHERE status IN ('pending','active');
- CREATE TABLE IF NOT EXISTS quest_follower_awards(battle TEXT NOT NULL,npc TEXT NOT NULL,PRIMARY KEY(battle,npc));`);
+ CREATE TABLE IF NOT EXISTS quest_follower_awards(battle TEXT NOT NULL,npc TEXT NOT NULL,PRIMARY KEY(battle,npc));
+ CREATE TABLE IF NOT EXISTS quest_follower_extensions(id TEXT PRIMARY KEY,rental TEXT NOT NULL,character_id TEXT NOT NULL,owner TEXT NOT NULL,request_id TEXT NOT NULL,status TEXT NOT NULL,created INTEGER NOT NULL,expires INTEGER,payment_uncertain INTEGER NOT NULL DEFAULT 0,payment_receipt TEXT,UNIQUE(character_id,request_id));
+ CREATE UNIQUE INDEX IF NOT EXISTS quest_follower_one_extension ON quest_follower_extensions(rental) WHERE status='pending';
+ CREATE INDEX IF NOT EXISTS quest_follower_extension_owner ON quest_follower_extensions(owner) WHERE status='pending';`);
  const columns=new Set(db.prepare('PRAGMA table_info(quest_follower_hires)').all().map(c=>c.name));
  if(!columns.has('payment_uncertain'))db.exec('ALTER TABLE quest_follower_hires ADD COLUMN payment_uncertain INTEGER NOT NULL DEFAULT 0');
  if(!columns.has('payment_receipt'))db.exec('ALTER TABLE quest_follower_hires ADD COLUMN payment_receipt TEXT'); // Additive receipt metadata also supports servers upgraded from the initial disabled rollout.
@@ -29,11 +32,13 @@ export function createFollowers(db,{now=Date.now,enabled=envFlag('QUEST_FOLLOWER
  const get=id=>db.prepare("SELECT * FROM quest_follower_hires WHERE character_id=? AND status IN ('pending','active')").get(id);
  const occupied=id=>db.prepare("SELECT * FROM quest_follower_hires WHERE npc=? AND status IN ('pending','active')").get(id);
  const progression=id=>db.prepare('SELECT * FROM quest_followers WHERE id=?').get(id);
+ const extending=id=>db.prepare("SELECT 1 FROM quest_follower_extensions WHERE rental=? AND status='pending'").get(id);
  const slots=ids=>ids.length+ids.filter(id=>get(id)).length;
  function assertSlots(ids){const unique=[...new Set(ids)];if(unique.filter(id=>get(id)).length>1)fail('A party may hire only one companion. Dismiss a follower first.');if(slots(unique)>3)fail('Players and companions share three party slots. Dismiss a follower first.');}
  function tick(){ // Contracts that are up send the companion home: the hire ends and view() shows them back at their recruiting spot (placement) in their home zone.
   const t=now(),ended=db.prepare("SELECT id,npc,character_id FROM quest_follower_hires WHERE status='active' AND expires<=? AND (battle IS NULL OR expires<=?)").all(t,t-BATTLE_GRACE_MS); // A battle lock only holds them until that fight settles; one still set 15 minutes after the contract is from a fight that never settled (retired floor, restart) and is ignored.
   for(const row of ended){
+   if(extending(row.id))continue; // Keep the exclusive reservation until an in-flight diamond debit is resolved, including after restart.
    db.prepare("UPDATE quest_follower_hires SET status='expired',battle=NULL WHERE id=?").run(row.id);
    const character=db.prepare('SELECT state FROM quest_characters WHERE id=?').get(row.character_id);if(!character)continue;
    const state=JSON.parse(character.state);if(state.pendingDefeat||state.lastResult?.defeatScene||state.run)continue; // Never overwrite an unread defeat scene or a fight in progress; the companion still goes home.
@@ -76,9 +81,31 @@ export function createFollowers(db,{now=Date.now,enabled=envFlag('QUEST_FOLLOWER
   db.prepare('UPDATE quest_followers SET hp=?,mp=? WHERE id=?').run(stats.hp,stats.mp,row.npc);
   db.prepare("UPDATE quest_follower_hires SET status='active',expires=?,payment_receipt=? WHERE id=?").run(now()+HIRE_MS,JSON.stringify(receipt??{request_id:'follower-'+id}),id);
  } // A confirmed, idempotent wallet receipt starts the hour and restores the new rental's resources.
- function dismiss(c){const row=get(c.id);if(!row)fail('You do not have a companion.');if(row.status==='pending'||row.battle)fail('Finish the payment or battle before dismissing your companion.');db.prepare("UPDATE quest_follower_hires SET status='dismissed' WHERE id=?").run(row.id);}
+ function extend(c,state,input){
+  tick();const row=get(c.id);
+  if(!row||row.owner!==c.owner||row.status!=='active'||row.id!==input.rental||row.expires<=now())fail('Choose your current, unexpired companion contract.');
+  if(state.followerVersion!==1)fail('Update the game to extend companion time.');
+  if(extending(row.id))fail('Your companion extension payment is still pending.');
+  if(row.battle||state.run||state.pendingDefeat||state.pendingPurchase||state.worldTurnDue)fail('Finish your current action before extending companion time.');
+  const id=randomUUID();db.prepare("INSERT INTO quest_follower_extensions(id,rental,character_id,owner,request_id,status,created) VALUES (?,?,?,?,?,'pending',?)").run(id,row.id,c.id,c.owner,input.request_id,now());return id;
+ } // The command transaction binds one explicit purchase to the hirer's current contract; recruitment may remain disabled.
+ function completeExtension(id,paid,receipt=null){
+  const extension=db.prepare('SELECT * FROM quest_follower_extensions WHERE id=?').get(id);if(!extension||extension.status!=='pending')return;
+  const hire=db.prepare('SELECT * FROM quest_follower_hires WHERE id=?').get(extension.rental);if(!hire||hire.status!=='active')fail('The reserved companion contract is unavailable.');
+  const expires=paid?Math.max(hire.expires,now())+HIRE_MS:hire.expires;
+  if(paid)db.prepare('UPDATE quest_follower_hires SET expires=? WHERE id=?').run(expires,hire.id);
+  db.prepare('UPDATE quest_follower_extensions SET status=?,expires=?,payment_receipt=? WHERE id=?').run(paid?'paid':'declined',expires,paid?JSON.stringify(receipt??{request_id:'follower-extension-'+id}):null,id);
+  const character=db.prepare('SELECT state FROM quest_characters WHERE id=?').get(hire.character_id);
+  if(character){const state=JSON.parse(character.state);if(!state.run&&!state.pendingDefeat&&!state.lastResult?.defeatScene){state.lastResult={log:[paid?catalog[hire.npc].name+' will stay for another 60 minutes.':'The extension payment was declined. Your existing companion time is unchanged.']};db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),hire.character_id);}}
+ } // Apply a confirmed receipt once, preserving remaining time and NPC resources; delayed confirmation still delivers a full extra hour.
+ function dismiss(c){const row=get(c.id);if(!row)fail('You do not have a companion.');if(row.status==='pending'||row.battle||extending(row.id))fail('Finish the payment or battle before dismissing your companion.');db.prepare("UPDATE quest_follower_hires SET status='dismissed' WHERE id=?").run(row.id);}
  function cancelSpeech(row){if(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='quest_follower_chat_jobs'").get())db.prepare("UPDATE quest_follower_chat_jobs SET status='discarded' WHERE rental=? AND status='pending'").run(row.id);} // Cancel travel/disconnect replies even when their HTTP request is already in flight.
+ let chatSchemaReady=false;
  function move(c,state,before,after,area){
+  if(chatSchemaReady||(chatSchemaReady=!!db.prepare("SELECT 1 FROM pragma_table_info('quest_follower_chat_jobs') WHERE name='speaker'").get())){
+   if(!after)db.prepare("UPDATE quest_follower_chat_jobs SET status='discarded' WHERE speaker=? AND status='pending'").run(c.id);
+   else db.prepare("UPDATE quest_follower_chat_jobs SET status='discarded' WHERE speaker=? AND status='pending' AND (zone<>? OR edition IS NOT ?)").run(c.id,after.zone,state.dive?.edition??null);
+  } // Any speaker's departure cancels their queued replies, including speakers who have no hired companion.
   const row=get(c.id);if(!row||row.status!=='active')return;if(!after){cancelSpeech(row);return;}
   const edition=state.dive?.edition??null,same=before?.zone===after.zone&&row.zone===after.zone&&row.edition===edition;
   const stepped=same&&Math.abs(before.x-after.x)+Math.abs(before.y-after.y)===1;
@@ -88,15 +115,27 @@ export function createFollowers(db,{now=Date.now,enabled=envFlag('QUEST_FOLLOWER
   db.prepare('UPDATE quest_follower_hires SET zone=?,x=?,y=?,edition=?,area=? WHERE id=?').run(after.zone,x,y,edition,area??null,row.id);
  } // Walk one validated tile behind the hirer; portal arrivals move the pair together.
  function view(c,p,geometry,state){
-  tick();const own=c?get(c.id):null,entities=[];
+  if(!readOnly)tick();const own=c?get(c.id):null,entities=[]; // Snapshot workers consume the coordinator's committed expiry decisions.
   if(p){
    if(enabled)for(const [id,def] of Object.entries(catalog)){const at=placement(id,p.zone,geometry);if(at&&!occupied(id))entities.push({id:'follower:'+id,npc:id,name:def.name,sprite:def.overworld_sprite,...at,available:true,hireText:def.online.hire_text});}
    for(const row of db.prepare("SELECT h.* FROM quest_follower_hires h JOIN quest_presence p ON p.character_id=h.character_id WHERE h.status='active' AND h.zone=? AND p.zone=h.zone AND p.seen>?").all(p.zone,now()-30000)){
     if(row.edition!==(state?.dive?.edition??null))continue;const def=catalog[row.npc];entities.push({id:'follower:'+row.npc,npc:row.npc,name:def.name,sprite:def.overworld_sprite,x:row.x,y:row.y,hirer:row.character_id,available:false});
    }
   }
-  return {enabled,entities,active:own?{...progression(own.npc),id:own.id,npc:own.npc,name:catalog[own.npc].name,status:own.status,expires:own.expires}:null};
+  return {enabled,entities,active:own?{...progression(own.npc),id:own.id,npc:own.npc,name:catalog[own.npc].name,status:own.status,expires:own.expires,extensionPending:!!extending(own.id),canExtend:own.status==='active'&&own.expires>now()&&!extending(own.id)&&!own.battle&&!state?.run&&!state?.pendingDefeat&&!state?.pendingPurchase&&!state?.worldTurnDue}:null};
  } // A compact entity list is independent of player accounts, inventories and appearance grants.
+ function chatTargets(c,{area,geometry=null,within=(a,b)=>Math.abs(a.x-b.x)<=15&&Math.abs(a.y-b.y)<=10}={}){
+  const p=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);if(!p||p.seen<=now()-30000)return [];
+  const state=JSON.parse(c.state),targets=[];
+  for(const entity of view(c,p,geometry,state).entities){
+   if(!within(p,entity))continue;
+   const hire=occupied(entity.npc);if(hire&&(hire.status!=='active'||hire.expires<=now()||hire.area!==null&&hire.area!==area))continue;
+   if(hire?.area===null)db.prepare('UPDATE quest_follower_hires SET area=? WHERE id=?').run(area,hire.id);
+   const last=hire??db.prepare('SELECT id,status FROM quest_follower_hires WHERE npc=? ORDER BY created DESC,rowid DESC LIMIT 1').get(entity.npc);
+   targets.push({npc:entity.npc,rental:hire?.id??JSON.stringify(['idle',entity.npc,area,last?.id??'',last?.status??'']),zone:p.zone,edition:state.dive?.edition??null,x:entity.x,y:entity.y});
+  }
+  return targets;
+ } // Resolve only companions actually visible within the area's hearing rectangle; idle and hired contexts keep histories separate.
  function actors(people,battle){
   tick();assertSlots(people.map(c=>c.id));const active=[];
   for(const c of people){const h=get(c.id);if(!h||h.status!=='active'||h.expires<=now())continue;
@@ -119,5 +158,5 @@ export function createFollowers(db,{now=Date.now,enabled=envFlag('QUEST_FOLLOWER
   db.prepare('UPDATE quest_follower_hires SET battle=NULL WHERE id=? AND battle=?').run(actor.rental,battle);tick();
  } // The settlement receipt guards persistent NPC XP and HP independently from player rewards.
  function rest(c){const h=get(c.id);if(!h||h.status!=='active'||h.battle)return;const s=followerStats(catalog[h.npc],progression(h.npc).level);db.prepare('UPDATE quest_followers SET hp=MIN(?,hp+?),mp=MIN(?,mp+?) WHERE id=?').run(s.hp,Math.max(1,Math.ceil(s.hp*.1)),s.mp,Math.max(1,Math.ceil(s.mp*.1)),h.npc);}
- return {enabled,catalog,get,occupied,progression,slots,assertSlots,tick,placement,reserve,complete,dismiss,move,view,actors,settle,rest};
+ return {enabled,catalog,get,occupied,progression,slots,assertSlots,tick,placement,reserve,complete,extend,completeExtension,dismiss,move,view,chatTargets,actors,settle,rest};
 }

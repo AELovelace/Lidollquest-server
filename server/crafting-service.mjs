@@ -94,6 +94,6 @@ export function createCraftingService(db,{now=Date.now,origins,loot,alchemyStore
    if(definition.meal_buff)s.loadout.player_info.meal_buff=structuredClone(definition.meal_buff);
   }
  }
- function view(c,s,p,floor){if(!c)return {version:1};const claims=p?new Set(db.prepare('SELECT node FROM crafting_harvests WHERE character_id=? AND zone=? AND day=?').all(c.id,p.zone,day(now())).map(r=>r.node)):new Set();return {version:1,config:settings.view(),result:s?.craftResult??null,nodes:p?resourceNodes(p.zone,floor).map(n=>({...n,claimed:claims.has(n.id)})):[]};}
+ function view(c,s,p,floor){if(!c)return {version:1};const claims=p?new Set(db.prepare('SELECT node FROM crafting_harvests WHERE character_id=? AND zone=? AND day=?').all(c.id,p.zone,day(now())).map(r=>r.node)):new Set();return {version:1,config:settings.view({editor:false}),result:s?.craftResult??null,nodes:p?resourceNodes(p.zone,floor).map(n=>({...n,claimed:claims.has(n.id)})):[]};} // Player polls need recipe settings, not the GM editor's complete item picker.
  return {act,view,migrate,protect,deliver:(c,s)=>deliverCraftingRewards(c,s,origins),decorate:craftingStations}; // Delivery runs after imports so a stale client bag cannot discard freshly earned goods.
 }

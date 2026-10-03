@@ -22,6 +22,7 @@ export function createCharacterManagement(db,{walletClient,cloud,sprites,now=Dat
   if(i.action==='rename'&&(!payload.name||payload.name.length>24||/[\x00-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069#]/.test(payload.name)))fail(400,'Use a character name of 1 to 24 characters.');
   const fingerprint=JSON.stringify([i.character_id,i.action,i.action==='description'?i.description_revision:i.revision,payload,i.confirm??null]);
   const old=db.prepare('SELECT * FROM quest_management WHERE owner=? AND request_id=?').get(owner,i.request_id);
+  if(i.action==='appearance'&&!old)fail(410,'The paperdoll makeover is retired. Change your look in the Wardrobe instead.'); // Doll 2026-10-02: Sprite Lab looks replace the paperdoll; replays of earlier paid makeovers still return their receipts.
   if(old){if(old.fingerprint!==fingerprint)fail(409,'This request ID describes another change.');return old;}
   const c=db.prepare('SELECT * FROM quest_characters WHERE owner=? AND id=?').get(owner,i.character_id);if(!c)fail(404,'Online character not found.');
   const state=JSON.parse(c.state);

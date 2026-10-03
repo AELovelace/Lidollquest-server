@@ -59,6 +59,31 @@ test('gameplay response counters handle rejection, in-flight requests, and disco
  }finally{h.close();}
 });
 
+test('lag counters count threshold crossings once and assign long requests to their completion interval',()=>{
+ const h=harness();let restarted;try{
+  const complete=(ms,status=200,finished=true)=>{const res=Object.assign(new EventEmitter(),{statusCode:status,writableFinished:finished});h.monitor.request(res);h.advance(ms);res.emit(finished?'finish':'close');res.emit('finish');res.emit('close');};
+  complete(249);complete(250);complete(999,503);complete(1000,200,false);
+  const first=h.monitor.snapshot();assert.equal(first.current.requests.completed,4);assert.equal(first.current.lag.slowRequests,3);assert.equal(first.current.lag.severeRequests,1);assert.deepEqual(h.monitor.snapshot(),first);
+  const pending=Object.assign(new EventEmitter(),{statusCode:200,writableFinished:true});h.monitor.request(pending);h.advance(200);h.monitor.sample();
+  assert.equal(h.monitor.snapshot().current.lag.slowRequests,0);h.advance(50);pending.emit('finish');pending.emit('close');
+  const next=h.monitor.snapshot().current;assert.equal(next.requests.completed,1);assert.equal(next.lag.slowRequests,1);assert.equal(next.lag.severeRequests,0);
+  h.monitor.sample();h.monitor.close();restarted=createPerformanceMonitor(h.db,h.options);
+  const history=restarted.snapshot().history;assert.equal(history[0].lag.slowRequests,3);assert.equal(history[1].lag.slowRequests,1);assert.equal(restarted.snapshot().current.lag.slowRequests,0);
+ }finally{restarted?.close();h.close();}
+});
+
+test('loop stalls exclude the scheduled wait, count one resumption, persist and stop on close',t=>{
+ t.mock.timers.enable({apis:['setInterval']});const h=harness({automatic:true});try{
+  h.advance(100);t.mock.timers.tick(100);assert.equal(h.monitor.snapshot().current.lag.loopStalls,0);
+  h.advance(199);t.mock.timers.tick(100);assert.equal(h.monitor.snapshot().current.lag.loopStalls,0);
+  h.advance(200);t.mock.timers.tick(100);assert.equal(h.monitor.snapshot().current.lag.loopStalls,1);
+  h.advance(1000);t.mock.timers.tick(100);const before=h.monitor.snapshot();assert.equal(before.current.lag.loopStalls,2);assert.equal(before.current.lag.maxLoopLagMs,900);assert.deepEqual(h.monitor.snapshot(),before);
+  h.monitor.sample();assert.equal(h.monitor.snapshot().latest.lag.loopStalls,2);assert.equal(h.monitor.snapshot().current.lag.loopStalls,0);
+  h.advance(100);t.mock.timers.tick(100);assert.equal(h.monitor.snapshot().current.lag.loopStalls,0,'sampling does not move the heartbeat baseline');
+  h.monitor.close();h.advance(1000);t.mock.timers.tick(100);assert.equal(h.monitor.snapshot().current.lag.loopStalls,0,'closed monitors have no active heartbeat');
+ }finally{h.close();}
+});
+
 test('history survives monitor restarts and is bounded by age and sample count',()=>{
  const h=harness();let restarted;try{
   h.advance(60000,{cpu:1e6});h.monitor.sample();const saved=h.monitor.snapshot().history[0];h.monitor.close();

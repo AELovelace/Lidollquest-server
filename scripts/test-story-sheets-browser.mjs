@@ -14,7 +14,8 @@ let browser,phase='launch',page;try{
  const firefox=process.env.QUEST_BROWSER==='firefox';browser=await puppeteer.launch({browser:firefox?'firefox':'chrome',executablePath:process.env.QUEST_BROWSER_PATH??(firefox?'C:/Program Files/Mozilla Firefox/firefox.exe':'C:/Program Files/Google/Chrome/Application/chrome.exe'),headless:true,args:firefox?['--no-remote']:[]});
  page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());await page.setViewport({width:1500,height:1000});
  await page.evaluateOnNewDocument(token=>localStorage.setItem('lidollquest.gm.grant',JSON.stringify({token})),token);
- const id=sheetId('native_npc','dungeon-castle-dungeon','objFriendlyTest'),base='http://127.0.0.1:'+service.server.address().port;
+ const id=sheetId('native_npc','dungeon-castle-dungeon','objNPCNursemaid'),base='http://127.0.0.1:'+service.server.address().port;
+ assert.ok(service.live.view().sheets.every(s=>!['npc_services','npc_event'].includes(s.draft.category)));assert.ok(service.live.view().quests.every(q=>q.id==='caverns_survey')); // Services, Caverns, companions and Pip remain; the removed campaign library does not return.
  phase='discover included sheets';await page.goto(base+'/gm/flow-editor');await page.waitForSelector('#includedStories');
  assert.equal(await page.$eval('#includedStories',box=>box.open),true,'Converted stories are expanded on the ordinary workshop URL');
  assert.ok(await page.$eval('#includedStories',box=>{const rect=box.querySelector('summary').getBoundingClientRect();return rect.top>=0&&rect.bottom<innerHeight;}),'Included stories are visible without scrolling past the block palette');
@@ -47,9 +48,6 @@ let browser,phase='launch',page;try{
  await click('Mark as needing human re-authoring');await page.waitForFunction(()=>document.querySelector('#properties [data-authorship="pending"]'));
  await page.click('#validate');await page.waitForFunction(()=>document.querySelector('#status').textContent==='Sheet validation passed.');
  await mkdir('artifacts/story-sheets',{recursive:true});await page.screenshot({path:'artifacts/story-sheets/workshop.png',fullPage:true});
- phase='add service';const serviceId=sheetId('npc_services','dungeon-castle-dungeon','Basil');await page.goto(base+'/gm/flow-editor?kind=sheet&id='+serviceId);await page.waitForFunction(()=>document.querySelector('#workspaceTitle')?.textContent.includes('Basil'));
- await click('Add entry');await page.click('#validate');await page.waitForFunction(()=>document.querySelector('#status').textContent==='Sheet validation passed.');
- await page.click('#save');await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Asset drafts saved.'));await page.click('#publish');await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Shared assets published.'));
- const added=service.live.entry('sheet',serviceId).published.body.at(-1);assert.equal(added.label,'New service');assert.deepEqual(added.campaign_effects,[]);assert.equal(added.once_key,undefined);assert.deepEqual(errors,[]);
- console.log('PASS: visible converted catalogue on the default URL, search and draft-preserving browse, built-in/re-authoring markers, explicit completion/reopen/reload, NPC edit/save/publish, sheet validation, and adding a service without copied gifts or receipt keys.');
+ assert.deepEqual(errors,[]);
+ console.log('PASS: blank-canvas catalogue retains Caverns and services, search preserves drafts, re-authoring markers persist, and care NPC text can be edited, saved, published, reloaded and validated.');
 }catch(error){console.error('Browser failure at',phase,await page?.evaluate(()=>({status:document.querySelector('#status')?.textContent,title:document.querySelector('#workspaceTitle')?.textContent})).catch(()=>null));throw error;}finally{await browser?.close();service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));}

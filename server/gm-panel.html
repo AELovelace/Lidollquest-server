@@ -51,6 +51,11 @@ tr.sel td{background:#2c1e3d}
 .mono{font-family:ui-monospace,Consolas,monospace;font-size:11px;color:var(--dim);word-break:break-all}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
 .row label{font-size:12px;color:var(--dim)}
+#craftForm{display:grid;gap:12px;min-width:0}#craftForm>div,#craftForm .row>div{display:grid;gap:4px;min-width:0;flex:1}
+#craftForm label{color:var(--dim);font-size:12px}#craftForm input,#craftForm select,#craftForm textarea{width:100%;min-width:0}
+#craftForm input[type=checkbox]{width:auto;justify-self:start}#craftForm textarea{font:inherit;color:var(--ink);background:#1b1226;border:1px solid var(--edge);border-radius:6px;padding:8px;min-height:80px}
+#craftForm fieldset{min-width:0;margin:0;padding:12px;border:1px solid var(--edge);border-radius:8px;display:grid;gap:8px}#craftForm legend{color:var(--rose);padding:0 6px}
+#craftList button[aria-pressed=true]{border-color:var(--rose);background:#472b4c}#panel-crafting button:disabled{opacity:.45;cursor:default}
 .grow{flex:1;min-width:120px}
 .log{max-height:340px;overflow-y:auto;border:1px solid var(--edge);border-radius:8px;padding:8px;background:#1b1226}
 .msg{padding:4px 0;border-bottom:1px solid #2a1d3a;display:flex;gap:8px;align-items:baseline}
@@ -374,6 +379,7 @@ tr.sel td{background:#2c1e3d}
     </div>
 
     <h2 style="margin-top:14px">Base item pool</h2>
+    <p class="note">Filter to <b>weapon</b> and choose <b>Edit</b> to change an existing weapon's name, attack, attack range or magic stats. <b>Reset weapon</b> restores that weapon's shipped values. Changes apply to future drops and previews; previously claimed copies keep their rolls.</p>
     <p class="note">Every item chests and drops pick from, on every route. <b>Remove</b> takes an item out of all loot pools on the next chest; copies players already own are untouched, and <b>Restore</b> puts it back. <b>Add an item</b> (or <b>Copy</b> on any row) makes a new item from an existing one with your own name and numbers; it starts dropping right away, and game clients learn it automatically. Hub shop shelves keep their own stock lists and are not changed here.</p>
     <div class="row">
       <select id="itemPoolFilter" aria-label="Item category"><option value="">Every category</option></select>
@@ -392,8 +398,10 @@ tr.sel td{background:#2c1e3d}
         <div><label for="iId">Id</label><input id="iId" maxlength="48" placeholder="lowercase_with_underscores"></div>
         <div><label for="iName">Name</label><input id="iName" maxlength="40"></div>
         <div><label for="iCategory">Category</label><select id="iCategory"></select></div>
+        <div><label for="iWeaponClass">Weapon class</label><select id="iWeaponClass"><option value="">Ordinary weapon / not applicable</option><option value="wand">Wand</option><option value="gun">Gun</option></select></div>
         <div style="grid-column:1/-1"><label for="iDesc">Description</label><input id="iDesc" maxlength="240"></div>
       </div>
+      <p class="note">Use a fixed attack OR fill both attack minimum and maximum, leaving fixed attack blank. Weapon edits affect future drops; existing loot keeps its stats.</p>
       <label class="src">Numbers (blank = none). Picking an item to copy fills them in.</label>
       <div class="ench" id="iNumbers"></div>
       <div class="row" id="iFlags"></div>
@@ -463,9 +471,14 @@ tr.sel td{background:#2c1e3d}
 <div class="tab-panel" id="panel-crafting" role="tabpanel" aria-labelledby="tab-crafting" tabindex="0" hidden>
  <section class="wide"><h2>Crafting, gathering and wildlife</h2>
  <p>Choose a content section. Recipes use exact ingredient quantities; cooking matches two or three culinary tags. Live edits preserve existing discoveries and issued items. Regional spawn changes apply to newly generated maps.</p>
- <div class="row"><select id="craftSection" aria-label="Crafting section"></select><button id="craftReload">Reload</button><b id="craftRevision"></b></div>
- <textarea id="craftJson" aria-label="Crafting section JSON" rows="25" spellcheck="false" style="width:100%;font-family:monospace"></textarea>
- <div class="row"><input id="craftReason" placeholder="Reason for change"><button id="craftSave">Validate and save section</button><button id="craftExport">Download crafting.json</button></div>
+ <div class="row"><select id="craftSection" aria-label="Crafting section"></select><button id="craftReload">Reload saved content</button><b id="craftRevision"></b><span id="craftDirty" role="status"></span></div>
+ <div class="row"><input id="craftSearch" class="grow" placeholder="Search crafting entries" aria-label="Search crafting entries"><button id="craftNew">Add entry</button></div>
+ <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:18px;margin:12px 0">
+  <div id="craftList" style="max-height:560px;overflow:auto" aria-label="Crafting entries"></div>
+  <div><h3 id="craftTitle">Choose an entry</h3><div class="row"><button id="craftCopy">Duplicate entry</button><button id="craftDelete" class="bad">Delete entry</button></div><div id="craftForm"></div></div>
+ </div>
+ <div class="row"><input id="craftReason" placeholder="Reason for change" aria-label="Crafting change reason"><button id="craftSave">Validate and save section</button><button id="craftExport">Download crafting.json</button></div>
+ <details id="craftAdvanced"><summary>Advanced: section JSON</summary><p class="note">Apply JSON to the draft, then save the section. Form edits update this view.</p><textarea id="craftJson" aria-label="Crafting section JSON" rows="18" spellcheck="false" style="width:100%;font-family:monospace"></textarea><button id="craftApplyJson">Apply JSON to draft</button></details>
  </section>
 </div>
 <div class="tab-panel" id="panel-alchemy" role="tabpanel" aria-labelledby="tab-alchemy" tabindex="0" hidden>
@@ -574,16 +587,23 @@ tr.sel td{background:#2c1e3d}
       <div><b id="perfMemory">—</b><span>resident memory</span></div>
       <div><b id="perfRate">—</b><span>game requests / sec</span></div>
       <div><b id="perfActive">—</b><span>active requests</span></div>
+      <div><b id="perfRequestP95">—</b><span>request p95 (live)</span></div>
+      <div><b id="perfSlow">—</b><span>requests ≥250 ms (live)</span></div>
+      <div><b id="perfStalls">—</b><span>loop stalls ≥100 ms (live)</span></div>
     </div>
     <p class="note">CPU: 100% means one fully occupied core; background threads can take it above 100%. This measures the Quest process, not the entire host. Event-loop busy time also includes blocking waits.</p>
     <div class="row" style="margin-top:12px"><label for="perfRange">Recorded history</label><select id="perfRange"><option value="1">Last hour</option><option value="24">Last 24 hours</option></select><span class="note">Mint: CPU · Pink: event loop busy</span></div>
     <svg id="perfChart" class="perf-chart" viewBox="0 0 900 190" role="img" aria-label="Recorded CPU and event-loop utilization"></svg>
     <p id="perfHistory" class="note"></p>
+    <p id="perfLagHistory" class="note"></p>
     <p id="perfRequests" class="note"></p>
     <p id="perfWorkers" class="note"></p>
+    <p id="perfShards" class="note"></p>
     <details style="margin-top:12px"><summary>Work timings by operation and zone</summary>
+    <p class="note">Lag counts reset each minute and remain in recorded history for 24 hours. Slow requests include errors and disconnects; requests taking at least one second are included in the slow count. A loop stall is a 100 ms heartbeat arriving at least 100 ms late, counted once when it resumes. These are server measurements; they do not measure browser frame rate or the full network round trip.</p>
     <div class="row" style="margin-top:12px"><label for="perfTimingWindow">Interval</label><select id="perfTimingWindow"><option value="recorded">Latest recorded interval</option><option value="live">Current interval</option></select></div>
     <p id="perfTimingStatus" class="note"></p>
+    <p id="perfLag" class="note"></p>
     <div class="scroll"><table><thead><tr><th>Work</th><th>Calls</th><th>Total ms</th><th>Mean ms</th><th>Max ms</th><th>Errors</th></tr></thead><tbody id="perfTimings"></tbody></table></div>
     <p class="note">Timings are elapsed time, not CPU attribution. Nested synchronous scopes overlap; final snapshots are included in zone reads/refreshes. Worker execution overlaps the coordinator and other workers. worker.queue measures waiting; worker.roundtrip includes dispatch, execution and delivery; worker.stale.paths counts discarded results. Account timings include network waits. floor.read/write include SQLite work; floor.decode/encode measure JSON work. snapshot.rooms, snapshot.views, snapshot.peers, snapshot.chat and snapshot.dive split snapshot.build into its parts; they run inside it, so never add them to it. snapshot.peers grows with the number of players in the room. Delay sampling uses a 20 ms timer, so an idle loop normally reads near 20 ms.</p>
     </details>
@@ -641,12 +661,15 @@ tr.sel td{background:#2c1e3d}
   $("perfCpu").textContent=metric(current.cpuPercent,"%");$("perfLoop").textContent=metric(current.eventLoopPercent,"%");
   $("perfDelay").textContent=metric(current.delayP95Ms," ms");$("perfMemory").textContent=metric(current.rssMiB," MiB");
   $("perfRate").textContent=metric(request.perSecond);$("perfActive").textContent=String(request.active);
+  $("perfRequestP95").textContent=metric(request.p95Ms," ms");$("perfSlow").textContent=current.lag?String(current.lag.slowRequests):"—";$("perfStalls").textContent=current.lag?String(current.lag.loopStalls):"—";
   var workers=current.workers;
+  var shards=current.shards;$("perfShards").textContent=shards?"Shared-world zone workers: "+shards.busy+" / "+shards.size+" busy, "+shards.queued+" queued, "+shards.rejected+" rejected. "+shards.workers.map(function(w){return "#"+(w.index+1)+": "+w.completed+" snapshots, "+w.failed+" failures, "+w.restarts+" restarts, "+w.zones.length+" zones";}).join("; ")+". Zone snapshots and encoding run across cores; commands, payments and cross-zone transfers commit on the coordinator.":"Zone workers disabled; snapshots run on the coordinator."; // Worker counts are process-lifetime totals; CPU includes all threads and 100% represents one core.
   $("perfWorkers").textContent="Request p95: "+metric(request.p95Ms," ms")+". "+(workers?"Compute workers: "+workers.busy+" / "+workers.size+" busy, "+workers.queued+" queued, "+workers.rejected+" queue rejections. Lifetime jobs: "+workers.workers.map(function(w){return "#"+(w.index+1)+": "+w.completed+" completed / "+w.failed+" failed";}).join("; "):"Compute workers disabled (synchronous mode)."); // Counters are pool lifetime totals; timing rows and request p95 use the selected sampling interval.
   $("perfStatus").textContent=(data.recordingError?"History recording failed; live readings still available. ":"")+"Updated "+when(current.at)+" · "+data.availableCores+" available CPU cores · live interval "+metric(current.elapsedMs/1000," s")+" · started "+new Date(data.startedAt).toLocaleString();
   $("perfRequests").textContent="Current interval: "+request.completed+" completed requests · "+request.clientErrors+" 4xx · "+request.serverErrors+" 5xx · "+request.throttled+" throttled · "+request.aborted+" disconnected · mean "+metric(request.meanMs," ms")+" / max "+metric(request.maxMs," ms")+" · peak active "+request.peakActive+" · heap "+metric(current.heapMiB," MiB")+" · max loop delay "+metric(current.delayMaxMs," ms");
   var recorded=$("perfTimingWindow").value==="recorded",sample=recorded?latest:current,body=$("perfTimings");clear(body);
   $("perfTimingStatus").textContent=sample?(recorded?"Recorded":"Live")+" interval ending "+new Date(sample.at).toLocaleString()+" ("+metric(sample.elapsedMs/1000," s")+").":"The first interval is recorded after one minute.";
+  $("perfLag").textContent=sample&&sample.lag?"This interval: "+sample.lag.slowRequests+" / "+sample.requests.completed+" requests took at least "+sample.lag.requestThresholdMs+" ms; "+sample.lag.severeRequests+" took at least "+sample.lag.severeThresholdMs+" ms. Request p95 "+metric(sample.requests.p95Ms," ms")+". Loop stalls: "+sample.lag.loopStalls+"; longest heartbeat delay beyond its scheduled wait: "+metric(sample.lag.maxLoopLagMs," ms")+". Loop delay p95 "+metric(sample.delayP95Ms," ms")+" / max "+metric(sample.delayMaxMs," ms")+".":"Lag counts were not recorded for this interval."; // Older persisted samples remain readable without inventing zero counts.
   if(sample&&sample.timings.length)sample.timings.forEach(function(t){var tr=el("tr");[t.name,String(t.calls),metric(t.totalMs),metric(t.meanMs),metric(t.maxMs),String(t.errors)].forEach(function(value){tr.appendChild(el("td",null,value));});body.appendChild(tr);});
   else{var tr=el("tr"),cell=el("td","empty","No measured work in this interval.");cell.colSpan=6;tr.appendChild(cell);body.appendChild(tr);}
   renderPerformanceChart();
@@ -664,6 +687,8 @@ tr.sel td{background:#2c1e3d}
   }); // Leave gaps across restarts and missed samples instead of inventing continuous measurements.
   rows.forEach(function(p){if(p.cpuPercent===null)return;var dot=shape("circle",{cx:x(p.at),cy:y(p.cpuPercent),r:3,fill:"var(--mint)"}),title=document.createElementNS(svg.namespaceURI,"title");title.textContent=new Date(p.at).toLocaleString()+" · CPU "+metric(p.cpuPercent,"%")+" · event loop "+metric(p.eventLoopPercent,"%")+" · requests/s "+metric(p.requests.perSecond);dot.appendChild(title);});
   $("perfHistory").textContent=rows.length?rows.length+" recorded intervals shown. CPU peak "+metric(Math.max(...rows.map(function(p){return p.cpuPercent||0;})),"%")+". One sample per minute; up to 24 hours retained across restarts.":"No recorded samples in this range yet. Recording runs every minute, even with this panel closed.";
+  var counted=rows.filter(function(p){return p.lag&&p.lag.requestThresholdMs===250&&p.lag.severeThresholdMs===1000&&p.lag.loopThresholdMs===100;}),totals=counted.reduce(function(sum,p){sum.slow+=p.lag.slowRequests;sum.severe+=p.lag.severeRequests;sum.stalls+=p.lag.loopStalls;sum.requests+=p.requests.completed;return sum;},{slow:0,severe:0,stalls:0,requests:0});
+  $("perfLagHistory").textContent=counted.length?"Recorded lag in this range: "+totals.slow+" / "+totals.requests+" requests ≥250 ms ("+totals.severe+" ≥1 second); "+totals.stalls+" loop stalls ≥100 ms. "+counted.length+" of "+rows.length+" intervals have comparable lag counters; the live interval is excluded.":"No recorded lag counters in this range yet. Older samples do not include these counters."; // Sum disjoint recorded intervals only; never add live counters or nested operation timings.
  }
  function loadPerformance(){
   if(perfBusy||!token)return;perfBusy=true;var epoch=perfEpoch;
@@ -1520,7 +1545,7 @@ tr.sel td{background:#2c1e3d}
 
 
  // ---- Base item pool: add, remove, restore -------------------------------------
- var itemEditing=null; // Id of the GM item being edited, or null when adding.
+ var itemEditing=null,itemEditingShipped=false; // Remember when an explicit shipped-weapon override is being edited.
  var ITEM_FLAGS=["is_diaper","conceals_panties","is_bloomers","is_drink"];
  function itemPoolRows(){return lootData&&lootData.poolItems?lootData.poolItems:[];}
  function lootRenderItems(){
@@ -1539,10 +1564,11 @@ tr.sel td{background:#2c1e3d}
    if(r.is_diaper)name.appendChild(el("span","tag dive","diaper"));
    name.appendChild(el("div","mono",r.id));tr.appendChild(name);
    tr.appendChild(el("td",null,r.category));tr.appendChild(el("td",null,String(r.value===undefined?"":r.value)));
-   tr.appendChild(el("td","src "+(r.removed?"retired":r.source==="custom"?"custom":"shipped"),r.removed?"removed":r.source==="custom"?"GM item":"shipped"));
+   tr.appendChild(el("td","src "+(r.removed?"retired":r.source==="custom"?"custom":"shipped"),r.removed?"removed":r.source==="custom"?"GM item":r.modified?"edited weapon":"shipped"));
    var actions=el("td");
    var copy=el("button","sm","Copy");copy.addEventListener("click",function(){openItemEditor(null,r.id);});actions.appendChild(copy);
-   if(r.source==="custom"){var edit=el("button","sm","Edit");edit.addEventListener("click",function(){openItemEditor(r,null);});actions.appendChild(edit);}
+   if(r.source==="custom"||r.category==="weapon"){var edit=el("button","sm","Edit");edit.addEventListener("click",function(){openItemEditor(r,null);});actions.appendChild(edit);}
+   if(r.modified){var reset=el("button","sm","Reset weapon");reset.addEventListener("click",function(){if(window.confirm("Restore the shipped values for "+r.id+"? Future drops will use them."))act("loot_item_reset",{id:r.id},"Weapon values reset.").then(loadLoot);});actions.appendChild(reset);}
    if(r.removed){var back=el("button","sm","Restore");back.addEventListener("click",function(){act("loot_item_restore",{id:r.id},"Restored "+r.id+" to the loot pool.").then(loadLoot);});actions.appendChild(back);}
    else{var drop=el("button","sm bad","Remove");drop.addEventListener("click",function(){if(!window.confirm("Remove "+(r.name||r.id)+" from every loot pool? Copies players already own are kept, and you can restore it."))return;act("loot_item_delete",{id:r.id,reason:$("iReason").value.trim()},(r.name||r.id)+" removed from the loot pool.").then(loadLoot);});actions.appendChild(drop);}
    tr.appendChild(actions);body.appendChild(tr);
@@ -1553,12 +1579,13 @@ tr.sel td{background:#2c1e3d}
  function itemFill(source){
   $("iName").value=source?(source.name||""):"";$("iDesc").value=source?(source.desc||""):"";
   var cat=$("iCategory");if(source&&source.category)cat.value=source.category;
+  $("iWeaponClass").value=source&&source.weapon_class||"";
   Object.keys(lootData.itemBounds).forEach(function(k){$("in_"+k).value=source&&source[k]!==undefined?String(source[k]):"";});
   ITEM_FLAGS.forEach(function(k){$("if_"+k).checked=Boolean(source&&source[k]);});
  } // Fill the form from a template (new item) or the item itself (edit).
  function openItemEditor(item,templateId){
-  var rows=itemPoolRows(),shipped=rows.filter(function(r){return r.source==="shipped";});
-  itemEditing=item?item.id:null;
+  var rows=itemPoolRows(),shipped=rows; // Copying a GM item also retains its unexposed template properties.
+  itemEditing=item?item.id:null;itemEditingShipped=Boolean(item&&item.source==="shipped");$("iCategory").disabled=itemEditingShipped;
   $("itemEditorTitle").textContent=item?("Edit "+item.id):"Add an item";
   $("iId").value=item?item.id:"";$("iId").disabled=Boolean(item);$("iTemplateWrap").hidden=Boolean(item);
   var cat=$("iCategory");clear(cat);var cats=[];rows.forEach(function(r){if(r.category&&cats.indexOf(r.category)<0)cats.push(r.category);});cats.sort().forEach(function(c){var o=el("option",null,c);o.value=c;cat.appendChild(o);});
@@ -1568,12 +1595,13 @@ tr.sel td{background:#2c1e3d}
   var flags=$("iFlags");clear(flags);
   ITEM_FLAGS.forEach(function(k){var label=el("label"),box=el("input");box.type="checkbox";box.id="if_"+k;label.appendChild(box);label.appendChild(document.createTextNode(" "+k.replace(/_/g," ")));flags.appendChild(label);});
   if(item)itemFill(item);
-  else{var start=templateId&&rows.some(function(r){return r.id===templateId;})?templateId:(shipped[0]?shipped[0].id:"");var source=rows.filter(function(r){return r.id===start;})[0];if(source&&source.source==="shipped")pick.value=start;itemFill(source);}
+  else{var start=templateId&&rows.some(function(r){return r.id===templateId;})?templateId:(shipped[0]?shipped[0].id:"");var source=rows.filter(function(r){return r.id===start;})[0];if(source)pick.value=start;itemFill(source);}
   $("itemEditor").hidden=false;$("itemEditor").scrollIntoView({block:"nearest"});(item?$("iName"):$("iId")).focus();
  } // Edit a GM item, or add one copied from any item (Copy on a GM item copies its numbers too).
  function collectItem(){
   var out={id:$("iId").value.trim().toLowerCase(),name:$("iName").value.trim(),category:$("iCategory").value,desc:$("iDesc").value.trim()};
   if(!itemEditing)out.template=$("iTemplate").value;
+  if(itemEditingShipped)out.edit_shipped=true;out.weapon_class=$("iWeaponClass").value;
   Object.keys(lootData.itemBounds).forEach(function(k){var raw=$("in_"+k).value.trim();out[k]=raw===""?"":Number(raw);});
   ITEM_FLAGS.forEach(function(k){out[k]=$("if_"+k).checked;});
   return out;
@@ -1748,7 +1776,7 @@ tr.sel td{background:#2c1e3d}
 
  function signOut(){
   perfEpoch++;perfBusy=false;perfData=null;clear($("perfChart"));clear($("perfTimings")); // Discard old readings when the authenticated session ends.
-  ["perfCpu","perfLoop","perfDelay","perfMemory","perfRate","perfActive","perfStatus","perfHistory","perfRequests","perfTimingStatus"].forEach(function(id){$(id).textContent="—";});
+  ["perfCpu","perfLoop","perfDelay","perfMemory","perfRate","perfActive","perfRequestP95","perfSlow","perfStalls","perfStatus","perfHistory","perfLagHistory","perfLag","perfRequests","perfWorkers","perfShards","perfTimingStatus"].forEach(function(id){$(id).textContent="—";});
   token="";forgetGrant();if(timer)clearInterval(timer);timer=null;selected=null;
   ench=null;enchEditing=null;$("enchEditor").hidden=true;clear($("enchList"));clear($("enchTuning"));$("enchCurve").textContent="";
   if(poller){clearTimeout(poller);poller=null;}
@@ -1922,13 +1950,7 @@ tr.sel td{background:#2c1e3d}
 
  function alchemyNumber(id){var v=$(id).value.trim();return v===""?NaN:Number(v);}
 
- var craftData=null;
- function renderCraft(){if(!craftData)return;$('craftJson').value=JSON.stringify(craftData.data[$('craftSection').value],null,2);$('craftRevision').textContent='Revision '+craftData.revision;}
- async function loadCraft(){try{craftData=await api('/gm/crafting');var key=$('craftSection').value;clear($('craftSection'));Object.keys(craftData.data).forEach(function(k){var option=el('option',null,k);option.value=k;$('craftSection').appendChild(option);});if(key)$('craftSection').value=key;renderCraft();}catch(error){say('err',error.message);}}
- $('tab-crafting').addEventListener('click',function(){if(!craftData)loadCraft();});
- $('craftReload').addEventListener('click',loadCraft);$('craftSection').addEventListener('change',renderCraft);
- $('craftSave').addEventListener('click',async function(){try{if(!craftData)return;var value=JSON.parse($('craftJson').value);await api('/gm/action',{method:'POST',body:{action:'crafting_save',section:$('craftSection').value,value:value,revision:craftData.revision,reason:$('craftReason').value}});await loadCraft();say('ok','Crafting section saved.');}catch(error){say('err',error.message);}});
- $('craftExport').addEventListener('click',function(){if(!craftData)return;var url=URL.createObjectURL(new Blob([JSON.stringify(Object.assign({version:1},craftData.data),null,2)+'\n'],{type:'application/json'})),link=el('a');link.href=url;link.download='crafting.json';link.click();URL.revokeObjectURL(url);});
+ /* CRAFTING_EDITOR */
  function loadAlchemy(){
   if(!token)return;
   var epoch=perfEpoch;

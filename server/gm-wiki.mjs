@@ -9,6 +9,7 @@ const names=[...illustrations,'illustrations.json','index.html','wiki.css','wiki
  if(!/^[a-z0-9-]+$/.test(page.slug))throw Error('Invalid GM wiki chapter slug');
  return 'content/'+page.slug+'.md';
 })]; // Only release-owned assets can be requested; URL paths are never filesystem paths.
+export const gmWikiFiles=[...names]; // The public quest editor build copies exactly this served set beside its page.
 const files=new Map(names.map(name=>[name,{body:readFileSync(new URL(name,root)),type:types[name.split('.').at(-1)]+(name.endsWith('.png')?'':'; charset=utf-8')}]));
 
 export function serveGmWiki(req,res,url){

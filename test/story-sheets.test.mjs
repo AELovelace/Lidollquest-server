@@ -114,19 +114,16 @@ test('optional weekly quests are editable drafts without live offers until expli
  const f=fixture();try{const optional=f.live.view().quests.filter(r=>!r.published);assert.equal(optional.length,26);assert.equal(Object.keys(f.live.published().quests).length,0);const row=optional[0];f.live.change({action:'content_save',kind:'quest',id:row.id,revision:row.revision,entry:row.draft},'gm');assert.equal(f.live.published().quests[row.id],undefined);assert.equal(f.live.entry('quest',row.id).published,null);}finally{f.db.close();}
 });
 
-test('the game service supplies all optional weekly sheets without enabling the live pack',async()=>{
+test('the default game service leaves old optional quest sheets out of the online canvas',async()=>{
  const {createQuestService}=await import('../server/service.mjs');
  const service=createQuestService({questPack:[],now:()=>Date.parse('2026-10-02T12:00:00Z'),log:()=>{}});
  try{
   for(const quest of questLibraryPack){
-   const row=service.live.entry('quest',quest.id);
-   assert.equal(row.draft.name,quest.name);
-   assert.equal(row.published,null);
+   assert.throws(()=>service.live.entry('quest',quest.id),error=>error.status===404);
    assert.equal(service.live.published().quests[quest.id],undefined);
-   assert.equal(row.authorship.builtin,true);
   }
  }finally{service.server.emit('close');}
-}); // Exercise the production composition, so moving pack loading cannot silently empty the workshop.
+}); // Old imports remain covered by standalone fixtures; production starts with the team's online canvas.
 
 
 test('built-in provenance and explicit human re-authoring status survive saves, publication, rollback and restart',()=>{

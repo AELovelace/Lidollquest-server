@@ -9,7 +9,7 @@
 import {createHash} from 'node:crypto';
 
 export const CACHED_SECTIONS=Object.freeze(['avatars','rpp','questNpcLinks','dungeons','dignityTuning','alchemy','guildLeaderboard','customItems']); // Top-level snapshot keys that rarely change and that no client code edits in place.
-const KEY=/^[0-9a-f]{16}$/,MAX_KNOWN=128; // 16 hex chars of SHA-1; a client holds ~40 pieces at most.
+const KEY=/^[0-9a-f]{16}$/,MAX_KNOWN=256; // 16 hex chars of SHA-1; ~40 rooms and sections plus up to ~70 player looks (64 peers, a party).
 
 export function cacheKey(value){return createHash('sha1').update(JSON.stringify(value)).digest('hex').slice(0,16);} // Same content -> same key, on every server and after restarts.
 
@@ -35,6 +35,7 @@ export function elide(result,known){ // Mutates a freshly built snapshot for an 
   const {stable,live}=splitLive(zone),key=cacheKey(stable); // A resident's step must not change the key of a ~100 KB room.
   return known.has(key)?{id:zone.id,cacheKey:key,cached:true,...(live?{live}:{})}:{...zone,cacheKey:key}; // Stub keeps the id so lookups by id never break, plus current resident positions; full entries carry their key so the client can store them.
  });
+ if(result.looks&&typeof result.looks==='object')for(const key of Object.keys(result.looks))if(known.has(key))result.looks[key]=1; // Player looks are keyed by their own content hash: 1 means "use your copy".
  const keys={};
  for(const name of CACHED_SECTIONS){
   if(result[name]===undefined||result[name]===null)continue; // Nothing to cache (companion view, older paths).

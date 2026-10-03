@@ -263,5 +263,5 @@ export function createGuilds(db,{now=Date.now,adjust=()=>{},tuning=currentTuning
   adjust(id,amount,note){const g=guildRow(id);if(!g)fail('No such guild.',404,'guild_not_found');if(!Number.isSafeInteger(amount)||amount===0||g.balance+amount<0)fail('Choose a non-zero amount the treasury can absorb.',400,'guild_invalid_amount');db.prepare('UPDATE quest_guilds SET balance=balance+? WHERE id=?').run(amount,g.id);log(g.id,null,'Gamemaster','gm_adjust',amount,clean(note,120));bump(g.id);return {id:g.id,balance:g.balance+amount};},
   tuning:()=>Object.fromEntries(GUILD_TUNING_KEYS.map(k=>[k,knob(k)])),
  };
- return {act,settle,progress,tick,snapshot,tagMap,leaderboard,membership,rules,gm,setNameFilter(fn){nameFilter=typeof fn==='function'?fn:()=>true;},get revision(){return revisionCounter;}};
+ return {act,settle,progress,tick,snapshot,tagMap,leaderboard,membership,rules,gm,invalidate(){tagCache.rev=-1;boardCache.rev=-1;},setNameFilter(fn){nameFilter=typeof fn==='function'?fn:()=>true;},get revision(){return revisionCounter;}};
 }

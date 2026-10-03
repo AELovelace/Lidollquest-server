@@ -8,7 +8,7 @@ test('parseKnown opts in only when the parameter is present and ignores junk',()
  assert.equal(parseKnown(null),null,'absent parameter keeps the classic response');
  assert.deepEqual([...parseKnown('')],[],'empty means "caching, but I hold nothing yet"');
  assert.deepEqual([...parseKnown('0123456789abcdef,nope,FEDCBA9876543210,0123456789abcde')],['0123456789abcdef'],'only 16 lower-case hex keys count');
- assert.equal(parseKnown(Array.from({length:500},(_,i)=>i.toString(16).padStart(16,'0')).join(',')).size,128,'bounded');
+ assert.equal(parseKnown(Array.from({length:500},(_,i)=>i.toString(16).padStart(16,'0')).join(',')).size,256,'bounded (rooms, sections and up to ~70 player looks)');
 });
 
 test('elide stubs only listed pieces and records every section key',()=>{
@@ -39,9 +39,10 @@ function merge(data,store){
 const strip=d=>{const {serverTime,cacheKeys,zones,...rest}=structuredClone(d);return {...rest,zones:zones.map(({cacheKey,...z})=>z)};}; // Compare content only.
 const residents=d=>JSON.stringify(d.zones.find(z=>z.id==='honeydew-lantern').fixtures.filter(f=>f.kind==='npc'&&f.roaming).map(f=>[f.id,f.x,f.y,f.facing])); // Strolling Honeydew residents.
 
-test('through the real gateway, stubs plus the client copy rebuild the classic snapshot on GET and POST, even while residents stroll',async()=>{
+for(const blankCanvas of [false,true])test(`through the real gateway, cached GET and POST snapshots match full snapshots (blank canvas: ${blankCanvas})`,async()=>{
  const token='k'.repeat(43),owner='b'.repeat(64);let time=1000000; // The test owns the clock; the real 1 s world timer can tick but never moves anyone at a frozen time.
- const service=createQuestService({now:()=>time,log:()=>{},walletClient:{authenticate:async()=>({owner,id:'grant-a',client:'lidollquest',coins:50})}});
+ const service=createQuestService({now:()=>time,blankCanvas,log:()=>{},walletClient:{authenticate:async()=>({owner,id:'grant-a',client:'lidollquest',coins:50})}});
+ service.zones.tick();await service.prepare(); // Finish initial floor generation before comparing cache keys across reads.
  await new Promise(resolve=>service.server.listen(0,'127.0.0.1',resolve));const url='http://127.0.0.1:'+service.server.address().port;
  const post=async(query,body)=>{const r=await fetch(url+'/zones/action'+query,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({controller:'w',request_id:randomUUID(),...body})});const text=await r.text();return {status:r.status,bytes:text.length,data:JSON.parse(text)};};
  const get=async query=>{const r=await fetch(url+'/zones'+query,{headers:{Authorization:'Bearer '+token}});const text=await r.text();return {status:r.status,bytes:text.length,data:JSON.parse(text)};};
@@ -55,13 +56,14 @@ test('through the real gateway, stubs plus the client copy rebuild the classic s
   const first=await get(q+'&known=');assert.equal(first.status,200);assert.ok(first.data.cacheKeys,'opted in');
   assert.ok(first.data.zones.every(z=>!z.cached&&/^[0-9a-f]{16}$/.test(z.cacheKey)),'holding nothing: every piece in full, each with its key');
   let store=merge(structuredClone(first.data),new Map());
-  for(let n=0;n<20&&residents((await get(q)).data)===residents(first.data);n++)stroll(); // Walk until at least one resident has actually moved.
+  for(let n=0;!blankCanvas&&n<20&&residents((await get(q)).data)===residents(first.data);n++)stroll(); // Legacy worlds still exercise moving fixture deltas.
   const classic=await get(q);assert.equal(classic.data.cacheKeys,undefined);
-  assert.notEqual(residents(classic.data),residents(first.data),'residents moved between the two reads');
+  if(blankCanvas)assert.equal(residents(classic.data),'[]','built-in residents stay absent');else assert.notEqual(residents(classic.data),residents(first.data),'residents moved between the two reads');
   const second=await get(q+'&known='+[...store.keys()].join(','));
+  assert.equal(second.data.crafting.config.options,undefined,'GM item-picker catalogue stays out of player polls');
   assert.ok(second.bytes<classic.bytes/5,`diet response ${second.bytes} bytes vs classic ${classic.bytes}`);
   assert.ok(second.data.zones.every(z=>z.cached),'unchanged rooms come back as stubs, the strolling one included');
-  assert.ok(second.data.zones.find(z=>z.id==='honeydew-lantern').live?.moves.length>0,'the stub carries resident positions');
+  if(!blankCanvas)assert.ok(second.data.zones.find(z=>z.id==='honeydew-lantern').live?.moves.length>0,'the stub carries resident positions');
   for(const name of CACHED_SECTIONS)if(name in classic.data)assert.ok(!(name in second.data),name+' omitted');
   const rebuilt=structuredClone(second.data);store=merge(rebuilt,store);assert.deepEqual(strip(rebuilt),strip(classic.data),'stubs + client copy + live moves == classic snapshot');
   stroll();

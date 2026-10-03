@@ -185,7 +185,8 @@ export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWage
    else if(item.trade_escrow){hooks.tradeEscrow?.(id,char,state,paid,row.price);} // Escrow for a trade, likewise.
    else if(item.companion_shop){hooks.companionShop?.(id,char,state,paid,row.price,item);} // A companion Atelier/Emporium roll: delivered to the bank, not the bag.
    else if(item.player_store){hooks.playerStore?.(id,char,state,paid,row.price,item);}
-   else if(item.guild_purchase){hooks.guild?.(id,char,state,paid,row.price,item);} // A guild charter fee or treasury donation (guilds.mjs settle): nothing lands in the bag.
+   else if(item.guild_purchase){hooks.guild?.(id,char,state,paid,row.price,item);}
+   else if(item.look_unlock||item.look_save){hooks.lookUnlock?.(id,char,state,paid,row.price,item);} // A one-diamond accessory unlock (sprite-looks.mjs): nothing lands in the bag. // A guild charter fee or treasury donation (guilds.mjs settle): nothing lands in the bag.
    else if(item.hub_service==='curse_remove'){
     const previous=structuredClone(state);
     if(paid){state.loadout=item.loadout;origins.reconcile(char,state,previous);state.loadoutRevision=char.revision+1;}
@@ -197,7 +198,7 @@ export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWage
     if(paid)state.toiletPaid={fixture:item.fixture,at:now()};
     state.hubNotice=paid?`You drop ${row.price} LiDollCoins into the slot. The turnstile clunks round.`:'Not enough LiDollCoins. The turnstile will not budge, and you are still desperate.';
    }else if(paid)addToInventory(state.loadout.inventory,origins.mint(char.id,item,row.price)); // Resale never exceeds the actual paid price, even with discounted stock tuning; stackables merge into an existing stack.
-   delete state.pendingPurchase;if(!item.hub_service&&!item.duel_wager&&!item.trade_escrow&&!item.companion_shop&&!item.guild_purchase&&!item.player_store)state.hubNotice=paid?`Bought ${item.name??item.item_id} for ${row.price} LiDollCoins.${state.littleTaxNote??''}`:'Not enough LiDollCoins. Nothing was purchased.';delete state.littleTaxNote;state.hubNoticeAt=now();
+   delete state.pendingPurchase;if(!item.hub_service&&!item.duel_wager&&!item.trade_escrow&&!item.companion_shop&&!item.guild_purchase&&!item.player_store&&!item.look_unlock&&!item.look_save)state.hubNotice=paid?`Bought ${item.name??item.item_id} for ${row.price} LiDollCoins.${state.littleTaxNote??''}`:'Not enough LiDollCoins. Nothing was purchased.';delete state.littleTaxNote;state.hubNoticeAt=now();
    db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),char.id);
    db.prepare('UPDATE hub_purchases SET status=? WHERE id=?').run(paid?'delivered':'declined',id);db.exec('COMMIT');
   }catch(error){db.exec('ROLLBACK');throw error;}

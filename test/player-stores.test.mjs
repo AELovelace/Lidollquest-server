@@ -24,6 +24,12 @@ function fixture(){
 test('one character owns one paid shop and its appearance uses registered layers',()=>{
  const f=fixture();try{const s=f.open();assert.equal(s.name,'Test shop');assert.equal(s.appearance.slots.base,'piko_base');assert.throws(()=>f.act('owner','store_create',{x:8,y:8,appearance}),/already owns/);assert.throws(()=>validateShopAppearance({...appearance,slots:{base:'arbitrary_url'}}),/Unsupported/);}finally{f.db.close();}
 });
+test('shopkeepers can wear the diaper underwear layer, and older appearances without that slot still validate',()=>{
+ const diapered=validateShopAppearance({...appearance,slots:{...appearance.slots,underwear:'diaper'},colors:{underwear:[[255,182,213]]},enabled:{underwear:[true]}}); // Underwear sits between the base and legs (layered_sprite_lab.json order).
+ assert.equal(diapered.slots.underwear,'diaper');assert.deepEqual(diapered.colors.underwear,[[255,182,213]]);assert.deepEqual(diapered.enabled.underwear,[true]);
+ assert.throws(()=>validateShopAppearance({...appearance,slots:{...appearance.slots,legs:'diaper'}}),/Unsupported/,'the diaper only fits the underwear slot');
+ const old=validateShopAppearance(appearance);assert.equal(old.slots.underwear,'','a shop saved before the slot existed gets an empty underwear slot');assert.equal(old.visible.underwear,true);
+});
 test('reserved stock cannot be oversold; wallet replay transfers one copy and pays once',()=>{
  const f=fixture();try{const shop=f.open();f.mint('owner',craftCatalog.steel,2);f.act('owner','store_deposit',{index:0,amount:2});const row=f.stores.view(f.chars.owner,{zone:'town'}).mine.stock[0];f.act('owner','store_list',{offer:row.id,price:25});
  const pending=f.act('buyer','store_buy',{shop:shop.id,offer:row.id,amount:2,price:25});assert.throws(()=>f.act('visitor','store_buy',{shop:shop.id,offer:row.id,amount:1,price:25}),/changed/);

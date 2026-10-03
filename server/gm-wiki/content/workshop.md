@@ -1,5 +1,7 @@
 # Using Story Workshop
 
+The online world now starts with essential services, the retained Coastal Caverns story, the seven hireable companions and Pip. Other old built-in town NPCs, dungeon story NPCs and campaign/weekly quests have been removed from the live world and library. Companion and tutor sheets are available under **Included online stories**; archived edits are recovered only when no newer live sheet exists. Use **+ npc**, **+ quest** and **+ orb** to build your team's content. Existing GM-created content and the rewritten Caverns story remain available; the offline campaign is separate.
+
 [Wiki home](index.md)
 
 ## The workspace
@@ -19,6 +21,14 @@ Green connections select the next stage/page or an ending. Dashed gray lines sho
 The left pane contains a searchable block palette and content library. The center is the story canvas. The right pane edits the selected block or the overall story. **Player preview** opens a collapsible presentation pane over the canvas. **Zone map & placements** opens the world placement tools.
 
 The toolbar contains New flow, Refresh content, Save draft, Validate, Publish, Rollback, Undo, Redo, Duplicate, Delete, Fit, Arrange, zoom controls, Flag library, Player preview, and In-game test. The saved-flow dropdown selects an existing draft. Refresh content updates the catalog while preserving your flow and pending bundle edits.
+
+## Export and import bundles
+
+**Export bundle** downloads one JSON file holding the open story flow, the shared quest, NPC, orb and monster drafts it needs, and the authored flags they use. **Import bundle…** reads such a file back. Imported records arrive as unsaved bundle edits and the flow opens as a draft, so the usual **Save draft**, **Save content drafts**, validation and publication review still apply; importing never publishes anything.
+
+The confirmation lists what the file contains, which saved drafts your next save would replace, and which flags are created immediately. If a saved flow already uses the bundled flow's ID you can replace that draft or import the story as a copy with a new ID. Flags that already exist keep their current definitions.
+
+The same file format is produced by the **public quest editor**, a statically hosted copy of this workshop that anyone can use without an account. It has the shipped zones, items, spells, sprites, monsters and engine flags, keeps drafts in the visitor's browser, runs the same validators and player preview, and has no publishing, map placement or in-game tests. Contributors export a bundle and hand it to a gamemaster, who imports it here, places NPCs, tokens and locations on the map, and publishes after review. The build command is `node scripts/build-public-quest-editor.mjs`; see the server README.
 
 ## Add and edit a block
 

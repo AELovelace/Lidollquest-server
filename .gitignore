@@ -4,3 +4,4 @@ artifacts/
 .env
 *.sqlite*
 *.log
+public-quest-editor/

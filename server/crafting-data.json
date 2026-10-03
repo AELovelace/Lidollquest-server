@@ -28011,12 +28011,304 @@
     ],
     "order": [
       "base",
+      "underwear",
       "legs",
       "shoes",
       "torso",
+      "neck",
+      "back",
       "hair",
+      "face",
       "head"
     ],
+    "slots": [
+      {
+        "id": "base",
+        "label": "Body"
+      },
+      {
+        "id": "underwear",
+        "label": "Underwear"
+      },
+      {
+        "id": "hair",
+        "label": "Hair"
+      },
+      {
+        "id": "torso",
+        "label": "Torso"
+      },
+      {
+        "id": "legs",
+        "label": "Legs"
+      },
+      {
+        "id": "shoes",
+        "label": "Shoes"
+      },
+      {
+        "id": "head",
+        "label": "Head",
+        "accessory": true
+      },
+      {
+        "id": "face",
+        "label": "Face",
+        "accessory": true
+      },
+      {
+        "id": "neck",
+        "label": "Neck",
+        "accessory": true
+      },
+      {
+        "id": "back",
+        "label": "Back",
+        "accessory": true
+      }
+    ],
+    "accessory_limit": 3,
+    "accessory_unlock_diamonds": 1,
+    "swatches": {
+      "skin": [
+        [
+          255,
+          226,
+          206
+        ],
+        [
+          248,
+          208,
+          182
+        ],
+        [
+          236,
+          188,
+          155
+        ],
+        [
+          219,
+          165,
+          124
+        ],
+        [
+          196,
+          138,
+          96
+        ],
+        [
+          168,
+          112,
+          74
+        ],
+        [
+          138,
+          88,
+          58
+        ],
+        [
+          108,
+          66,
+          44
+        ],
+        [
+          80,
+          48,
+          33
+        ],
+        [
+          255,
+          206,
+          214
+        ]
+      ],
+      "eyes": [
+        [
+          0,
+          193,
+          176
+        ],
+        [
+          40,
+          217,
+          147
+        ],
+        [
+          70,
+          130,
+          230
+        ],
+        [
+          120,
+          80,
+          40
+        ],
+        [
+          150,
+          90,
+          200
+        ],
+        [
+          230,
+          70,
+          130
+        ],
+        [
+          100,
+          100,
+          110
+        ],
+        [
+          230,
+          180,
+          40
+        ]
+      ],
+      "hair": [
+        [
+          45,
+          34,
+          34
+        ],
+        [
+          96,
+          62,
+          40
+        ],
+        [
+          152,
+          102,
+          62
+        ],
+        [
+          230,
+          198,
+          120
+        ],
+        [
+          250,
+          240,
+          205
+        ],
+        [
+          205,
+          86,
+          44
+        ],
+        [
+          255,
+          150,
+          200
+        ],
+        [
+          160,
+          125,
+          235
+        ],
+        [
+          90,
+          170,
+          240
+        ],
+        [
+          120,
+          220,
+          170
+        ],
+        [
+          225,
+          60,
+          60
+        ],
+        [
+          255,
+          255,
+          255
+        ]
+      ],
+      "fabric": [
+        [
+          255,
+          255,
+          255
+        ],
+        [
+          255,
+          182,
+          213
+        ],
+        [
+          164,
+          212,
+          255
+        ],
+        [
+          204,
+          172,
+          242
+        ],
+        [
+          172,
+          240,
+          204
+        ],
+        [
+          255,
+          240,
+          160
+        ],
+        [
+          255,
+          204,
+          164
+        ],
+        [
+          220,
+          60,
+          72
+        ],
+        [
+          52,
+          62,
+          122
+        ],
+        [
+          52,
+          52,
+          58
+        ],
+        [
+          152,
+          152,
+          164
+        ],
+        [
+          142,
+          82,
+          182
+        ],
+        [
+          72,
+          162,
+          92
+        ],
+        [
+          255,
+          142,
+          42
+        ],
+        [
+          142,
+          92,
+          52
+        ],
+        [
+          42,
+          172,
+          172
+        ]
+      ]
+    },
     "assets": [
       {
         "id": "piko_base",
@@ -28129,7 +28421,8 @@
               0.553,
               0.757,
               1.0
-            ]
+            ],
+            "palette": "hair"
           }
         ]
       },
@@ -28318,7 +28611,8 @@
               0.663,
               0.757,
               1.0
-            ]
+            ],
+            "palette": "hair"
           }
         ]
       },
@@ -28441,6 +28735,1596 @@
               0.596,
               0.702,
               0.769,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "diaper",
+        "name": "Diaper",
+        "slot": "underwear",
+        "sprite": "sprLayeredLabDiaper",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Padding",
+            "source": [
+              [
+                141,
+                141,
+                141
+              ],
+              [
+                193,
+                193,
+                193
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.553,
+              0.757,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "pixie_cut",
+        "name": "Pixie Cut",
+        "slot": "hair",
+        "sprite": "sprLayeredLabPixieCut",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Hair",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ],
+            "palette": "hair"
+          }
+        ]
+      },
+      {
+        "id": "blunt_bob",
+        "name": "Blunt Bob",
+        "slot": "hair",
+        "sprite": "sprLayeredLabBluntBob",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Hair",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ],
+            "palette": "hair"
+          }
+        ]
+      },
+      {
+        "id": "shoulder_length",
+        "name": "Shoulder Length",
+        "slot": "hair",
+        "sprite": "sprLayeredLabShoulderLength",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Hair",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ],
+            "palette": "hair"
+          }
+        ]
+      },
+      {
+        "id": "high_ponytail",
+        "name": "High Ponytail",
+        "slot": "hair",
+        "sprite": "sprLayeredLabHighPonytail",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Hair",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ],
+            "palette": "hair"
+          }
+        ]
+      },
+      {
+        "id": "twin_tails",
+        "name": "Twin Tails",
+        "slot": "hair",
+        "sprite": "sprLayeredLabTwinTails",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Hair",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ],
+            "palette": "hair"
+          }
+        ]
+      },
+      {
+        "id": "side_braid",
+        "name": "Side Braid",
+        "slot": "hair",
+        "sprite": "sprLayeredLabSideBraid",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Hair",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ],
+            "palette": "hair"
+          }
+        ]
+      },
+      {
+        "id": "double_buns",
+        "name": "Double Buns",
+        "slot": "hair",
+        "sprite": "sprLayeredLabDoubleBuns",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Hair",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ],
+            "palette": "hair"
+          }
+        ]
+      },
+      {
+        "id": "spiky_crop",
+        "name": "Spiky Crop",
+        "slot": "hair",
+        "sprite": "sprLayeredLabSpikyCrop",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Hair",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ],
+            "palette": "hair"
+          }
+        ]
+      },
+      {
+        "id": "hoodie",
+        "name": "Hoodie",
+        "slot": "torso",
+        "sprite": "sprLayeredLabHoodie",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Fabric",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "cardigan",
+        "name": "Cardigan",
+        "slot": "torso",
+        "sprite": "sprLayeredLabCardigan",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Fabric",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "striped_tee",
+        "name": "Striped Tee",
+        "slot": "torso",
+        "sprite": "sprLayeredLabStripedTee",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Fabric",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "jeans",
+        "name": "Jeans",
+        "slot": "legs",
+        "sprite": "sprLayeredLabJeans",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Fabric",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "chinos",
+        "name": "Chinos",
+        "slot": "legs",
+        "sprite": "sprLayeredLabChinos",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Fabric",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "pleated_skirt",
+        "name": "Pleated Skirt",
+        "slot": "legs",
+        "sprite": "sprLayeredLabPleatedSkirt",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Fabric",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sundress",
+        "name": "Sundress",
+        "slot": "torso",
+        "sprite": "sprLayeredLabSundress",
+        "template": "piko_32_v1",
+        "hides": [
+          "legs"
+        ],
+        "channels": [
+          {
+            "name": "Fabric",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "pinafore",
+        "name": "Pinafore",
+        "slot": "torso",
+        "sprite": "sprLayeredLabPinafore",
+        "template": "piko_32_v1",
+        "hides": [
+          "legs"
+        ],
+        "channels": [
+          {
+            "name": "Fabric",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "boots",
+        "name": "Boots",
+        "slot": "shoes",
+        "sprite": "sprLayeredLabBoots",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Color",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "mary_janes",
+        "name": "Mary Janes",
+        "slot": "shoes",
+        "sprite": "sprLayeredLabMaryJanes",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Color",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "beanie",
+        "name": "Beanie",
+        "slot": "head",
+        "sprite": "sprLayeredLabBeanie",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Color",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "baseball_cap",
+        "name": "Baseball Cap",
+        "slot": "head",
+        "sprite": "sprLayeredLabBaseballCap",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Color",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sun_hat",
+        "name": "Sun Hat",
+        "slot": "head",
+        "sprite": "sprLayeredLabSunHat",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Color",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "frilly_bonnet",
+        "name": "Frilly Bonnet",
+        "slot": "head",
+        "sprite": "sprLayeredLabFrillyBonnet",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Color",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "cat_ears",
+        "name": "Cat Ears",
+        "slot": "head",
+        "sprite": "sprLayeredLabCatEars",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Color",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "hair_bow",
+        "name": "Hair Bow",
+        "slot": "head",
+        "sprite": "sprLayeredLabHairBow",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Color",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "flower_crown",
+        "name": "Flower Crown",
+        "slot": "head",
+        "sprite": "sprLayeredLabFlowerCrown",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Color",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "tiara",
+        "name": "Tiara",
+        "slot": "head",
+        "sprite": "sprLayeredLabTiara",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Color",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "round_glasses",
+        "name": "Round Glasses",
+        "slot": "face",
+        "sprite": "sprLayeredLabRoundGlasses",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Color",
+            "source": [
+              [
+                187,
+                187,
+                187
+              ]
+            ],
+            "shade": [
+              0.733
+            ]
+          }
+        ]
+      },
+      {
+        "id": "pacifier",
+        "name": "Pacifier",
+        "slot": "face",
+        "sprite": "sprLayeredLabPacifier",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Color",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "knit_scarf",
+        "name": "Knit Scarf",
+        "slot": "neck",
+        "sprite": "sprLayeredLabKnitScarf",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Color",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "baby_bib",
+        "name": "Baby Bib",
+        "slot": "neck",
+        "sprite": "sprLayeredLabBabyBib",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Color",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "backpack",
+        "name": "Backpack",
+        "slot": "back",
+        "sprite": "sprLayeredLabBackpack",
+        "template": "piko_32_v1",
+        "channels": [
+          {
+            "name": "Color",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "short_smock_dress",
+        "name": "Short Smock Dress",
+        "slot": "torso",
+        "sprite": "sprLayeredLabShortSmockDress",
+        "template": "piko_32_v1",
+        "hides": [
+          "legs"
+        ],
+        "channels": [
+          {
+            "name": "Fabric",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "short_sundress",
+        "name": "Short Sundress",
+        "slot": "torso",
+        "sprite": "sprLayeredLabShortSundress",
+        "template": "piko_32_v1",
+        "hides": [
+          "legs"
+        ],
+        "channels": [
+          {
+            "name": "Fabric",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "short_pinafore",
+        "name": "Short Pinafore",
+        "slot": "torso",
+        "sprite": "sprLayeredLabShortPinafore",
+        "template": "piko_32_v1",
+        "hides": [
+          "legs"
+        ],
+        "channels": [
+          {
+            "name": "Fabric",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "kimono",
+        "name": "Kimono",
+        "slot": "torso",
+        "sprite": "sprLayeredLabKimono",
+        "template": "piko_32_v1",
+        "hides": [
+          "legs"
+        ],
+        "channels": [
+          {
+            "name": "Fabric",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "raincoat",
+        "name": "Raincoat",
+        "slot": "torso",
+        "sprite": "sprLayeredLabRaincoat",
+        "template": "piko_32_v1",
+        "hides": [
+          "legs"
+        ],
+        "channels": [
+          {
+            "name": "Fabric",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "dungarees",
+        "name": "Dungarees",
+        "slot": "torso",
+        "sprite": "sprLayeredLabDungarees",
+        "template": "piko_32_v1",
+        "hides": [
+          "legs"
+        ],
+        "channels": [
+          {
+            "name": "Fabric",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
+              1.0
+            ]
+          }
+        ]
+      },
+      {
+        "id": "wrap_dress",
+        "name": "Wrap Dress",
+        "slot": "torso",
+        "sprite": "sprLayeredLabWrapDress",
+        "template": "piko_32_v1",
+        "hides": [
+          "legs"
+        ],
+        "channels": [
+          {
+            "name": "Fabric",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sailor_dress",
+        "name": "Sailor Dress",
+        "slot": "torso",
+        "sprite": "sprLayeredLabSailorDress",
+        "template": "piko_32_v1",
+        "hides": [
+          "legs"
+        ],
+        "channels": [
+          {
+            "name": "Fabric",
+            "source": [
+              [
+                135,
+                135,
+                135
+              ],
+              [
+                187,
+                187,
+                187
+              ],
+              [
+                236,
+                236,
+                236
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ],
+            "shade": [
+              0.529,
+              0.733,
+              0.925,
               1.0
             ]
           }

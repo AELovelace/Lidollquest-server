@@ -47,10 +47,12 @@ export function fullDungeonQuestPack(){
 
 export function nativeNpcSource(n,key,live){
  const d=dungeonDataFor(key.split(':')[0]),raw=d?.npcs[n.content];if(!raw)return null;
+ if(live?.blankCanvas&&!live.sheet('native_npc',d.config.zone_id,n.content))return null;
  const npc=live?.sheet('native_npc',d.config.zone_id,n.content)??raw;
- return {npc,services:live?.sheet('npc_services',d.config.zone_id,raw.name)??d.adaptations?.npc_services?.[raw.name]??[],careNarrative:npc.diaper_change?.narrative_chunk?(live?.sheet('narrative',d.config.zone_id,npc.diaper_change.narrative_chunk)??d.narratives[npc.diaper_change.narrative_chunk]):null};
+ return {npc,services:live?.blankCanvas?[]:live?.sheet('npc_services',d.config.zone_id,raw.name)??d.adaptations?.npc_services?.[raw.name]??[],careNarrative:npc.diaper_change?.narrative_chunk?(live?.sheet('narrative',d.config.zone_id,npc.diaper_change.narrative_chunk)??d.narratives[npc.diaper_change.narrative_chunk]):null};
 } // Pin editable input data, not a single state-selected greeting, for accepted quest attempts.
 export function fullDungeonNpc(n,key,s,source=null,live=null){
+ if(live?.blankCanvas&&!source)return null; // Removed engine NPCs cannot fall back to their offline campaign dialogue.
  const d=dungeonDataFor(key.split(':')[0]),npc=source?.npc??d?.npcs[n.content];if(!npc)return null;
  const dialogue=campaignDialogue(npc,s);
  const p=s.loadout.player_info;for(const [slot,ids] of [['mouth',['cursed_paci','cursed_paci_forest']],['weapon',['cursed_teddy']]])if(ids.includes(p['equipped_'+slot])){

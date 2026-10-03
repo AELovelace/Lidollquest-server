@@ -52,9 +52,9 @@ test('standalone HTTP service persists fights and recovers a lost payout after r
  await start();try{
   assert.equal((await fetch(url+'/zones')).status,401);assert.equal((await fetch(url+'/zones',{headers:{Authorization:'Bearer '+token,Origin:'https://evil.invalid'}})).status,403);
   const loadout={player_info:{playerHealth:83,playerHealthMax:140,str:6,def:3,level:4,note:'test'.repeat(1500)},inventory:[{item_id:'potion',name:'Potion'}],attack:11,player_mp:17,player_mp_max:20};
-  let c=(await act('create',null,{name:'Tester',avatar:'objNPCGuard'})).character;c=(await act('enter',c,{zone:'honeydew-lantern',loadout})).character;c=(await act('start',c)).character;
+  let c=(await act('create',null,{name:'Tester',creation:{look:{version:1,slots:{base:'piko_woman',underwear:'diaper',hair:'twin_tails'},facing:0}}})).character;c=(await act('enter',c,{zone:'honeydew-lantern',loadout})).character;c=(await act('start',c)).character; // Created with a Sprite Lab look (NPC sprites are retired for players).
   c=(await act('attack',c)).character;const hp=c.run.enemy.hp;
-  await stop();await start();const recovered=await (await fetch(url+'/zones?character_id='+c.id,{headers:{Authorization:'Bearer '+token}})).json();assert.equal(recovered.character.run.enemy.hp,hp);assert.equal(recovered.character.avatar,'objNPCGuard');assert.equal(recovered.peers.find(p=>p.id===c.id).avatar,'objNPCGuard');
+  await stop();await start();const recovered=await (await fetch(url+'/zones?character_id='+c.id,{headers:{Authorization:'Bearer '+token}})).json();assert.equal(recovered.character.run.enemy.hp,hp);assert.equal(recovered.character.avatar,'look');assert.equal(recovered.character.look.slots.hair,'twin_tails');assert.equal(recovered.peers.find(p=>p.id===c.id).avatar,'look'); // The look survives a restart.
   assert.equal(recovered.character.loadout.inventory[0].item_id,'potion');assert.equal(recovered.character.loadout.player_mp,17);assert.equal(recovered.character.run.maxHp,140);
   while(c.run.phase==='fight')c=(await act('attack',c)).character;
   let result=await act('cashout',c);assert.equal(result.pendingCoins,5);assert.equal(balance,55);assert.equal(receipts.size,1);

@@ -225,25 +225,28 @@ export function validateStyle(input,garments=[]){
 //  • A GM-added item is a full definition copied from a shipped template, flagged gm_custom. Removing it also only
 //    retires it: copies already in players' bags and outfits keep resolving by id, on the server and in the client
 //    (which learns the definitions from the snapshot's customItems section).
-const ITEM_NUMBER_BOUNDS={value:[0,100000],atk:[-100,1000],def:[-100,1000],atk_mod:[-100,100],def_mod:[-100,100],dex_mod:[-100,100],wet_resist:[-100,100],tum_resist:[-100,100],hp_restore:[0,10000],hp_regen:[0,1000],hunger_restore:[0,250],thirst_restore:[0,250],childish:[0,10],bulk:[0,20]}; // Every number the panel edits.
+const ITEM_NUMBER_BOUNDS={value:[0,100000],atk:[-100,1000],atk_min:[0,1000],atk_max:[0,1000],mp_cost:[0,1000],power:[0,1000],def:[-100,1000],atk_mod:[-100,100],def_mod:[-100,100],dex_mod:[-100,100],wet_resist:[-100,100],tum_resist:[-100,100],hp_restore:[0,10000],hp_regen:[0,1000],hunger_restore:[0,250],thirst_restore:[0,250],childish:[0,10],bulk:[0,20]}; // Every number the panel edits, including ranged weapon attack and magic costs.
 const ITEM_FLAGS=['is_diaper','conceals_panties','is_bloomers','is_drink']; // Yes/no switches the panel edits.
 const ITEM_BLOCKED_CATEGORIES=['quest','currency','ingredient']; // Never loot-pool items.
-export const ITEM_STAT_KEYS=Object.freeze([...Object.keys(ITEM_NUMBER_BOUNDS),...ITEM_FLAGS]);
+export const ITEM_STAT_KEYS=Object.freeze([...Object.keys(ITEM_NUMBER_BOUNDS),...ITEM_FLAGS,'weapon_class']);
 const isPoolDiaper=item=>item?.category==='panties'&&item.is_diaper===true&&!item.quest_item; // Same test the dive roller uses for its diaper list.
 
-export function validateLootItem(input,{shipped={},catalog={},custom={}}={}){ // A GM item: a copy of a template (or of itself when edited) with the panel's fields applied.
+export function validateLootItem(input,{shipped={},catalog={},custom={},overrides={}}={}){ // Copy a template, edit a GM item, or explicitly override a shipped weapon for future rolls.
  if(!input||typeof input!=='object'||Array.isArray(input))fail('Send an item to save.');
  const id=clean(input.id,48).toLowerCase();
  if(!ID.test(id))fail('Id must be 3-48 characters: a lowercase letter, then letters, digits or underscores.');
  if(id.startsWith('gen_'))fail('Ids starting with gen_ belong to generated garments; pick another id.');
- if(Object.hasOwn(shipped,id)||Object.hasOwn(catalog,id))fail(`'${id}' is already a shipped item. Pick a new id.`); // Never shadow an item the game ships.
+ const editing=input.edit_shipped===true;
+ if(editing&&shipped[id]?.category!=='weapon')fail('Only a shipped pool weapon can be edited in place.');
+ if(!editing&&(Object.hasOwn(shipped,id)||Object.hasOwn(catalog,id)))fail(`'${id}' is already a shipped item. Pick a new id.`);
  const templateId=clean(input.template,64);
- const base=Object.hasOwn(custom,id)?custom[id]:templateId?(shipped[templateId]??fail('Pick the item to copy from the pool list.')):fail('Pick an existing item to copy from.');
+ const base=editing?(overrides[id]??shipped[id]):Object.hasOwn(custom,id)?custom[id]:templateId?(custom[templateId]??overrides[templateId]??shipped[templateId]??fail('Pick the item to copy from the pool list.')):fail('Pick an existing item to copy from.');
  const out=structuredClone(base);
  delete out.quest_item;delete out.pool_template; // A GM item always drops as itself, never swapped for a generated garment.
  const categories=new Set(Object.values(shipped).map(i=>i?.category).filter(c=>typeof c==='string'&&!ITEM_BLOCKED_CATEGORIES.includes(c)));
  const category=clean(input.category??out.category,24);
  if(!categories.has(category))fail(`'${category}' is not a loot category.`);
+ if(editing&&category!=='weapon')fail('A shipped weapon must keep its weapon category.');
  out.item_id=id;out.category=category;
  out.name=clean(input.name,40)||fail('Give the item a name.');
  out.desc=clean(input.desc??out.desc,240);
@@ -252,10 +255,15 @@ export function validateLootItem(input,{shipped={},catalog={},custom={}}={}){ //
   if(input[key]===null||input[key]===''){delete out[key];continue;} // Blank in the panel: no such stat.
   out[key]=number(input[key],{min,max,label:key,integer:true});
  }
- if(Object.hasOwn(input,'atk')&&out.atk!==undefined){delete out.atk_min;delete out.atk_max;} // A typed attack replaces the template's random range.
+ if(input.atk!==undefined&&input.atk!==''&&input.atk!==null&&!Object.hasOwn(input,'atk_min')&&!Object.hasOwn(input,'atk_max')){delete out.atk_min;delete out.atk_max;} // Older API callers can still replace a template range with fixed attack.
+ const hasRange=out.atk_min!==undefined||out.atk_max!==undefined;
+ if(hasRange&&(out.atk_min===undefined||out.atk_max===undefined||out.atk_min>out.atk_max))fail('Give both attack range endpoints, with minimum no greater than maximum.');
+ if(hasRange&&out.atk!==undefined)fail('Choose fixed attack or an attack range, not both.');
+ if(Object.hasOwn(input,'weapon_class')){const value=clean(input.weapon_class,24);if(value&&!['wand','gun'].includes(value))fail('Choose ordinary, wand or gun for weapon class.');if(value)out.weapon_class=value;else delete out.weapon_class;}
  for(const key of ITEM_FLAGS){if(!Object.hasOwn(input,key))continue;if(input[key]===true)out[key]=true;else delete out[key];}
  if(out.is_diaper&&category!=='panties')fail('Only a panties item can be a diaper.');
- out.gm_custom=true; // Marks GM definitions, so the client may update them but never overwrite a shipped item.
+ delete out.gm_custom;delete out.gm_pool_override;
+ if(editing)out.gm_pool_override=true;else out.gm_custom=true; // Pool overrides never replace shipped client definitions or copies already issued.
  return out;
 }
 
@@ -406,17 +414,18 @@ export function createLootStore(db,{now=Date.now}={}){
  function resetBases(){db.prepare("DELETE FROM gm_loot_bases WHERE kind IN ('garment','style')").run();return {scope:'bases'};} // Garments and styles only; the item pool has its own reset.
 
  // ── Base item pool (kind 'item' rows; see validateLootItem above) ──
- let itemCache={revision:null,custom:{},removed:new Set()};
+ let itemCache={revision:null,custom:{},overrides:{},removed:new Set()};
  const itemState=()=>{ // Custom definitions and removed ids, re-read only when an override changed.
   const rev=revision();
   if(rev!==itemCache.revision){
-   const custom={},removed=new Set();
-   for(const row of baseRows('item')){const payload=JSON.parse(row.payload);if(row.retired)removed.add(row.id);if(payload.gm_custom)custom[row.id]=payload;}
-   itemCache={revision:rev,custom,removed};
+   const custom={},overrides={},removed=new Set();
+   for(const row of baseRows('item')){const payload=JSON.parse(row.payload);if(row.retired)removed.add(row.id);if(payload.gm_custom)custom[row.id]=payload;else if(payload.gm_pool_override)overrides[row.id]=payload;}
+   itemCache={revision:rev,custom,overrides,removed};
   }
   return itemCache;
  };
  const customItems=()=>itemState().custom; // Every GM-added definition, removed ones included, so copies players already hold keep resolving.
+ const applyItems=shipped=>({...customItems(),...shipped,...Object.fromEntries(Object.entries(itemState().overrides).filter(([id])=>shipped?.[id]?.category==='weapon'))}); // Only the current route's shipped weapons receive overrides.
  const removedItems=()=>itemState().removed; // Ids that no longer drop.
  function itemPool(ids,{addCustom=true}={}){ // A route's pool with removed ids taken out and (for the general pool) live GM items added.
   const {custom,removed}=itemState(),out=(ids??[]).filter(id=>!removed.has(id));
@@ -426,13 +435,13 @@ export function createLootStore(db,{now=Date.now}={}){
  function listItems(shipped){ // The panel roster: every shipped pool item plus GM items, each marked live or removed.
   const {custom,removed}=itemState(),out=[];
   const stats=item=>Object.fromEntries(ITEM_STAT_KEYS.filter(k=>item?.[k]!==undefined&&item[k]!==false).map(k=>[k,item[k]])); // Only the fields the panel edits, so "Copy from" can fill the form.
-  for(const [id,item] of Object.entries(shipped??{}))out.push({...stats(item),id,name:item?.name??id,category:item?.category??'',desc:item?.desc??'',value:item?.value??0,source:'shipped',removed:removed.has(id)});
+  for(const [id,base] of Object.entries(shipped??{})){const item=itemState().overrides[id]??base;out.push({...stats(item),id,name:item?.name??id,category:item?.category??'',desc:item?.desc??'',value:item?.value??0,source:'shipped',modified:!!itemState().overrides[id],removed:removed.has(id)});}
   for(const [id,item] of Object.entries(custom))out.push({...item,id,source:'custom',removed:removed.has(id)});
   out.sort((a,b)=>a.id.localeCompare(b.id));
   return out;
  }
  function saveItem(input,{shipped={},catalog={}}={},actor=''){ // Add a GM item, or edit one; saving puts it (back) in the pool.
-  const item=validateLootItem(input,{shipped,catalog,custom:customItems()});
+  const item=validateLootItem(input,{shipped,catalog,custom:customItems(),overrides:itemState().overrides});
   db.prepare('INSERT INTO gm_loot_bases(kind,id,payload,retired,updated,actor) VALUES (?,?,?,0,?,?) ON CONFLICT(kind,id) DO UPDATE SET payload=excluded.payload,retired=0,updated=excluded.updated,actor=excluded.actor')
    .run('item',item.item_id,JSON.stringify(item),now(),String(actor??''));
   return item;
@@ -446,20 +455,27 @@ export function createLootStore(db,{now=Date.now}={}){
    if(!others.length)fail('Keep at least one diaper in the loot pool.');
   }
   db.prepare('INSERT INTO gm_loot_bases(kind,id,payload,retired,updated,actor) VALUES (?,?,?,1,?,?) ON CONFLICT(kind,id) DO UPDATE SET payload=excluded.payload,retired=1,updated=excluded.updated,actor=excluded.actor')
-   .run('item',key,JSON.stringify(custom??{id:key}),now(),String(actor??'')); // A custom item keeps its definition; a shipped one only needs a tombstone.
+   .run('item',key,JSON.stringify(custom??itemState().overrides[key]??{id:key}),now(),String(actor??'')); // Preserve edited definitions through Remove / Restore.
   return {id:key,removed:true,source:custom?'custom':'shipped'};
  }
  function restoreItem(id,actor=''){ // Put a removed item back in the pool.
   const key=clean(id,48).toLowerCase();
   const row=db.prepare('SELECT * FROM gm_loot_bases WHERE kind=? AND id=?').get('item',key);
   if(!row?.retired)fail('That item is not removed.','gm_unknown_loot');
-  if(JSON.parse(row.payload).gm_custom)db.prepare('UPDATE gm_loot_bases SET retired=0,updated=?,actor=? WHERE kind=? AND id=?').run(now(),String(actor??''),'item',key); // GM item: live again.
+  if(JSON.parse(row.payload).gm_custom||JSON.parse(row.payload).gm_pool_override)db.prepare('UPDATE gm_loot_bases SET retired=0,updated=?,actor=? WHERE kind=? AND id=?').run(now(),String(actor??''),'item',key); // Edited item: live again, with its saved values.
   else db.prepare('DELETE FROM gm_loot_bases WHERE kind=? AND id=?').run('item',key); // Shipped item: drop the tombstone.
   return {id:key,restored:true};
  }
+ function resetItem(id,actor=''){ // Reset one weapon without changing other pool edits or its removed/live state.
+  const key=clean(id,48).toLowerCase(),row=db.prepare("SELECT * FROM gm_loot_bases WHERE kind='item' AND id=?").get(key);
+  if(!row||!JSON.parse(row.payload).gm_pool_override)fail('That weapon has no edited values.');
+  if(row.retired)db.prepare("UPDATE gm_loot_bases SET payload=?,updated=?,actor=? WHERE kind='item' AND id=?").run(JSON.stringify({id:key}),now(),String(actor??''),key);
+  else db.prepare("DELETE FROM gm_loot_bases WHERE kind='item' AND id=?").run(key);
+  return {id:key,reset:true};
+ }
 
  return {revision,apply,list,tune,save,remove,restore,reset,applyBases,listBases,saveBase,removeBase,restoreBase,resetBases,
-  customItems,removedItems,itemPool,listItems,saveItem,removeItem,restoreItem,itemStatKeys:ITEM_STAT_KEYS,itemBounds:ITEM_NUMBER_BOUNDS,
+  customItems,applyItems,removedItems,itemPool,listItems,saveItem,removeItem,restoreItem,resetItem,itemStatKeys:ITEM_STAT_KEYS,itemBounds:ITEM_NUMBER_BOUNDS,
   generatedCategories:GENERATED_CATEGORIES,garmentStatKeys:GARMENT_STAT_KEYS,garmentBounds:GARMENT_NUMBER_BOUNDS,
   tuningKeys:TUNING_KEYS,scalarBounds:SCALAR_BOUNDS,rarityBounds:RARITY_BOUNDS,slots:LOOT_SLOTS,statKeys:LOOT_STAT_KEYS,rarityOrder:RARITY_ORDER,overcapStats:OVERCAP_STATS};
 }

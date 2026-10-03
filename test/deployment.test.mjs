@@ -14,6 +14,7 @@ test('deployment validates private data location, wallet transport and health bi
   assert.equal(validateEnvironment(valid.replace('HOST=127.0.0.1', 'HOST=::')).healthUrl, 'http://[::1]:4191/health');
   assert.equal(validateEnvironment(valid.replace('HOST=127.0.0.1', 'HOST=0.0.0.0')).healthUrl, 'http://127.0.0.1:4191/health');
   assert.equal(validateEnvironment(valid+'QUEST_COMPUTE_WORKERS=6\n').env.QUEST_COMPUTE_WORKERS,'6');
+  assert.equal(validateEnvironment(valid+'QUEST_ZONE_WORKERS=5\nQUEST_COMPUTE_WORKERS=5\n').env.QUEST_ZONE_WORKERS,'5');
   for (const content of [
     valid.replace('/var/lib/lidollquest-server', '/tmp/quest'),
     valid.replace('PORT=4191', 'PORT=80'),
@@ -22,6 +23,8 @@ test('deployment validates private data location, wallet transport and health bi
     valid.replace('a'.repeat(43), ''),
     valid.replace('http://127.0.0.1:4173', 'http://wallet.example'),
     valid+'QUEST_COMPUTE_WORKERS=invalid\n',
+    valid+'QUEST_ZONE_WORKERS=17\n',
+    valid+'QUEST_ZONE_WORKERS=invalid\n',
   ]) assert.throws(() => validateEnvironment(content));
 });
 

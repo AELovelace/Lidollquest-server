@@ -16,6 +16,26 @@ const shipped={
 };
 const store=()=>{let now=1000;const db=new DatabaseSync(':memory:');return createLootStore(db,{now:()=>now++});};
 
+test('shipped weapon edits affect future rolls and preview data while receipts, templates and reset remain safe',()=>{
+ const s=store(),items={...shipped,rattle:{item_id:'rattle',name:'Rattle',category:'weapon',atk_min:3,atk_max:7,value:5,desc:'Deals {atk} damage.'}};
+ const data={config:{route:'weapons'},items,loot:diveData.loot,bases:diveData.bases,enchantments:diveData.enchantments},roll=createDiveLootRoller(data,{loot:s});
+ const old=roll('ed','char',{id:'old',item_id:'rattle'},{});
+ assert.throws(()=>s.saveItem({id:'rattle',name:'Oops'},{shipped:items}),/already a shipped item/);
+ s.saveItem({id:'rattle',edit_shipped:true,name:'Gold Rattle',atk:'',atk_min:30,atk_max:40,weapon_class:'wand',mp_cost:4,power:8},{shipped:items});
+ assert.equal(s.customItems().rattle,undefined,'pool overrides must never enter the client custom-definition channel');
+ assert.equal(s.applyItems(items).rattle.atk_min,30);assert.equal(items.rattle.atk_min,3);
+ assert.ok(s.listItems(items).find(r=>r.id==='rattle').modified);
+ const fresh=roll('ed','char',{id:'new',item_id:'rattle'},{});assert.ok(fresh.name.includes('Gold Rattle'));assert.equal(fresh.weapon_class,'wand');
+ assert.deepEqual(roll('ed','char',{id:'old',item_id:'rattle'},{old}),old,'claimed loot keeps its original roll');
+ s.removeItem('rattle',items);s.restoreItem('rattle');assert.equal(s.applyItems(items).rattle.atk_min,30,'remove/restore preserves edits');
+ const copy=s.saveItem({id:'rattle_copy',template:'rattle',name:'Copy'},{shipped:items});assert.equal(copy.atk_min,30);assert.equal(copy.gm_pool_override,undefined);
+ assert.throws(()=>s.saveItem({id:'rattle',edit_shipped:true,name:'Invalid',atk_min:90,atk_max:20},{shipped:items}),/minimum/);
+ assert.throws(()=>s.saveItem({id:'rattle',edit_shipped:true,name:'Invalid',category:'torso'},{shipped:items}),/weapon category/);
+ assert.throws(()=>s.saveItem({id:'frilly_top',edit_shipped:true,name:'Invalid'},{shipped:items}),/Only a shipped/);
+ s.resetItem('rattle');assert.deepEqual(s.applyItems(items).rattle,items.rattle);assert.ok(s.customItems().rattle_copy);
+ s.saveItem({id:'rattle',edit_shipped:true,name:'Again',atk:20},{shipped:items});s.removeItem('rattle',items);s.resetItem('rattle');assert.ok(s.removedItems().has('rattle'));s.restoreItem('rattle');assert.deepEqual(s.applyItems(items).rattle,items.rattle);
+});
+
 test('a GM item copies its template, applies the panel fields and can never shadow a shipped id',()=>{
  const item=validateLootItem({id:'star_bonnet',template:'frilly_top',name:'Star Bonnet',category:'torso',def:5,childish:'',is_diaper:false},{shipped});
  assert.equal(item.item_id,'star_bonnet');assert.equal(item.def,5);assert.equal(item.value,10,'unsent fields keep the template value');

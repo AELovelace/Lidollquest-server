@@ -91,25 +91,26 @@ test('loadout validation bounds JSON and rejects malformed inventory without cha
  }finally{f.db.close();}
 });
 
-test('NPC appearances persist, synchronize, reject arbitrary assets and preserve gameplay on replay',()=>{
+test('Sprite Lab looks persist, synchronize, reject NPC sprites and arbitrary assets, and preserve gameplay on replay',()=>{ // 2026-10-03: looks replace NPC sprites as player avatars.
  const f=fixture();try{
-  const selected=questAvatars.find(a=>a.id!=='player').id;
-  const create=f.command('create',null,{name:'Alice',avatar:selected});
-  let a=f.zones.act('token-a',create);assert.equal(a.character.avatar,selected);
+  const look={version:1,slots:{base:'piko_woman',hair:'pixie_cut',torso:'hoodie'},facing:0};
+  const create=f.command('create',null,{name:'Alice',creation:{look}});
+  let a=f.zones.act('token-a',create);assert.equal(a.character.avatar,'look');assert.equal(a.character.look.slots.hair,'pixie_cut');
   assert.equal(f.zones.act('token-a',create).character.id,a.character.id);
   assert.throws(()=>f.zones.act('token-a',{...create,avatar:'player'}),e=>e.status===409);
   assert.throws(()=>f.act('create',null,{name:'Bad',avatar:'../../secret'}),e=>e.status===400);
   assert.throws(()=>f.act('create',null,{name:'Bad',avatar:{sprite:'sprFriendly'}}),e=>e.status===400);
+  assert.throws(()=>f.act('create',null,{name:'Npc',avatar:questAvatars.find(x=>x.id!=='player').id}),e=>e.status===400,'NPC sprites are retired for players');
   a=f.act('enter',a.character,{zone:questZones[0].id});a=f.act('start',a.character);
   const before=structuredClone(a.character.run),request=f.command('appearance',a.character,{avatar:'player'});
   a=f.zones.act('token-a',request);assert.equal(a.character.avatar,'player');assert.deepEqual(a.character.run,before);
   assert.equal(f.zones.act('token-a',request).character.revision,a.character.revision);
   assert.equal(f.zones.act('token-a',create).character.avatar,'player','creation replay must not revert a later appearance');
   assert.throws(()=>f.act('appearance',a.character,{avatar:'sprNotAnNPC'}),e=>e.status===400);
-  assert.throws(()=>f.act('appearance',a.character,{avatar:selected,controller:'other-window'}),e=>e.status===409);
-  a=f.act('appearance',a.character,{avatar:selected});
+  assert.throws(()=>f.act('appearance',a.character,{avatar:'look',controller:'other-window'}),e=>e.status===409);
+  a=f.act('appearance',a.character,{avatar:'look'});
   f.as('bob');let b=f.act('create',null,{name:'Bob'});assert.equal(b.character.avatar,'player');
-  b=f.act('enter',b.character,{zone:questZones[0].id});assert.equal(b.peers.find(p=>p.id===a.character.id).avatar,selected);
+  b=f.act('enter',b.character,{zone:questZones[0].id});const peer=b.peers.find(p=>p.id===a.character.id);assert.equal(peer.avatar,'look');assert.deepEqual(b.looks[peer.lookKey].slots,a.character.look.slots);
   assert.throws(()=>f.act('appearance',a.character,{avatar:'player'}),e=>e.status===404);
   assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM awards').get().n,0);
   const state=JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(b.character.id).state);delete state.avatar;delete state.creationAvatar;

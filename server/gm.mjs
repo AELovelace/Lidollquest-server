@@ -16,9 +16,9 @@ const HUB_SPAWN={x:10,y:9}; // hubDefinition() falls back to this same tile when
 const KINDS=Object.freeze(['mute','suspend']); // The only two sanctions a gamemaster can place on an account.
 const CONTROL=/[\x00-\x1f\x7f]/g; // Stripped from every stored string so no reason or announcement can smuggle in line breaks.
 const SIGNIN_SCOPE='wallet:read'; // The panel needs identity alone: no balance changes, saves, social data or character access.
-const flowPage=readFileSync(new URL('./gm-flow-editor.html',import.meta.url),'utf8').replace('/* FLOW_EDITOR */',()=>readFileSync(new URL('./gm-flow-editor.js',import.meta.url),'utf8').replace('/* CONTENT_BLOCKS */',()=>readFileSync(new URL('./gm-content-blocks.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-story-sheets.js',import.meta.url),'utf8')));
+const flowPage=readFileSync(new URL('./gm-flow-editor.html',import.meta.url),'utf8').replace('/* QUEST_BUNDLE */',()=>readFileSync(new URL('./gm-quest-bundle.js',import.meta.url),'utf8')).replace('/* FLOW_EDITOR */',()=>readFileSync(new URL('./gm-flow-editor.js',import.meta.url),'utf8').replace('/* CONTENT_BLOCKS */',()=>readFileSync(new URL('./gm-content-blocks.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-story-sheets.js',import.meta.url),'utf8')));
 const helpPage=readFileSync(new URL('./gm-help.html',import.meta.url),'utf8').replace('/* GM_HELP */',()=>readFileSync(new URL('./gm-help.js',import.meta.url),'utf8'));
-const panelPage=readFileSync(new URL('./gm-panel.html',import.meta.url),'utf8').replace('<!-- GM_GUIDE -->',()=>readFileSync(new URL('./gm-guide.html',import.meta.url),'utf8')).replace('/* GM_GUIDE_SCRIPT */',()=>readFileSync(new URL('./gm-guide.js',import.meta.url),'utf8')).replace('/* WORLD_PANEL */',()=>readFileSync(new URL('./gm-world-panel.js',import.meta.url),'utf8').replace('/* MONSTER_EDITOR */',()=>readFileSync(new URL('./gm-monster-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-quest-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-orb-editor.js',import.meta.url),'utf8'))); // Read once at boot so a moderation click never touches the disk.
+const panelPage=readFileSync(new URL('./gm-panel.html',import.meta.url),'utf8').replace('<!-- GM_GUIDE -->',()=>readFileSync(new URL('./gm-guide.html',import.meta.url),'utf8')).replace('/* GM_GUIDE_SCRIPT */',()=>readFileSync(new URL('./gm-guide.js',import.meta.url),'utf8')).replace('/* CRAFTING_EDITOR */',()=>readFileSync(new URL('./gm-crafting-editor.js',import.meta.url),'utf8')).replace('/* WORLD_PANEL */',()=>readFileSync(new URL('./gm-world-panel.js',import.meta.url),'utf8').replace('/* MONSTER_EDITOR */',()=>readFileSync(new URL('./gm-monster-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-quest-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-orb-editor.js',import.meta.url),'utf8'))); // Read once at boot so a moderation click never touches the disk.
 
 export const gmZones=Object.freeze([
  {id:'global:ooc',name:'Global chat (OOC)',kind:'chat',category:null,warp:false}, // Staff can review and remove global messages through the existing chat tools.
@@ -384,7 +384,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    return {...result,revision:lootStore().revision()};
   },
   loot_item_save(input,actor){ // Add a GM item to the base item pool (copied from a template), or edit one.
-   const item=lootStore().saveItem(input.item,{shipped:lootCatalog(),catalog:hubData.equipment??{}},actor); // Refused if the id shadows any shipped item.
+   const item=lootStore().saveItem(input.item,{shipped:lootCatalog(),catalog:hubData.equipment??{}},actor); // Explicit edits may target shipped weapons; new items must have unused IDs.
    record(actor,'loot_item_save',item.item_id,{name:item.name,category:item.category,template:clean(input.item?.template,64),reason:clean(input.reason,240)});
    return {item,revision:lootStore().revision()};
   },
@@ -398,8 +398,9 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    record(actor,'loot_item_restore',result.id,{reason:clean(input.reason,240)});
    return {...result,revision:lootStore().revision()};
   },
+  loot_item_reset(input,actor){const result=lootStore().resetItem(input.id,actor);record(actor,'loot_item_reset',result.id,{reason:clean(input.reason,240)});return {...result,revision:lootStore().revision()};}, // Restore just this weapon's shipped numbers.
   loot_preview(input){ // Rolls one sample item with the live table; never touches chest receipts or the audit log.
-   const catalog={...lootStore().customItems(),...lootCatalog()},id=clean(input.item_id,64); // GM items can be previewed too.
+   const catalog=lootStore().applyItems(lootCatalog()),id=clean(input.item_id,64); // Preview exactly the same custom items and weapon overrides used by chest rolls.
    const base=catalog[id]??fail(400,'Pick an item from the dive catalog.','gm_unknown_item');
    const roller=createLootRoller(lootStore().apply(lootBase()),lootStore().applyBases(lootBaseTable()));
    const enchant=createEnchanter(enchantStore().apply(baseTable()));

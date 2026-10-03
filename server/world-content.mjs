@@ -1,4 +1,5 @@
 import {registerInteractionPresentation} from './story-presentation.mjs';
+import {blankCanvasRoute,clearBuiltinFixtures,essentialFixture,removedQuestIds,serviceFixture} from './blank-canvas.mjs';
 import {createStorySheets,sheetId} from './story-sheets.mjs';
 import {validateFlagCondition} from './story-flags.mjs';
 import {validateQuestContent,checkQuestReferences,objectiveTypes,stateFields,questStats} from './quest-content.mjs';
@@ -14,7 +15,7 @@ const text=(value,max=4000)=>typeof value==='string'&&value.length<=max&&!/[\u00
 const number=(value,min,max)=>Number.isFinite(value)&&value>=min&&value<=max?value:fail(`Use a number between ${min} and ${max}.`);
 const integer=(value,min,max)=>Number.isSafeInteger(value)?number(value,min,max):fail('Use a whole number.');
 
-export function createWorldContent(db,{now=Date.now,spells={},equipment={},defeatEquipment={},questPack=[],questLibraryPack=[]}={}){
+export function createWorldContent(db,{now=Date.now,spells={},equipment={},defeatEquipment={},questPack=[],questLibraryPack=[],blankCanvas=false}={}){
  const storySheets=createStorySheets(); // Shipped online dialogue is editable without mutating exported source files.
  registerDefaultScenes(db);
  db.exec(`CREATE TABLE IF NOT EXISTS world_content(kind TEXT NOT NULL,id TEXT NOT NULL,revision INTEGER NOT NULL,draft TEXT NOT NULL,published TEXT,PRIMARY KEY(kind,id));
@@ -26,9 +27,10 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  const questLibrary=new Map(); // Included optional packs appear as draft sheets without activating new live offers.
  const baselines={monster:new Map(),zone:new Map(),npc:new Map(),quest:new Map(),orb:new Map(),sheet:storySheets.sources},routes=new Map(),compiledSprites=new Set(['sprItem',...Object.keys(compiledArtwork)]);let cache=null;
  function register(data){ // Register route-local baselines without rewriting exported files or collapsing distinct aliases.
+  if(blankCanvas)data=blankCanvasRoute(data); // The offline source remains intact; only service NPCs enter the online baseline.
   const sheetZone=data.config.zone_id??'dive-quarters';
   for(const [key,body] of Object.entries(data.npcs??{}))storySheets.register('native_npc',sheetZone,key,body,{source:'route.npcs',npc_ref:sheetZone+':npc-'+key});
-  for(const [key,body] of Object.entries(data.narratives??{}))storySheets.register('narrative',sheetZone,key,body,{source:'route.narratives'});
+  for(const [key,body] of Object.entries(data.narratives??{}))if(!blankCanvas||!key.startsWith('npc_change_'))storySheets.register('narrative',sheetZone,key,body,{source:'route.narratives'});
   for(const [key,body] of Object.entries(data.adaptations?.npc_services??{}))storySheets.register('npc_services',sheetZone,key,body,{source:'route.adaptations.npc_services'});
   const zone=data.config.zone_id??'dive-quarters';routes.set(zone,clone(data));
   for(const [key,raw] of Object.entries(data.enemies)){
@@ -40,6 +42,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  }
  function registerQuestPack(pack){ // Shipped content is validated at boot, so a malformed pack stops the service instead of half-loading.
   for(const quest of pack){
+   if(blankCanvas&&removedQuestIds.has(quest.id))continue;
    const body=validate('quest',quest);
    if(body.retired)continue; // A retired entry stays in the file as documentation without being offered.
    baselines.quest.set(body.id,body);
@@ -149,7 +152,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  } // Validate interdependent definitions together; the GM transaction commits all revisions or none.
  function view(){const live=published();return {sheets:[...storySheets.sources.keys()].map(key=>({...entry('sheet',key),sourceChanged:entry('sheet',key).draft.source_hash!==storySheets.sources.get(key).source_hash})),sheetSchemas:Object.fromEntries([...new Set([...storySheets.sources.values()].map(s=>s.category))].map(c=>[c,storySheets.schema(c)])),storyInventory:storySheets.inventory(),revision:live.revision,enabled:live.enabled,npcs:rows().filter(r=>r.kind==='npc').map(r=>entry('npc',r.id)),orbs:rows().filter(r=>r.kind==='orb').map(r=>entry('orb',r.id)),quests:[...new Set([...baselines.quest.keys(),...questLibrary.keys(),...rows().filter(r=>r.kind==='quest').map(r=>r.id)])].map(key=>entry('quest',key)),questCatalog:{objectiveTypes,stateFields,questStats},monsters:[...new Set([...baselines.monster.keys(),...rows().filter(r=>r.kind==='monster').map(r=>r.id)])].map(key=>entry('monster',key)),zones:[...routes.keys()].map(key=>entry('zone',key)),compiledSprites:[...compiledSprites],spells:Object.keys(spells),equipment:Object.entries(equipment).map(([id,v])=>({id,name:v.name})),assets:db.prepare('SELECT id,frames,width,height FROM world_assets').all()};}
  function resolve(data){ // Preserve route-specific shipped stats until a DM publishes an override for that monster ID.
-  const out=clone(data),live=published(),zone=out.config.zone_id??'dive-quarters',t=live.zones[zone];
+  const out=blankCanvas?blankCanvasRoute(data):clone(data),live=published(),zone=out.config.zone_id??'dive-quarters',t=live.zones[zone];
   out.enemies={...clone(live.monsters),...out.enemies}; // A pool may select any published or shipped monster, including another route's defaults.
   for(const enemy of Object.values(out.enemies))if(defeatEquipment[enemy.enemy_id])enemy.defeat_equipment=clone(defeatEquipment[enemy.enemy_id]);
   for(const row of rows().filter(r=>r.kind==='monster'&&r.published))out.enemies[row.id]=JSON.parse(row.published);
@@ -166,8 +169,9 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  function sheetDefault(key){const value=storySheets.sources.get(key);if(!value)fail('Shipped sheet not found.');return clone(value);}
  function validateSheet(value){const body=storySheets.validate(value);checkSheetReferences(body);return body;}
  function sheet(category,zone,key){return clone(published().sheets[sheetId(category,zone,key)]?.body);}
- function registerSheet(category,zone,key,body,meta){const id=storySheets.register(category,zone,key,body,meta);cache=null;return id;} // Registration is additive and never replaces a saved draft or publication.
+ function registerSheet(category,zone,key,body,meta){if(blankCanvas&&category==='npc_event')return null;const id=storySheets.register(category,zone,key,body,meta);cache=null;return id;} // Companions and Pip are retained; the removed resident tours stay excluded.
  function fixtureSheet(zone,fixture){
+  if(blankCanvas){if(!essentialFixture(fixture))return fixture;fixture=serviceFixture(fixture);}
   if(fixture.kind!=='npc'||fixture.service==='tutor')return fixture; // Pip's shared sheet also backs the existing tutorial settings panel.
   const keys=['name','line','childish','regressed','diaper_change','story_dialogue','story_event','story_labels'];
   const body=Object.fromEntries(keys.filter(k=>fixture[k]!==undefined).map(k=>[k,clone(fixture[k])]));body.name??=fixture.id;body.line??='Hello.';body.topic_label??='Talk.';body.topics??=[];
@@ -193,7 +197,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  }
  let referenceCheck=null,storyReferenceCheck=null;
  registerQuestPack(questPack); // Before any caller reads published(), so the first snapshot already carries the pack.
- registerQuestLibrary(questLibraryPack); // The service supplies optional drafts with its item/spell catalogues; standalone stores need no quest content.
+ if(!blankCanvas)registerQuestLibrary(questLibraryPack); // Empty online canvases no longer preload the old quest-writing library.
  registerInteractionPresentation({registerSheet}); // Load editable presentation defaults once; saved rows remain overlays.
- return {mapReady:null,questEvent:null,placementPositions:null,setReferenceCheck(fn){referenceCheck=fn;},setStoryReferenceCheck(fn){storyReferenceCheck=fn;},register,registerQuestPack,registerSheet,fixtureSheet,sheet,sheetHistory,sheetDefault,validateSheet,published,entry,markAuthorship,change,bundle,view,resolve,putAsset,asset,assetRef,once,invalidate(){cache=null;}}; // Placements share the editor's compiled/immutable artwork validation.
+ return {blankCanvas,cleanFloor:floor=>blankCanvas&&clearBuiltinFixtures(floor),mapReady:null,questEvent:null,placementPositions:null,setReferenceCheck(fn){referenceCheck=fn;},setStoryReferenceCheck(fn){storyReferenceCheck=fn;},register,registerQuestPack,registerSheet,fixtureSheet,sheet,sheetHistory,sheetDefault,validateSheet,published,entry,markAuthorship,change,bundle,view,resolve,putAsset,asset,assetRef,once,invalidate(){cache=null;}}; // Placements share the editor's compiled/immutable artwork validation.
 }
