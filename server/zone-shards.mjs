@@ -28,7 +28,7 @@ export function createZoneShards({size,filename,blankCanvas,questPack,followerEn
    if(message.ready){clearTimeout(bootTimer);slot.ready=true;readyResolve();worker.unref();drain(slot);return;}
    if(slot.job?.id!==message.id)return;
    observe('shard.snapshot',message.elapsedMs,!!message.error);for(const timing of message.timings??[])observe('shard.'+timing.name,timing.elapsed,timing.failed);
-   settle(slot,message.error?Object.assign(Error(message.error.message),{status:message.error.status,code:message.error.code??'zone_worker_failed'}):null,message.bytes);worker.unref();drain(slot);
+   settle(slot,message.error?Object.assign(Error(message.error.frames?message.error.message+' <worker: '+message.error.frames+'>':message.error.message),{status:message.error.status,code:message.error.code??'zone_worker_failed'}):null,message.bytes);worker.unref();drain(slot);
   });
   slot.fail=fail;return ready;
  }

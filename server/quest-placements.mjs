@@ -2,7 +2,7 @@ import {caveReach} from './caverns-generation.mjs';
 import {randomUUID,createHash} from 'node:crypto';
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'quest_placement_conflict'});};
 const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
-export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQuests=()=>{}}){
+export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQuests=()=>{},readOnly=false}){ // readOnly: zone snapshot workers (zone-snapshot-runtime.mjs) hold a read-only database and must never commit a placement map.
  db.exec(`CREATE TABLE IF NOT EXISTS world_placements(id TEXT PRIMARY KEY,zone TEXT NOT NULL,body TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS world_placement_exclusions(zone TEXT NOT NULL,id TEXT NOT NULL,PRIMARY KEY(zone,id));
  CREATE TABLE IF NOT EXISTS world_placement_maps(zone TEXT NOT NULL,edition TEXT NOT NULL,signature TEXT NOT NULL,body TEXT NOT NULL,PRIMARY KEY(zone,edition));`);
@@ -22,7 +22,7 @@ export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQues
   for(const p of definitions){const candidates=free.filter(t=>(!p.dry||!dry||dry.has(t.x+','+t.y))&&!occupied.some(o=>Math.abs(o.x-t.x)+Math.abs(o.y-t.y)<=1)).sort((a,b)=>(Math.abs(a.x-p.x)+Math.abs(a.y-p.y))-(Math.abs(b.x-p.x)+Math.abs(b.y-p.y))||a.y-b.y||a.x-b.x),spot=candidates[0];if(!spot)fail('No reachable tile for '+p.name+' in '+zone+'.');const placed={...p,...spot,home:{...spot}};placements.push(placed);occupied.push(spot);}
   if(commit)db.prepare('INSERT INTO world_placement_maps VALUES (?,?,?,?) ON CONFLICT(zone,edition) DO UPDATE SET signature=excluded.signature,body=excluded.body').run(zone,edition,signature,JSON.stringify(placements));return placements;
  }
- function view(zone){const map=base.map(zone);if(!map.floor)return {...map,placements:[]};const placements=realize(zone,map.edition,map.floor),fresh=JSON.stringify(map.floor.managedOccupancy??[])===JSON.stringify(placements.filter(p=>p.kind==='npc').map(({x,y})=>({x,y})))?map:base.map(zone),revision=hash([fresh.revision,placements]);return {...fresh,baseRevision:fresh.revision,revision,placements};}
+ function view(zone){const map=base.map(zone);if(!map.floor)return {...map,placements:[]};const placements=realize(zone,map.edition,map.floor,{commit:!readOnly}),fresh=JSON.stringify(map.floor.managedOccupancy??[])===JSON.stringify(placements.filter(p=>p.kind==='npc').map(({x,y})=>({x,y})))?map:base.map(zone),revision=hash([fresh.revision,placements]);return {...fresh,baseRevision:fresh.revision,revision,placements};}
  function act(input){
   const map=view(input.zone);if(input.revision!==map.revision||input.edition!==map.edition)fail('The map changed. Refresh before placing content.');
   if(input.action==='world_place'&&map.placements.some(p=>Math.abs(p.x-input.x)+Math.abs(p.y-input.y)<=1))fail('Choose a tile away from NPCs and quest objectives.');
