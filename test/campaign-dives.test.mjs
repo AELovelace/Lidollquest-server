@@ -34,7 +34,16 @@ test('new Dives enforce hub adjacency, isolate claims, retain fights/reconnects 
    const floor=entered.zones.at(-1),chest=entered.dive.chests[0],near=pathTo(floor,floor.entrance,chest).at(-2)??floor.entrance;
    place(near.x,near.y);act('dive_claim',{chest:chest.id});setup();
    const resumed=act('enter',{zone:zone_id});assert.equal(resumed.dive.claimed,1);assert.equal(c.dive.returnZone,hub+'-dives');
-   const enemy=resumed.dive.enemies[0],approach=pathTo(floor,floor.entrance,enemy).at(-2)??floor.entrance;
+   const enemy=resumed.dive.enemies[0];
+   const pin=JSON.parse(db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=? AND depth=1').get(c.dive.route,c.dive.edition).content);
+   const target=pin.enemies.find(e=>e.id===enemy.id);assert.ok(target,zone_id+' retains the encounter after reconnect');
+   target.roaming=false; // Freeze only this fixture enemy: act() advances 400 ms, crossing the 250 ms roaming check between reading its position and engaging.
+   db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=? AND depth=1').run(JSON.stringify(pin),c.dive.route,c.dive.edition);
+   const path=pathTo(pin,pin.entrance,target);assert.ok(path?.length>=2,zone_id+' has a reachable enemy outside the entrance');
+   const approach=path.at(-2);assert.equal(Math.abs(approach.x-target.x)+Math.abs(approach.y-target.y),1,zone_id+' approach is adjacent');
+   assert.ok(Math.abs(pin.entrance.x-target.x)+Math.abs(pin.entrance.y-target.y)>1,zone_id+' entrance is out of engagement range');
+   place(pin.entrance.x,pin.entrance.y);
+   assert.throws(()=>act('dive_engage',{encounter:enemy.id}),error=>error.status===409&&error.code==='dive_conflict'&&error.message==='Approach that enemy first.'); // Keep the real distance guard covered instead of weakening production encounter rules.
    place(approach.x,approach.y);act('dive_engage',{encounter:enemy.id});setup();
    assert.equal(act('enter',{zone:zone_id}).character.run.encounter,enemy.id);
    act('turn_ready',{loadout:c.loadout,forfeit:false});act('attack');assert.equal(c.run,null);
