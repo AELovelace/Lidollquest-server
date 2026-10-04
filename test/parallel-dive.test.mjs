@@ -85,10 +85,16 @@ test('slow worker delivery still advances unchanged Quarters once without catch-
   assert.equal(h.measures.filter(name=>name==='worker.delayed.paths').length,2);
  }finally{h.close();}
 });
-for(const delay of [0,1500])for(const change of ['position','floor','edition'])test('parallel pursuit discards stale '+change+' results after '+delay+' ms',async()=>{
+for(const delay of [0,1500])test('a player who walks on while paths compute is still chased after '+delay+' ms',async()=>{
+ const h=fixture();try{
+  h.tick();h.db.prepare('UPDATE quest_presence SET x=x+1 WHERE character_id=?').run(h.character.id);
+  h.advance(delay);await h.finish();const foe=JSON.parse(h.record().content).enemies.find(e=>e.id===h.foe.id);
+  assert.deepEqual({x:foe.x,y:foe.y},h.path[0],'moving must not freeze the enemies hunting you');assert.equal(h.state().run,null);assert.ok(!h.measures.includes('worker.stale.paths'));
+ }finally{h.close();}
+});
+for(const delay of [0,1500])for(const change of ['floor','edition'])test('parallel pursuit discards stale '+change+' results after '+delay+' ms',async()=>{
  const h=fixture();try{
   h.tick();
-  if(change==='position')h.db.prepare('UPDATE quest_presence SET x=x+1 WHERE character_id=?').run(h.character.id);
   if(change==='floor'){const f=JSON.parse(h.record().content);f.enemies[0].engaged='another-character';h.saveFloor(f);}
   if(change==='edition'){const row=h.record();h.db.prepare('INSERT INTO dive_editions VALUES (?,?,1,?,?,?,?)').run(row.route,'newer-edition',row.starts+1,row.ends+1,row.content,row.updated);}
   const before=h.record().content;h.advance(delay);await h.finish();assert.equal(h.record().content,before);assert.equal(h.state().run,null);assert.ok(h.measures.includes('worker.stale.paths'));

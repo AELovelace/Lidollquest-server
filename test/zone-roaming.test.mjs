@@ -25,8 +25,9 @@ function fixture(){
  function publish(kind,entry){let revision=0;try{revision=live.entry(kind,entry.id).revision;}catch{}return live.change({action:'content_publish',kind,id:entry.id,revision,entry},'dm');}
  const positions=()=>Object.fromEntries(record().floor.enemies.map(e=>[e.id,e.x+','+e.y]));
  function ticks(id,n){for(let i=0;i<n;i++){time+=1001;db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(time,id);zones.tick();}} // The service ticks once a second while somebody is on the floor.
+ function strides(id,n){for(let i=0;i<n;i++){time+=250;db.prepare('UPDATE quest_presence SET seen=? WHERE character_id=?').run(time,id);zones.tick();}} // Between full passes the route checks its enemies every quarter second.
  const moved=(before,after)=>Object.keys(before).filter(id=>after[id]&&after[id]!==before[id]).length;
- return {db,live,read,act,player,record,saveFloor,publish,positions,ticks,moved,zone:()=>live.entry('zone','dive-quarters').draft,advance:ms=>time+=ms,restart(){zones.close();zones=createQuestZones(db,options);},close(){zones.close();db.close();}};
+ return {db,live,read,act,player,record,saveFloor,publish,positions,ticks,strides,moved,zone:()=>live.entry('zone','dive-quarters').draft,advance:ms=>time+=ms,restart(){zones.close();zones=createQuestZones(db,options);},close(){zones.close();db.close();}};
 }
 
 test('respawned enemies on a frozen map keep walking; the zone switch is live and defaults to on; frozen enemies thaw',()=>{
@@ -83,4 +84,17 @@ test('wilderness routes: respawns keep walking, the explicit export trait thaws 
   ticks(2);assert.ok(record().floor.enemies.filter(e=>e.type===kind).every(e=>e.roaming===false)&&record().floor.enemies.filter(e=>e.type!==kind).every(e=>e.roaming===true),'an explicit trait is followed either way, and only for that kind');
   live.change({action:'content_publish',kind:'monster',id:kind,revision:live.entry('monster',kind).revision,entry:{...draft,roaming:true}},'dm');ticks(2);assert.ok(record().floor.enemies.every(e=>e.roaming===true));
  }finally{zones.close();db.close();}
+});
+
+test('enemies step on their own beats instead of all moving together',()=>{
+ const f=fixture();try{
+  const a=f.player();f.advance(15000);f.ticks(a,1);
+  const steps=[];let last=f.positions();
+  for(let i=0;i<40;i++){f.strides(a,1);const now=f.positions();steps.push(Object.keys(last).filter(id=>now[id]&&now[id]!==last[id]));last=now;}
+  const walkers=new Set(steps.flat()),busy=steps.filter(s=>s.length);
+  assert.ok(walkers.size>=2,'several enemies wandered');
+  assert.ok(busy.length>10,'moves land on many quarter-second strides, not one shared second');
+  assert.ok(busy.every(s=>s.length<walkers.size),'no stride moves the whole floor at once');
+  assert.ok(new Set(f.record().floor.enemies.map(e=>e.nextStep).filter(Boolean)).size>=2,'each enemy keeps its own timer');
+ }finally{f.close();}
 });

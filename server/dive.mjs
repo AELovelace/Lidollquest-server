@@ -42,7 +42,7 @@ export const diveData=JSON.parse(readFileSync(new URL('./dive-data.json',import.
 export const DIVE_ZONE='dive-quarters';
 const fail=(message,code='dive_conflict')=>{throw Object.assign(Error(message),{status:409,code});};
 const clone=structuredClone;
-const seconds=1000,minutes=60000;
+const seconds=1000,minutes=60000,stride=250; // stride: how often roaming enemies are checked between full one-second maintenance passes; each enemy then steps on its own timer.
 const echoItems=()=>withGenerated(hubData.equipment); // Catalog for outfitLook (is the padding a diaper?); withGenerated caches it per GM edit.
 
 const WALK_DIRECTIONS={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}; // Direction names shared by move and walk.
@@ -63,7 +63,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  CREATE INDEX IF NOT EXISTS dive_editions_latest ON dive_editions(route,starts,updated,edition);`); // Covering index for latest(): without it every tick read each retained edition's row, including walking past its large floor JSON to reach `updated`, then sorted them.
  const dungeonRules=config.full_dungeon_version?createDungeonRules({db,data,now,roll,origins,adjust,progress,saveProgress,saveFloor}):null;
  const encounters=createDiveEncounters(db,{live,now,roll,data,parties,origins,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate,gone});
- let lastTick=-Infinity,nextSweep=-Infinity,retryAt=0,dressingRetryAt=0,generationPending=null,roamingPending=null,closed=false,settledKey=null; // settledKey: edition|content revision of the last full maintain pass (idle fast path).
+ let lastTick=-Infinity,lastRoam=-Infinity,nextSweep=-Infinity,retryAt=0,dressingRetryAt=0,generationPending=null,roamingPending=null,closed=false,settledKey=null; // settledKey: edition|content revision of the last full maintain pass (idle fast path).
  const presentQuery=db.prepare('SELECT 1 FROM quest_presence WHERE zone=? AND seen>? LIMIT 1'); // Cheap "is anybody here?" check; same 30 s window as roamingPlayers().
  const floorQuery=db.prepare('SELECT * FROM dive_editions WHERE route=? AND edition=? AND depth=1');
  const existsQuery=db.prepare('SELECT 1 FROM dive_editions WHERE route=? AND edition=? AND depth=1');
@@ -245,44 +245,63 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   nextSweep=Math.max(soonest===Infinity?now()+15*seconds:soonest,now()+seconds); // Idle routes back right off; a route holding a live deadline never sweeps faster than the old one-second cadence.
   } // An empty route still sweeps to its own deadline, so a disconnected fight settles and a rolled-over edition returns its player without anybody present.
   settledKey=idleKey; // Reconcile, upgrades and the sweep are done for this edition; empty ticks may now skip until something changes.
+  advance(active);
+ }
+ function advance(active){ // Move whichever roaming enemies are due; shared by the full pass and the light stride passes between them.
   if(controls?.draining())return;
   if(config.roaming===false)return; // World panel "enemies roam" switch for this map: while it is off nobody walks or chases; flipping it back on resumes on the next tick.
-  if(now()-active.updated<seconds)return;
+  if(now()-active.updated<stride)return;
+  if(!active.floor.enemies.some(e=>roams(e)&&e.respawnAt<=now()&&turnDue(e,now())))return; // Nobody's turn yet: skip the player query, path search and whole-floor write.
   const players=roamingPlayers();
   if(!players.length)return; // Nothing to pursue: skip the random walk and, more importantly, the unconditional whole-floor write below.
-  if(compute&&players.length&&active.floor.enemies.some(e=>!e.engaged&&!gone(e)&&e.respawnAt<=now()&&enemyRoams(data,e))){scheduleRoaming(active,players);return;}
+  if(compute){scheduleRoaming(active,players);return;}
   roam(active,players);
  }
+ function stepRoaming(){ // Between full passes: only enemy movement, and only while somebody is on the floor.
+  if(controls?.draining()||config.roaming===false||live&&data.contentRevision!==live.published().revision||!presentQuery.get(zoneId,now()-30000))return; // Fresh content is resolved by the next full pass before anyone moves under it.
+  const active=getFloor(latest());if(active)advance(active);
+ }
+ function roams(e){return !e.engaged&&!gone(e)&&enemyRoams(data,e);}
+ function turnDue(e,at){return (e.nextStep??0)<=at;} // Floors from before per-enemy timers have no nextStep: those enemies are due at once and spread out from their first step.
  function roamingPlayers(){return db.prepare('SELECT p.*,c.revision,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id').all(zoneId,now()-30000);}
  function scheduleRoaming(active,players){
   if(roamingPending||closed)return;
-  const f=active.floor,starts=f.enemies.filter(e=>!e.engaged&&!gone(e)&&enemyRoams(data,e)).map(e=>({id:e.id,x:e.x,y:e.y})); // Include imminent respawns so time passing during calculation cannot leave a roaming enemy without a plan.
-  const positions=rows=>JSON.stringify(rows.map(p=>[p.character_id,p.x,p.y]));
-  const expectedPositions=positions(players),scheduledAt=now();
+  const scheduledAt=now(),f=active.floor,starts=f.enemies.filter(e=>roams(e)&&turnDue(e,scheduledAt+stride)).map(e=>({id:e.id,x:e.x,y:e.y})); // Include imminent respawns and steps so time passing during calculation cannot leave a due enemy without a plan.
   roamingPending=compute.submit('paths',{floor:{key:floorKey(zoneId,active.edition,f),width:f.width,height:f.height,walls:f.walls,props:f.props},starts,targets:players.map(p=>({x:p.x,y:p.y})),limit:pursuitLimit()}).then(paths=>{
    if(closed)return;
    measure('simulation.apply.'+zoneId,()=>{
     db.exec('BEGIN IMMEDIATE');try{
      const row=floorQuery.get(route,active.edition),currentPlayers=roamingPlayers();
-     if(controls?.draining()||config.roaming===false||live&&data.contentRevision!==live.published().revision||latest()!==active.edition||!config.static&&!active.edition.startsWith(weeklyWindow(now()).edition)||!row||row.content!==active.content||row.updated!==active.updated||positions(currentPlayers)!==expectedPositions){measure('worker.stale.paths',()=>{});db.exec('COMMIT');return;} // Changed world state invalidates a path; elapsed time alone does not make an unchanged path unsafe.
-     const plans=new Map(starts.map((start,index)=>[start.id,new Map(currentPlayers.map((p,target)=>[p.character_id,paths[index][target]]))]));
+     if(controls?.draining()||config.roaming===false||live&&data.contentRevision!==live.published().revision||latest()!==active.edition||!config.static&&!active.edition.startsWith(weeklyWindow(now()).edition)||!row||row.content!==active.content||row.updated!==active.updated){measure('worker.stale.paths',()=>{});db.exec('COMMIT');return;} // Changed world state invalidates a path; elapsed time alone does not make an unchanged path unsafe.
+     const byId=new Map(currentPlayers.map(p=>[p.character_id,p])); // Planned against `players`; someone who left since simply has no plan this step.
+     const plans=new Map(starts.map((start,index)=>[start.id,new Map(players.flatMap((was,target)=>byId.has(was.character_id)?[[was.character_id,retarget(paths[index][target],start,was,byId.get(was.character_id))]]:[]))]));
      const delayed=now()-scheduledAt>seconds;if(delayed)measure('worker.delayed.paths',()=>{});
      roam({...row,floor:JSON.parse(row.content)},currentPlayers,plans,delayed?now():scheduledAt);db.exec('COMMIT'); // A late valid result moves once at delivery, with no catch-up burst or repeated timeout freeze.
     }catch(error){db.exec('ROLLBACK');throw error;}
    });
   }).catch(error=>{if(!closed)log('dive_pathfinding_failed',zoneId,String(error));}).finally(()=>{roamingPending=null;});
- } // Revalidate geometry, enemy locks, edition and positions; fresh character/party state controls eligibility and settlement.
+ } // Revalidate geometry, enemy locks and edition; fresh character/party state controls eligibility and settlement.
+ function retarget(path,foe,was,p){ // A player who walked on while paths were computing keeps being chased instead of freezing every enemy for that tick.
+  if(was.x===p.x&&was.y===p.y)return path;
+  const d=Math.abs(foe.x-p.x)+Math.abs(foe.y-p.y);
+  if(d<=1)return d?[{x:p.x,y:p.y}]:[]; // Adjacent right now: the engagement test uses where they are, not where they were.
+  if(!path?.length)return null;
+  return path.length>1?path:[path[0],{x:p.x,y:p.y}]; // Head for where they were, but never count a player who stepped away as within reach.
+ }
  function pursuitLimit(){return config.features?.echo?Math.max(config.pursuit_steps,config.features.echo.max_reach??16):config.pursuit_steps;} // Echo Gulch paths are searched out to the loudest possible echo, then trimmed per player in roam().
  function hearing(p,s){return config.features?.echo?echoReading(s,config.features.echo,config.pursuit_steps,now(),echoItems()).reach:config.pursuit_steps??Infinity;} // Path steps within which a monster notices this player (pursuit_steps everywhere but the Gulch; routes without one, like the Quarters, chase from any distance).
  function roam(active,players,plans=null,tickAt=now()){
   const f=active.floor;
   const occupied=new Set(f.enemies.filter(e=>e.respawnAt<=now()&&!gone(e)).map(e=>e.x+','+e.y)); // Unrevived corpses no longer block the tile they fell on.
-  const rnd=seeded(active.edition+':'+Math.floor(tickAt/seconds));
+  const rnd=seeded(active.edition+':'+Math.floor(tickAt/stride));
+  let acted=false;
   let targets=null; // Eligible pursuit targets, parsed once per tick instead of once per enemy (enemies x party states was ~1 s/tick on big dungeons).
   const eligible=()=>players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return v.pendingDefeat||v.dive?.route!==route||v.dive?.edition!==active.edition||(!v.run&&!v.dungeonScene&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0);});if(ready)p.reach=hearing(p,s); // Parsed state is at hand here, so each player's hearing distance is worked out once per tick.
    return ready&&(!live?.published().enabled||s.contentVersion===1)&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.dungeonScene&&!s.worldTurnDue&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);}); // Storing points cannot grant immunity from roaming enemies or block party encounters.
   for(const foe of f.enemies){
-   if(foe.engaged||foe.respawnAt>now()||gone(foe)||!enemyRoams(data,foe))continue; // A corpse that will not respawn must never chase anyone: reaching a player would throw in start() and roll back the whole route's tick.
+   if(!roams(foe)||foe.respawnAt>now())continue; // A corpse that will not respawn must never chase anyone: reaching a player would throw in start() and roll back the whole route's tick.
+   if(!turnDue(foe,tickAt)||plans&&!plans.has(foe.id))continue; // Not its turn yet, or it came due after this batch of paths was requested: it moves on a later stride with a path of its own.
+   acted=true;foe.nextStep=tickAt+600+rnd(500); // Each enemy draws its own next beat (0.6-1.1 s, about the old one tile a second once strides round it up), so the floor never steps in unison.
    if(foe.definition?.temperament==='neutral'){const [dx,dy]=[[1,0],[-1,0],[0,1],[0,-1]][rnd(4)],x=foe.x+dx,y=foe.y+dy;if(walkable(f,x,y)&&!occupied.has(x+','+y)&&!players.some(p=>p.x===x&&p.y===y)){occupied.delete(foe.x+','+foe.y);foe.x=x;foe.y=y;occupied.add(x+','+y);}continue;} // Prey wander without selecting a player target.
    targets??=eligible(); // First roaming enemy builds the list; later enemies reuse it.
    let target=null,best=null;
@@ -293,16 +312,21 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
     occupied.delete(foe.x+','+foe.y);foe.x=step.x;foe.y=step.y;occupied.add(foe.x+','+foe.y);
    }
   }
-  active.updated=tickAt;saveFloor(active); // Preserve the scheduled tick boundary; worker delivery latency must not halve the one-second movement cadence.
+  if(!acted)return; // No enemy took a turn (each due one is waiting on its own path): nothing changed, so no whole-floor write.
+  active.updated=tickAt;saveFloor(active); // Preserve the scheduled tick boundary; worker delivery latency must not stretch the movement cadence.
  }
- function tick(){if(closed||now()-lastTick<seconds)return;lastTick=now();measure('simulation.'+zoneId,()=>{db.exec('BEGIN IMMEDIATE');try{maintain();db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');lastTick=-Infinity;settledKey=null;log('dive_tick_failed',error.stack??String(error));}});} // Never await workers while holding a transaction or request identity.
+ function tick(){
+  if(closed)return;const full=now()-lastTick>=seconds;if(!full&&now()-lastRoam<stride)return;
+  if(full)lastTick=now();lastRoam=now();
+  measure('simulation.'+zoneId,()=>{db.exec('BEGIN IMMEDIATE');try{if(full)maintain();else stepRoaming();db.exec('COMMIT');}catch(error){db.exec('ROLLBACK');lastTick=-Infinity;settledKey=null;log('dive_tick_failed',error.stack??String(error));}});
+ } // Never await workers while holding a transaction or request identity. Reconcile and the sweep keep their one-second pace; stride passes only move enemies.
  function snapshot(c,p){
   const state=c?JSON.parse(c.state):null,record=owns(state?.dive)?getFloor(state.dive.edition):summaryRecord(),personal=c&&record?progress(c,record.edition):null;
   const summary={enabled:config.enabled&&!!record,version:1,route,zone:zoneId,category,name,boss:bossId,edition:record?.edition??'',static:!!config.static,resetsAt:config.static?0:record?.ends??weeklyWindow(now()).ends,completed:personal?.completed??false,claimed:record?.floor.chests.filter(ch=>personal?.claimed.includes(ch.id)).length??0,total:record?.floor.chests.length??0,pickupsClaimed:(record?.floor.pickups??[]).filter(ch=>personal?.claimed.includes(ch.id)).length,pickupsTotal:record?.floor.pickups?.length??0,claimableCoins:personal?.completed?Math.max(0,config.boss_coins-personal.coinsPaid):0};
   if(!record||p?.zone!==zoneId||!owns(state?.dive))return {dive:summary};
   const f=record.floor;
   if(f.industrial)summary.industrial={...f.industrial,phase:personal.industrialPhase??0};
-  return {beaconFloor:f,dive:{...summary,...(config.features?.cavern_breath?{cavernBreath:{...cavernBreath(config.features.cavern_breath,now()),step_delay_ms:config.features.cavern_breath.step_delay_ms??100}}:{}),depth:1,origin:state.dive.origin,explored:personal.explored,...(dungeonRules?{scene:dungeonRules.scene(state),mechanismRevision:f.mechanismRevision,puzzles:f.puzzles}:{}),...(config.features?.rain?{weather:weatherAt(route,config.features.rain,now())}:{}),...(smokeCfg()?.enabled?{smoke:smokeView(route,f,smokeCfg(),now(),record.edition)}:{}),...(config.features?.tide?{tide:{...tideAt(route,config.features.tide,now()),reach:config.features.tide.reach??3,wade_wet:config.features.tide.wade_wet??2}}:{}),...(config.features?.eruption?{eruption:{...eruptionAt(route,config.features.eruption,now()),radius:config.features.eruption.radius??3,startle_wet:config.features.eruption.startle_wet??35}}:{}),...(config.features?.flood?{flood:{...floodAt(route,config.features.flood,now()),wash_wet:config.features.flood.wash_wet??3,startle_wet:config.features.flood.startle_wet??30,soak_slots:config.features.flood.soak_slots??['socks','shoes','pants']}}:{}),...(config.features?.echo?{echo:{...echoReading(state,config.features.echo,config.pursuit_steps,now(),echoItems()),base:config.pursuit_steps}}:{}),...(config.features?.whisper?{whisper:{cooldown_seconds:config.features.whisper.cooldown_seconds??120}}:{}), /* Echo Gulch: the client listens again as you pass a stone only once this has passed. */enemies:f.enemies.filter(e=>!(e.manual&&!e.respawning&&e.dead)&&!gone(e)).map(e=>({...e,definition:undefined,temperament:e.definition?.temperament??'hostile',name:(e.definition??data.enemies[e.type]).name,sprite:(e.definition??data.enemies[e.type]).sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",category,exits:f.exits??[],theme,...(f.caveChannels?{caveChannels:f.caveChannels,caveInlets:f.caveInlets,caveLandmarks:f.caveLandmarks}:{}),...(dungeonRules?{fullDungeonVersion:1,fixtures:f.fixtures.map(v=>v.kind==='shop'?{...v,offers:shopOffers(zoneId,findShop(v.id),now(),shopperLevel(state))}:v),puzzles:f.puzzles,mechanismRevision:f.mechanismRevision}:{}),mist:f.mist,walls:f.walls,props:f.props,geometryVersion:f.geometryVersion??0,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,...(f.lullabyRooms?{lullabyRooms:f.lullabyRooms}:{}),decorations:f.decorations,...(f.cover?{cover:f.cover,exposed:!!f.exposed}:{}),...(f.shore?{shore:f.shore}:{}),...(f.wash?{wash:f.wash}:{}),...(f.crater?{crater:f.crater}:{}),...(f.heat?{heat:{...f.heat,thirst_per_step:config.features?.heat?.thirst_per_step??3,sweat_percent:config.features?.heat?.sweat_percent??50}}:{})}}; // crater/heat: Emberfall Caldera's lava lake and the overheated ring round it. // shore: the Seafoam Coast's shoreline column per row (sea to its east, tide flats just west of it). // wash: Echo Gulch's dry riverbed rows ('1' floods). // cover/exposed: the Autumnal Plains' tall grass and open fields (plains-features.mjs).
+  return {beaconFloor:f,dive:{...summary,...(config.features?.cavern_breath?{cavernBreath:{...cavernBreath(config.features.cavern_breath,now()),step_delay_ms:config.features.cavern_breath.step_delay_ms??100}}:{}),depth:1,origin:state.dive.origin,explored:personal.explored,...(dungeonRules?{scene:dungeonRules.scene(state),mechanismRevision:f.mechanismRevision,puzzles:f.puzzles}:{}),...(config.features?.rain?{weather:weatherAt(route,config.features.rain,now())}:{}),...(smokeCfg()?.enabled?{smoke:smokeView(route,f,smokeCfg(),now(),record.edition)}:{}),...(config.features?.tide?{tide:{...tideAt(route,config.features.tide,now()),reach:config.features.tide.reach??3,wade_wet:config.features.tide.wade_wet??2}}:{}),...(config.features?.eruption?{eruption:{...eruptionAt(route,config.features.eruption,now()),radius:config.features.eruption.radius??3,startle_wet:config.features.eruption.startle_wet??35}}:{}),...(config.features?.flood?{flood:{...floodAt(route,config.features.flood,now()),wash_wet:config.features.flood.wash_wet??3,startle_wet:config.features.flood.startle_wet??30,soak_slots:config.features.flood.soak_slots??['socks','shoes','pants']}}:{}),...(config.features?.echo?{echo:{...echoReading(state,config.features.echo,config.pursuit_steps,now(),echoItems()),base:config.pursuit_steps}}:{}),...(config.features?.whisper?{whisper:{cooldown_seconds:config.features.whisper.cooldown_seconds??120}}:{}), /* Echo Gulch: the client listens again as you pass a stone only once this has passed. */enemies:f.enemies.filter(e=>!(e.manual&&!e.respawning&&e.dead)&&!gone(e)).map(e=>({...e,definition:undefined,nextStep:undefined,temperament:e.definition?.temperament??'hostile',name:(e.definition??data.enemies[e.type]).name,sprite:(e.definition??data.enemies[e.type]).sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",category,exits:f.exits??[],theme,...(f.caveChannels?{caveChannels:f.caveChannels,caveInlets:f.caveInlets,caveLandmarks:f.caveLandmarks}:{}),...(dungeonRules?{fullDungeonVersion:1,fixtures:f.fixtures.map(v=>v.kind==='shop'?{...v,offers:shopOffers(zoneId,findShop(v.id),now(),shopperLevel(state))}:v),puzzles:f.puzzles,mechanismRevision:f.mechanismRevision}:{}),mist:f.mist,walls:f.walls,props:f.props,geometryVersion:f.geometryVersion??0,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,...(f.lullabyRooms?{lullabyRooms:f.lullabyRooms}:{}),decorations:f.decorations,...(f.cover?{cover:f.cover,exposed:!!f.exposed}:{}),...(f.shore?{shore:f.shore}:{}),...(f.wash?{wash:f.wash}:{}),...(f.crater?{crater:f.crater}:{}),...(f.heat?{heat:{...f.heat,thirst_per_step:config.features?.heat?.thirst_per_step??3,sweat_percent:config.features?.heat?.sweat_percent??50}}:{})}}; // crater/heat: Emberfall Caldera's lava lake and the overheated ring round it. // shore: the Seafoam Coast's shoreline column per row (sea to its east, tide flats just west of it). // wash: Echo Gulch's dry riverbed rows ('1' floods). // cover/exposed: the Autumnal Plains' tall grass and open fields (plains-features.mjs).
  } // Snapshots expose claim status but never another character's inventory or chest rolls.
  function claim(c,state,record,chest,automatic=false){
   if(chest.requires_machine&&!industrialUnlocked(record.floor.fixtures.find(v=>v.id===chest.requires_machine))){if(automatic)return;fail('Use the production cutoff or park the cargo at berth 3 before opening this salvage locker.');}
