@@ -83,6 +83,7 @@ Tools:
 
 | Tool | What it does | Commits |
 | --- | --- | --- |
+| NPC routes | Select an NPC placement, draw waypoints, choose movement and schedule, and set waits | **Save routes**, separate from the terrain queue |
 | Inspect / select | Read a tile; select a placement or DM monster to move, re-lifetime or remove it | immediately |
 | Place content | The Zones-tab placer: monsters, NPCs, interaction objects, quest tokens, location objectives, story orbs, uploads, remove mode, orb scatter | immediately |
 | Terrain brush | Wall, floor, prop and clear-prop brushes (1 to 5 tiles), Shift-drag rectangles; tiled hubs pick atlas cells for floor (left click) and wall (right click) | pending change |
@@ -92,7 +93,7 @@ Tools:
 | Biome layers | Paint tall-grass cover and sheltered spots (Plains, Coast), the Gulch wash, the Coast shoreline per row, Pink Mist tiles, or move the Caldera crater (the heat zone follows) | pending change |
 | Exits & pads | Slide a wall gate along its wall (the old opening closes, the arrival tile follows), move a warp pad to any walkable tile, or add a new gate or pad to a linked wilderness route, a hub, or a neighbour the map already reaches | pending change |
 
-Pending changes preview on the canvas and queue on the right until **Apply**; Undo/Redo and Discard act on the queue. Full dungeons (`dungeon-*`) allow Inspect and Place only. The overlays toggle a grid, reachability (red = walkable but cut off from every arrival), safe rooms, biome layers and players.
+Pending changes preview on the canvas and queue on the right until **Apply**; Undo/Redo and Discard act on the queue. Full dungeons (`dungeon-*`) disable terrain-patch tools; Inspect, Place and NPC routes remain available for managed placements. The overlays toggle a grid, reachability (red = walkable but cut off from every arrival), safe rooms, biome layers and players.
 
 ## The patch layer: what persists and when it re-applies
 
@@ -104,10 +105,9 @@ Applying a change also moves DM monsters and visitors standing on a newly solid 
 
 ## Limits in this version
 
-- Hub visitors already standing in a room repaint the terrain on re-entry; collision is server-side, so play stays safe.
 - A gate keeps its size and wall. A new crossing can only lead where the travel rules already allow (linked routes, hubs, existing neighbours); arrivals from the other side use your gate's inside tile, and the other zone's own exits are unchanged.
 - Hub visitors see a GM reshape on their next snapshot (the room rebuilds in place with a log line); older clients built before 2026-10-03 repaint on re-entry.
-- Hub doors and gates are code-defined; the patch cannot move them.
+- Supported gates and warp pads use Exits & pads; code-defined building doors are not draggable route waypoints.
 - Full dungeons keep their generated layout, fixtures and puzzles.
 
 ## Map Editor acceptance checklist
@@ -117,3 +117,13 @@ Applying a change also moves DM monsters and visitors standing on a newly solid 
 3. Clear patch returns the generated layout at once.
 4. A refused change explains which tile or service it would strand.
 5. Placements still have a walkable tile after terrain changes, and the quest guide still routes to them.
+
+## Learn map editing and routes with pictures
+
+Start with [Edit a map and verify the result](tutorial-map-editing.md) for a complete terrain/scenery exercise, a comparison of the three save workflows, and guidance for arrivals, biome layers and crossings.
+
+Read [NPC routes and pathfinding](npc-routes.md) for the exact controls, waypoint limits, path colours, schedules and an interactive movement diagram. Follow [Build an NPC patrol](tutorial-npc-patrol.md) to draw a route around terrain, test waits and compare all movement modes. Then use [Daily work hours and timed rounds](tutorial-npc-schedules.md) for UTC windows, overnight schedules, route priority and interval delivery rounds.
+
+![Schematic map showing a dashed approach from home and a numbered patrol that bends through a wall opening.](../assets/tutorial/npc-route-map.svg "Route waypoints choose destinations; pathfinding supplies the four-direction steps between them.")
+
+Terrain previews and route previews are separate drafts. Apply required terrain changes first, inspect the result, then use Save routes. The route preview can draw through a pending opening that the live server has not received yet. Neither terrain Undo nor Clear patch restores a route draft.

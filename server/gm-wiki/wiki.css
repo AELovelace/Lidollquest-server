@@ -161,3 +161,10 @@ tr:last-child td { border-bottom: 0; }
 @media (max-width: 370px) { .chapter-grid { grid-template-columns: 1fr; } .home h1 { font-size: 30px; } .play-link { display: none; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }
 @media print { .topbar, .sidebar, .on-this-page, .search-dialog, .chapter-pagination, .page-footer { display: none !important; } .wiki-layout { display: block; } main { padding: 0; } body, .prose, .article .prose { background: white; color: black; border: 0; box-shadow: none; } .prose strong, .prose h2, .prose h3 { color: black; } .table-scroll { overflow: visible; } }
+/* The route lesson keeps touch/keyboard controls outside its purely illustrative canvas. */
+.route-demo { border: 1px solid #c3aedc; border-radius: 14px; padding: 16px; margin: 16px 0; }
+.route-demo-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+.route-demo-controls button, .route-demo-controls select { font: inherit; min-height: 42px; border: 1px solid #9a80af; border-radius: 6px; padding: 6px 10px; color: #463056; background: #f4ecfc; }
+.route-demo-controls label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.route-demo-controls :focus-visible { outline: 3px solid #8060af; outline-offset: 2px; }
+.route-demo canvas { display: block; width: 100%; max-width: 660px; height: auto; }

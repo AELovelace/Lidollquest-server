@@ -87,3 +87,9 @@ Place the published NPC on a reachable tile. Approach with an eligible character
 ## Editing shipped residents
 
 Use [Included online story sheets](workshop.md#included-online-story-sheets) to change a built-in resident or dungeon NPC while retaining its native service and quest routes. Clicking an imported engine NPC opens its sheet; dragging an engine NPC onto a flow still creates an explicit replacement interaction.
+
+## Give a placement a patrol or schedule
+
+In the Map Editor, choose **NPC routes** and select a managed NPC placement. Routes belong to that placement, not every copy of the shared NPC record. They override random wandering while present; conversations pause movement. **Save routes** commits immediately and restarts the NPC from home. An active player must be in the zone to watch normal walking.
+
+See [NPC routes and pathfinding](npc-routes.md), [Build an NPC patrol](tutorial-npc-patrol.md), and [Daily work hours and timed rounds](tutorial-npc-schedules.md) for illustrated controls, movement demonstrations and complete exercises. This tool does not assign patrols to arbitrary engine residents.

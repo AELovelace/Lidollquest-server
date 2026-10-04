@@ -96,6 +96,30 @@
     "group": "Advanced tutorials"
   },
   {
+    "slug": "tutorial-map-editing",
+    "source": "tutorial-map-editing.md",
+    "title": "Edit a map and verify it",
+    "kicker": "Worked map tutorial",
+    "description": "Practice terrain previews, scenery, live placements, patch rollback and checking routes after regeneration.",
+    "group": "Advanced tutorials"
+  },
+  {
+    "slug": "tutorial-npc-patrol",
+    "source": "tutorial-npc-patrol.md",
+    "title": "Build an NPC patrol",
+    "kicker": "Worked movement tutorial",
+    "description": "Place a guard, draw three stops, add a wait, save the route and test movement around terrain.",
+    "group": "Advanced tutorials"
+  },
+  {
+    "slug": "tutorial-npc-schedules",
+    "source": "tutorial-npc-schedules.md",
+    "title": "Daily work hours & timed rounds",
+    "kicker": "Worked scheduling tutorial",
+    "description": "Create a daily workplace, a fallback patrol, overnight hours and interval delivery rounds.",
+    "group": "Advanced tutorials"
+  },
+  {
     "slug": "quests",
     "source": "quests.md",
     "title": "Quest stages & objectives",
@@ -164,7 +188,15 @@
     "source": "maps.md",
     "title": "Zones, placements & Map Editor",
     "kicker": "World editing",
-    "description": "Place content on valid tiles and work with spawn settings and map regeneration.",
+    "description": "Paint terrain, place content, inspect reachability, apply patches and open NPC route tools.",
+    "group": "Authoring reference"
+  },
+  {
+    "slug": "npc-routes",
+    "source": "npc-routes.md",
+    "title": "NPC routes & pathfinding",
+    "kicker": "Movement reference",
+    "description": "Waypoints, path previews, movement modes, UTC schedules, priority and a local interactive demo.",
     "group": "Authoring reference"
   },
   {

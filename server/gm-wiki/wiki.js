@@ -11,6 +11,7 @@
   let searchLoading = null;
   let searchIncomplete = false;
   let headingObserver;
+  let disposeDemo = () => {}; // Stop an explicitly played teaching diagram when its chapter closes.
 
   function element(tag, className, text) {
     const node = document.createElement(tag);
@@ -216,6 +217,7 @@
   }
 
   async function loadRoute() {
+    disposeDemo();
     const version = ++routeVersion;
     const [slug = '', encodedAnchor = ''] = location.hash.replace(/^#\/?/, '').split('/');
     const page = pages.find(candidate => candidate.slug === (slug || 'index'));
@@ -240,6 +242,7 @@
       const text = await fetchMarkdown(page);
       if (version !== routeVersion) return; // A slow previous request must never overwrite a newer navigation.
       article.replaceChildren(...renderMarkdown(text, page).childNodes);
+      disposeDemo = GmRouteDemo.mount(article); // Only the route reference's generated heading enables this local, non-authoring demo.
       article.setAttribute('aria-busy', 'false');
       pageStatus.hidden = true;
       $('#reading-time').textContent = `${Math.max(1, Math.round(article.textContent.split(/\s+/).length / 200))} min read`;

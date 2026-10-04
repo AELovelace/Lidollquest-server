@@ -42,6 +42,8 @@ Each guide has real editor pictures, field-by-field instructions, a publication 
 | Make a readable orb or illustrated scene | [Orbs, narratives and artwork](orbs-art.md) |
 | Trigger a fight or award an item | [Battles, rewards and effects](monsters-rewards.md) |
 | Put the content into an existing dungeon | [Zones and placements](maps.md) |
+| Paint terrain and inspect reachability | [The Map Editor](maps.md#the-map-editor-pop-out), [Map editing tutorial](tutorial-map-editing.md) |
+| Give an NPC a patrol or daily schedule | [Route reference and interactive demo](npc-routes.md), [Patrol tutorial](tutorial-npc-patrol.md), [Schedule tutorial](tutorial-npc-schedules.md) |
 | Change the pages a new character reads on arrival | [Welcome tutorial](welcome-tutorial.md) |
 | Moderate a player shop or read its ledger | [Player shops](player-shops.md) |
 | Try a story without affecting real progression | [Preview and isolated tests](testing.md) |

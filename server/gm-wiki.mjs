@@ -5,7 +5,7 @@ const chapters=JSON.parse(readFileSync(new URL('pages.json',root),'utf8'));
 const illustrations=JSON.parse(readFileSync(new URL('illustrations.json',root),'utf8'));
 if(!Array.isArray(illustrations)||illustrations.some(name=>!/^assets\/tutorial\/[a-z0-9-]+\.(png|svg)$/.test(name)))throw Error('Invalid GM wiki illustration path');
 const types={png:'image/png',html:'text/html',css:'text/css',js:'text/javascript',json:'application/json',md:'text/markdown',txt:'text/plain',svg:'image/svg+xml'};
-const names=[...illustrations,'illustrations.json','index.html','wiki.css','wiki.js','pages.json','assets/little-log-logo.svg','vendor/marked.min.js','vendor/purify.min.js','vendor/marked-LICENSE.md','vendor/dompurify-LICENSE.txt',...chapters.map(page=>{
+const names=[...illustrations,'illustrations.json','index.html','wiki.css','wiki.js','route-demo.js','pages.json','assets/little-log-logo.svg','vendor/marked.min.js','vendor/purify.min.js','vendor/marked-LICENSE.md','vendor/dompurify-LICENSE.txt',...chapters.map(page=>{
  if(!/^[a-z0-9-]+$/.test(page.slug))throw Error('Invalid GM wiki chapter slug');
  return 'content/'+page.slug+'.md';
 })]; // Only release-owned assets can be requested; URL paths are never filesystem paths.
