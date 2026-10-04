@@ -12,6 +12,7 @@ import {levelEnemy,encounterLevel,routeLevelFor,pickTarget,rowSwapCostsTurn} fro
 import {isCrawling} from './crawl.mjs';
 import {prepareIndustrialBoss} from './arcadia-industrial.mjs';
 import {importLoadout,applyRunLoadout,syncRunHealth} from './loadout.mjs';
+import {bindBalance,logEncounterEnd,balanceNeeds} from './balance-stats.mjs'; // Balance statistics (balance.sqlite): no-ops on databases without attached stats.
 import {reviveDowned} from './revive.mjs'; // Healing Poultices: stand a knocked-out ally back up mid-fight.
 
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'encounter_conflict'});};
@@ -65,7 +66,7 @@ export function createDiveEncounters(db,{origins,live=null,now,roll,data,parties
  const fetch=id=>{const row=db.prepare('SELECT state FROM quest_dive_encounters WHERE id=? AND route=?').get(id??'',route);return row?JSON.parse(row.state):null;};
  const write=e=>db.prepare('INSERT INTO quest_dive_encounters VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state,updated=excluded.updated').run(e.id,route,e.edition,JSON.stringify(e),now());
  function message(e,text){e.sequence++;e.events.push({seq:e.sequence,text});e.events=e.events.slice(-40);} // Bounded event history keeps snapshots within the gateway budget.
- function roster(e,caller=null,state=null){return [...e.players.map(a=>{const c=caller?.id===a.id?caller:db.prepare('SELECT * FROM quest_characters WHERE id=?').get(a.id);return {a,c,s:caller?.id===a.id?state:JSON.parse(c.state)};}),...(e.followers??[]).map(a=>({a,c:{id:a.id},s:{...a.state,run:a.run}}))];} // NPC state lives inside the encounter, never in a player account.
+ function roster(e,caller=null,state=null){return [...e.players.map(a=>{const c=caller?.id===a.id?caller:db.prepare('SELECT * FROM quest_characters WHERE id=?').get(a.id);return {a,c,s:caller?.id===a.id?state:bindBalance(db,JSON.parse(c.state),c)};}),...(e.followers??[]).map(a=>({a,c:{id:a.id},s:{...a.state,run:a.run}}))];} // NPC state lives inside the encounter, never in a player account.
  function projection(e,a){const enemy=e.enemies.find(v=>v.data.hp>0)??e.enemies[0];const active=[...e.players,...(e.followers??[])].filter(v=>v.status==='active');return {...a.run,row:a.row??'front',rowSwapped:a.rowSwapped===true,rowPartner:active.length>1,rowAlone:!active.some(v=>(v.row??'front')!=='back'),enemy:clone(enemy.data),sharedEncounter:e.id,combatVersion:3,cycle:a.cycle,readyAt:a.readyAt,duration:a.duration,turnReady:a.prepared,phase:'fight',status:a.status,turn:a.cycle,log:e.events.map(v=>v.text)};}
  function persist(e,rows,caller=null){for(const {a,c,s} of rows){if(!e.finished){s.run=projection(e,a);syncRunHealth(s,a.run);}if(a.npc){const {run,...rest}=s;a.state=rest;}else if(c.id!==caller?.id)saveCharacter(c,s);}write(e);}
  function reset(a,s){a.cycle++;a.prepared=false;a.rowSwapped=false;a.duration=actionDelay(s.loadout.player_info.dex);a.readyAt=now()+a.duration;a.run.turn=a.cycle;a.run.turnReady=false;}
@@ -75,7 +76,7 @@ export function createDiveEncounters(db,{origins,live=null,now,roll,data,parties
   if(foe.storyOwner&&foe.storyOwner!==c.id)fail('This encounter belongs to another character.');
   const members=parties?.members(c.id)??[],people=members.length?members:[c];
   const eligible=(s,other)=>context?context.eligible(s,other,record):s.dive?.edition===record.edition&&s.dive?.route===route;
-  const rows=people.map(other=>({c:other,s:other.id===c.id?state:JSON.parse(other.state)})).filter(({s,c:other})=>!s.pendingDefeat&&eligible(s,other)); // Downed or elsewhere members retain membership but do not enter this encounter.
+  const rows=people.map(other=>({c:other,s:bindBalance(db,other.id===c.id?state:JSON.parse(other.state),other)})).filter(({s,c:other})=>!s.pendingDefeat&&eligible(s,other)); // Downed or elsewhere members retain membership but do not enter this encounter.
   parties?.followers?.assertSlots(people.map(v=>v.id));
   if(rows.some(v=>parties?.followers?.get(v.c.id)?.status==='pending'))fail('Finish the companion payment before entering combat.');
   if(!rows.some(row=>row.c.id===c.id))fail('Finish recovering before entering combat.');
@@ -105,7 +106,7 @@ export function createDiveEncounters(db,{origins,live=null,now,roll,data,parties
   const xp=e.enemies.filter(v=>v.data.hp<=0).reduce((n,v)=>n+(v.data.exp??0),0),bossDown=e.enemies.some(v=>v.id===boss&&v.data.hp<=0);
   e.finished=true;message(e,win?'The encounter is cleared.':'The encounter is over.');
   for(const enemy of e.enemies){const foe=record.floor.enemies.find(v=>v.id===enemy.id);if(!foe)continue;foe.dead=enemy.data.hp<=0;foe.diedAt=foe.dead?now():null;foe.engaged=null;foe.respawnAt=enemy.data.hp<=0?now()+(foe.id===boss?config.boss_respawn_seconds:config.enemy_respawn_seconds)*1000:0;Object.assign(foe,foe.spawn);}
-  for(const {a,c,s} of rows){s.run=a.run;clearEffects(s);
+  for(const {a,c,s} of rows){s.run=a.run;const needsBefore=balanceNeeds(s),hpLeft=a.run.hp;clearEffects(s);
    if(a.npc){a.state={loadout:s.loadout};parties.followers.settle(a,e.id,['flee','abandoned','owner_out'].includes(a.status)?0:xp);continue;}if(['defeat','charm_backfire'].includes(a.status))a.run.hp=Math.max(1,Math.ceil(a.run.maxHp/4));
    const enemy=a.defeatEnemy??e.enemies[0].data;a.run.enemy={...enemy,exp:xp};if(xp)awardExperience(s,roll);syncRunHealth(s,a.run);
    if(bossDown){const p=progress(c,record.edition);p.completed=true;saveProgress(c,record.edition,p);}
@@ -114,7 +115,7 @@ export function createDiveEncounters(db,{origins,live=null,now,roll,data,parties
    const coins=bossDown?pay(c,s,record,true):0,outcome=a.status==='active'?(win?'win':'abandoned'):a.status;
    const equipment=applyDefeatEquipment(s,a.run,outcome); // Only this member's actual defeat opponent supplies their outfit, even when their party wins.
    const outfitLog=equipment?.changes.length?a.run.log.slice(-equipment.changes.length):[]; // Read the outfit lines before dignity appends its own.
-   const dignity=[...applyDefeatDignity(s,a.run,outcome),...applyDefeatAftermath(s,a.run,outcome)]; // Only the members who went down lose dignity and take their loss blurb's effects; survivors of a winning party keep theirs.
+   const dignity=[...applyDefeatDignity(s,a.run,outcome),...applyDefeatAftermath(s,a.run,outcome)];logEncounterEnd(s,a.run,outcome,{needsBefore,hp_left:hpLeft,turns:a.cycle,party:e.players.length,enemies:e.enemies.length,boss:bossDown?1:0,coins,xp:['flee','abandoned'].includes(outcome)?0:xp}); // Only the members who went down lose dignity and take their loss blurb's effects; survivors of a winning party keep theirs.
    s.lastResult={outcome,coins,rounds:1,zone,log:[...e.events.map(v=>v.text),...outfitLog,...dignity],...defeatPresentation(a.run,outcome),...(equipment?{defeatEquipment:equipment}:{})};s.wins=(s.wins??0)+(win?1:0);s.run=null;
    if(s.dive||context)relocate(c,s,win&&!s.lastResult.defeatScene?e.origin:entry(record.floor,s.dive?.origin),s.lastResult.defeatScene,a.downedAt); // A defeated member returns to their own gate even when the survivors win.
    if(!['flee','abandoned'].includes(outcome))for(const enemy of e.enemies.filter(v=>v.data.hp<=0))live?.questEvent?.(c,s,{id:'kill:'+e.id+':'+enemy.id,type:'kill',target:enemy.data.enemy_id??enemy.data.id,zone,created:e.created});

@@ -1,3 +1,4 @@
+import {logBalance} from './balance-stats.mjs'; // Balance statistics (balance.sqlite): no-ops on databases without attached stats.
 import {createCraftingStore,useCraftingData,currentCraftingData} from './crafting-store.mjs';
 import {preserveCraftingState} from './crafting-state.mjs';
 import {deliverCraftingRewards} from './crafting-rewards.mjs';
@@ -81,6 +82,7 @@ export function createCraftingService(db,{now=Date.now,origins,loot,alchemyStore
    else{const fixture=(z?.fixtures??resourceNodes(p.zone,floor)).find(f=>f.id===input.fixture&&f.kind===station);if(!fixture||Math.abs(fixture.x-p.x)+Math.abs(fixture.y-p.y)>1)fail('Stand next to the crafting station.');}
    const result=planCraft(s.loadout,input,c.id+':'+input.request_id,{data:craftingData,loot:loot.apply(craftingData.loot),alchemy:alchemyStore.apply?.(craftingData.alchemy)??craftingData.alchemy});
    const verified=requireRights(c,s.loadout.inventory,result.consumed);applyCraft(s.loadout,result,{mint:item=>origins.mint(c.id,item),spend,verified});
+   logBalance('craft',s,{value:1,item:result.item?.item_id??null,station,xp:result.xp??0,burnt:result.burnt?1:0});
    s.craftResult={request:input.request_id,message:result.message,item:result.item,xp:result.xp,burnt:result.burnt};s.hubNotice=result.message;s.hubNoticeAt=now();
   }else if(input.action==='craft_harvest'){
    const node=resourceNodes(p.zone,floor).find(n=>n.id===input.fixture&&!n.kind);if(!node||Math.abs(node.x-p.x)+Math.abs(node.y-p.y)>1)fail('Stand next to the resource.');

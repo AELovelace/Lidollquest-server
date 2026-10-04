@@ -7,19 +7,23 @@
 //  2. currentZoneId(id): older game clients and bookmarked GM links may still send an old id; it maps it forward.
 const OVERWORLDS=['desert','tundra','taiga','high-desert','haunted-woods','autumnal-plains','farmstead','seafoam-coast','emberfall-caldera','obsidian-spa','spooky-mansion']; // Open wilderness maps.
 const FULL_DUNGEONS=['castle-dungeon','auto-nursery','regression-school','regression-hospital']; // Campaign full dungeons (full-dungeons-data.json).
-export const ZONE_RENAMES=Object.freeze(Object.fromEntries([...OVERWORLDS.map(name=>['dive-'+name,'overworld-'+name]),...FULL_DUNGEONS.map(name=>['dive-'+name,'dungeon-'+name])])); // old id -> new id, all fifteen.
+const PREFIX_RENAMES=Object.fromEntries([...OVERWORLDS.map(name=>['dive-'+name,'overworld-'+name]),...FULL_DUNGEONS.map(name=>['dive-'+name,'dungeon-'+name])]); // The 2026-09-25 rename, all fifteen.
+const MANSION_RENAME=['overworld-spooky-mansion','dungeon-spooky-mansion']; // 2026-10-03: the Spooky Mansion is a dungeon (it rerolls weekly while the overworlds became static maps), so its id says so.
+export const ZONE_RENAMES=Object.freeze({...Object.fromEntries(Object.entries(PREFIX_RENAMES).map(([from,to])=>[from,to===MANSION_RENAME[0]?MANSION_RENAME[1]:to])),[MANSION_RENAME[0]]:MANSION_RENAME[1]}); // old id -> current id: the fifteen dive- ids plus the Mansion's overworld- id.
 
 export const currentZoneId=id=>typeof id==='string'?ZONE_RENAMES[id]??id:id; // A renamed zone's old id becomes its new one; anything else passes through untouched.
 
-const MIGRATION='2026-09-25-zone-id-prefixes'; // Row name in schema_migrations once the rewrite has committed.
+const MIGRATIONS=[['2026-09-25-zone-id-prefixes',Object.entries(PREFIX_RENAMES)],['2026-10-03-spooky-mansion-dungeon',[MANSION_RENAME]]]; // [row name in schema_migrations once the rewrite has committed, its old -> new pairs], in the order they shipped.
 const SKIP=new Set(['gm_audit','schema_migrations']); // The audit log keeps the ids as they were when each action happened.
 const quote=name=>'"'+name.replaceAll('"','""')+'"'; // SQL identifier quoting for table and column names read from the schema.
 const text=value=>"'"+value.replaceAll("'","''")+"'"; // SQL string literal.
 
 export function migrateZoneIds(db,{log=console.warn}={}){ // Returns the number of rows changed (0 when already applied or nothing to do).
  db.exec('CREATE TABLE IF NOT EXISTS schema_migrations(id TEXT PRIMARY KEY,applied INTEGER NOT NULL)'); // One row per one-time data migration.
+ let total=0;for(const [migration,pairs] of MIGRATIONS)total+=migrateOnce(db,migration,pairs,log);return total;
+}
+function migrateOnce(db,MIGRATION,pairs,log){
  if(db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(MIGRATION))return 0; // Already done on this database.
- const pairs=Object.entries(ZONE_RENAMES);
  // Every form an id takes inside stored text: a JSON string ("dive-desert"), a JSON string inside a JSON string
  // (\"dive-desert\"), an id used as a key prefix ("dive-desert:npc"), and one between colons inside a key
  // ("visited:dive-castle-dungeon:boss"). The delimiters keep dive-high-desert and dive-desert apart, and never

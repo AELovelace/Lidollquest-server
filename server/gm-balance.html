@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>LiDollQuest Balance Metrics</title>
+<style>
+:root{color-scheme:dark;--bg:#160f1c;--panel:#221730;--edge:#3a2a4d;--ink:#f2e9f7;--dim:#a894b8;--rose:#ff8fc4;--mint:#7fe0c0;--red:#ff7b8f;--grid:#33254a;--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Segoe UI",system-ui,sans-serif}[hidden]{display:none!important}
+button,input,select{font:inherit;color:var(--ink);background:#1b1226;border:1px solid var(--edge);border-radius:6px;padding:5px 9px}button{cursor:pointer;background:#2e2040}button:hover{background:#3b2a52}button:disabled{opacity:.45;cursor:default}button.go{background:var(--rose);color:#2a0d1c;border-color:var(--rose);font-weight:600}button.sm{padding:2px 8px;font-size:12px}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--mint);outline-offset:2px}a{color:var(--mint)}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 18px;background:var(--panel);border-bottom:2px solid var(--edge);position:sticky;top:0;z-index:5}h1{font-size:17px;margin:0 12px 0 0;color:var(--rose)}
+#status{padding:4px 18px;min-height:26px;color:var(--mint);font-size:13px}#status.error{color:var(--red)}
+.filters{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:end;padding:10px 18px;border-bottom:1px solid var(--edge)}.filters label{display:grid;gap:2px;color:var(--dim);font-size:12px}.filters label.check{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--ink)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;padding:10px 18px 0}.tabs button[aria-selected="true"]{background:var(--rose);border-color:var(--rose);color:#2a0d1c;font-weight:600}
+main{padding:14px 18px 60px;max-width:1680px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}.tiles article{background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:12px 14px}.tiles strong{display:block;font-size:26px;line-height:1.2}.tiles span{color:var(--dim);font-size:12px}
+.charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}@media(max-width:900px){.charts{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:14px;min-width:0}.card h2{font-size:15px;margin:0 0 2px}.card p{margin:0 0 8px;color:var(--dim);font-size:13px}.card .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.plot{position:relative}.plot svg{display:block;width:100%;height:auto}.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--dim);margin:4px 0}.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.tip{position:absolute;pointer-events:none;background:#120b18;border:1px solid var(--edge);border-radius:6px;padding:5px 8px;font-size:12px;white-space:nowrap;z-index:3;transform:translate(-50%,-110%)}.tip b{display:block}.tip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+.scroll{overflow:auto;max-height:560px;border:1px solid var(--edge);border-radius:8px}table{border-collapse:collapse;width:100%;font:12px Consolas,"Courier New",monospace}th,td{padding:4px 9px;text-align:left;border-bottom:1px solid var(--edge);white-space:nowrap}th{position:sticky;top:0;background:#1b1226;color:var(--rose)}td{color:var(--ink)}td.num{text-align:right;font-variant-numeric:tabular-nums}td.wide{white-space:normal;min-width:260px;color:var(--dim)}
+details summary{cursor:pointer;color:var(--dim);font-size:13px;margin-top:6px}.empty{color:var(--dim);padding:26px 0;text-align:center}.note{color:var(--dim);font-size:13px}
+</style></head><body>
+<header><h1>Balance Metrics</h1><button id="refresh" class="go">Refresh</button><label class="note"><input type="checkbox" id="auto" checked> auto-refresh 30s</label><span id="stamp" class="note"></span><span style="flex:1"></span><a href="/gm" target="lidollquest-gm">Advanced GM tools</a></header>
+<div id="status" role="status" aria-live="polite">Loading balance statistics…</div>
+<div class="filters">
+<label>From<input type="date" id="from"></label><label>To<input type="date" id="to"></label><button id="allDates" type="button">All dates</button>
+<label>Group by<select id="interval"><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option></select></label>
+<label>Character<select id="character"><option value="">Everyone</option></select></label>
+<label class="check"><input type="checkbox" id="staff"> Include staff play</label>
+</div>
+<nav class="tabs" role="tablist" aria-label="Balance sections">
+<button role="tab" data-tab="overview" aria-selected="true">Overview</button><button role="tab" data-tab="combat" aria-selected="false">Combat</button><button role="tab" data-tab="needs" aria-selected="false">Needs</button><button role="tab" data-tab="economy" aria-selected="false">Economy</button><button role="tab" data-tab="records" aria-selected="false">Records</button><button role="tab" data-tab="export" aria-selected="false">Export</button>
+</nav>
+<main>
+<section id="summary"><div class="tiles" id="tiles"></div><div class="charts" id="charts"></div></section>
+<section id="records" hidden><div class="filters" style="padding:0 0 10px;border:0"><label>Event kind<select id="kind"><option value="">All kinds</option></select></label><span class="note" id="recordCount"></span></div><div class="scroll"><table id="recordTable"></table></div><div class="row" style="margin-top:10px"><button id="more" hidden>Show more records</button></div></section>
+<section id="export" hidden><div class="card" style="max-width:720px"><h2>Export events</h2><p>Downloads every event that matches the filters above (dates, character, staff) and the event kind chosen on the Records tab. One row per event; kind-specific details are flattened into <code>data.*</code> columns in the CSV.</p><div class="row"><button id="exportCsv" class="go">Download CSV</button><button id="exportJson">Download JSON</button></div><p id="exportStatus" class="note" style="margin-top:10px"></p></div></section>
+</main>
+<script>/* BALANCE */</script></body></html>

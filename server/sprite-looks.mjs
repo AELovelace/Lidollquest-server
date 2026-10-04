@@ -4,40 +4,22 @@
 // Assets flagged premium:true (any slot: hair, clothes, shoes) need the same one-diamond unlock but no slot limit.
 import {createHash} from 'node:crypto';
 import {craftingData} from './crafting.mjs';
+import {validateSpriteLook} from './sprite-look-validation.mjs';
+import {spriteWorkshop} from './sprite-workshop.mjs';
 
-export const lookCatalog=()=>craftingData.sprite_lab; // Exported from the game's layered_sprite_lab.json by python/export_crafting.py.
+export const lookCatalog=db=>db?spriteWorkshop(db).catalog():craftingData.sprite_lab; // DB-scoped published art supplements the bundled catalog; tests never share mutable catalogs.
 export const accessorySlots=(catalog=lookCatalog())=>new Set((catalog.slots??[]).filter(s=>s.accessory).map(s=>s.id));
 export const needsUnlock=(asset,accessories=accessorySlots())=>accessories.has(asset.slot)||asset.premium===true; // Every accessory, plus premium items in ordinary slots.
 export const UNLOCK_DIAMONDS=1; // settlePurchases debits exactly one diamond per diamond reservation, so the price is fixed here.
 
-export function validateLook(input,{unlocked=null,fail=message=>{throw Object.assign(Error(message),{status:400,code:'look_invalid'});}}={}){
- // unlocked: a Set of accessory and premium asset ids this account owns, or null to skip the ownership check (GM previews never save).
- const integer=(v,min,max,label)=>{if(!Number.isSafeInteger(v)||v<min||v>max)fail(label+' must be between '+min+' and '+max+'.');return v;};
- if(!input||input.version!==1||!input.slots)fail('Design a look in the wardrobe first.');
- const catalog=lookCatalog(),accessories=accessorySlots(catalog),limit=catalog.accessory_limit??3;
- const out={version:1,slots:{},colors:{},strength:{},enabled:{},visible:{},facing:integer(input.facing??0,0,3,'Direction')};
- let worn=0;
- for(const slot of catalog.order){
-  const id=input.slots[slot]??'',asset=catalog.assets.find(a=>a.id===id&&a.slot===slot);
-  if(!asset){if(slot==='base'||id)fail('Unsupported look layer.');out.slots[slot]='';out.colors[slot]=[];out.strength[slot]=[];out.enabled[slot]=[];out.visible[slot]=true;continue;}
-  if(accessories.has(slot)){
-   worn++;if(worn>limit)fail(`You can wear up to ${limit} accessories at once.`);
-  }
-  if(unlocked&&needsUnlock(asset,accessories)&&!unlocked.has(id))fail(`Unlock ${asset.name} (1 diamond) before wearing it.`);
-  out.slots[slot]=id;out.visible[slot]=slot==='base'||input.visible?.[slot]!==false;
-  out.colors[slot]=asset.channels.map((c,i)=>{const rgb=input.colors?.[slot]?.[i]??c.default_rgb??[255,255,255];if(!Array.isArray(rgb)||rgb.length!==3)fail('Choose valid RGB colours.');return rgb.map(v=>integer(v,0,255,'Colour'));});
-  out.strength[slot]=asset.channels.map((_,i)=>{const n=input.strength?.[slot]?.[i]??1;if(!Number.isFinite(n)||n<0||n>1)fail('Invalid tint strength.');return n;});
-  out.enabled[slot]=asset.channels.map((_,i)=>input.enabled?.[slot]?.[i]===true);
- }
- return out;
-} // Only registered layers and numeric tint channels are published; no client asset URLs or shader code.
+export function validateLook(input,options={}){return validateSpriteLook(input,lookCatalog(options.db),options);} // Keep every server caller on the same catalog and validation rules.
 
 export function createLookUnlocks(db,{now=Date.now}={}){
  db.exec('CREATE TABLE IF NOT EXISTS look_unlocks(owner TEXT NOT NULL,asset TEXT NOT NULL,created INTEGER NOT NULL,purchase TEXT NOT NULL,PRIMARY KEY(owner,asset))');
  const fail=(message,status=409)=>{throw Object.assign(Error(message),{status,code:'look_unlock_failed'});};
- const list=owner=>db.prepare('SELECT asset FROM look_unlocks WHERE owner=? ORDER BY asset').all(owner).map(r=>r.asset); // Account-wide: every character shares the collection.
+ const list=owner=>[...db.prepare('SELECT asset FROM look_unlocks WHERE owner=? ORDER BY asset').all(owner).map(r=>r.asset),...spriteWorkshop(db).owned(owner)]; // Personal published art belongs to every character on its creator's account.
  function prepare(i,char,state,input){ // Reserve a one-diamond purchase; settle() grants the unlock once the wallet debit lands.
-  const catalog=lookCatalog(),asset=catalog.assets.find(a=>a.id===input.asset);
+  const catalog=lookCatalog(db),asset=catalog.assets.find(a=>a.id===input.asset);
   if(!asset||!needsUnlock(asset,accessorySlots(catalog)))fail('Only accessories and premium items are unlocked with diamonds.',400);
   if(list(i.owner).includes(asset.id))fail(`You already own ${asset.name}.`);
   if(state.pendingPurchase)fail('Finish your current purchase first.');
@@ -48,7 +30,7 @@ export function createLookUnlocks(db,{now=Date.now}={}){
  function prepareAccount(i,input){ // The creation wardrobe: no character exists yet, so the reservation belongs to the account alone (character_id '').
   const id=createHash('sha256').update(i.owner+':'+input.request_id).digest('hex');
   if(db.prepare('SELECT 1 FROM hub_purchases WHERE id=?').get(id))return; // A retried request keeps its first reservation.
-  const catalog=lookCatalog(),asset=catalog.assets.find(a=>a.id===input.asset);
+  const catalog=lookCatalog(db),asset=catalog.assets.find(a=>a.id===input.asset);
   if(!asset||!needsUnlock(asset,accessorySlots(catalog)))fail('Only accessories and premium items are unlocked with diamonds.',400);
   if(list(i.owner).includes(asset.id))fail(`You already own ${asset.name}.`);
   if(db.prepare("SELECT 1 FROM hub_purchases WHERE owner=? AND character_id='' AND status='pending'").get(i.owner))fail('Finish your current purchase first.');

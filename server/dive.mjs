@@ -24,6 +24,7 @@ import {floodAt,noticeAccident,echoReading,listenAtStone} from './gulch-features
 import {withGenerated} from './generated-items.mjs';
 import {generateFloor,dressFloor,addFood,weeklyWindow,seeded,pathTo,walkable,inside,enemyRoams} from './dive-generation.mjs';
 import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,defeatPresentation,MAX_STAT,currentTuning} from './combat.mjs';
+import {bindBalance,logBalance,logEncounterEnd,balanceNeeds} from './balance-stats.mjs'; // Balance statistics (balance.sqlite): no-ops on databases without attached stats.
 import {levelEnemy,encounterLevel,routeLevelFor,defHpDelta,dexStaminaDelta} from './scaling.mjs';
 import {stackable,slotsUsed,addToInventory,setStackTokens} from './loadout.mjs';
 import {importLoadout,syncRunHealth,applyRunLoadout} from './loadout.mjs';
@@ -155,7 +156,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  }
  function finish(c,state,record,outcome){
   const run=state.run;if(!run||run.kind!=='dive')return;
-  const foe=record?.floor.enemies.find(e=>e.id===run.encounter);
+  const foe=record?.floor.enemies.find(e=>e.id===run.encounter),needsBefore=balanceNeeds(state),hpLeft=run.hp;
   clearEffects(state);
   if(outcome==='win'){
    awardWildlife(c,state,run.enemy,{origins,key:run.id});
@@ -172,6 +173,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const equipment=applyDefeatEquipment(state,run,outcome);
   applyDefeatDignity(state,run,outcome); // Lost fights drain dignity like the campaign (-64, -96 in a childish outfit, scaled by Shame); lines land in run.log.
   applyDefeatAftermath(state,run,outcome); // The loss blurb's own effects (bladder/tummy fill, Dignity, needs) settle once; its accident beats play on the client.
+  logEncounterEnd(state,run,outcome,{needsBefore,hp_left:hpLeft,boss:run.encounter===bossId?1:0});
   syncRunHealth(state,run);state.lastResult={outcome,coins:0,rounds:1,zone:zoneId,log:run.log,...defeatPresentation(run,outcome),...(equipment?{defeatEquipment:equipment}:{})};state.run=null;
   if(state.dive)state.dive.safeUntil=now()+10*seconds;
   if(record)saveFloor(record);
@@ -311,6 +313,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(!personal.rolls[chest.id])personal.rolls[chest.id]=(ingredientSpot?rollLoot.ingredient(lootEdition(record.edition),c.id,chest,1,true):null)??rollLoot(lootEdition(record.edition),c.id,chest,personal.rolls); // Capacity was checked first; only successful claims consume the allowance. An ingredient spot stores its forced bundle as the receipt (an ordinary item only if no alchemy table is shipped).
   const rolled=clone(personal.rolls[chest.id]),item=ingredientSpot&&rolled.category==='ingredient'?null:rolled; // The bundle is the whole find at an ingredient spot.
   if(item){if(origins)origins.mint(c.id,item);addToInventory(state.loadout.inventory,item);}personal.claimed.push(chest.id);saveProgress(c,record.edition,personal);
+  logBalance('chest',bindBalance(db,state,c),{value:1,chest:chest.id,chest_kind:chest.kind??'chest',item:rolled?.item_id??null,rarity:rolled?.rarity??null,edition:record.edition});
   const bundle=item?(!chest.kind&&record.floor.chests.some(ch=>ch.id===chest.id)?rollLoot.ingredient(lootEdition(record.edition),c.id,chest):null):rolled; // Ordinary room chests may add a bonus bundle on top of their item; loose pickups never receive one.
   if(bundle){ // Ingredients stack and never use a slot, so a full bag cannot block them.
    if(origins){const tokens=[],prices=new Map();for(let n=0;n<bundle.quantity;n++){const unit=clone(bundle);delete unit.quantity;origins.mint(c.id,unit);if(unit.online_item){tokens.push(unit.online_item);prices.set(unit.online_item,unit.online_sell_price);}}setStackTokens(bundle,tokens,prices);} // one resale right per unit, like bought stacks

@@ -60,7 +60,7 @@ export function fullDungeonNpc(n,key,s,source=null,live=null){
  } // Only the campaign's friendly-removal items qualify; declining leaves equipment unchanged.
  for(const [i,service] of (source?.services??d.adaptations?.npc_services?.[npc.name]??[]).entries()){const id='full_service_'+i;dialogue[0].actions.push({...service,next:id,effect:'none',conditions:[]});dialogue.push({id,text:service.text,next:dialogue[0].id,actions:[]});}
  if(npc.diaper_change){dialogue[0].actions.push({label:storyText(live,'native_change'),next:'full_change',effect:'none',conditions:[],campaign_change:true});dialogue.push({id:'full_change',text:'',next:dialogue[0].id,actions:[]});}
- return {id:key,name:npc.name,sprite:npc.sprite,dialogue,quests:[],campaign_zone:d.config.zone_id,campaign_npc:n.content,campaign_care:structuredClone(npc.diaper_change??null),campaign_care_narrative:structuredClone(source?.careNarrative??null)};
+ return {id:key,name:npc.name,sprite:npc.sprite,...(npc.look?{look:npc.look}:{}),dialogue,quests:[],campaign_zone:d.config.zone_id,campaign_npc:n.content,campaign_care:structuredClone(npc.diaper_change??null),campaign_care_narrative:structuredClone(source?.careNarrative??null)}; // Native service conversations retain their published Workshop portrait.
 }
 
 export function fullDungeonQuestMovement(c,s,input,p,map,event){

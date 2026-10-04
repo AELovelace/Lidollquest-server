@@ -1,6 +1,6 @@
 // Industrial controls share the dungeon's persisted edition and optimistic mechanism revision.
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'dungeon_conflict'});};
-export function installIndustrial(f,data,{fixture,free}){
+export function installIndustrial(f,data,{fixture,free,berth=free}){
  const cfg=data.config.industrial;if(!cfg)return;
  f.industrial={kind:cfg.kind,cycle_steps:cfg.cycle_steps??1,warning_steps:cfg.warning_steps??0,active_steps:cfg.active_steps??0,damage:cfg.damage??0};
  for(const [i,type] of cfg.rooms.entries()){
@@ -10,7 +10,7 @@ export function installIndustrial(f,data,{fixture,free}){
   control.hazard=cfg.kind==='production'?{x:room.x+2,y:room.cy,w:Math.max(1,room.w-4),h:1}:null;
   if(cfg.kind==='cargo'){
    control.berths=[];
-   for(let n=0;n<3;n++){const berth=free(room);if(!berth)throw Error('No cargo berth');control.berths.push(berth);}
+   for(let n=0;n<3;n++){const point=berth(room);if(!point)throw Error('No cargo berth');control.berths.push(point);} // Maze quays supply a berth allocator with permanently clear turning space.
    const at=control.berths[0];f.props[at.y][at.x]=1;
    f.decorations.push({id:control.id+'-load',...at,sprite:'sprArcadiaEnvCrates',span_w:1,span_h:1,solid:true});
   }

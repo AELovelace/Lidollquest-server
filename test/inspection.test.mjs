@@ -3,6 +3,14 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
 import {createQuestZones} from '../server/zones.mjs';
+import {inspectionProjection} from '../server/inspection.mjs';
+test('inspection portraits expose the saved look without leaking private state or inventing old looks',()=>{
+ const look={version:1,slots:{base:'piko_woman'},colors:{},enabled:{},strength:{},visible:{}};
+ const character={id:'bob',owner:'account',name:'Bob',revision:1,state:JSON.stringify({avatar:'private-example',look,loadout:{inventory:['secret'],player_info:{hunger:70,companions:['private']}}})};
+ const view=inspectionProjection(character);assert.deepEqual(view.look,look);assert.equal(view.avatar,'private-example');
+ assert.equal(view.loadout,undefined);assert.equal(view.player_info.companions,undefined);
+ assert.equal(inspectionProjection({...character,state:'{}'}).look,undefined); // Old profiles remain distinguishable from the viewer's appearance.
+});
 test('inspection isolates committed appearance, validates live area and never exports raw inventory or survival state',()=>{
  const db=new DatabaseSync(':memory:');let now=1000000;const chars={};
  const api=createQuestZones(db,{now:()=>now,grant:owner=>({owner,id:owner,client:'lidollquest'}),wallet:()=>({coins:0}),adjust:()=>{},diveOptions:{log:()=>{}},desertOptions:{log:()=>{}}});

@@ -12,5 +12,6 @@ export function inspectionProjection(c){
  const shame=Number(p.shame)||0;out.inspection_embarrassment=shame>=769?0:shame>=513?1:shame>=257?2:0; // Match the campaign face renderer, including its authored lowest-shame fallback.
  const items=withGenerated(catalog); // Generated gear (gen_<style>_<garment>) resolves like any catalog item.
  const equipment=gearSlots.map(slot=>{const id=typeof p['equipped_'+slot]==='string'&&Object.hasOwn(items,p['equipped_'+slot])?p['equipped_'+slot]:'';out['equipped_'+slot]=id;return {slot,item_id:id,name:id?items[id].name:'(empty)'};});
- return {character_id:c.id,account_id:c.owner,name:c.name,...descriptionFields(state),level:Math.max(1,Math.min(1000000,Number(p.level)||1)),class_id:['fighter','mage','diplomat'].includes(p.class_id)?p.class_id:'fighter',revision:c.revision,player_info:out,equipment};
+ const appearance={avatar:state.avatar??'player',...(state.look?{look:state.look}:{})}; // Public saved cosmetics; RP freezes these fields at posting time.
+ return {character_id:c.id,account_id:c.owner,name:c.name,...descriptionFields(state),...appearance,level:Math.max(1,Math.min(1000000,Number(p.level)||1)),class_id:['fighter','mage','diplomat'].includes(p.class_id)?p.class_id:'fighter',revision:c.revision,player_info:out,equipment};
 } // Never serialize raw player_info: it contains inventory metadata, companions and private survival fields.

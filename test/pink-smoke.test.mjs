@@ -18,7 +18,7 @@ const centre=(c,t)=>{const age=(t-c.born)/MIN;return {x:c.x+c.vx*age,y:c.y+c.vy*
 
 test('shipped tuning covers the overworlds only: campaign Dives, hubs and safe rooms stay clear',()=>{
  for(const id of ['overworld-autumnal-plains','overworld-seafoam-coast','overworld-haunted-woods','overworld-tundra','overworld-taiga','overworld-desert','overworld-high-desert','overworld-emberfall-caldera','overworld-echo-gulch'])assert.ok(smokeConfig(id)?.enabled,id);
- for(const id of ['dive-forest','dive-quarters','overworld-farmstead','overworld-obsidian-spa','overworld-spooky-mansion','honeydew-lantern'])assert.equal(smokeConfig(id),null,id);
+ for(const id of ['dive-forest','dive-quarters','overworld-farmstead','overworld-obsidian-spa','dungeon-spooky-mansion','honeydew-lantern'])assert.equal(smokeConfig(id),null,id);
  assert.equal(smokeConfig('overworld-tundra',{...mistData,smoke:{...mistData.smoke,enabled:false}}).enabled,false); // The export master switch turns every zone off.
  assert.deepEqual(smokeClouds('r',plainsFloor,{...woods,enabled:false},T0),[]);assert.deepEqual(smokeClouds('r',plainsFloor,{...woods,clouds:0},T0),[]);
 });

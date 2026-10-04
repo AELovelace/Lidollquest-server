@@ -42,6 +42,7 @@ function checkPages(pages,label,legacyShop=false){
  }
 } // Validate every destination, including skill-check branches which the legacy page importer omitted.
 export function createStorySheets({look=null}={}){ // look: {slots, validate} from sprite-looks.mjs lets resident sheets carry a Sprite Lab look.
+ const lookCategories=new Set(['fixture','follower','tutor','native_npc']); // Every character sheet uses the same validated Workshop appearance.
  const sources=new Map(),schemas=new Map();
  function register(category,zone,key,body,{name=body.name??body.title??key,source='',npc_ref=''}={}){
   const id=sheetId(category,zone,key);if(sources.has(id))return id;
@@ -57,7 +58,7 @@ export function createStorySheets({look=null}={}){ // look: {slots, validate} fr
   if(!schemas.has(category)){
    const examples=[...sources.values()].filter(s=>s.category===category).map(s=>s.body);
    if(category==='fixture')examples.push({topic_label:'Talk.',topics:[{id:'topic',text:'A new conversation.',next:'close',actions:[{label:'Goodbye.',next:'close'}]}]});
-   if(category==='fixture'&&look){const per=value=>Object.fromEntries(look.slots.map(slot=>[slot,value]));examples.push({look:{version:1,slots:per(''),colors:per([[255,255,255]]),strength:per([1]),enabled:per([true]),visible:per(true),facing:0}});} // The shape only; validate() below checks the layers themselves.
+   if(lookCategories.has(category)&&look){const per=value=>Object.fromEntries(look.slots.map(slot=>[slot,value]));examples.push({look:{version:1,slots:per(''),colors:per([[255,255,255]]),strength:per([1]),enabled:per([true]),visible:per(true),facing:0}},{look:null});} // The shape only; validate() below checks the layers themselves.
    schemas.set(category,sheetSchema(examples));
   }
   return schemas.get(category);
@@ -87,7 +88,7 @@ export function createStorySheets({look=null}={}){ // look: {slots, validate} fr
   if(base.category==='tutor'&&(!/^[A-Za-z][A-Za-z '\-]{0,23}$/.test(b.name)||typeof b.greeting!=='string'||b.greeting.length>300))fail('Guide names use 1–24 letters, spaces, apostrophes or hyphens; greetings use at most 300 characters.');
   const effects=v=>{if(!v||typeof v!=='object')return;for(const [key,child] of Object.entries(v)){if((key==='campaign_effects'||key.endsWith('_effects'))&&Array.isArray(child))for(const e of child)if(!sheetEffectTypes.includes(e.type))fail('Unsupported effect: '+e.type);effects(child);}};effects(b);
   if(base.category==='presentation')for(const [key,original] of Object.entries(base.body))for(const token of original.match(/\{\w+\}/g)??[])if(!b[key]?.includes(token))fail(key+': keep the '+token+' placeholder.');
-  const body=clone(b);if(base.category==='fixture'){if(b.look==null)delete body.look;else body.look=look?look.validate(b.look):fail('Sprite Lab looks are not available here.');} // Registered layers, slot fit, colours and the accessory limit.
+  const body=clone(b);if(lookCategories.has(base.category)){if(b.look==null)delete body.look;else body.look=look?look.validate(b.look):fail('Sprite Lab looks are not available here.');} // Registered layers, slot fit, colours and the accessory limit.
   return {...clone(base),name:value.name,body,source_hash:value.source_hash??base.source_hash};
  } // Preserve explicit source provenance for later update comparisons instead of overwriting edited drafts.
  return {sources,register,validate,schema,inventory:()=>[...sources.values()].map(({body,...s})=>s)};

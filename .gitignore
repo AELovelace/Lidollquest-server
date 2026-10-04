@@ -5,3 +5,5 @@ artifacts/
 *.sqlite*
 *.log
 public-quest-editor/
+
+/public-sprite-editor/

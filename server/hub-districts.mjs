@@ -181,7 +181,15 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
  const cache=new Map();
  db.exec('CREATE TABLE IF NOT EXISTS hub_district_controls(zone TEXT PRIMARY KEY,locked INTEGER NOT NULL,pinned TEXT,month TEXT,reroll INTEGER NOT NULL)'); // GM lock / regenerate state per monthly hub map; survives restarts.
  const controlQuery=db.prepare('SELECT * FROM hub_district_controls WHERE zone=?');let visitorsQuery=null; // Prepared once: windowFor runs for every town on every snapshot and tick. visitorsQuery waits for first use (standalone district tests have no presence table).
- const control=id=>controlQuery.get(id)??{zone:id,locked:0,pinned:null,month:null,reroll:0};
+ const control=id=>controlQuery.get(id)??pinByDefault(id);
+ function pinByDefault(id){ // Hub maps are static unless a GM unlocks them (2026-10-03): a hub with no saved control keeps the layout it shows now (this month's, for a brand-new hub) until someone regenerates it.
+  const shown=db.prepare('SELECT edition FROM hub_district_current WHERE zone=?').get(id)?.edition,base=monthlyWindow(now(),data.reset_hour),c={zone:id,locked:1,pinned:JSON.stringify({...base,edition:shown?shown.replace(/:v\d+$/,''):base.edition}),month:null,reroll:0};
+  if(!readOnly)saveControl(c);return c;
+ }
+ if(!readOnly){ // One-time switch to static hubs: controls saved as "follow the monthly reset" are dropped so pinByDefault pins what each hub shows; unlocking afterwards sticks.
+  db.exec('CREATE TABLE IF NOT EXISTS world_migrations(id TEXT PRIMARY KEY,created INTEGER NOT NULL)');
+  if(!db.prepare('SELECT 1 FROM world_migrations WHERE id=?').get('static-hubs-v1')){db.exec('DELETE FROM hub_district_controls WHERE locked=0');db.prepare('INSERT INTO world_migrations VALUES (?,?)').run('static-hubs-v1',now());}
+ }
  const saveControl=c=>db.prepare('INSERT INTO hub_district_controls VALUES (?,?,?,?,?) ON CONFLICT(zone) DO UPDATE SET locked=excluded.locked,pinned=excluded.pinned,month=excluded.month,reroll=excluded.reroll').run(c.zone,c.locked?1:0,c.pinned,c.month,c.reroll);
  function windowFor(id){ // Which layout this hub should show right now: a locked hub keeps its pinned layout; a GM reroll this month gets a fresh seed; otherwise the calendar month.
   const base=monthlyWindow(now(),data.reset_hour),c=control(id);

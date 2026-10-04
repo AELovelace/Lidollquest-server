@@ -10,7 +10,7 @@ const publicItem=item=>{const copy={...item};delete copy.online_item;delete copy
 const text=(v,max)=>String(v??'').replace(/[\x00-\x1f<>]/g,'').trim().slice(0,max);
 const LEDGER_SIZE=20; // How many recent sales and order fills a shop remembers for its owner.
 export const STORE_ACTIONS=['store_create','store_move','store_style','store_close','store_open','store_deposit','store_withdraw','store_list','store_unlist','store_order','store_cancel_order','store_buy','store_sell'];
-export function validateShopAppearance(input,unlocked=null){return validateLook(input,{unlocked,fail});} // Shopkeepers follow the same look rules as players (registered layers, accessory limit and unlocks) with store errors.
+export function validateShopAppearance(input,unlocked=null,db=undefined){return validateLook(input,{db,unlocked,fail});} // Shopkeepers may wear their owner's published personal artwork too.
 export function createPlayerStores(db,{now=Date.now,origins,adjust,zone,unlocks=()=>null}){ // unlocks(owner): Set of accessory ids the account owns (sprite-looks.mjs).
  db.exec(`CREATE TABLE IF NOT EXISTS player_stores(id TEXT PRIMARY KEY,character_id TEXT NOT NULL UNIQUE,owner TEXT NOT NULL,body TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS player_store_receipts(id TEXT PRIMARY KEY,kind TEXT NOT NULL,body TEXT NOT NULL,status TEXT NOT NULL);
@@ -47,7 +47,7 @@ export function createPlayerStores(db,{now=Date.now,origins,adjust,zone,unlocks=
   if(kind==='store_create'){
    if(s)fail('This character already owns a shop.');const z=zone(p.zone);if(z.kind==='dungeon'||!validBusinessTile(z,input.x,input.y))fail('Choose an open hub tile that preserves paths and services.');
    if(db.prepare("SELECT 1 FROM player_store_receipts WHERE kind='create' AND status='pending' AND json_extract(body,'$.zone')=? AND json_extract(body,'$.x')=? AND json_extract(body,'$.y')=?").get(p.zone,input.x,input.y))fail('Another shop is reserving that tile.');
-   const appearance=validateShopAppearance(input.appearance,unlocks(c.owner)),name=text(input.name,48)||c.name+"'s Shop",shopkeeper=text(input.shopkeeper,32)||'Shopkeeper';
+   const appearance=validateShopAppearance(input.appearance,unlocks(c.owner),db),name=text(input.name,48)||c.name+"'s Shop",shopkeeper=text(input.shopkeeper,32)||'Shopkeeper';
    const draft={id:'store_'+randomUUID(),character:c.id,owner:c.owner,zone:p.zone,x:input.x,y:input.y,name,shopkeeper,appearance,active:true,stock:[],orders:[],created:now()};
    const id=charge(c,state,input,1000,{kind:'create',draft});db.prepare('INSERT INTO player_store_receipts VALUES (?,?,?,?)').run(id,'create',JSON.stringify(draft),'pending');return;
   }
@@ -66,7 +66,7 @@ export function createPlayerStores(db,{now=Date.now,origins,adjust,zone,unlocks=
    adjust(c.owner,'coins',count*order.price,'store-order-'+c.id+'-'+input.request_id,'Sold to '+s.name);ledger(s,{kind:'fill',name:order.name,quantity:count,coins:count*order.price,who:c.name??''});s.orders=s.orders.filter(o=>o.remaining>0);save(s);return;
   }
   if(!s)fail('Open a shop first.');
-  if(kind==='store_style'){s.appearance=validateShopAppearance(input.appearance,unlocks(c.owner));s.name=text(input.name,48)||s.name;s.shopkeeper=text(input.shopkeeper,32)||s.shopkeeper;}
+  if(kind==='store_style'){s.appearance=validateShopAppearance(input.appearance,unlocks(c.owner),db);s.name=text(input.name,48)||s.name;s.shopkeeper=text(input.shopkeeper,32)||s.shopkeeper;}
   else if(kind==='store_move'){const z=zone(p.zone),without={...z,fixtures:z.fixtures.filter(f=>f.id!==s.id)};if(z.kind==='dungeon'||!validBusinessTile(without,input.x,input.y))fail('Choose a valid hub tile.');s.zone=p.zone;s.x=input.x;s.y=input.y;}
   else if(kind==='store_close')s.active=false;
   else if(kind==='store_open')s.active=true;

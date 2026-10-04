@@ -319,7 +319,7 @@ test('wandering NPCs step once per 2 s slot, stay inside their radius, and pause
   f.advance(2000);f.api.tick();const once=where();f.advance(1);f.api.tick();const twice=where(); // Two ticks inside one slot (1 ms apart).
   assert.deepEqual(twice,once,'a second tick in the same slot never takes another step');
   assert.ok(Math.abs(once.x-home.x)+Math.abs(once.y-home.y)<=2,'never leaves the wander radius');
-  if(once.x!==last.x||once.y!==last.y)moved++;last=once;
+  if(once.x!==last.x||once.y!==last.y){moved++;const dx=once.x-last.x,dy=once.y-last.y;assert.equal(once.facing,dx?(dx>0?2:3):(dy>0?0:1),'persist the actual step direction for newly joining clients');}last=once;
  }
  assert.ok(moved>0,'the NPC actually wanders');
  const talking=where(),insert=f.db.prepare('INSERT INTO online_conversations VALUES (?,?,?,?,?,?,?,?)'); // A player holds the guide in conversation.
@@ -393,4 +393,37 @@ test('objective completion flags validate authored references on publish and rol
  delete o.on_complete_flags;const clean=f.publish('quest',d);authorObjectiveFlag(f,flag,true);
  assert.throws(()=>f.live.change({action:'content_rollback',kind:'quest',id:d.id,revision:clean.revision,target_revision:saved.revision},'dm'),/Unknown or retired objective completion flag/);
  assert.equal(f.live.published().quests[d.id].stages[0].objectives[0].on_complete_flags,undefined);
+}finally{f.close();}});
+
+test('routed NPCs walk their waypoints, wait, follow schedules, and only block while standing',()=>{const f=fixture();try{
+ f.publish('npc',npc);const map=place(f,'npc',npc.id),placed=map.placements[0],home=placed.home,zone=map.id,start=Date.parse('2026-09-19T12:00:00Z');
+ let time=0;const slot=(ms=2000)=>{time+=ms;f.advance(ms);f.db.prepare('UPDATE quest_presence SET zone=?,seen=? WHERE character_id=?').run(zone,start+time,f.c.id);f.api.tick();}; // A visitor keeps the zone awake: routed NPCs only walk while someone is there.
+ const where=()=>JSON.parse(f.db.prepare('SELECT body FROM world_placement_maps WHERE zone=? AND edition=?').get(zone,map.edition).body)[0];
+ const save=routes=>f.api.world.act({action:'world_route_content',zone,edition:map.edition,placement:placed.id,routes}); // No revision: a step taken mid-edit never discards a drawn route.
+ const usable=(x,y)=>{try{save([{points:[{x,y}]}]);return true;}catch(e){if(!/reachable tile/.test(e.message))throw e;return false;}},far=(p,q)=>Math.abs(p.x-q.x)+Math.abs(p.y-q.y);
+ const spots=[];for(let dy=-5;dy<=5;dy++)for(let dx=-5;dx<=5;dx++){const p={x:home.x+dx,y:home.y+dy};if(far(p,home)>=2&&usable(p.x,p.y))spots.push(p);}
+ const a=spots[0],b=spots.find(p=>far(p,a)>=3);assert.ok(a&&b,'two waypoints fit near the NPC');
+ assert.throws(()=>save([{points:[{x:0,y:0}]}]),/reachable tile/);assert.throws(()=>save([{points:[]}]),/1 to 16 waypoints/);assert.throws(()=>save(Array(5).fill({points:[a]})),/four routes/);assert.throws(()=>save([{points:[a],when:{type:'daily',from:60,to:60}}]),/different start and end/);
+
+ const saved=save([{mode:'pingpong',points:[a,{...b,wait:4}]}]).placements[0];assert.deepEqual(saved.routes[0].points,[{...a,wait:0},{...b,wait:4}]);assert.deepEqual(saved.routes[0].when,{type:'always'});assert.deepEqual({x:saved.x,y:saved.y},home,'a changed route restarts the NPC at home');
+ slot();assert.ok(far(where(),a)<=1,'nobody watched the walk from home, so the patrol starts from its first waypoint');
+ let last=where(),reached=0,waited=0,returned=false;
+ for(let n=0;n<80&&!returned;n++){
+  slot();const now=where();assert.ok(far(now,last)<=1,'one tile per slot at most');
+  if(now.x!==last.x||now.y!==last.y){assert.equal(now.walking,true);assert.equal(now.facing,now.x!==last.x?(now.x>last.x?2:3):(now.y>last.y?0:1));assert.deepEqual(f.api.quests.placements.positions(zone,map.edition),[],'a walking NPC occupies no tile');}
+  if(now.x===b.x&&now.y===b.y){reached++;if(!now.walking){waited++;assert.deepEqual(f.api.quests.placements.positions(zone,map.edition),[b],'a waiting NPC blocks its tile again');}}
+  if(reached&&now.x===a.x&&now.y===a.y)returned=true;last=now;
+ }
+ assert.ok(reached>=2&&waited>=2,'the NPC stands on the far waypoint for its 4 s wait');assert.ok(returned,'back and forth returns to the first waypoint');
+ const snapshot=f.api.read('',f.c.id).worldPlacements.find(p=>p.id===placed.id);assert.equal(snapshot.routes,undefined,'routes stay server-side');assert.equal(typeof snapshot.walking,'boolean');
+
+ save([{mode:'once',points:[a],when:{type:'daily',from:0,to:60}}]);for(let n=0;n<10;n++)slot(); // 12:00 UTC is outside 00:00-01:00.
+ assert.deepEqual({x:where().x,y:where().y,walking:where().walking},{...home,walking:false},'outside its hours the NPC stays home');
+ save([{mode:'once',points:[a],when:{type:'daily',from:660,to:780}}]);for(let n=0;n<20;n++)slot();
+ assert.deepEqual({x:where().x,y:where().y,walking:where().walking},{...a,walking:false},'inside its hours it walks to its post and stays');
+
+ save([{mode:'loop',points:[a],when:{type:'every',minutes:10}}]);for(let n=0;n<30;n++)slot();
+ assert.deepEqual({x:where().x,y:where().y,walking:where().walking},{...home,walking:false},'after its lap the NPC is home until the next period');assert.ok(where().laps,'the finished lap is remembered');
+ slot(600000);assert.ok(far(where(),a)<=1&&far(where(),home)>0,'the next period starts another lap');
+ for(let n=0;n<30;n++)slot();assert.deepEqual({x:where().x,y:where().y},home);
 }finally{f.close();}});

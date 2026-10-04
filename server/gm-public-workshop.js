@@ -38,7 +38,7 @@ function createPublicWorkshopApi({snapshot,rules,storage,now=()=>Date.now()}){
   if(a.kind==='monster')fail('Monsters are tuned in the live GM console. Reference the shipped monsters from Battle blocks and kill objectives instead.');
   if(!groups[a.kind]||typeof a.id!=='string'||!/^[a-z][a-z0-9_-]{1,79}$/.test(a.id))fail('Unknown content kind or ID.');
   const old=s.records[a.kind][a.id]??null;if((old?.revision??0)!==(a.revision??0))fail('This draft changed. Refresh before editing.',409);
-  const entry={...(a.entry??old?.draft??{}),id:a.id},body=a.kind==='orb'?validateOrb(entry):rules.validateQuestContent(a.kind,entry,{assetRef,spells,equipment,look:value=>clone(value)});
+  const entry={...(a.entry??old?.draft??{}),id:a.id},body=a.kind==='orb'?validateOrb(entry):rules.validateQuestContent(a.kind,entry,{assetRef,spells,equipment,look:value=>rules.validateSpriteLook(value,snapshot.spriteLab.catalog)}); // Offline drafts receive the same layer, colour and accessory checks as live saves.
   s.records[a.kind][a.id]={revision:(old?.revision??0)+1,draft:body};
  }
  function bundle(s,assets){const seen=new Set();for(const a of assets){const key=a.kind+':'+a.id;if(seen.has(key))fail('A bundle contains duplicate assets.');seen.add(key);change(s,a);}}
@@ -101,6 +101,7 @@ function createPublicWorkshopApi({snapshot,rules,storage,now=()=>Date.now()}){
   const url=new URL(path,'https://public-quest-editor.invalid');
   if(url.pathname==='/gm/whoami')return {owner:'public',serverTime:now()};
   if(url.pathname==='/gm/flows')return catalog();
+  if(url.pathname==='/gm/sprite-lab')return clone(snapshot.spriteLab); // Shipped artwork stays local; designing an NPC needs no account or network.
   if(url.pathname==='/gm/action'&&body)return {ok:true,result:act(body)};
   if(url.pathname==='/gm/asset')fail('Artwork previews are only available in the live GM console.');
   if(url.pathname==='/gm/map')fail('Map placement happens in the live GM console after a gamemaster imports your bundle.');

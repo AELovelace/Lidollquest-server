@@ -25,7 +25,7 @@ const siteBase='http://127.0.0.1:'+site.address().port,liveBase='http://127.0.0.
 let browser,page,phase='launch';
 try{
  const firefox=process.env.QUEST_BROWSER==='firefox';
- browser=await puppeteer.launch({browser:firefox?'firefox':'chrome',executablePath:process.env.QUEST_BROWSER_PATH??(firefox?'C:/Program Files/Mozilla Firefox/firefox.exe':'C:/Program Files/Google/Chrome/Application/chrome.exe'),headless:true,args:firefox?['--no-remote']:[]});
+ browser=await puppeteer.launch({browser:firefox?'firefox':'chrome',pipe:!firefox&&process.env.QUEST_BROWSER_PIPE==='1',executablePath:process.env.QUEST_BROWSER_PATH??(firefox?'C:/Program Files/Mozilla Firefox/firefox.exe':'C:/Program Files/Google/Chrome/Application/chrome.exe'),headless:true,args:firefox?['--no-remote']:[]}); // Pipe transport can run Chromium checks when local WebSocket connections are unavailable.
  page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());await page.setViewport({width:1500,height:1000});
  const status=prefix=>page.waitForFunction(p=>document.querySelector('#status')?.textContent.startsWith(p),{timeout:20000},prefix);
  const click=async(scope,text)=>{const found=await page.evaluate((scope,text)=>{const b=[...document.querySelectorAll(scope+' button')].find(b=>b.textContent===text);if(!b)return false;b.click();return true;},scope,text);assert.ok(found,'Missing button '+text+' in '+scope);};
@@ -39,7 +39,11 @@ try{
  assert.deepEqual(errors,[]);
 
  phase='author npc';await click('#newAssets','+ npc');await page.waitForFunction(()=>document.querySelector('#workspaceTitle')?.textContent.includes('npc blocks'));
- const npcId=await param('id');await set('name','Lantern Scout');await page.click('#save');await status('Asset drafts saved.');
+ const npcId=await param('id');await set('name','Lantern Scout');await set('Default facing','3');
+ await page.waitForFunction(()=>[...document.querySelectorAll('#properties button')].some(b=>b.textContent==='Design a Sprite Lab look'));
+ await click('#properties','Design a Sprite Lab look');await set('Hair','mohawk');
+ await page.waitForFunction(()=>{const c=document.querySelector('#properties canvas');return c&&c.getContext('2d').getImageData(0,0,c.width,c.height).data.some((v,i)=>i%4===3&&v>0);}); // Bundled sheets must actually decode and draw, not merely populate selectors.
+ await page.click('#save');await status('Asset drafts saved.');
  phase='author quest';await page.click('#backToFlow');await click('#newAssets','+ quest');await page.waitForFunction(()=>document.querySelector('#workspaceTitle')?.textContent.includes('quest blocks'));
  const questId=await param('id');await set('name','A Light for the Scout');await click('#properties','Add quest givers');await set('Quest givers 1',npcId);
  await page.click('[data-node^="stage:"] strong');await page.waitForFunction(()=>document.querySelector('#properties h2')?.textContent==='Quest stage');
@@ -61,6 +65,7 @@ try{
  assert.ok(file,'bundle download');const bundle=JSON.parse(readFileSync(join(downloads,file),'utf8'));
  assert.equal(bundle.format,'lidollquest-quest-bundle');assert.equal(bundle.flow.id,flowId);assert.equal(bundle.flow.name,'Scout rescue story');assert.equal(bundle.source,'public-quest-editor');
  assert.deepEqual(bundle.assets.map(a=>a.kind+':'+a.id).sort(),['npc:'+npcId,'quest:'+questId].sort());assert.equal(bundle.assets.find(a=>a.kind==='quest').entry.givers[0],npcId);assert.deepEqual(bundle.flags,[]);
+ assert.equal(bundle.assets.find(a=>a.kind==='npc').entry.facing,3);assert.equal(bundle.assets.find(a=>a.kind==='npc').entry.look.slots.hair,'mohawk');
  phase='reload keeps local drafts';await page.reload();await status('Ready · public quest editor');
  assert.ok((await page.$$eval('#flows option',o=>o.map(v=>v.textContent))).some(t=>t.startsWith('Scout rescue story')));
  await page.select('#flows',flowId);await page.waitForFunction(()=>document.querySelectorAll('[data-node]').length===3);
@@ -79,6 +84,7 @@ try{
  assert.equal(service.zones.world.flows.get(flowId).draft.name,'Scout rescue story');assert.equal(service.live.entry('quest',questId).draft.name,'A Light for the Scout');assert.equal(service.live.entry('npc',npcId).draft.name,'Lantern Scout');assert.equal(service.live.entry('quest',questId).published,null);
  phase='live publish';await live.click('#publish');await live.waitForFunction(()=>document.querySelector('#status')?.textContent.startsWith('Published.'));
  assert.ok(service.zones.world.flows.get(flowId).published);assert.equal(service.live.published().quests[questId].name,'A Light for the Scout');assert.equal(service.live.published().npcs[npcId].name,'Lantern Scout');
+ assert.equal(service.live.published().npcs[npcId].facing,3);assert.equal(service.live.published().npcs[npcId].look.slots.hair,'mohawk');
  phase='live export';const liveCdp=await live.createCDPSession();await liveCdp.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:join(dir,'live')});
  await live.evaluate(()=>[...document.querySelectorAll('#library button')].find(b=>b.textContent.startsWith('A Light for the Scout')).click());await live.waitForFunction(()=>document.querySelector('#workspaceTitle')?.textContent.includes('quest blocks')); // An opened published quest and its published giver travel with a live export.
  await live.click('#exportBundle');await live.waitForFunction(()=>document.querySelector('#status')?.textContent.startsWith('Exported the story flow, 2 content records'));

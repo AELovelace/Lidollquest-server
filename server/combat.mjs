@@ -10,6 +10,7 @@ import {resolvedDefeat,pinDefeat} from './defeat-scenes.mjs';
 import {DEFAULT_TUNING} from './loot.mjs';
 import {mitigate,healScale,playerHpDelta,staminaDelta,rowSwapCostsTurn,rowDamageTaken,rowMeleeDealt,weaponProfile,isArrow} from './scaling.mjs';
 import {takeFromStack} from './loadout.mjs';
+import {logBalance,logEncounterStart} from './balance-stats.mjs'; // Balance statistics: a no-op unless this state's database logs them.
 
 let tuningSource=()=>DEFAULT_TUNING; // zones.mjs points this at the live loot store; tests and standalone callers get the shipped defaults.
 export function useTuning(fn){if(gameContext()){gameContext().tuning=fn;return;}tuningSource=typeof fn==='function'?fn:()=>DEFAULT_TUNING;}
@@ -44,6 +45,7 @@ export function beginRound(state,z,roll,authoredEnemy=null){ // Arena rounds and
  Object.assign(r.enemy,authoredEnemy?pinDefeat(authoredEnemy):{str:z.attack+r.stage+1,def:Math.floor((r.stage-1)/2),exp:r.stage*5,enemy_id:'goblin',enemy_spells:r.stage>=3?[z.theme==='clockwork'?'assessment_scan':'haunting_urge']:[],spell_cast_chance:0.35});
  applyRunLoadout(r,state.loadout);
  applyFieldBuffs(state); // Buffs primed outside battle (field-magic.mjs / spell_cast_overworld) start now and are reverted by clearEffects.
+ logEncounterStart(state);
 }
 
 export function applyFieldBuffs(state){ // player_info.field_buffs: [{spell_id,stat_key,amount,turns}] → ordinary timed run buffs, then the primer is used up.
@@ -143,7 +145,12 @@ function enemySpell(state,s){ // Enemy spell effects share the player's serializ
 export function godMode(state){return state?.godMode===true&&!state.run?.duel;} // GM god mode (gm_god_mode in gm-tools.mjs): invincible and one-hit kills, never in PvP duels.
 function godStrike(r){r.enemy.hp=0;r.log.push(r.enemy.name+' falls in one hit. (GM god mode)');} // The normal win path still pays XP, loot and quest progress.
 
-export function enemyAction(state,z,roll){ // One enemy acts independently in shared Dives; legacy rounds call the same authored attack routine.
+export function enemyAction(state,z,roll){ // Measures what the enemy's turn cost the player for the balance log.
+ const r=state.run,hp=r.hp,result=enemyTurn(state,z,roll);
+ logBalance('enemy_hit',state,{value:Math.max(0,hp-r.hp),encounter:r.sharedEncounter??r.id??null,enemy:r.enemy.enemy_id??r.enemy.name,enemy_level:r.enemy.level??null,enemy_str:r.enemy.str??null,hp_before:hp,downed:result==='defeat'?1:0});
+ return result;
+}
+function enemyTurn(state,z,roll){ // One enemy acts independently in shared Dives; legacy rounds call the same authored attack routine.
  syncCrawl(state.loadout);
  const r=state.run;r.enemy.turn++;
  if(godMode(state)){r.log.push(r.enemy.name+' cannot touch you. (GM god mode)');return 'continue';} // No hit, spell, debuff or knockdown lands; HP stays where it is.
@@ -184,7 +191,12 @@ export function finishTurn(state,z,roll){ // Resolve DOTs, enemy debuffs, one en
  r.turn++;r.turnReady=false;return 'continue';
 }
 
-export function combatAction(state,input,z,roll,supportTarget=state){
+export function combatAction(state,input,z,roll,supportTarget=state){ // Measures what the player's action did to the enemy for the balance log.
+ const enemy=state.run?.enemy,before=enemy?.hp,healed=supportTarget.run?.hp,result=playerAction(state,input,z,roll,supportTarget);
+ if(enemy&&result!=='row')logBalance('player_hit',state,{value:Math.max(0,before-enemy.hp),action:input.action,...(input.spell?{spell:input.spell}:{}),encounter:state.run?.sharedEncounter??state.run?.id??null,enemy:enemy.enemy_id??enemy.name,enemy_level:enemy.level??null,enemy_def:enemy.def??null,enemy_hp_before:before,healed:Math.max(0,(supportTarget.run?.hp??0)-(healed??0)),result});
+ return result;
+}
+function playerAction(state,input,z,roll,supportTarget=state){
  const r=state.run;if(r.phase!=='fight'||!r.turnReady)fail('Wait for the next player turn.');
  r.log=[];
  if(input.action==='attack'){

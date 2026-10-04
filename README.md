@@ -1,5 +1,17 @@
 # LiDollQuest server
 
+Piko clothing body fits: the exported Sprite Lab catalog includes base `body_type` and twenty garments' `body_sprites.masc`. The GM/public look designer resolves the correct texture from the selected base while retaining one garment ID, tint and unlock. `sprite-lab-sheets.json` includes the alternate sheets. Rebuild static editors after importing these assets; the game also needs the matching rebuilt client. Existing flat-bodice garments and explicit published Sprite Workshop art render unchanged.
+
+## Static Sprite Workshop
+
+Run `npm run build:sprite-editor` and upload the six files in `public-sprite-editor/` to any static host, preserving their relative paths. No game server URL, account service, CORS setup, proxy route or backend process is required. The package includes its catalogue and PNG source sheets. Its content security policy forbids network connections; the build includes only local Sprite Lab rendering helpers, without the GM API loader.
+
+Players paint/import artwork, preview all frames, then choose **Download PNG for GM** and submit that file to a GM themselves. The editor does not upload files, sign in, create online drafts or publish artwork. The GM reviews and imports accepted PNGs through the existing Sprite Lab asset workflow. Editable-project export/import and browser-local recovery are available for continuing work; project files optionally carry tint/hide metadata that a PNG alone cannot preserve.
+
+PNG submissions are 128x128 sheets: sixteen aligned 32x32 frames, four columns and rows down/left/right/up. Keep transparent margins. Choose the intended wardrobe slot before importing a PNG, and include the slot in the message to the GM. The optional animation-strip export is 512x32. All drawing, undo/redo, frame tools and downloads work offline once the page has loaded.
+
+Validate with `node --no-warnings --test test/sprite-workshop.test.mjs`. `scripts/test-sprite-editor-browser.mjs` serves only static files, switches the browser offline and checks PNG/project downloads and local recovery; set `QUEST_PUPPETEER_MODULE` to the local Puppeteer module path. The former public `/sprite-workshop/*` API and static-server connection settings are removed. Internal workshop storage and gameplay rendering remain separate from this public export tool. Building the package does not deploy it.
+
 Online fast travel uses the campaign beacon artwork and destination picker. Each
 major hub or outdoor overworld has a marker on reachable floor near its entrance; visiting
 links that logical zone in `quest_fast_travel`, independently of campaign saves.
@@ -1756,10 +1768,12 @@ it. Upload the folder to any static host, or open `index.html` from disk; the wi
 Markdown fetches. The page is the same editor code as `/gm/flow-editor` with a browser-local stand-in for the
 authenticated API (`server/gm-public-workshop.js`): the shipped catalogue is snapshotted from a fresh in-memory
 world at build time, so no live content, accounts or placements are included, and drafts live in the visitor's
-`localStorage`. The server's own validators (`story-flags.mjs`, `quest-content.mjs`, `flow-faith.mjs`,
+`localStorage`. The server's own validators (`story-flags.mjs`, `sprite-look-validation.mjs`, `quest-content.mjs`, `flow-faith.mjs`,
 `flow-content.mjs`) are inlined, so public drafts fail for the same reasons the live console would reject them.
 Publishing, rollback, map placement, isolated tests, artwork uploads and monster tuning are hidden; the player
 preview runs the same simulation walk as the server.
+
+NPC Settings includes the same Sprite Lab designer, shipped layer catalogue and embedded PNG sheets as the GM panel. Looks are previewed entirely locally, validated on save, and retained by bundle export/import. Rebuild after layer/catalogue changes; the build refuses missing sheets. NPC **Default facing** is optional `facing: 0..3` (down, up, right, left); stationary placements use it immediately after publication, while wanderers retain their last step direction. Older NPCs fall back to their look's facing or down. This also requires the updated game client to render placement facing. The shared quest controls include completion/reset flags, state/equipment objectives, greeting reactions and current reward fields.
 
 **Export bundle** / **Import bundle…** in both editors move work as `*.lidollquest.json` files
 (`server/gm-quest-bundle.js`, format `lidollquest-quest-bundle` version 1: a flow, up to 64 quest/NPC/orb/monster
@@ -1796,3 +1810,20 @@ run is marked `done` + `exited`; effects already applied stay. `run()` counts ap
 before it gave anything can start again while one left after a reward cannot be farmed. A run parked on a
 missing block no longer crashes `snapshot()`/`blocking()`/`act()`: it renders a "page is missing" notice that can
 be left. Run `node --test test/flow-exit.test.mjs`.
+
+## Balance statistics
+
+`server/balance-stats.mjs` records game-balance events in a second SQLite file, `balance.sqlite`, beside `quest.sqlite` in `DATA_DIR`. Nothing in the game reads it back; it exists so combat and needs numbers can be tuned from real play. The existing backup copies it with the rest of `DATA_DIR`. Nothing is deleted automatically.
+
+- **Writes.** Events are buffered during a game transaction and written only after it commits, so a rejected or replayed command logs nothing. Only the coordinator writes; snapshot workers and isolated GM test worlds log nothing.
+- **Table `balance_events`.** One row per event: `at`, `kind`, `owner`, `character_id`, `name`, `staff`, the character's `level`, `zone`, `hp`, `hp_max` and needs meters at that moment, `turn` (needs turns this character has played since logging began), `value` and a JSON `data` object.
+- **Kinds.**
+  - Needs: `turn` (turns elapsed and each meter's change), `accident` (wet or mess, diaper or clothes, turns since the last one), `hold`, `change`, `excitement`, `eat`, `drink` (with turns since the last).
+  - Combat: `encounter_start`, `player_hit`, `enemy_hit`, `encounter_end` (outcome, turns, HP left, what a defeat cost), `level_up`.
+  - World and economy: `dive_enter`, `dive_exit`, `chest`, `coins`, `shop_buy`, `shop_sell`, `craft`.
+  - Client detail: `client_hold`, `client_accident`, `client_eat`, `client_drink`. The game client sends these as `balance_events` (at most 32) with a needs command: hold attempt number, fail chance and roll, incontinence rolls, the item eaten. They are sanitized and never rejected. Older clients send none.
+- **Limits.** Bladder and bowel fill, hunger drain and accidents are simulated by the client, so those values are as reported, not verified. The offline campaign is not logged. Duel results are not logged as encounters.
+- **Staff.** Rows from accounts holding the gamemaster role carry `staff=1` and are left out of the panel unless "Include staff play" is ticked.
+- **Panel.** `/gm` has a **Pop out Balance Metrics** button (`/gm/balance`). It has date, grouping, character and staff filters; Overview, Combat, Needs and Economy tabs of tiles and charts (each with its exact data and a CSV button); a Records tab; and an Export tab that downloads every matching event as CSV or JSON.
+- **Endpoints** (gamemaster only, read-only): `GET /gm/balance/summary`, `/gm/balance/events` (`before` cursor, `limit` up to 1000), `/gm/balance/filters`. Query: `from`, `to` (epoch ms), `interval` (`day`, `week`, `month`), `character`, `staff=1`, `kind` (comma-separated).
+- **Tests.** `node --test test/balance-stats.test.mjs`.

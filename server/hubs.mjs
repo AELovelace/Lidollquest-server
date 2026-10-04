@@ -1,3 +1,4 @@
+import {bindBalance,logBalance} from './balance-stats.mjs'; // Balance statistics (balance.sqlite): no-ops on databases without attached stats.
 import {gameContext} from './game-context.mjs';
 import {isRouteZoneId} from './zone-categories.mjs'; // Wilderness gates lead onto Dive-engine zones (dive- or overworld- ids).
 import {GODS,godsData,FAITH_SETTINGS,templeGod,dedicate,combatFaith,blessingValue} from './faith.mjs'; // The gods: temple annexes, dedication and Orin's Cursebreaker discount.
@@ -179,7 +180,7 @@ export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWage
   db.exec('BEGIN IMMEDIATE');try{
    const row=db.prepare('SELECT * FROM hub_purchases WHERE id=?').get(id);if(!row||row.status!=='pending'){db.exec('COMMIT');return;}
    if(!row.character_id){hooks.lookUnlock?.(id,{owner:row.owner},null,paid,row.price,JSON.parse(row.item));db.prepare('UPDATE hub_purchases SET status=? WHERE id=?').run(paid?'delivered':'declined',id);db.exec('COMMIT');return;} // An accessory unlocked in the creation wardrobe, before any character exists (sprite-looks.mjs prepareAccount).
-   const char=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(row.character_id),state=JSON.parse(char.state);
+   const char=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(row.character_id),state=bindBalance(db,JSON.parse(char.state),char);
    if(state.pendingPurchase!==id)throw Error('Purchase reservation missing');
    const item=JSON.parse(row.item);
    if(item.duel_wager){hooks.duelWager?.(id,char,state,paid,row.price);} // Escrow for a duel: the duel module records the outcome; nothing lands in the bag.
@@ -199,6 +200,7 @@ export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWage
     if(paid)state.toiletPaid={fixture:item.fixture,at:now()};
     state.hubNotice=paid?`You drop ${row.price} LiDollCoins into the slot. The turnstile clunks round.`:'Not enough LiDollCoins. The turnstile will not budge, and you are still desperate.';
    }else if(paid)addToInventory(state.loadout.inventory,origins.mint(char.id,item,row.price)); // Resale never exceeds the actual paid price, even with discounted stock tuning; stackables merge into an existing stack.
+   if(paid)logBalance('shop_buy',state,{value:row.price,item:item.item_id??item.hub_service??null,currency:item.currency??'coins'});
    delete state.pendingPurchase;if(!item.hub_service&&!item.duel_wager&&!item.trade_escrow&&!item.companion_shop&&!item.guild_purchase&&!item.player_store&&!item.look_unlock&&!item.look_save)state.hubNotice=paid?`Bought ${item.name??item.item_id} for ${row.price} LiDollCoins.${state.littleTaxNote??''}`:'Not enough LiDollCoins. Nothing was purchased.';delete state.littleTaxNote;state.hubNoticeAt=now();
    db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),char.id);
    db.prepare('UPDATE hub_purchases SET status=? WHERE id=?').run(paid?'delivered':'declined',id);db.exec('COMMIT');

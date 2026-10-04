@@ -7,10 +7,11 @@ import {fileURLToPath} from 'node:url';
 import {resolve,dirname} from 'node:path';
 import {createQuestService} from '../server/service.mjs';
 import {gmWikiFiles} from '../server/gm-wiki.mjs';
+import {lookCatalog} from '../server/sprite-looks.mjs';
 
 const serverRoot=new URL('../server/',import.meta.url);
 const read=name=>readFileSync(new URL(name,serverRoot),'utf8');
-export const RULE_MODULES=['story-flags.mjs','quest-content.mjs','flow-faith.mjs','flow-content.mjs']; // Dependency order; each may import only earlier entries or a provided stub.
+export const RULE_MODULES=['story-flags.mjs','sprite-look-validation.mjs','quest-content.mjs','flow-faith.mjs','flow-content.mjs']; // Dependency order; each may import only earlier entries or a provided stub.
 const PROVIDED={
  './faith-blessing.mjs':"(()=>{const faith=window.LIDOLL_PUBLIC_CATALOG.faith;return {GODS:Object.fromEntries(faith.gods.map(g=>[g.id,{id:g.id,name:g.name}])),godsData:{settings:{piety_max:faith.max}}};})()",
  './flow-triggers.mjs':"{triggerTypes:['flag_entry','objective_entry']}"
@@ -23,6 +24,9 @@ export async function snapshotCatalog(){
   const cat=service.zones.world.flows.catalog(),v=cat.records;
   const snapshot={generated:new Date().toISOString(),nodes:cat.nodes,faith:cat.faith,zones:cat.zones,items:cat.items,spells:v.spells,sprites:[...new Set(v.compiledSprites)],monsters:cat.monsters,engineNpcs:cat.npcs.filter(n=>n.engineOwned),engineFlags:cat.flags.filter(f=>f.engineOwned),questCatalog:v.questCatalog};
   if(JSON.stringify(snapshot).length>1024*1024)throw Error('The public editor catalogue grew past 1 MiB; trim it before shipping.');
+  const catalog=lookCatalog(),sheets=JSON.parse(read('sprite-lab-sheets.json')).sheets;
+  for(const asset of catalog.assets)if(!sheets[asset.sprite])throw Error('Missing Sprite Lab sheet: '+asset.sprite);
+  snapshot.spriteLab={catalog,sheets}; // Embed the same shipped layers as the live designer, including file:// use without requests.
   return snapshot;
  }finally{service.server.closeAllConnections();await new Promise(done=>service.server.close(done));}
 } // A fresh in-memory world holds only shipped content, so nothing authored on a live server can leak into the public page.

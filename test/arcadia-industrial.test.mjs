@@ -55,6 +55,34 @@ test('factory maze remains deterministic and connected with zero extra shortcuts
  assert.equal(validateFullDungeon(f),true);
  assert.deepEqual(generateFullDungeon(data,'factory-tree'),f);
 });
+test('dockyard has compact warehouses, long piers, winding quays and clear cargo aprons',()=>{
+ const data=routes.find(d=>d.config.industrial.kind==='cargo');
+ for(let seed=0;seed<30;seed++){
+  const f=generateFullDungeon(data,'dock-maze-'+seed);
+  assert.equal(validateFullDungeon(f),true);
+  assert.ok(f.rooms.every(r=>r.w*r.h<=143),'dockyard returned to oversized square platforms');
+  for(const type of ['mooring_pier','cargo_hold','outbound_freighter']){
+   const r=f.rooms.find(r=>r.type===type);assert.ok(r.h>r.w,'pier decks should be elongated');
+  }
+  assert.ok(f.walls.flat().filter(v=>v===0).length<f.width*f.height/2,'harbour water must separate the quays');
+  const distances=new Map(),queue=[{...f.entrance,d:0}];
+  for(let n=0;n<queue.length;n++){
+   const p=queue[n],key=p.x+','+p.y;if(distances.has(key)||f.walls[p.y]?.[p.x]!==0)continue;
+   distances.set(key,p.d);for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]])queue.push({x:p.x+dx,y:p.y+dy,d:p.d+1});
+  }
+  assert.ok([...distances].some(([key,d])=>{const [x,y]=key.split(',').map(Number);return d>Math.abs(x-f.entrance.x)+Math.abs(y-f.entrance.y)+20;}),'quays need winding exploration routes');
+  const salvage=f.chests.filter(p=>p.id.startsWith('quay-salvage-'));assert.ok(salvage.length>=1);
+  for(const p of salvage)assert.deepEqual(p.loot_pool,['dock_fittings']);
+  for(const fix of f.fixtures.filter(p=>p.kind==='industrial'))for(const berth of fix.berths){
+   for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+    if(dx===0&&dy===0)continue;
+    assert.equal(f.walls[berth.y+dy][berth.x+dx],0);
+    assert.equal(f.props[berth.y+dy][berth.x+dx],0,'moving cargo must retain a clear surrounding ring');
+   }
+  } // A clear ring makes every berth safe regardless of the other cranes' states.
+ }
+});
+
 test('industrial boss editing preserves phases and crafting consumes both new salvage materials',()=>{
  const db=new DatabaseSync(':memory:');
  try{

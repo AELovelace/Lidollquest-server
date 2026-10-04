@@ -9,7 +9,7 @@ import {hubCatalog,hubRooms,campaignDives,hubData} from './hubs.mjs';
 import {createRoleplay} from './roleplay.mjs';
 import {createRpp} from './rpp.mjs';
 import {createTestingStore} from './gm-testing.mjs';
-import {lookCatalog} from './sprite-looks.mjs';
+import {spriteWorkshop} from './sprite-workshop.mjs';
 import {routeCategory,ZONE_CATEGORY} from './zone-categories.mjs';
 import {createMapRenderer} from './map-render.mjs';
 import {compiledArtwork} from './defeat-scenes.mjs';
@@ -18,11 +18,11 @@ const ONLINE_WINDOW=30000; // Matches the presence freshness window every other 
 const HUB_SPAWN={x:10,y:9}; // hubDefinition() falls back to this same tile when a lobby declares no spawn of its own.
 const KINDS=Object.freeze(['mute','suspend']); // The only two sanctions a gamemaster can place on an account.
 const CONTROL=/[\x00-\x1f\x7f]/g; // Stripped from every stored string so no reason or announcement can smuggle in line breaks.
-const spriteLabSheets=(()=>{try{return JSON.parse(readFileSync(new URL('./sprite-lab-sheets.json',import.meta.url),'utf8')).sheets;}catch{return {};}})(); // Exported by the game's import_layered_sprite_lab.py; without it the designer lists layers but cannot preview them.
 const tileArtwork=(()=>{try{return JSON.parse(readFileSync(new URL('./tile-artwork.json',import.meta.url),'utf8'));}catch{return {version:0,tilesets:{},sprites:{}};}})(); // Exported by the game's python/export_tile_artwork.py; without it map pictures fall back to flat colours.
 const avatarCatalog=(()=>{try{return JSON.parse(readFileSync(new URL('./avatars.json',import.meta.url),'utf8'));}catch{return [];}})(); // Fixture avatar ids -> sprite names for the map painter.
 const SIGNIN_SCOPE='wallet:read'; // The panel needs identity alone: no balance changes, saves, social data or character access.
 const flowPage=readFileSync(new URL('./gm-flow-editor.html',import.meta.url),'utf8').replace('/* QUEST_BUNDLE */',()=>readFileSync(new URL('./gm-quest-bundle.js',import.meta.url),'utf8')).replace('/* FLOW_EDITOR */',()=>readFileSync(new URL('./gm-flow-editor.js',import.meta.url),'utf8').replace('/* CONTENT_BLOCKS */',()=>readFileSync(new URL('./gm-content-blocks.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-story-sheets.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-sprite-lab.js',import.meta.url),'utf8')));
+const balancePage=readFileSync(new URL('./gm-balance.html',import.meta.url),'utf8').replace('/* BALANCE */',()=>readFileSync(new URL('./gm-balance.js',import.meta.url),'utf8')); // The Balance Metrics pop-out.
 const mapPage=readFileSync(new URL('./gm-map-editor.html',import.meta.url),'utf8').replace('/* TILE_PAINTER */',()=>readFileSync(new URL('./tile-painter.mjs',import.meta.url),'utf8').replace(/^export /gm,'')).replace('/* MAP_EDITOR */',()=>readFileSync(new URL('./gm-map-editor.js',import.meta.url),'utf8')); // The Map Editor pop-out shares the server's tile chooser verbatim (exports stripped for the browser).
 const helpPage=readFileSync(new URL('./gm-help.html',import.meta.url),'utf8').replace('/* GM_HELP */',()=>readFileSync(new URL('./gm-help.js',import.meta.url),'utf8'));
 const panelPage=readFileSync(new URL('./gm-panel.html',import.meta.url),'utf8').replace('<!-- GM_GUIDE -->',()=>readFileSync(new URL('./gm-guide.html',import.meta.url),'utf8')).replace('/* GM_GUIDE_SCRIPT */',()=>readFileSync(new URL('./gm-guide.js',import.meta.url),'utf8')).replace('/* CRAFTING_EDITOR */',()=>readFileSync(new URL('./gm-crafting-editor.js',import.meta.url),'utf8')).replace('/* WORLD_PANEL */',()=>readFileSync(new URL('./gm-world-panel.js',import.meta.url),'utf8').replace('/* MONSTER_EDITOR */',()=>readFileSync(new URL('./gm-monster-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-quest-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-orb-editor.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('./gm-sprite-lab.js',import.meta.url),'utf8'))); // Read once at boot so a moderation click never touches the disk.
@@ -43,7 +43,7 @@ export const gmZones=Object.freeze([
  {id:'overworld-emberfall-caldera',category:ZONE_CATEGORY.OVERWORLD,name:'Emberfall Caldera',kind:'dive',warp:false},
  {id:'overworld-obsidian-spa',category:ZONE_CATEGORY.OVERWORLD,name:'Obsidian Spa',kind:'dive',warp:false},
  {id:'overworld-echo-gulch',category:ZONE_CATEGORY.OVERWORLD,name:'Echo Gulch',kind:'dive',warp:false}, // 2026-09-29: badlands below Dustbreak, between the Plains and the Coast.
- {id:'overworld-spooky-mansion',category:ZONE_CATEGORY.OVERWORLD,name:'Spooky Mansion',kind:'dive',warp:false},
+ {id:'dungeon-spooky-mansion',category:ZONE_CATEGORY.OVERWORLD,name:'Spooky Mansion',kind:'dive',warp:false},
  {id:'overworld-tundra',category:ZONE_CATEGORY.OVERWORLD,name:'Frostveil Tundra',kind:'dive',warp:false},
  ...campaignDives.map(({config})=>({id:config.zone_id,name:config.name,kind:'dive',category:routeCategory(config),warp:false})),
 ].map(Object.freeze)); // Dives are shared weekly floors whose visits the Dive engine owns, so the web panel's `warp` never targets them (in-game GM warps use gmPlace()).
@@ -77,7 +77,7 @@ export function buildAllowList(text){ // Comma-separated addresses and CIDR bloc
  return list;
 } // Rejected loudly at construction so a typo cannot silently admit the whole network.
 
-export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=null,welcome=null,guilds=null,playerStores=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn,helpOptions={}}={}){
+export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=null,welcome=null,guilds=null,playerStores=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,balance=null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn,helpOptions={}}={}){
  const mapRenderer=createMapRenderer({tiles:tileArtwork,compiled:compiledArtwork,avatars:avatarCatalog,asset:key=>live?.asset(key)}); // Decodes each sprite once; caches the last few rendered pictures per zone revision.
  const help=createGmHelp(helpOptions); // Separate read-only service; staff authentication stays in this router.
  const announcementStore=()=>typeof announcements==='function'?announcements():announcements; // Passed lazily by service.mjs because the zones module is created after the panel.
@@ -477,11 +477,11 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
   if(requireTls&&!overTls(req))return send(403,{error:'gm_insecure_transport',error_description:'The gamemaster panel requires HTTPS.'}); // A grant must never cross the network in cleartext.
   if(!permitted(caller))return send(403,{error:'gm_forbidden_address'}); // Refused before the page is served and before any identity is considered.
   if(serveGmWiki(req,res,url))return true; // Static handbook shares the panel's transport and address restrictions.
-  if(['/gm','/gm/flow-editor','/gm/help','/gm/map-editor'].includes(url.pathname)){
+  if(['/gm','/gm/flow-editor','/gm/help','/gm/map-editor','/gm/balance'].includes(url.pathname)){
    if(req.method!=='GET')return send(405,{error:'gm_method_not_allowed'});
    res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Frame-Options':'DENY','Referrer-Policy':'no-referrer',
     'Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; form-action 'none'; base-uri 'none'"});
-   res.end(url.pathname==='/gm/help'?helpPage:url.pathname==='/gm/flow-editor'?flowPage:url.pathname==='/gm/map-editor'?mapPage:panelPage);return true; // The shell carries no player data: every figure on it arrives through an authenticated fetch below.
+   res.end(url.pathname==='/gm/help'?helpPage:url.pathname==='/gm/flow-editor'?flowPage:url.pathname==='/gm/map-editor'?mapPage:url.pathname==='/gm/balance'?balancePage:panelPage);return true; // The shell carries no player data: every figure on it arrives through an authenticated fetch below.
   }
   const origin=req.headers.origin;
   if(origin&&origin!=='http://'+req.headers.host&&origin!=='https://'+req.headers.host)return send(403,{error:'gm_bad_origin'}); // The panel's own writes are same-origin, and a forged page could not attach the bearer header anyway.
@@ -510,6 +510,14 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    if(url.pathname==='/gm/whoami'&&req.method==='GET')return send(200,{owner:who,serverTime:now()});
    if(url.pathname==='/gm/overview'&&req.method==='GET')return send(200,{...overview(),actor:who});
    if(url.pathname==='/gm/performance'&&req.method==='GET')return send(200,performanceSnapshot()); // Reuses the live role, address, origin and TLS checks above; never exposed by /health.
+   if(url.pathname.startsWith('/gm/balance/')&&req.method==='GET'){ // Read-only game-balance statistics (balance-stats.mjs) for the pop-out; same role, address, origin and TLS checks as every route here.
+    if(!balance)return send(503,{error:'gm_balance_unavailable'});
+    const q=url.searchParams,number=key=>q.get(key)===null||q.get(key)===''?undefined:Number(q.get(key));
+    const options={from:number('from'),to:number('to'),character:q.get('character')||undefined,staff:q.get('staff')==='1',kinds:(q.get('kind')??'').split(',').filter(k=>/^[a-z_]{1,40}$/.test(k)).slice(0,40),interval:q.get('interval')??'day',before:number('before'),limit:number('limit')};
+    if(url.pathname==='/gm/balance/summary')return send(200,balance.summary(options));
+    if(url.pathname==='/gm/balance/events')return send(200,balance.query(options));
+    if(url.pathname==='/gm/balance/filters')return send(200,{characters:balance.characters(),kinds:balance.kinds()});
+   }
    if(url.pathname==='/gm/flows'&&req.method==='GET')return send(200,world().flows.catalog());
    if(url.pathname==='/gm/content'&&req.method==='GET')return send(200,{...live.view(),worldZones:world().catalog(),onlineNpcs:world().npcCatalog?.()??[],avatarSprites:Object.fromEntries(avatarCatalog.filter(a=>a.sprite).map(a=>[a.id,a.sprite]))}); // avatarSprites: fixture avatar id -> sprite, so the Map Editor draws merchants and residents.
    if(url.pathname==='/gm/map'&&req.method==='GET')return send(200,url.searchParams.get('paint')==='1'?world().paintMap(url.searchParams.get('zone')):world().map(url.searchParams.get('zone'))); // paint=1: the same view plus tile grids, tilesets and hub theme (Map Editor).
@@ -521,7 +529,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    }
    if(url.pathname==='/gm/tile-artwork'&&req.method==='GET')return send(200,mapRenderer.manifest()); // Sizes, origins and tileset names without the PNG payloads; the editor fetches art through /gm/asset.
    if(url.pathname==='/gm/jobs'&&req.method==='GET')return send(200,{jobs:artJobs.list()});
-   if(url.pathname==='/gm/sprite-lab'&&req.method==='GET')return send(200,{catalog:lookCatalog(),sheets:spriteLabSheets}); // Layer catalog and sheets for the NPC look designer (gm-sprite-lab.js).
+   if(url.pathname==='/gm/sprite-lab'&&req.method==='GET')return send(200,spriteWorkshop(db).gmLab()); // Layer catalog and sheets for the NPC look designer (gm-sprite-lab.js).
    if(url.pathname==='/gm/asset'&&req.method==='GET'){const id=url.searchParams.get('id');try{return send(200,live.asset(id));}catch(error){if(error.status===404&&tileArtwork.sprites[id])return send(200,tileArtwork.sprites[id]);throw error;}} // Managed uploads and monster art first, then shipped tile atlases and scenery.
    if(url.pathname==='/gm/enchantments'&&req.method==='GET')return send(200,enchantView()); // Content tuning, behind the same staff identity as every moderation tool.
    if(url.pathname==='/gm/loot'&&req.method==='GET')return send(200,lootView()); // Adjective + Item + Rarity tuning and affix authoring.
@@ -546,7 +554,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    if(url.pathname==='/gm/action'&&req.method==='POST'){
     const input=await body(req,1300000);
     if(live&&/^(flow_|content_|world_|art_|progress_)/.test(input?.action??'')){
-     db.exec('BEGIN IMMEDIATE');try{const result=live.once(input,who,()=>{let result;if(input.action==='flow_test_create')result=world().flowTests.create(input.id,who,input.flags??{},input.entry_node??null);else if(input.action.startsWith('flow_'))result=world().flows.gm(input,who);else if(input.action.startsWith('progress_')){const progress=world()?.progress;if(!progress)fail(409,'Online quests are not enabled on this server.');result=progress.act(input);}else if(['content_save','content_publish','content_rollback'].includes(input.action))result=live.change(input,who);else if(input.action==='art_upload')result=live.putAsset(input);else if(['art_generate','art_retry','art_cancel','art_approve','art_assign'].includes(input.action))result=artJobs.act(input,who);else if(['world_place','world_remove','world_regenerate','world_cancel','world_place_content','world_update_content','world_remove_content','world_scatter_orbs','world_hub_lock','world_hub_regenerate'].includes(input.action))result=world().act(input);else if(['world_patch_apply','world_patch_remove','world_patch_rollback','world_patch_clear'].includes(input.action))result=world().act({...input,actor:who});else fail(400,'Unknown world action.');record(who,input.action,input.id??input.zone??input.character_id??input.entry?.id??result.id??'story-workshop',{reason:clean(input.reason,240),revision:result.revision??null,...(input.action==='flow_flag_set'?{flag:input.flag,value:input.value}:{} ),...(input.action.startsWith('progress_')?{flag:input.flag,kind:input.kind,value:input.value,quest:input.quest,op:input.op,flow:input.flow,orb:input.orb}:{} )});return result;});db.exec('COMMIT');return send(200,{ok:true,result});}catch(e){db.exec('ROLLBACK');live.invalidate();throw e;}
+     db.exec('BEGIN IMMEDIATE');try{const result=live.once(input,who,()=>{let result;if(input.action==='flow_test_create')result=world().flowTests.create(input.id,who,input.flags??{},input.entry_node??null);else if(input.action.startsWith('flow_'))result=world().flows.gm(input,who);else if(input.action.startsWith('progress_')){const progress=world()?.progress;if(!progress)fail(409,'Online quests are not enabled on this server.');result=progress.act(input);}else if(['content_save','content_publish','content_rollback'].includes(input.action))result=live.change(input,who);else if(input.action==='art_upload')result=live.putAsset(input);else if(['art_generate','art_retry','art_cancel','art_approve','art_assign'].includes(input.action))result=artJobs.act(input,who);else if(['world_place','world_remove','world_regenerate','world_cancel','world_place_content','world_update_content','world_remove_content','world_scatter_orbs','world_route_content','world_hub_lock','world_hub_regenerate'].includes(input.action))result=world().act(input);else if(['world_patch_apply','world_patch_remove','world_patch_rollback','world_patch_clear'].includes(input.action))result=world().act({...input,actor:who});else fail(400,'Unknown world action.');record(who,input.action,input.id??input.zone??input.character_id??input.entry?.id??result.id??'story-workshop',{reason:clean(input.reason,240),revision:result.revision??null,...(input.action==='flow_flag_set'?{flag:input.flag,value:input.value}:{} ),...(input.action.startsWith('progress_')?{flag:input.flag,kind:input.kind,value:input.value,quest:input.quest,op:input.op,flow:input.flow,orb:input.orb}:{} )});return result;});db.exec('COMMIT');return send(200,{ok:true,result});}catch(e){db.exec('ROLLBACK');live.invalidate();throw e;}
     }
     const handler=Object.hasOwn(actions,String(input?.action??''))?actions[input.action]:null; // Own-property lookup only, so no prototype key can be invoked as an action.
     if(!handler)return send(400,{error:'gm_unknown_action'});

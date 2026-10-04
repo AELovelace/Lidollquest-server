@@ -117,9 +117,9 @@ export function createFollowers(db,{now=Date.now,enabled=envFlag('QUEST_FOLLOWER
  function view(c,p,geometry,state){
   if(!readOnly)tick();const own=c?get(c.id):null,entities=[]; // Snapshot workers consume the coordinator's committed expiry decisions.
   if(p){
-   if(enabled)for(const [id,def] of Object.entries(catalog)){const at=placement(id,p.zone,geometry);if(at&&!occupied(id))entities.push({id:'follower:'+id,npc:id,name:def.name,sprite:def.overworld_sprite,...at,available:true,hireText:def.online.hire_text});}
+   if(enabled)for(const [id,def] of Object.entries(catalog)){const at=placement(id,p.zone,geometry);if(at&&!occupied(id))entities.push({id:'follower:'+id,npc:id,name:def.name,sprite:def.overworld_sprite,...(def.online.look?{look:def.online.look}:{}),...at,available:true,hireText:def.online.hire_text});}
    for(const row of db.prepare("SELECT h.* FROM quest_follower_hires h JOIN quest_presence p ON p.character_id=h.character_id WHERE h.status='active' AND h.zone=? AND p.zone=h.zone AND p.seen>?").all(p.zone,now()-30000)){
-    if(row.edition!==(state?.dive?.edition??null))continue;const def=catalog[row.npc];entities.push({id:'follower:'+row.npc,npc:row.npc,name:def.name,sprite:def.overworld_sprite,x:row.x,y:row.y,hirer:row.character_id,available:false});
+    if(row.edition!==(state?.dive?.edition??null))continue;const def=catalog[row.npc];entities.push({id:'follower:'+row.npc,npc:row.npc,name:def.name,sprite:def.overworld_sprite,...(def.online.look?{look:def.online.look}:{}),x:row.x,y:row.y,hirer:row.character_id,available:false}); // Hired companions wear the same published look as their recruiting selves.
    }
   }
   return {enabled,entities,active:own?{...progression(own.npc),id:own.id,npc:own.npc,name:catalog[own.npc].name,status:own.status,expires:own.expires,extensionPending:!!extending(own.id),canExtend:own.status==='active'&&own.expires>now()&&!extending(own.id)&&!own.battle&&!state?.run&&!state?.pendingDefeat&&!state?.pendingPurchase&&!state?.worldTurnDue}:null};

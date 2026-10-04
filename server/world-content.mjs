@@ -17,7 +17,7 @@ const number=(value,min,max)=>Number.isFinite(value)&&value>=min&&value<=max?val
 const integer=(value,min,max)=>Number.isSafeInteger(value)?number(value,min,max):fail('Use a whole number.');
 
 export function createWorldContent(db,{now=Date.now,spells={},equipment={},defeatEquipment={},questPack=[],questLibraryPack=[],blankCanvas=false}={}){
- const storySheets=createStorySheets({look:{slots:lookCatalog().order,validate:value=>validateLook(value,{fail})}}); // Shipped online dialogue is editable without mutating exported source files.
+ const storySheets=createStorySheets({look:{slots:lookCatalog(db).order,validate:value=>validateLook(value,{db,fail})}}); // Shared published artwork is valid for every NPC designer.
  registerDefaultScenes(db);
  db.exec(`CREATE TABLE IF NOT EXISTS world_content(kind TEXT NOT NULL,id TEXT NOT NULL,revision INTEGER NOT NULL,draft TEXT NOT NULL,published TEXT,PRIMARY KEY(kind,id));
  CREATE TABLE IF NOT EXISTS world_content_history(kind TEXT NOT NULL,id TEXT NOT NULL,revision INTEGER NOT NULL,body TEXT NOT NULL,actor TEXT NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(kind,id,revision));
@@ -25,6 +25,10 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  CREATE TABLE IF NOT EXISTS world_assets(id TEXT PRIMARY KEY,png TEXT NOT NULL,frames INTEGER NOT NULL,width INTEGER NOT NULL,height INTEGER NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS world_commands(actor TEXT NOT NULL,id TEXT NOT NULL,fingerprint TEXT NOT NULL,result TEXT NOT NULL,PRIMARY KEY(actor,id));`);
  for(const hub of ['honeydew-lantern','littlebig-clockwork'])db.prepare("UPDATE world_content SET draft=replace(draft,?,?),published=replace(published,?,?) WHERE kind='quest' AND (draft LIKE ? OR published LIKE ?)").run(hub+'-garden:',hub+':',hub+'-garden:',hub+':','%'+hub+'-garden:%','%'+hub+'-garden:%'); // Honeydew Village's and LittleBigCity's residents moved from their retired district annexes into the lobby towns (2026-09-23); saved quests keep pointing at the same people.
+ try{ // Overworlds became static maps (2026-10-03): zone settings saved before then are switched over once; a GM can still untick "static" afterwards.
+  db.exec('CREATE TABLE IF NOT EXISTS world_migrations(id TEXT PRIMARY KEY,created INTEGER NOT NULL)');
+  if(!db.prepare('SELECT 1 FROM world_migrations WHERE id=?').get('static-overworlds-v1')){db.prepare("UPDATE world_content SET draft=json_set(draft,'$.static',json('true')),published=CASE WHEN published IS NULL THEN NULL ELSE json_set(published,'$.static',json('true')) END WHERE kind='zone' AND id LIKE 'overworld-%'").run();db.prepare('INSERT INTO world_migrations VALUES (?,?)').run('static-overworlds-v1',now());}
+ }catch(error){if(!/readonly/i.test(String(error.message)))throw error;} // Snapshot workers open the database read-only; the coordinator has already run this.
  const questLibrary=new Map(); // Included optional packs appear as draft sheets without activating new live offers.
  const baselines={monster:new Map(),zone:new Map(),npc:new Map(),quest:new Map(),orb:new Map(),sheet:storySheets.sources},routes=new Map(),compiledSprites=new Set(['sprItem',...Object.keys(compiledArtwork)]);let cache=null;
  function register(data){ // Register route-local baselines without rewriting exported files or collapsing distinct aliases.
@@ -39,7 +43,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
    for(const sprite of [raw.sprite,raw.battle_sprite])if(sprite)compiledSprites.add(sprite);
    if(!existing)baselines.monster.set(key,entry);
   }
-  baselines.zone.set(zone,{id:zone,static:!!data.config.static,spawning:true,enemies_roam:true,enemies_per_room:data.config.enemies_per_room,enemy_respawn_seconds:data.config.enemy_respawn_seconds,boss_respawn_seconds:data.config.boss_respawn_seconds,pursuit_steps:data.config.pursuit_steps,...(data.config.full_dungeon_version?{room_enemy_chance:data.config.room_enemy_chance??50}:{}),...(data.config.features?.cavern_breath?{cavern_breath:clone(data.config.features.cavern_breath)}:{}),...(smokeConfig(zone)?{pink_smoke:smokeConfig(zone)}:{}),roaming:true,boss_enemy_id:data.config.boss_enemy_id??(data.enemies.dive_iris?'dive_iris':null),pool:(data.enemy_types??[{enemy_id:'diaper_fairy',weight:60},{enemy_id:'teddy_mimic',weight:40}]).map(e=>({enemy_id:e.enemy_id,weight:e.weight??e.chance}))});cache=null;
+  baselines.zone.set(zone,{id:zone,static:!!data.config.static||zone.startsWith('overworld-'),/* Overworlds keep one map until a GM regenerates it; Dives (dive-) and dungeons (dungeon-, the Spooky Mansion included) still reroll weekly. */spawning:true,enemies_roam:true,enemies_per_room:data.config.enemies_per_room,enemy_respawn_seconds:data.config.enemy_respawn_seconds,boss_respawn_seconds:data.config.boss_respawn_seconds,pursuit_steps:data.config.pursuit_steps,...(data.config.full_dungeon_version?{room_enemy_chance:data.config.room_enemy_chance??50}:{}),...(data.config.features?.cavern_breath?{cavern_breath:clone(data.config.features.cavern_breath)}:{}),...(smokeConfig(zone)?{pink_smoke:smokeConfig(zone)}:{}),roaming:true,boss_enemy_id:data.config.boss_enemy_id??(data.enemies.dive_iris?'dive_iris':null),pool:(data.enemy_types??[{enemy_id:'diaper_fairy',weight:60},{enemy_id:'teddy_mimic',weight:40}]).map(e=>({enemy_id:e.enemy_id,weight:e.weight??e.chance}))});cache=null;
  }
  function registerQuestPack(pack){ // Shipped content is validated at boot, so a malformed pack stops the service instead of half-loading.
   for(const quest of pack){
@@ -91,7 +95,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  function validate(kind,value){
   if(!value||!id(value.id))fail('Choose a stable lowercase content ID.');
   if(kind==='sheet')return storySheets.validate(value);
-  if(['npc','quest'].includes(kind))return validateQuestContent(kind,value,{assetRef,spells,equipment,look:value=>validateLook(value,{fail})}); // NPC looks: registered layers only, no ownership check (staff design them).
+  if(['npc','quest'].includes(kind))return validateQuestContent(kind,value,{assetRef,spells,equipment,look:value=>validateLook(value,{db,fail})}); // NPC looks use shared artwork, not another account's personal layers.
   if(kind==='monster'){
    const out={id:value.id,enemy_id:value.enemy_id??value.id,name:text(value.name,100),retired:!!value.retired};if(!id(out.enemy_id))fail('Invalid enemy identity.');
    for(const key of ['hp','str','def','dex','exp'])out[key]=integer(value[key],key==='hp'?1:0,key==='hp'?100000:10000);
@@ -175,7 +179,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  function registerSheet(category,zone,key,body,meta){if(blankCanvas&&category==='npc_event')return null;const id=storySheets.register(category,zone,key,body,meta);cache=null;return id;} // Companions and Pip are retained; the removed resident tours stay excluded.
  function fixtureSheet(zone,fixture){
   if(blankCanvas){if(!essentialFixture(fixture))return fixture;fixture=serviceFixture(fixture);}
-  if(fixture.kind!=='npc'||fixture.service==='tutor')return fixture; // Pip's shared sheet also backs the existing tutorial settings panel.
+  if(!['npc','shop'].includes(fixture.kind)||fixture.service==='tutor')return fixture; // Pip uses the shared tutor sheet; merchants retain their service identity and offers.
   const keys=['name','line','childish','regressed','diaper_change','story_dialogue','story_event','story_labels'];
   const body=Object.fromEntries(keys.filter(k=>fixture[k]!==undefined).map(k=>[k,clone(fixture[k])]));body.name??=fixture.id;body.line??='Hello.';body.topic_label??='Talk.';body.topics??=[];
   const key=sheetId('fixture',zone,fixture.id);if(!storySheets.sources.has(key))registerSheet('fixture',zone,fixture.id,body,{source:'online.fixture',npc_ref:zone+':'+fixture.id});

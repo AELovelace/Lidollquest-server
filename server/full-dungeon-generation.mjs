@@ -2,7 +2,7 @@
 // story orbs, campaign flags and the Nursery's control door never enter this generator.
 import {seeded,walkable,inside} from './dive-generation.mjs';
 import {installIndustrial} from './arcadia-industrial.mjs';
-import {carveBrassworksMaze} from './brassworks-layout.mjs';
+import {carveBrassworksMaze,carveDockyardMaze} from './brassworks-layout.mjs';
 
 const directions=[[1,0],[-1,0],[0,1],[0,-1]],key=p=>`${p.x},${p.y}`;
 export function fullDungeonAmbientPool(data){
@@ -17,7 +17,7 @@ export function fullDungeonAmbientPool(data){
 } // A missing mapping fails generation instead of selecting from the global monster catalogue.
 
 export function repairFullDungeonContent(f,data){
- let changed=false;
+ let changed=markDockyardBuildings(f,data);
  for(const fixture of f.fixtures??[]){const npc=fixture.kind==='npc'?data.npcs[fixture.content]:null;if(npc&&fixture.sprite!==npc.sprite){fixture.sprite=npc.sprite;changed=true;}}
  if(data.config.theme==='dungeon'){
   const pool=fullDungeonAmbientPool(data),allowed=new Set(pool);
@@ -30,6 +30,13 @@ export function repairFullDungeonContent(f,data){
  if(changed)f.geometryVersion=(f.geometryVersion??0)+1; // Refresh existing clients' fixture presentation without rerolling the map.
  return changed;
 }
+
+function markDockyardBuildings(f,data){
+ if(data.config.theme!=='arcadia_dockyard')return false;
+ let changed=false;const buildings=new Set(data.config.building_rooms??[]);
+ for(const r of f.rooms){const building=buildings.has(r.type);if(r.building!==building){r.building=building;changed=true;}}
+ return changed;
+} // Presentation markers upgrade saved rooms without moving walls, doors, visitors, or reward claims.
 
 export function dungeonReachable(f,start=f.entrance){
  const seen=new Set(),queue=[start];
@@ -79,6 +86,8 @@ export function generateFullDungeon(data,edition,depth=1){
  const shuffle=values=>{const a=[...values];for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;};
  if(c.theme==='arcadia_factory'&&s.layout==='maintenance_maze'){
   carveBrassworksMaze(f,data,{rnd,open,rectangle}); // Factory walls form a maze before any encounters or furniture are placed.
+ }else if(c.theme==='arcadia_dockyard'&&s.layout==='quayside_maze'){
+  carveDockyardMaze(f,data,{rnd,open,rectangle}); // Solid cells render as water between winding quays and warehouse decks.
  }else if(c.theme==='dungeon'){
   function split(x,y,w,h,d){
    let horizontal=rnd(2)===0;if(w>h*1.25)horizontal=false;else if(h>w*1.25)horizontal=true;
@@ -128,6 +137,7 @@ export function generateFullDungeon(data,edition,depth=1){
  }
  const start=f.rooms.find(r=>r.type===c.entrance_type)||f.rooms[0],end=f.rooms.at(-1);
  if(c.industrial){for(const r of f.rooms)r.name=c.room_names[r.type];}
+ markDockyardBuildings(f,data); // The normal room snapshot carries building identity to the client and GM map.
  c.endpoints.forEach((e,i)=>{const r=i?end:start,p={x:r.cx,y:r.cy};f.exits.push({...e,...p});f.entries[e.zone]={x:p.x,y:p.y+1};f.safeRooms.push({x:p.x-1,y:p.y-1,w:3,h:4});rectangle(p.x-1,p.y-1,3,4);});
  f.entrance={...f.entries[c.endpoints[0].zone]};
  if(c.industrial){
@@ -139,6 +149,15 @@ export function generateFullDungeon(data,edition,depth=1){
  const occupied=new Set(f.exits.concat(Object.values(f.entries)).map(key)),safe=p=>f.safeRooms.some(r=>inside(r,p.x,p.y));
  const cells=r=>{const out=[];for(let y=r.y;y<r.y+r.h;y++)for(let x=r.x;x<r.x+r.w;x++)if(walkable(f,x,y)&&!occupied.has(`${x},${y}`)&&!safe({x,y}))out.push({x,y});return out;};
  const free=r=>{const list=cells(r);if(!list.length)return null;const p=list[rnd(list.length)];occupied.add(key(p));return p;};
+ const cargoClearance=new Set(),cargoCenters=new Set();
+ function cargoBerth(r){
+  for(const p of shuffle(cells(r))){
+   const apron=[];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)apron.push({x:p.x+dx,y:p.y+dy});
+   if(apron.some(q=>!inside(r,q.x,q.y)||!walkable(f,q.x,q.y)||safe(q)||cargoCenters.has(key(q))||(occupied.has(key(q))&&!cargoClearance.has(key(q)))))continue;
+   apron.forEach(q=>{occupied.add(key(q));cargoClearance.add(key(q));});cargoCenters.add(key(p));return p;
+  }
+  throw Error('No clear cargo turning space in '+r.type);
+ } // Preserve a walkable ring around every possible load position; later fixtures and scenery cannot seal it.
  function fixture(profile,preferred=f.rooms){
   if(c.industrial&&profile.room_types)preferred=preferred.filter(r=>profile.room_types.includes(r.type));
   for(const r of shuffle(preferred))for(const p of shuffle(cells(r))){
@@ -154,7 +173,7 @@ export function generateFullDungeon(data,edition,depth=1){
  // ring remains empty even when a compact ward would otherwise fill with NPCs.
  const bossPositions=new Map(c.bosses.map(b=>{const room=f.rooms.find(r=>r.type===b.room_type);if(!room)throw Error('Missing boss room '+b.room_type);const point=free(room);if(!point)throw Error('No space for '+b.enemy_id);return [b.enemy_id,point];})); // Required encounters reserve a tile before furniture or a large stamp can occupy their ward.
  const stamp=data.puzzle_stamps[rnd(data.puzzle_stamps.length)];
- puzzle:for(const r of f.rooms.filter(r=>r!==start&&r!==end).sort((a,b)=>b.w*b.h-a.w*a.h)){
+ puzzle:for(const r of f.rooms.filter(r=>r!==start&&r!==end&&!(s.layout==='quayside_maze'&&c.industrial.rooms.includes(r.type))).sort((a,b)=>b.w*b.h-a.w*a.h)){
   const x=r.cx-Math.floor(stamp.width/2),y=r.cy-Math.floor(stamp.height/2),bounds={x:x-1,y:y-1,w:stamp.width+2,h:stamp.height+2},area=[];for(let dy=0;dy<bounds.h;dy++)for(let dx=0;dx<bounds.w;dx++)area.push({x:bounds.x+dx,y:bounds.y+dy});
   if(area.some(p=>p.x<1||p.y<1||p.x>=W-1||p.y>=H-1||occupied.has(key(p))||safe(p)))continue;
   for(const p of area){open(p.x,p.y);occupied.add(key(p));}
@@ -175,7 +194,7 @@ export function generateFullDungeon(data,edition,depth=1){
  for(let i=0;i<(source.guaranteed_fixtures?.adult_toilets??2);i++)fixture({id:'toilet-'+i,kind:'toilet',style:'porcelain',name:'Toilet',...data.service_profiles.toilet});
  for(let i=0;i<(source.guaranteed_fixtures?.potty_chairs??3);i++)fixture({id:'potty-'+i,kind:'toilet',style:'potty',name:'Potty Chair',...data.service_profiles.potty});
  for(const profile of data.fixture_profiles)fixture(profile);
- installIndustrial(f,data,{fixture,free});
+ installIndustrial(f,data,{fixture,free,berth:s.layout==='quayside_maze'?cargoBerth:free}); // Compact quays reserve crane turning space before optional population.
  for(const [id,npc] of Object.entries(data.npcs))fixture({id:'npc-'+id,kind:'npc',content:id,avatar:id,name:npc.name,sprite:npc.sprite});
  for(const profile of data.detail_profiles.filter(p=>p.narrative_chunk)){
   const rooms=f.rooms.filter(r=>!profile.room_types||profile.room_types.includes(r.type));
@@ -199,8 +218,8 @@ export function generateFullDungeon(data,edition,depth=1){
  if(c.theme==='dungeon')f.lullabyRooms=f.rooms.slice(Math.floor(f.rooms.length*(s.lullaby_zone_depth??0.6))).map(r=>({x:r.x,y:r.y,w:r.w,h:r.h}));
  for(const p of shuffle(f.maintenanceEnds??[]).slice(0,5)){
   if(!walkable(f,p.x,p.y)||occupied.has(key(p))||safe(p))continue;
-  occupied.add(key(p));f.chests.push({id:'maintenance-salvage-'+f.chests.length,...p,loot_pool:[c.industrial.material]});
- } // Optional maintenance branches reward exploration with personal clockwork-parts chests.
+  occupied.add(key(p));f.chests.push({id:(c.theme==='arcadia_dockyard'?'quay-salvage-':'maintenance-salvage-')+f.chests.length,...p,loot_pool:[c.industrial.material]});
+ } // Optional side branches reward exploration with personal parts or dock-fittings chests.
  for(const puzzle of f.puzzles){for(const b of [...puzzle.blocks,...puzzle.fixed])f.props[b.y][b.x]=1;for(const [i,b] of puzzle.fixed.entries())f.decorations.push({id:puzzle.id+'-wall-'+i,...b,sprite:puzzle.wall_sprite,span_w:1,span_h:1,solid:true});} // Activate the authored stamp after fixture placement.
  // Optional scenery keeps native sprite footprints. Validate after tentative placement.
  for(const [i,r] of f.rooms.entries()){

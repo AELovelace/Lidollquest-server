@@ -30,7 +30,7 @@ export function createRoleplay(db,{now=Date.now,roll=randomInt}={}){
   const r=db.prepare('SELECT * FROM quest_rp_posts WHERE id=?').get(Number.isSafeInteger(id)?id:-1);
   if(!r||restricted.includes(r.owner)||(r.author!==c.id&&r.area!==area&&!partners(r.id).some(p=>p.id===c.id)))fail(404,'This RP post is not available here.');
   db.prepare('INSERT INTO quest_rp_reads(character_id,last_read_id) VALUES (?,?) ON CONFLICT(character_id) DO UPDATE SET last_read_id=MAX(last_read_id,excluded.last_read_id)').run(c.id,r.id); // Persist the existing newest-seen cursor only after access checks; reopening older history never moves it backwards.
-  return {...summary(r),text:r.text,appearance:JSON.parse(r.appearance)}; // Only the public paperdoll projection is retained, never inventory or account details.
+  return {...summary(r),text:r.text,appearance:JSON.parse(r.appearance)}; // Public status and saved Wardrobe look only, never inventory or account details.
  }
  function snapshot(c,area,restricted=[]){
   if(!c)return {supported:true,maxCharacters:RP_MAX_CHARACTERS,seen:0,posts:[]};

@@ -40,7 +40,7 @@ function sheetDefault(schema){
  return copy(schema.sample??(schema.types.includes('object')?{}:schema.types.includes('number')?0:schema.types.includes('boolean')?false:''));
 } // Newly added checks and effects never inherit another NPC's gifts or once-only receipt keys.
 function sheetConnect(to){const g=sheetGraph(),source=g.nodes.find(n=>n.id===pending?.from),dest=g.nodes.find(n=>n.id===to),output=source?.outputs.find(o=>o.id===pending?.port);if(!output||!dest||dest.id==='root')return;checkpoint();output.set(dest);pending=null;changed();properties();}
-const sheetLookField=(value,key)=>key==='look'&&contentAsset()?.entry.category==='fixture'&&value===contentAsset().entry.body; // A resident's look is edited by the Sprite Lab designer, never as raw cards or fields.
+const sheetLookField=(value,key)=>key==='look'&&cat.records.sheetSchemas[contentAsset()?.entry.category]?.fields?.look&&value===contentAsset().entry.body; // Every supported character category edits looks through the shared designer, never raw fields.
 function sheetForm(host,value,schema,path){
  if(Array.isArray(value)){
   el('p',value.length+' entries. Open a card to edit its pages, choices or effects.',host);
@@ -77,7 +77,7 @@ function sheetProperties(){
    button(host,'Remove entry',()=>{checkpoint();focus.value.splice(index,1);selected=new Set(['root']);changed();properties();});
   }
  }else sheetForm(host,focus.value,focus.schema,path);
- if(!path.length&&node.id==='root'&&a.entry.category==='fixture'&&cat.records.sheetSchemas.fixture?.fields?.look)spriteLabDesigner(host,{look:a.entry.body.look??null,api,onChange:look=>{checkpoint();if(look)a.entry.body.look=look;else delete a.entry.body.look;changed();}}); // Dress this resident; drawn instead of its generated avatar once published (gm-sprite-lab.js).
+ if(!path.length&&node.id==='root'&&cat.records.sheetSchemas[a.entry.category]?.fields?.look)spriteLabDesigner(host,{look:a.entry.body.look??null,api,onChange:look=>{checkpoint();if(look)a.entry.body.look=look;else delete a.entry.body.look;changed();}}); // Pip, companions, merchants and residents share the same draft/publish appearance controls.
  const revisions=row?.history??[];if(revisions.length){const state={revision:String(revisions[0].revision)};field(host,'Published revision',state,'revision','text',revisions.map(r=>({id:String(r.revision),name:'Revision '+r.revision})));button(host,'Restore revision as draft',async()=>{if(!confirm('Replace this sheet draft with the selected published revision?'))return;const result=await action('flow_sheet_history',{id:a.id,target_revision:Number(state.revision)});checkpoint();a.entry=result;changed();properties();});}
  el('p','Saving keeps a draft. Publishing changes future interactions; active conversations and accepted quests retain their saved definitions.',host).className='hint';
 } // Restore goes through the ordinary draft/publish review, never publishes merely by selecting history.

@@ -60,6 +60,7 @@ test('district travel, monthly persistence, talks, shared chat and safe live rol
   }
   const hub='princess-rose',id=hub+'-garden';act('enter',{zone:hub});place(1,13);const old=act('move',{direction:'west'}).zones.find(z=>z.id===id);
   const row=db.prepare('SELECT state FROM quest_characters WHERE id=?').get(c.id),state=JSON.parse(row.state);state.worldTurnDue={id:'pending-needs'};db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),c.id);
+  db.exec('UPDATE hub_district_controls SET locked=0,pinned=NULL'); // Hub maps are static by default; unlock them all so the monthly rollover below still happens.
   place(10,10);now=Date.parse('2026-10-01T11:00:00Z');db.prepare('UPDATE quest_presence SET seen=?').run(now);
   const next=api.read('',c.id),map=next.zones.find(z=>z.id===id);assert.equal(map.district.edition,'2026-10');assert.notDeepEqual(map.fixtures,old.fixtures);assert.deepEqual(next.position,{x:48,y:25});assert.equal(next.character.worldTurnDue.id,'pending-needs');
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM hub_district_editions').get().n,districtData.districts.length*2,'prior month editions are retained');

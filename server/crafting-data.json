@@ -28410,6 +28410,7 @@
         "slot": "base",
         "sprite": "sprLayeredLabMan",
         "template": "piko_32_v1",
+        "body_type": "masc",
         "channels": [
           {
             "name": "Skin",
@@ -28594,6 +28595,7 @@
         "slot": "base",
         "sprite": "sprLayeredLabWoman",
         "template": "piko_32_v1",
+        "body_type": "femme",
         "channels": [
           {
             "name": "Skin",
@@ -28716,6 +28718,9 @@
         "slot": "torso",
         "sprite": "sprLayeredLabTee",
         "template": "piko_32_v1",
+        "body_sprites": {
+          "masc": "sprLayeredLabTeeMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -28801,7 +28806,7 @@
             "default_rgb": [
               138,
               83,
-              23
+              24
             ],
             "source": [
               [
@@ -29202,6 +29207,9 @@
         "slot": "torso",
         "sprite": "sprLayeredLabHoodie",
         "template": "piko_32_v1",
+        "body_sprites": {
+          "masc": "sprLayeredLabHoodieMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -29242,6 +29250,9 @@
         "slot": "torso",
         "sprite": "sprLayeredLabCardigan",
         "template": "piko_32_v1",
+        "body_sprites": {
+          "masc": "sprLayeredLabCardiganMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -29282,6 +29293,9 @@
         "slot": "torso",
         "sprite": "sprLayeredLabStripedTee",
         "template": "piko_32_v1",
+        "body_sprites": {
+          "masc": "sprLayeredLabStripedTeeMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -29482,6 +29496,9 @@
         "hides": [
           "legs"
         ],
+        "body_sprites": {
+          "masc": "sprLayeredLabPinaforeMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -30095,6 +30112,9 @@
         "hides": [
           "legs"
         ],
+        "body_sprites": {
+          "masc": "sprLayeredLabShortSmockDressMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -30181,6 +30201,9 @@
         "hides": [
           "legs"
         ],
+        "body_sprites": {
+          "masc": "sprLayeredLabShortPinaforeMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -30224,6 +30247,9 @@
         "hides": [
           "legs"
         ],
+        "body_sprites": {
+          "masc": "sprLayeredLabKimonoMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -30267,6 +30293,9 @@
         "hides": [
           "legs"
         ],
+        "body_sprites": {
+          "masc": "sprLayeredLabRaincoatMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -30310,6 +30339,9 @@
         "hides": [
           "legs"
         ],
+        "body_sprites": {
+          "masc": "sprLayeredLabDungareesMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -30390,6 +30422,9 @@
         "hides": [
           "legs"
         ],
+        "body_sprites": {
+          "masc": "sprLayeredLabSailorDressMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -30683,6 +30718,9 @@
         "sprite": "sprLayeredLabTurtleneck",
         "template": "piko_32_v1",
         "premium": true,
+        "body_sprites": {
+          "masc": "sprLayeredLabTurtleneckMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -30724,6 +30762,9 @@
         "sprite": "sprLayeredLabTankTop",
         "template": "piko_32_v1",
         "premium": true,
+        "body_sprites": {
+          "masc": "sprLayeredLabTankTopMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -30759,6 +30800,9 @@
         "sprite": "sprLayeredLabKnitSweater",
         "template": "piko_32_v1",
         "premium": true,
+        "body_sprites": {
+          "masc": "sprLayeredLabKnitSweaterMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -30800,6 +30844,9 @@
         "sprite": "sprLayeredLabCropTop",
         "template": "piko_32_v1",
         "premium": true,
+        "body_sprites": {
+          "masc": "sprLayeredLabCropTopMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -30841,6 +30888,9 @@
         "sprite": "sprLayeredLabCropHoodie",
         "template": "piko_32_v1",
         "premium": true,
+        "body_sprites": {
+          "masc": "sprLayeredLabCropHoodieMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -31008,6 +31058,9 @@
           "legs"
         ],
         "premium": true,
+        "body_sprites": {
+          "masc": "sprLayeredLabOnesieMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -31052,6 +31105,9 @@
           "legs"
         ],
         "premium": true,
+        "body_sprites": {
+          "masc": "sprLayeredLabPajamasMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -31096,6 +31152,9 @@
           "legs"
         ],
         "premium": true,
+        "body_sprites": {
+          "masc": "sprLayeredLabMaidDressMasc"
+        },
         "channels": [
           {
             "name": "Fabric",
@@ -31134,6 +31193,9 @@
           "legs"
         ],
         "premium": true,
+        "body_sprites": {
+          "masc": "sprLayeredLabBallGownMasc"
+        },
         "channels": [
           {
             "name": "Fabric",

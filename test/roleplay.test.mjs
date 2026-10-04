@@ -47,6 +47,20 @@ test('unavailable RP reads and ordinary snapshots never advance delivery state',
   assert.throws(()=>f.act('Bob','rp_read',{rp_id:999999}),/not available/);assert.equal(f.db.prepare('SELECT count(*) n FROM quest_rp_reads').get().n,0);
  }finally{f.close();}
 });
+test('RP freezes the authors saved Wardrobe look independently of avatar and later edits',()=>{
+ const f=fixture();try{
+  f.player('Alice');f.player('Bob');
+  const row=f.db.prepare('SELECT * FROM quest_characters WHERE id=?').get(f.ids.Alice),state=JSON.parse(row.state);
+  state.avatar='player';state.look={version:1,slots:{base:'piko_woman',hair:'twin_tails'},colors:{},enabled:{},strength:{},visible:{}};
+  f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),row.id);
+  const look=structuredClone(state.look),id=f.act('Alice','rp_post',{text:'An outfit remembered.',partners:[f.ids.Bob]}).receipt.rpId;
+  state.look.slots.hair='piko_hair';f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),row.id);
+  const post=f.act('Bob','rp_read',{rp_id:id}).receipt.rpPost;
+  assert.deepEqual(post.appearance.look,look);assert.equal(post.appearance.avatar,'player');
+  assert.equal(post.appearance.account_id,undefined);assert.equal(post.appearance.loadout,undefined);
+ }finally{f.close();}
+});
+
 test('shared RP persists paragraphs, appearance, notices and author-only counts exactly once',()=>{
  const f=fixture();try{
   f.player('Alice');f.player('Bob');f.player('Cara');

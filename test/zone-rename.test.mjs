@@ -17,7 +17,7 @@ test('the zone rename migrates every saved form once and leaves Dives, lookalike
   CREATE TABLE gm_audit(id INTEGER PRIMARY KEY,detail TEXT NOT NULL);`);
   db.prepare('INSERT INTO quest_presence VALUES (?,?,?)').run('a','dive-desert',3); // Standing in the desert.
   db.prepare('INSERT INTO quest_presence VALUES (?,?,?)').run('b','dive-quarters',4); // A real Dive keeps its id.
-  db.prepare('INSERT INTO quest_presence VALUES (?,?,?)').run('c','dive-high-desert',5); // Contains "desert" but is its own zone.
+  db.prepare('INSERT INTO quest_presence VALUES (?,?,?)').run('c','dive-high-desert',5);db.prepare('INSERT INTO quest_chat VALUES (?,?,?)').run(2,'overworld-spooky-mansion','in the mansion');db.prepare('INSERT INTO quest_chat VALUES (?,?,?)').run(3,'dive-spooky-mansion','older still'); // Contains "desert" but is its own zone.
   db.prepare('INSERT INTO quest_chat VALUES (?,?,?)').run(1,JSON.stringify(['dive-tundra','frostveil-crossing','2026-09-21',1]),'I said dive-tundra out loud'); // Chat area ids are JSON arrays; player text is not an id.
   const state={dive:{zone:'dive-taiga',route:'frostveil-taiga',returnZone:'honeydew-lantern'},note:JSON.stringify({zone:'dive-seafoam-coast'}),campaign:{flags:{'visited:dive-castle-dungeon:boss':true}},last:'dive-auto-nursery'}; // A nested JSON string, a visited-room flag key and a full dungeon, too.
   db.prepare('INSERT INTO quest_characters VALUES (?,?)').run('c1',JSON.stringify(state));
@@ -26,6 +26,7 @@ test('the zone rename migrates every saved form once and leaves Dives, lookalike
 
   assert.ok(migrateZoneIds(db,{log:()=>{}})>0);
   assert.deepEqual(db.prepare('SELECT owner,zone FROM quest_presence ORDER BY owner').all().map(r=>r.zone),['overworld-desert','dive-quarters','overworld-high-desert']);
+  assert.deepEqual(db.prepare('SELECT zone FROM quest_chat WHERE seq>1 ORDER BY seq').all().map(r=>r.zone),['dungeon-spooky-mansion','dungeon-spooky-mansion'],'both older Mansion ids reach its dungeon id');
   const chat=db.prepare('SELECT zone,text FROM quest_chat').get();
   assert.deepEqual(JSON.parse(chat.zone),['overworld-tundra','frostveil-crossing','2026-09-21',1]);assert.equal(chat.text,'I said dive-tundra out loud');
   const saved=JSON.parse(db.prepare('SELECT state FROM quest_characters').get().state);
@@ -41,7 +42,7 @@ test('the zone rename migrates every saved form once and leaves Dives, lookalike
 });
 
 test('old ids alias forward, and every renamed route answers to its new id',()=>{
- assert.equal(Object.keys(ZONE_RENAMES).length,15);
+ assert.equal(Object.keys(ZONE_RENAMES).length,16);assert.equal(currentZoneId('dive-spooky-mansion'),'dungeon-spooky-mansion');assert.equal(currentZoneId('overworld-spooky-mansion'),'dungeon-spooky-mansion'); // 2026-10-03: the Mansion became a dungeon by id.
  assert.equal(currentZoneId('dive-emberfall-caldera'),'overworld-emberfall-caldera');assert.equal(currentZoneId('dive-regression-school'),'dungeon-regression-school');assert.equal(currentZoneId('dive-quarters'),'dive-quarters');assert.equal(currentZoneId(undefined),undefined);
  const db=new DatabaseSync(':memory:');const zones=createQuestZones(db,{now:()=>Date.parse('2026-09-25T12:00:00Z'),grant:()=>({owner:'a',id:'a',client:'lidollquest'}),wallet:()=>({coins:0}),adjust:()=>{},diveOptions:{log:()=>{}}});
  try{

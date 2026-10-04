@@ -124,7 +124,7 @@ function contentProperties(){
   if(a.kind==='orb'){field(host,'Hidden until revealed',d,'hidden_until_revealed','checkbox');el('p','Place this orb on the map, then use Reveal orb or Hide orb in a story flow to control its visibility for each character. Reading requirements still apply.',host).className='hint';}
   for(const key of Object.keys(d))if(!['stages','dialogue','pages','story_reactions','rewards','story_default','reset_flags'].includes(key)){
    if(key==='hidden_until_revealed'&&a.kind==='orb')continue;
-   if(key==='look')continue; // Edited by the Sprite Lab designer below, not as raw fields.
+   if(key==='look'||(a.kind==='npc'&&key==='facing'))continue; // Appearance and facing use their dedicated controls below.
    if(key==='id'){field(host,'Stable ID',d,key).readOnly=true;continue;}
    if(['givers','quests','prerequisites'].includes(key)){
     const options=referenceOptions(key==='givers'?'npcs':'quests').filter(v=>key!=='prerequisites'||v.id!==a.id);
@@ -136,7 +136,12 @@ function contentProperties(){
    if(key==='repeat'&&a.kind==='quest'){field(host,'Repeat policy',d,key,'text',['once','daily','weekly','cooldown']).addEventListener('change',properties);continue;}
    form(host,{get [key](){return d[key];},set [key](v){d[key]=v;}});
   }
-  if(a.kind==='npc')spriteLabDesigner(host,{look:d.look??null,api,unavailable:cat.publicEditor?'Looks are designed and previewed in the live GM console.':'',onChange:look=>{checkpoint();if(look)d.look=look;else delete d.look;changed();}}); // Layered appearance drawn instead of the walking sprite (gm-sprite-lab.js).
+  if(a.kind==='npc'){
+   const direction={get facing(){return d.facing??d.look?.facing??0;},set facing(value){d.facing=value;}};
+   field(host,'Default facing',direction,'facing','number',[{id:0,name:'Down (south)'},{id:1,name:'Up (north)'},{id:2,name:'Right (east)'},{id:3,name:'Left (west)'}]);
+   el('p','Stationary NPCs keep this direction. Wandering NPCs turn as they move.',host).className='hint';
+   spriteLabDesigner(host,{look:d.look??null,api,onChange:look=>{checkpoint();if(look)d.look=look;else delete d.look;changed();}}); // The shared designer works online and from the bundled static catalog.
+  }
   if(a.kind==='quest')resetFlagProperties(host,d); // Existing drafts also show the optional reset controls without rewriting their schema.
   el('p','Add stages, pages, objectives and choices using the blocks on the left.',host).className='hint';
   if(['npc','orb'].includes(a.kind))button(host,'Save and copy pages to a story flow',async()=>{await saveAssetBundle(false);closeContent();seed(a);});

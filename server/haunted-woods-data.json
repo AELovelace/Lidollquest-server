@@ -50,8 +50,8 @@
       }
     ],
     "landmark": {
-      "_comment": "The haunted house in the middle of the Woods. Its door is a warp pad into the Spooky Mansion dungeon (overworld-spooky-mansion). sprite comes from python/make_haunted_house_sprite.py; span_w/span_h are its tile footprint and door_x is the pad's column inside it.",
-      "zone": "overworld-spooky-mansion",
+      "_comment": "The haunted house in the middle of the Woods. Its door is a warp pad into the Spooky Mansion dungeon (dungeon-spooky-mansion). sprite comes from python/make_haunted_house_sprite.py; span_w/span_h are its tile footprint and door_x is the pad's column inside it.",
+      "zone": "dungeon-spooky-mansion",
       "name": "Spooky Mansion",
       "sprite": "sprHauntedHouse",
       "span_w": 4,

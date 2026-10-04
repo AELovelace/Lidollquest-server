@@ -7,6 +7,7 @@ import vm from 'node:vm';
 import {snapshotCatalog,renderRuntime,renderPage,buildPublicQuestEditor} from '../scripts/build-public-quest-editor.mjs';
 import {validateQuestContent} from '../server/quest-content.mjs';
 import {validateFlow} from '../server/flow-content.mjs';
+import {validateLook} from '../server/sprite-looks.mjs';
 import {createQuestService} from '../server/service.mjs';
 
 const bundleScript=readFileSync(new URL('../server/gm-quest-bundle.js',import.meta.url),'utf8');
@@ -19,7 +20,7 @@ function sandbox(){
  const store=new Map(),storage={getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)};
  const context={TextEncoder,URL,console,localStorage:storage};context.window=context;
  vm.runInNewContext(renderRuntime(snapshot),context);
- return {api:context.LIDOLL_STATIC_API,rules:context.LIDOLL_PUBLIC_RULES,store};
+ return {api:context.LIDOLL_STATIC_API,rules:context.LIDOLL_PUBLIC_RULES,store,reload:()=>context.createPublicWorkshopApi({snapshot,rules:context.LIDOLL_PUBLIC_RULES,storage})};
 } // The same runtime script the built page embeds, evaluated without a browser.
 const act=(api,action,payload={})=>api('/gm/action',{...payload,action,request_id:'test'}).then(r=>r.result);
 const quest=(id,monster,npc)=>({id,name:'A Light for the Scout',description:'Clear the path.',givers:[npc],prerequisites:[],conditions:[],repeat:'once',cooldown_seconds:86400,timer:{mode:'online',seconds:0},turn_in:{mode:'journal',npc:''},failure_text:'Quest failed.',
@@ -94,6 +95,42 @@ test('flows validate, save, and preview locally with the server walk',async()=>{
  assert.equal(done.state.done,true);assert.equal(done.flags.story_scout_rescued,true);
  await assert.rejects(act(api,'flow_preview',{entry:loose,assets:[],flags:{}}),/Connect the next output/);
  await assert.rejects(act(api,'flow_publish',{id:'story_scout',revision:1,entry:flowOf('story_scout_rescued'),assets:[]}),/Publishing happens in the live GM console/);
+});
+
+test('offline NPC looks and facing survive saving, reload and bundle transfer with live validation',async()=>{
+ const {api,reload,store}=sandbox(),art=await api('/gm/sprite-lab');
+ same(art.catalog,snapshot.spriteLab.catalog);
+ for(const layer of art.catalog.assets)assert.equal(Buffer.from(art.sheets[layer.sprite],'base64').subarray(1,4).toString(),'PNG',layer.id+' has bundled artwork');
+ art.catalog.assets.length=0;assert.ok((await api('/gm/sprite-lab')).catalog.assets.length,'the API does not expose mutable catalog state');
+ const look={version:1,slots:{base:'piko_woman',hair:'mohawk',torso:'maid_dress'},colors:{hair:[[25,100,230]]},enabled:{hair:[true]},strength:{hair:[0.5]},facing:0};
+ const entry={...npc('npc_stylist'),look,facing:3};
+ await act(api,'flow_assets_save',{assets:[{kind:'npc',id:entry.id,revision:0,entry}]});
+ const saved=(await reload()('/gm/flows')).records.npcs[0].draft;
+ same(saved.look,validateLook(look));assert.equal(saved.facing,3);
+ const exported=bundleApi.serializeQuestBundle({assets:[{kind:'npc',id:entry.id,entry:saved}]}),imported=bundleApi.parseQuestBundle(JSON.stringify(exported)).assets[0].entry;
+ same(validateQuestContent('npc',imported,{assetRef:v=>v,look:validateLook}),saved,'live import preserves the exact appearance and facing');
+ const before=store.get('lidollquest.public-quest-editor.v1');
+ for(const facing of [-1,4,1.5,'2'])await assert.rejects(act(api,'flow_assets_save',{assets:[{kind:'npc',id:entry.id,revision:1,entry:{...entry,facing}}]}),/whole number between 0 and 3/);
+ for(const invalid of [{...look,slots:{base:'missing'}},{...look,colors:{hair:[[256,1,2]]}},{...look,strength:{hair:[2]}},{...look,slots:{...look.slots,head:'crown',face:'sunglasses',neck:'bow_tie',back:'cape'}}]){
+  let error;try{validateLook(invalid);}catch(e){error=e.message;}assert.ok(error);
+  await assert.rejects(act(api,'flow_assets_save',{assets:[{kind:'npc',id:entry.id,revision:1,entry:{...entry,look:invalid}}]}),{message:error});
+ }
+ assert.equal(store.get('lidollquest.public-quest-editor.v1'),before,'invalid edits never replace the saved draft');
+});
+
+test('current quest flags, state objectives, branches and rewards round-trip in the static editor',async()=>{
+ const {api,reload}=sandbox(),entry=quest('quest_current',snapshot.monsters[0].id,'npc_scout');
+ entry.repeat='daily';entry.reset_flags=['story_path_clear'];entry.offer_line='Help the scout.';entry.complete_line='The path is clear.';
+ entry.stages[0].objectives[0].on_complete_flags=['story_path_clear'];
+ entry.stages[0].objectives.push({id:'ready',type:'state',field:'stamina',op:'gte',value:10,count:1,sharing:'party',text:'Rest first.'});
+ entry.stages[0].branches=[{id:'done',label:'Finish',to:'complete',conditions:[{flags:{all:['story_path_clear'],any:[],none:[]}}]}];
+ entry.rewards.dignity=2;
+ await act(api,'flow_assets_save',{assets:[{kind:'quest',id:entry.id,revision:0,entry}]});
+ const saved=(await reload()('/gm/flows')).records.quests[0].draft;
+ same(saved,validateQuestContent('quest',entry,{assetRef:v=>v,spells:{},equipment:{}}));
+ same(bundleApi.parseQuestBundle(JSON.stringify(bundleApi.serializeQuestBundle({assets:[{kind:'quest',id:entry.id,entry:saved}]}))).assets[0].entry,saved);
+ const page=renderPage(snapshot);assert.ok(page.includes('Default facing')&&page.includes('spriteLabDesigner(host,{look:d.look??null,api,onChange:'));
+ assert.ok(!page.includes('Looks are designed and previewed in the live GM console.'));
 });
 
 test('inlined validators match the server modules',async()=>{

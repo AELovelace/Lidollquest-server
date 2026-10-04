@@ -73,7 +73,7 @@ export function createTutor(db,{live=null,url=process.env.NPC_RAG_URL??process.e
   if(!z||!TUTOR_LOBBIES.includes(z.id)||!active()||(z.fixtures??[]).some(f=>f.id===TUTOR_FIXTURE_ID))return z;
   const at=spot(z);if(!at)return z; // No free tile: skip this lobby rather than block anything.
   const s=settings();
-  return {...z,fixtures:[...(z.fixtures??[]),{id:TUTOR_FIXTURE_ID,kind:'npc',service:'tutor',name:s.name,avatar:TUTOR_AVATAR,line:s.greeting,x:at.x,y:at.y,span_w:1,span_h:1,solid:false}]}; // Non-solid: Pip can never seal a path.
+  return {...z,fixtures:[...(z.fixtures??[]),{id:TUTOR_FIXTURE_ID,kind:'npc',service:'tutor',name:s.name,avatar:TUTOR_AVATAR,...(s.look?{look:s.look}:{}),line:s.greeting,x:at.x,y:at.y,span_w:1,span_h:1,solid:false}]}; // The shared published look reaches every Pip; placement and tutorial behavior are unchanged.
  }
 
  // ── Asking (runs inside the player's command transaction; synchronous only) ──

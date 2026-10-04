@@ -17,7 +17,7 @@ export function routeCategory(config){ // Reads the authored `zone_category` of 
  return value; // Either 'dive' or 'overworld'.
 }
 
-const WILDERNESS_LOOT_EXEMPT=new Set(['overworld-farmstead','overworld-obsidian-spa','overworld-spooky-mansion']); // Safe interiors with authored pantries, and the Spooky Mansion (a dungeon in all but id) keep their full loot.
+const WILDERNESS_LOOT_EXEMPT=new Set(['overworld-farmstead','overworld-obsidian-spa']); // Safe interiors with authored pantries keep their full loot.
 export function wildernessLoot(config){ // True for the open wilderness routes whose loot is thinned to half and limited to ingredients, diapers, food and potions (dive-loot.mjs dietWilderness, 2026-09-30).
  return routeCategory(config)===ZONE_CATEGORY.OVERWORLD&&typeof config?.zone_id==='string'&&config.zone_id.startsWith('overworld-')&&!WILDERNESS_LOOT_EXEMPT.has(config.zone_id); // Full dungeons share the overworld category but keep the `dungeon-` prefix, so they are untouched.
 }

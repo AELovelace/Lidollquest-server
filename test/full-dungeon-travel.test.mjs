@@ -157,6 +157,7 @@ test('weekly expiry and monthly refresh retain old claims and character flags wh
  const f=fixture();try{
   f.create('a','utopia-arcanum');const portal=f.map().portals.find(p=>p.target==='dungeon-auto-nursery');f.place('a',portal);f.act('a','dive_enter',{zone:portal.target});
   const old=f.snap().dive.edition,state=JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(f.ids.a).state);state.fullDungeon={flags:{test_visit:true},counters:{visits:1},once:{test_gift:true}};f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),f.ids.a);
+  f.db.exec('UPDATE hub_district_controls SET locked=0,pinned=NULL'); // Hub maps are static by default; unlock them so the monthly refresh below still happens.
   f.act('a','dive_exit');f.advance(10*86400000);f.restart();f.act('a','enter',{zone:'utopia-arcanum',full_dungeon_version:1,content_version:1,quest_version:1,combat_version:3});
   assert.equal(f.map().district.edition,'2026-10');const next=f.map().portals.find(p=>p.target===portal.target);assert.ok(next);f.place('a',next);f.act('a','dive_enter',{zone:next.target});assert.notEqual(f.snap().dive.edition,old);
   assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM dive_progress WHERE character_id=? AND route=? AND edition=?').get(f.ids.a,'auto-nursery',old).n,1);

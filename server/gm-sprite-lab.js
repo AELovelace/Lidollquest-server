@@ -33,12 +33,16 @@ function spriteLabTint(pixels,asset,look){ // The same rules as the game's palet
  for(let i=0;i<d.length;i+=4){if(!d[i+3])continue;const to=map.get(d[i]<<16|d[i+1]<<8|d[i+2]);if(to){d[i]=to[0];d[i+1]=to[1];d[i+2]=to[2];}}
  return out;
 }
+function spriteLabBodySprite(cat,asset,baseId){ // Alternate pixels share the garment's ID, tint channels and unlock.
+ const base=cat.assets.find(a=>a.id===baseId&&a.slot==='base'),body=base?.body_type??(baseId==='piko_base'?'masc':'femme');
+ return !asset.hash&&asset.body_sprites?.[body]||asset.sprite; // A published workshop sheet is explicit artist artwork, not an inherited bundled variant.
+}
 async function spriteLabComposite(data,look){ // One 128x128 canvas holding all sixteen frames of the finished look.
  const cat=data.catalog,sheet=document.createElement('canvas');sheet.width=sheet.height=128;const ctx=sheet.getContext('2d'),layer=document.createElement('canvas');layer.width=layer.height=128;
  const worn=slot=>look.visible?.[slot]===false?null:cat.assets.find(a=>a.id===look.slots?.[slot]&&a.slot===slot),hidden=new Set(cat.order.flatMap(slot=>worn(slot)?.hides??[]));
  for(const slot of cat.order){
   const asset=worn(slot);if(!asset||hidden.has(slot))continue;
-  layer.getContext('2d').putImageData(spriteLabTint(await spriteLabSheet(data,asset.sprite),asset,look),0,0);ctx.drawImage(layer,0,0);
+  layer.getContext('2d').putImageData(spriteLabTint(await spriteLabSheet(data,spriteLabBodySprite(cat,asset,look.slots?.base)),asset,look),0,0);ctx.drawImage(layer,0,0);
  }
  return sheet;
 }

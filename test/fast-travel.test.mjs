@@ -89,7 +89,7 @@ test('dungeons and dives have no beacons and old saved links cannot be used',()=
   assert.equal(f.db.prepare('SELECT 1 FROM quest_fast_travel WHERE character_id=? AND zone=?').get(f.ids.alice,'dive-quarters'),undefined);
   assert.throws(()=>f.act('alice','fast_travel',{zone:'princess-rose'}),/beside/);
   f.act('alice','dive_exit',{edition:f.snap('alice').dive.edition});f.place('alice');
-  const removed=['dive-quarters','dive-forest','dungeon-castle-dungeon','dungeon-auto-nursery','dungeon-coastal-caverns','dungeon-regression-school','dungeon-regression-hospital','overworld-spooky-mansion'];
+  const removed=['dive-quarters','dive-forest','dungeon-castle-dungeon','dungeon-auto-nursery','dungeon-coastal-caverns','dungeon-regression-school','dungeon-regression-hospital','dungeon-spooky-mansion'];
   for(const zone of removed)f.db.prepare('INSERT OR IGNORE INTO quest_fast_travel VALUES (?,?,?,?)').run(f.ids.alice,zone,'{}',1);
   assert.ok(f.snap('alice').fastTravel.destinations.every(d=>!removed.includes(d.zone)),'Retired destinations disappear even when previously discovered');
   for(const zone of removed)assert.throws(()=>f.act('alice','fast_travel',{zone}),/available linked beacon/);

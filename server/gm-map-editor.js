@@ -8,8 +8,10 @@ function grantToken(){let grant;try{grant=JSON.parse(localStorage.getItem('lidol
 async function liveApi(path,body,raw=false){const r=await fetch(path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+grantToken(),...(body?{'Content-Type':'application/json'}:{})},cache:'no-store',...(body?{body:JSON.stringify(body)}:{})});if(raw){if(!r.ok){const data=await r.json().catch(()=>({}));throw Error(data.error_description??data.error??'Request failed');}return r;}const data=await r.json();if(!r.ok)throw Error(data.error_description??data.message??data.error??'Request failed');return data;}
 const action=(name,payload={})=>liveApi('/gm/action',{...payload,action:name,request_id:crypto.randomUUID()}).then(r=>r.result);
 const params=new URL(location.href).searchParams;
-const state={zone:params.get('zone')??'',focus:params.get('focus')??'',content:null,manifest:null,map:null,plan:null,reach:null,tool:'inspect',zoom:1,pan:{x:0,y:0},hover:null,drag:null,pending:[],undone:[],selection:null,timer:null,images:new Map(),base:null,baseKey:'',opts:{kind:'npc',definition:'',sprite:'sprItem',target:'',name:'',lifetime:'persistent',aggressive:false,respawning:false,remove:false,brush:'wall',brushSize:1,floorTile:1,wallTile:10,scenerySprite:'',spanW:1,spanH:1,solid:true,toilet:false,eraser:false,spawnTarget:'entrance',layer:'cover',layerValue:'1',craterR:9,exitZone:'',exitMode:'move',newZone:'',newStyle:'gap'}};
-const TOOLS=[{id:'inspect',name:'Inspect / select'},{id:'place',name:'Place content'},{id:'terrain',name:'Terrain brush',patch:true},{id:'scenery',name:'Scenery stamp',patch:true},{id:'safe',name:'Safe room',patch:true,dive:true},{id:'spawn',name:'Arrival spawn',patch:true},{id:'layers',name:'Biome layers',patch:true,dive:true,layers:true},{id:'exits',name:'Exits & pads',patch:true,dive:true}];
+const state={zone:params.get('zone')??'',focus:params.get('focus')??'',content:null,manifest:null,map:null,plan:null,reach:null,tool:'inspect',zoom:1,pan:{x:0,y:0},hover:null,drag:null,pending:[],undone:[],selection:null,route:null,paths:null,timer:null,images:new Map(),base:null,baseKey:'',opts:{kind:'npc',definition:'',sprite:'sprItem',target:'',name:'',lifetime:'persistent',aggressive:false,respawning:false,remove:false,brush:'wall',brushSize:1,floorTile:1,wallTile:10,scenerySprite:'',spanW:1,spanH:1,solid:true,toilet:false,eraser:false,spawnTarget:'entrance',layer:'cover',layerValue:'1',craterR:9,exitZone:'',exitMode:'move',newZone:'',newStyle:'gap'}};
+const TOOLS=[{id:'inspect',name:'Inspect / select'},{id:'place',name:'Place content'},{id:'terrain',name:'Terrain brush',patch:true},{id:'scenery',name:'Scenery stamp',patch:true},{id:'safe',name:'Safe room',patch:true,dive:true},{id:'spawn',name:'Arrival spawn',patch:true},{id:'layers',name:'Biome layers',patch:true,dive:true,layers:true},{id:'exits',name:'Exits & pads',patch:true,dive:true},{id:'route',name:'NPC routes'}];
+const ROUTE_COLOURS=['#ffdc3c','#7fe0c0','#ff8fc4','#77bbff'];
+const clockText=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'),clockMinutes=v=>{const [h,m]=String(v).split(':').map(Number);return (h*60+m)||0;};
 const LAYER_NAMES={cover:'Cover (tall grass / shelter)',wash:'Wash (riverbed)',shore:'Shoreline',mist:'Pink Mist',crater:'Crater'};
 const supportedLayers=()=>Object.keys(LAYER_NAMES).filter(k=>state.plan?.supports[k]);
 
@@ -51,6 +53,7 @@ async function loadZone({keepPending=false}={}){
  const changed=map.revision!==state.map?.revision||map.id!==state.map?.id;state.map=map;state.plan=map.floor?paintPlan(map.floor):null;
  if(!keepPending&&changed){state.pending=[];state.undone=[];}
  if(changed){state.baseKey='';state.reach=null;state.selection=null;}
+ if(syncRoute()&&state.tool==='route')renderToolOptions();
  for(const atlas of state.plan?.atlases??[])art(atlas);
  renderBadge();renderControls();renderPatch();renderPending();if(changed&&!state.base)fit();schedule();
 }
@@ -99,6 +102,7 @@ function draw(){
  if($('showReach').checked){state.reach??=reachableCells(f);ctx.fillStyle='rgba(255,60,90,.35)';for(let y=0;y<f.height;y++)for(let x=0;x<f.width;x++)if(walkableCell(f,x,y)&&!state.reach.has(x+','+y))ctx.fillRect(x*TILE,y*TILE,TILE,TILE);} // Walkable but cut off from every entrance.
  if($('showPlayers').checked)for(const p of m.players??[]){ctx.fillStyle='#7fe0c0';ctx.fillRect(p.x*TILE+9,p.y*TILE+9,TILE-18,TILE-18);ctx.strokeStyle='#fff';ctx.strokeRect(p.x*TILE+9,p.y*TILE+9,TILE-18,TILE-18);}
  if($('showGrid').checked&&state.zoom>=0.5){ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=1/state.zoom;ctx.beginPath();for(let x=0;x<=f.width;x++){ctx.moveTo(x*TILE,0);ctx.lineTo(x*TILE,f.height*TILE);}for(let y=0;y<=f.height;y++){ctx.moveTo(0,y*TILE);ctx.lineTo(f.width*TILE,y*TILE);}ctx.stroke();}
+ if($('showRoutes').checked||state.tool==='route')drawRoutes(ctx,f);
  if(state.selection){const s=state.selection;ctx.strokeStyle='#ffdc3c';ctx.lineWidth=2/state.zoom;ctx.strokeRect(s.x*TILE,s.y*TILE,(s.w??1)*TILE,(s.h??1)*TILE);}
  if(state.hover){const h=state.hover,o=state.opts;ctx.strokeStyle='#fff';ctx.lineWidth=1/state.zoom;
   if(state.tool==='terrain'){const r=Math.floor(o.brushSize/2);ctx.strokeRect((h.x-r)*TILE,(h.y-r)*TILE,o.brushSize*TILE,o.brushSize*TILE);if(state.drag?.rect){const a=state.drag.rect;ctx.strokeStyle='#ffdc3c';ctx.strokeRect(Math.min(a.x,h.x)*TILE,Math.min(a.y,h.y)*TILE,(Math.abs(h.x-a.x)+1)*TILE,(Math.abs(h.y-a.y)+1)*TILE);}}
@@ -124,7 +128,7 @@ function describe(cell){ // Inspector text for the cell under the cursor.
  for(const d of f.fixtures??[])if(x>=d.x&&x<d.x+(d.span_w??1)&&y>=d.y&&y<d.y+(d.span_h??1))lines.push(d.kind+' '+(d.name||d.id||'')+(d.sprite?' '+d.sprite:''));
  for(const e of [...(f.exits??[]),...(f.portals??[])])if(x>=e.x&&x<e.x+(e.w??1)&&y>=e.y&&y<e.y+(e.h??1))lines.push((e.style??'exit')+' → '+(e.name??e.zone??e.target??''));
  for(const e of f.enemies??[])if(e.x===x&&e.y===y&&!e.dead)lines.push('monster '+(e.definition?.name??e.type)+(e.manual?' (DM)':'')+(e.engaged?' in combat':''));
- for(const p of m.placements??[])if(p.x===x&&p.y===y)lines.push(p.kind+' '+p.name+' ['+p.content+'] '+p.lifetime);
+ for(const p of m.placements??[])if(p.x===x&&p.y===y)lines.push(p.kind+' '+p.name+' ['+p.content+'] '+p.lifetime+(p.routes?.length?' · '+p.routes.length+' route'+(p.routes.length>1?'s':''):''));
  for(const p of m.players??[])if(p.x===x&&p.y===y)lines.push('player '+p.name);
  for(const c of f.chests??[])if(c.x===x&&c.y===y)lines.push('chest '+c.id);for(const c of f.pickups??[])if(c.x===x&&c.y===y)lines.push('pickup '+c.id);
  const entrance=f.entrance??f.spawn;if(entrance?.x===x&&entrance?.y===y)lines.push('arrival spawn');for(const [zone,e] of Object.entries(f.entries??{}))if(e.x===x&&e.y===y)lines.push('arrival from '+zone);
@@ -181,6 +185,7 @@ function renderToolOptions(){
   else{const targets=state.map?.crossings??[];if(!targets.length){el('p','This map cannot open new crossings.',host,'note');return;}if(!targets.some(t=>t.id===o.newZone))o.newZone=targets[0].id;field(host,'Leads to','newZone','text',targets.map(t=>({id:t.id,name:t.name+' · '+t.id})));field(host,'Kind','newStyle','text',[{id:'gap',name:'Gate in the outer wall'},{id:'warp',name:'Warp pad on the floor'}]);
    el('p',o.newStyle==='gap'?'Click a tile on the outer wall: the gate opens there (two tiles wide) and a corridor is carved inward until it meets the map. Arrivals from that neighbour stand just inside.':'Click a walkable tile: the pad goes there and arrivals from that neighbour stand beside it.',host,'note');}
  }
+ if(state.tool==='route')renderRouteOptions(host);
  if(state.tool==='spawn'){const targets=[{id:'entrance',name:'Default arrival (entrance / spawn)'},...Object.keys(state.map?.floor?.entries??{}).map(z=>({id:z,name:'Arrival from '+z}))];if(!targets.some(t=>t.id===o.spawnTarget))o.spawnTarget='entrance';field(host,'Which arrival point','spawnTarget','text',targets);el('p','Click a walkable tile to move that arrival point there.',host,'note');}
 }
 function renderSpriteList(){const list=$('spriteList');if(!list)return;clear(list);const q=(state.opts.sceneryQuery??'').toLowerCase(),prefix=sceneryPrefixes(),names=Object.keys(state.manifest?.sprites??{}).filter(n=>!n.startsWith('sprTile')).filter(n=>q?n.toLowerCase().includes(q):prefix.some(p=>n.startsWith(p))).sort();for(const n of names.slice(0,200)){const b=el('button',n,list);b.type='button';b.className=n===state.opts.scenerySprite?'active':'';b.onclick=()=>{state.opts.scenerySprite=n;onOptionChange('scenerySprite');};}if(!names.length)el('p','No sprites match. Try part of a name, like "hay" or "bench".',list,'note');}
@@ -212,6 +217,67 @@ function brushCells(cx,cy){const o=state.opts,f=state.map.floor,r=Math.floor(o.b
 function cellOp(x,y){const o=state.opts,grids=state.plan?.supports.grids;if(o.brush==='wall')return {x,y,wall:1,...(grids?{wallTile:o.wallTile,floor:0}:{})};if(o.brush==='floor')return {x,y,wall:0,prop:0,...(grids?{floor:o.floorTile,wallTile:0}:{})};if(o.brush==='prop')return {x,y,prop:1};return {x,y,prop:0};}
 function rectCells(a,b){const cells=[];for(let y=Math.min(a.y,b.y);y<=Math.max(a.y,b.y);y++)for(let x=Math.min(a.x,b.x);x<=Math.max(a.x,b.x);x++)cells.push(cellOp(x,y));return cells;}
 
+// ----- NPC routes: patrols and schedules on an NPC placement (quest-placements.mjs world_route_content) -----
+function routeDraft(p,index=0){return {placement:p.id,name:p.name,routes:structuredClone(p.routes??[]),index:Math.max(0,Math.min(index,(p.routes?.length??1)-1)),dirty:false,dropped:p.routeDropped??0};}
+function pickRoute(p){state.route=routeDraft(p);}
+function syncRoute(){ /* An untouched draft follows the server copy of its NPC; an edited one is left alone. True when the draft was replaced. */
+ const r=state.route;if(!r||r.dirty)return false;const p=state.map?.placements?.find(p=>p.id===r.placement);state.route=p?routeDraft(p,r.index):null;return true;
+}
+function walkPath(f,from,to){ /* Shortest four-way walk between two tiles for the preview; the server steps the same way. */
+ const prev=new Map([[from.x+','+from.y,null]]),queue=[from];
+ for(let i=0;i<queue.length;i++){const p=queue[i];if(p.x===to.x&&p.y===to.y){const path=[];for(let at=p;at;at=prev.get(at.x+','+at.y))path.unshift(at);return path;}
+  for(const [dx,dy] of [[0,-1],[-1,0],[1,0],[0,1]]){const q={x:p.x+dx,y:p.y+dy},k=q.x+','+q.y;if(!prev.has(k)&&walkableCell(f,q.x,q.y)){prev.set(k,p);queue.push(q);}}}
+ return null;
+}
+function cachedPath(f,from,to){ /* Paths are kept until the floor or its pending changes differ (same key as the painted base). */
+ if(state.paths?.key!==state.baseKey)state.paths={key:state.baseKey,map:new Map()};
+ const key=from.x+','+from.y+'>'+to.x+','+to.y;if(!state.paths.map.has(key))state.paths.map.set(key,walkPath(f,from,to));return state.paths.map.get(key);
+}
+function drawRoutes(ctx,f){ /* Every NPC's routes; the open draft is drawn in place of its saved copy. Dashed: the walk from home. Red: no way through. */
+ const draft=state.route,centre=c=>[c.x*TILE+TILE/2,c.y*TILE+TILE/2];
+ for(const p of state.map.placements??[]){
+  const own=draft?.placement===p.id,routes=own?draft.routes:p.routes??[],home=p.home??p;if(p.kind!=='npc'||!routes.length)continue;
+  routes.forEach((r,ri)=>{
+   const colour=ROUTE_COLOURS[ri%ROUTE_COLOURS.length],stops=[home,...r.points,...(r.mode==='loop'&&r.points.length>1?[r.points[0]]:[])];
+   ctx.globalAlpha=(own&&ri!==draft.index)||(!own&&draft&&state.tool==='route')?.3:1;ctx.lineWidth=3/state.zoom;
+   for(let i=0;i<stops.length-1;i++){const path=cachedPath(f,stops[i],stops[i+1])??[stops[i],stops[i+1]];ctx.strokeStyle=path.length===2&&Math.abs(path[0].x-path[1].x)+Math.abs(path[0].y-path[1].y)>1?'#ff7b8f':colour;ctx.setLineDash(i===0?[6,6]:[]);ctx.beginPath();path.forEach((c,n)=>ctx[n?'lineTo':'moveTo'](...centre(c)));ctx.stroke();}
+   ctx.setLineDash([]);ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+   r.points.forEach((c,n)=>{const [cx,cy]=centre(c);ctx.fillStyle=colour;ctx.beginPath();ctx.arc(cx,cy,9,0,Math.PI*2);ctx.fill();ctx.fillStyle='#160f1c';ctx.fillText(String(n+1),cx,cy+1);});
+  });
+  ctx.globalAlpha=1;ctx.strokeStyle='#fff';ctx.lineWidth=1/state.zoom;ctx.strokeRect(home.x*TILE+10,home.y*TILE+10,TILE-20,TILE-20);
+ }
+ ctx.globalAlpha=1;ctx.setLineDash([]);
+}
+function renderRouteOptions(host){
+ const r=state.route;
+ if(!r){el('p','Click an NPC to give it patrol routes and a schedule. Routed NPCs walk while a player is in the zone, and players can pass through them while they are on the move.',host,'note');return;}
+ el('h2',r.name+(r.dirty?' · unsaved':''),host);
+ if(r.dropped)el('p',r.dropped+' waypoint'+(r.dropped>1?'s':'')+' did not fit this layout and '+(r.dropped>1?'were':'was')+' dropped. Saving keeps what is shown.',host,'note');
+ const touch=()=>{r.dirty=true;renderToolOptions();schedule();};
+ const ask=(label,type,value,set,options)=>{const wrap=el('label',label,host),input=el(options?'select':'input',undefined,wrap);if(options)for(const o of options){const opt=el('option',o.name,input);opt.value=o.id;}else input.type=type;input.value=value;input.onchange=()=>{set(input.value);touch();};return input;};
+ const tabs=el('div',undefined,host,'row');
+ r.routes.forEach((route,i)=>{const b=el('button',route.name||'Route '+(i+1),tabs);b.type='button';b.className=i===r.index?'active':'';b.style.borderColor=ROUTE_COLOURS[i%ROUTE_COLOURS.length];b.onclick=()=>{r.index=i;renderToolOptions();schedule();};});
+ if(r.routes.length<4){const add=el('button','+ route',tabs);add.type='button';add.onclick=()=>{r.routes.push({name:'',mode:'loop',when:{type:'always'},points:[]});r.index=r.routes.length-1;touch();};}
+ const route=r.routes[r.index];
+ if(route){
+  ask('Name','text',route.name??'',v=>{route.name=v.slice(0,60);});
+  ask('Movement','',route.mode,v=>{route.mode=v;},[{id:'loop',name:'Loop (last waypoint back to the first)'},{id:'pingpong',name:'Back and forth'},{id:'once',name:'Walk there and stay'}]);
+  ask('When','',route.when.type,v=>{route.when=v==='daily'?{type:'daily',from:480,to:1200}:v==='every'?{type:'every',minutes:30}:{type:'always'};},[{id:'always',name:'Always'},{id:'daily',name:'Daily, between two times'},{id:'every',name:'One lap every N minutes'}]);
+  if(route.when.type==='daily'){ask('From (UTC)','time',clockText(route.when.from),v=>{route.when.from=clockMinutes(v);});ask('Until (UTC)','time',clockText(route.when.to),v=>{route.when.to=clockMinutes(v);});el('p','The server clock is UTC; it is '+new Date().toISOString().slice(11,16)+' now.',host,'note');}
+  if(route.when.type==='every'){const minutes=ask('Minutes between laps','number',route.when.minutes,v=>{route.when.minutes=Math.max(1,Math.min(1440,Math.floor(Number(v))||1));});minutes.min=1;minutes.max=1440;}
+  route.points.forEach((p,i)=>{const line=el('div',undefined,host,'row');el('span',(i+1)+'. '+p.x+','+p.y+' · wait',line,'mono');const wait=el('input',undefined,line);wait.type='number';wait.min=0;wait.max=600;wait.value=p.wait??0;wait.style.width='70px';wait.setAttribute('aria-label','Seconds to wait at waypoint '+(i+1));wait.onchange=()=>{p.wait=Math.max(0,Math.min(600,Math.floor(Number(wait.value))||0));touch();};el('span','s',line,'note');const x=el('button','×',line);x.type='button';x.title='Remove this waypoint';x.onclick=()=>{route.points.splice(i,1);touch();};});
+  el('p','Click a walkable tile to add a waypoint (16 at most). Alt-click a waypoint to remove it. Routes are tried in order: the first whose schedule matches is walked, and with none the NPC walks home.',host,'note');
+  const del=el('button','Delete this route',host);del.type='button';del.onclick=()=>{r.routes.splice(r.index,1);r.index=Math.max(0,r.index-1);touch();};
+ }
+ const actions=el('div',undefined,host,'row'),save=el('button','Save routes',actions,'primary'),drop=el('button',r.dirty?'Discard changes':'Choose another NPC',actions);
+ save.type='button';save.disabled=!r.dirty;save.onclick=()=>attempt(saveRoutes);
+ drop.type='button';drop.onclick=()=>{if(r.dirty){r.dirty=false;syncRoute();}else state.route=null;renderToolOptions();schedule();};
+}
+async function saveRoutes(){
+ const r=state.route,m=state.map;if(!r)return;if(r.routes.some(route=>!route.points.length))throw Error('Every route needs at least one waypoint.');
+ await action('world_route_content',{zone:m.id,edition:m.edition,placement:r.placement,routes:r.routes});r.dirty=false;await loadZone({keepPending:true});if(state.tool==='route')renderToolOptions();say('Routes saved. '+r.name+' starts again from home.');
+}
+
 async function useTool(cell,event){
  const m=state.map,o=state.opts,f=effectiveFloor();if(!m?.floor||!cell)return;const {x,y}=cell;
  if(state.tool==='inspect'){const placement=m.placements?.find(p=>p.x===x&&p.y===y),foe=m.floor.enemies?.find(e=>e.x===x&&e.y===y&&!e.dead&&e.manual);state.selection=placement?{x,y,label:placement.kind+' '+placement.name,placement}:foe?{x,y,label:'DM monster '+(foe.definition?.name??foe.type),monster:foe}:{x,y,label:'Tile '+x+','+y};renderToolOptions();schedule();return;}
@@ -235,6 +301,15 @@ async function useTool(cell,event){
  if(state.tool==='exits'){
   if(o.exitMode==='add'){if(!o.newZone)throw Error('Choose where the crossing leads.');const target=(state.map?.crossings??[]).find(t=>t.id===o.newZone);if(o.newStyle==='gap'){const side=x===0?'left':x===f.width-1?'right':y===0?'top':y===f.height-1?'bottom':null;if(!side)throw Error('Click a tile on the outer wall for a gate.');queueOp({kind:'exit',op:'add',zone:o.newZone,name:target?.name??o.newZone,style:'gap',side,to:{x,y}});}else queueOp({kind:'exit',op:'add',zone:o.newZone,name:target?.name??o.newZone,style:'warp',to:{x,y}});return;}
   if(!o.exitZone)throw Error('Choose an exit first.');const chosen=(f.exits??[]).find(e=>(e.id??e.zone)===o.exitZone);queueOp({kind:'exit',op:'move',...(chosen?.id?{exit:chosen.id}:{}),zone:chosen?.zone??o.exitZone,to:{x,y}});return;}
+ if(state.tool==='route'){
+  const r=state.route,npc=m.placements?.find(p=>p.kind==='npc'&&((p.x===x&&p.y===y)||(p.home?.x===x&&p.home?.y===y)));
+  if(!r||(npc&&npc.id!==r.placement)){if(!npc)throw Error('Click an NPC first.');if(r?.dirty)throw Error('Save or discard the open routes first.');pickRoute(npc);renderToolOptions();schedule();return;}
+  if(!r.routes.length)r.routes.push({name:'',mode:'loop',when:{type:'always'},points:[]});
+  const route=r.routes[r.index]??r.routes[r.index=0],at=route.points.findIndex(p=>p.x===x&&p.y===y);
+  if(event.altKey){if(at<0)throw Error('No waypoint here.');route.points.splice(at,1);}
+  else {if(route.points.length>=16)throw Error('A route holds 16 waypoints at most.');if(!walkableCell(f,x,y)||!(state.reach??=reachableCells(f)).has(x+','+y))throw Error('Choose a reachable, walkable tile.');route.points.push({x,y,wait:0});}
+  r.dirty=true;renderToolOptions();schedule();return;
+ }
  if(state.tool==='spawn'){if(!walkableCell(f,x,y))throw Error('Choose a walkable tile.');queueOp(o.spawnTarget==='entrance'?{kind:'spawn',entrance:{x,y}}:{kind:'spawn',entries:{[o.spawnTarget]:{x,y}}});return;}
 }
 
@@ -247,9 +322,9 @@ function bind(){
  stage.addEventListener('pointerleave',()=>{state.hover=null;schedule();});stage.addEventListener('contextmenu',e=>e.preventDefault());
  window.addEventListener('keydown',e=>{if(e.code==='Space'){space=true;stage.style.cursor='grab';}if(e.key==='Escape'){state.drag=null;state.selection=null;renderToolOptions();schedule();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();}});
  window.addEventListener('keyup',e=>{if(e.code==='Space'){space=false;stage.style.cursor='crosshair';}});window.addEventListener('resize',schedule);
- $('zone').onchange=()=>attempt(async()=>{state.zone=$('zone').value;state.map=null;state.base=null;state.pending=[];state.undone=[];await loadZone();fit();renderPalette();renderToolOptions();});
+ $('zone').onchange=()=>attempt(async()=>{state.zone=$('zone').value;state.map=null;state.base=null;state.pending=[];state.undone=[];state.route=null;await loadZone();fit();renderPalette();renderToolOptions();});
  $('refresh').onclick=()=>attempt(()=>loadZone({keepPending:true}));$('zoomIn').onclick=()=>zoomBy(1.25);$('zoomOut').onclick=()=>zoomBy(0.8);$('fit').onclick=fit;
- for(const id of ['showGrid','showReach','showSafe','showLayers','showPlayers'])$(id).onchange=()=>{state.baseKey='';schedule();};
+ for(const id of ['showGrid','showReach','showSafe','showLayers','showPlayers','showRoutes'])$(id).onchange=()=>{state.baseKey='';schedule();};
  $('download').onclick=()=>attempt(async()=>{const layers=['terrain','scenery','content',...($('showPlayers').checked?['players']:[]),...($('showGrid').checked?['grid']:[]),...($('showSafe').checked?['safe']:[])];const r=await liveApi('/gm/map.png?zone='+encodeURIComponent(state.zone)+'&scale='+$('scale').value+'&layers='+layers.join(','),null,true);const blob=await r.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=state.zone+'.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);say('Painted '+state.zone+' ('+Math.round(blob.size/1024)+' KB).');});
  $('regenerate').onclick=()=>attempt(async()=>{const m=state.map;if(m.district){if(!await confirmDialog('Roll a brand-new layout for this hub now? Visitors return to the spawn and scenery rerolls.'))return;await action('world_hub_regenerate',{zone:m.id,edition:m.edition,revision:m.revision,confirm_reset:true});}else{if(!await confirmDialog('Regenerate this Dive? Treasure claims and boss rewards reset for everyone once it drains.'))return;await action('world_regenerate',{zone:m.id,edition:m.edition,revision:m.revision,confirm_reset_rewards:true});}await loadZone();say('Regeneration requested.');});
  $('cancel').onclick=()=>attempt(async()=>{const m=state.map;await action('world_cancel',{zone:m.id,edition:m.edition,revision:m.revision,job:m.job?.id});await loadZone();say('Regeneration cancelled.');});
@@ -259,7 +334,7 @@ function bind(){
 }
 function undo(){const op=state.pending.pop();if(!op)return;state.undone.push(op);state.reach=null;state.baseKey='';renderPending();schedule();}
 function redo(){const op=state.undone.pop();if(!op)return;state.pending.push(op);state.reach=null;state.baseKey='';renderPending();schedule();}
-function startTimer(){if(state.timer)clearInterval(state.timer);state.timer=null;if(!$('auto').checked)return;state.timer=setInterval(()=>{if(document.hidden||state.pending.length||state.drag)return;loadZone({keepPending:true}).catch(e=>say(e.message,true));},5000);} // Players and monsters move; a draft in progress is never disturbed.
+function startTimer(){if(state.timer)clearInterval(state.timer);state.timer=null;if(!$('auto').checked)return;state.timer=setInterval(()=>{if(document.hidden||state.pending.length||state.drag||state.route?.dirty)return;loadZone({keepPending:true}).catch(e=>say(e.message,true));},5000);} // Players and monsters move; a draft in progress is never disturbed.
 
 window.lidollMapEditor={state,screenOf:(x,y)=>({x:state.pan.x+(x+0.5)*TILE*state.zoom,y:state.pan.y+(y+0.5)*TILE*state.zoom})}; // Diagnostics for python/tests/fixtures/map_editor_browser.mjs; nothing secret lives in state.
 attempt(async()=>{bind();await liveApi('/gm/whoami');await loadContent();renderPalette();renderToolOptions();await loadZone();fit();startTimer();say('Ready. '+(state.map?.floor?'Pick a tool on the left.':''));});

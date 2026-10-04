@@ -9,7 +9,7 @@ import {hubData} from './hubs.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
-import {isAbsolute,resolve} from 'node:path';
+import {dirname,isAbsolute,resolve} from 'node:path';
 import {createZoneShards,zoneWorkerCount} from './zone-shards.mjs';
 import {installZoneSnapshotEpochs} from './zone-snapshot-epochs.mjs';
 import {fileURLToPath} from 'node:url';
@@ -18,6 +18,7 @@ import {createQuestZones} from './zones.mjs';
 import {createCloudSaves} from './cloud-saves.mjs';
 import {createCharacterManagement} from './character-management.mjs';
 import {createPrivateSprites} from './private-sprites.mjs';
+import {spriteWorkshop} from './sprite-workshop.mjs';
 import {dailyCoinCap} from './hubs.mjs';
 import {createOnlineFeed} from './online-feed.mjs';
 import {createMommybotProfile} from './mommybot-profile.mjs';
@@ -33,6 +34,7 @@ import {createComputePool,computeWorkerCount} from './compute-pool.mjs';
 import {createAuthCache,authCacheMs} from './auth-cache.mjs';
 import {parseKnown,elide} from './snapshot-cache.mjs';
 import {cacheStatements} from './statement-cache.mjs';
+import {createBalanceStats,attachBalanceStats,logOwnerBalance} from './balance-stats.mjs'; // Game-balance statistics live in their own file, balance.sqlite, beside the game database.
 
 export function loadQuestPack(path){ // LIDOLLQUEST_QUEST_PACK names a shipped quest file; unset means no live quests, exactly as before.
  if(!path)return [];
@@ -48,6 +50,7 @@ export function loadQuestPack(path){ // LIDOLLQUEST_QUEST_PACK names a shipped q
 export function createQuestService({filename=':memory:',walletClient,spriteProvider,artJobOptions={},now=Date.now,roll,log=console.warn,performanceOptions={},workerCount=0,zoneWorkers=0,authTtlMs=authCacheMs(),onlineToken=process.env.MOMMYBOT_ONLINE_TOKEN||'',gmAllow=process.env.LIDOLLQUEST_GM_ALLOW||'',gmEnabled=envFlag('LIDOLLQUEST_GM_ENABLED',true),gmTrustProxy=process.env.LIDOLLQUEST_GM_TRUST_PROXY||'',gmRequireTls=envFlag('LIDOLLQUEST_GM_REQUIRE_TLS'),questPack=loadQuestPack(process.env.LIDOLLQUEST_QUEST_PACK||''),followerOptions={},followerChatOptions={},gmHelpOptions={},blankCanvas=true}={}){
  const poolSize=computeWorkerCount(workerCount),zoneCount=zoneWorkerCount(zoneWorkers);if(zoneCount&&filename===':memory:')throw Error('Zone workers require a persistent database');let compute=null,shards=null; // Validate configuration before opening persistent resources.
  const db=cacheStatements(new DatabaseSync(filename));db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;'); /* NORMAL is SQLite's recommended setting for WAL: every commit survives an application crash, and only an OS crash or power loss can drop the last few milliseconds of commits. It removes the per-commit fsync that FULL paid for every heartbeat, move and chat line. */
+ const balance=attachBalanceStats(db,createBalanceStats({filename:filename===':memory:'?':memory:':resolve(dirname(resolve(filename)),'balance.sqlite'),now,log})); // Buffered per game transaction and written only after it commits.
  migrateZoneIds(db,{log}); // Before any module reads presence, content or maps: saved overworld and full-dungeon ids move to their new names once.
  if(blankCanvas){migrateBlankCanvas(db,now);migrateRemovedQuestLogs(db,now);restoreCompanionSheets(db,now);} // Companions and Pip are restored exceptions; removed quests stay out of player journals.
  db.exec(`CREATE TABLE IF NOT EXISTS wallet_cache(owner TEXT PRIMARY KEY,coins INTEGER NOT NULL);
@@ -62,10 +65,11 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
  const live=createWorldContent(db,{now,blankCanvas,spells:combatData.spells,equipment:{...hubData.equipment,...combatData.defeat_items},defeatEquipment:combatData.defeat_equipment,questPack,questLibraryPack:blankCanvas?[]:loadQuestPack('content/weekly_quests.json')}); // Legacy imports remain available to offline compatibility fixtures, not the production workshop.
  const artJobs=createWorldJobs(db,{live,now,...artJobOptions});
  const tutor=createTutor(db,{now,log,live}); // Created before the GM panel (which edits its settings) and handed to zones below.
- const gm=createGameMasterPanel(db,{helpOptions:gmHelpOptions,tutor,walletClient,announcements:()=>zones.announcements,welcome:()=>zones.welcome,guilds:()=>zones.guilds,playerStores:()=>zones.playerStores(),live,artJobs,world:()=>zones.world,performanceSnapshot:metrics.snapshot,enchantments:createEnchantmentStore(db,{now}),enchantmentTable:()=>diveData.enchantments,loot:createLootStore(db,{now}),lootTable:()=>diveData.loot,lootItems:()=>diveData.items,lootBases:()=>diveData.bases,alchemy:createAlchemyStore(db,{now}),alchemyTable:()=>diveData.alchemy,allow:gmAllow,trustProxy:gmTrustProxy,requireTls:gmRequireTls,enabled:gmEnabled,now,log}); // Staff moderation owns its own tables and never touches wallet credentials.
+ const gm=createGameMasterPanel(db,{helpOptions:gmHelpOptions,tutor,walletClient,announcements:()=>zones.announcements,welcome:()=>zones.welcome,guilds:()=>zones.guilds,playerStores:()=>zones.playerStores(),live,artJobs,world:()=>zones.world,performanceSnapshot:metrics.snapshot,balance,enchantments:createEnchantmentStore(db,{now}),enchantmentTable:()=>diveData.enchantments,loot:createLootStore(db,{now}),lootTable:()=>diveData.loot,lootItems:()=>diveData.items,lootBases:()=>diveData.bases,alchemy:createAlchemyStore(db,{now}),alchemyTable:()=>diveData.alchemy,allow:gmAllow,trustProxy:gmTrustProxy,requireTls:gmRequireTls,enabled:gmEnabled,now,log}); // Staff moderation owns its own tables and never touches wallet credentials.
  const zones=createQuestZones(db,{now,roll,compute,live,followerOptions,followerChatOptions,measure:metrics.measure,onPresence:onlineFeed.record,enabled:owner=>!gm.suspended(owner),muted:gm.muted,audit:gm.record,grant:()=>{if(!identity)throw Error('Missing request identity');return identity;},wallet:owner=>({coins:db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(owner)?.coins??0}),adjust:(owner,asset,amount,id,reason)=>{
   if(asset!=='coins'||!Number.isSafeInteger(amount)||amount<1||amount>dailyCoinCap())throw Error('Invalid server award'); // A single entitlement can never exceed one day's whole allowance.
   db.prepare('INSERT INTO reward_outbox(id,owner,amount,reason) VALUES (?,?,?,?)').run(id,owner,amount,reason);
+  logOwnerBalance(db,'coins',owner,{value:amount,reason});
  },transfer:(owner,asset,amount,id,reason)=>{
   if(asset!=='coins'||!Number.isSafeInteger(amount)||amount<1||amount>512000000)throw Error('Invalid funded transfer');
   db.prepare('INSERT INTO reward_outbox(id,owner,amount,reason) VALUES (?,?,?,?)').run('store-'+createHash('sha256').update(id).digest('hex'),owner,amount,reason);
@@ -76,6 +80,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
  const cloud=createCloudSaves(db,{now});
  const sprites=createPrivateSprites(db,{walletClient,provider:spriteProvider,now,log});zones.setPrivateSprites(sprites);
  const management=createCharacterManagement(db,{walletClient,cloud,sprites,now,log});
+ spriteWorkshop(db); // Install workshop tables before read-only snapshot workers open the database.
  if(zoneCount){installZoneSnapshotEpochs(db);shards=createZoneShards({size:zoneCount,filename:resolve(filename),blankCanvas,questPack,followerEnabled:zones.followers.enabled,observe:metrics.observe});}
  const capabilities={followers:zones.followers.enabled,followerVersion:1,unifiedCreation:true,inspection:true,friends:true,cloudSaves:true,saveManagement:true,characterManagement:true,characterDescriptions:true,companionEquipment:true,companionBank:true,bankSales:true,companionShops:true,companionWithdraw:true,companionConsume:true,companionItemDetails:true,companionDiamondRolls:true,snapshotCache:true,guilds:true,welcome:true,links:welcomeLinks()}; // welcome: the snapshot carries welcome/welcomeDue and accepts welcome_done; links: where the client's wiki/store/Discord buttons go.
  const deliveries=new Map();
@@ -142,7 +147,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
    if(gm.suspended(verified.owner))throw Object.assign(Error('This account is suspended from online play.'),{status:403,code:'account_suspended'}); // Checked before any command runs, so a suspension cannot be outlasted by a held connection.
    if(String(verified.scope??'').split(' ').includes('stars:write'))await management.recover(verified.owner,token); // Finish an already-authorized debit before accepting gameplay after reconnect.
    if(url.pathname==='/quests/detail'){if(!String(verified.scope??'').split(' ').includes('social:read'))throw Object.assign(Error('Approve social access.'),{status:403});identity=verified;let result;try{result=zones.questRead(token,url.searchParams.get('character_id'),url.searchParams.get('quest'));}finally{identity=null;}res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));return;}
-   if(url.pathname==='/content/asset'){if(!String(verified.scope??'').split(' ').includes('social:read'))throw Object.assign(Error('Approve social access.'),{status:403});const result=live.asset(url.searchParams.get('asset_id'));res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));return;}
+   if(url.pathname==='/content/asset'){if(!String(verified.scope??'').split(' ').includes('social:read'))throw Object.assign(Error('Approve social access.'),{status:403});const assetId=url.searchParams.get('asset_id')??'',parts=/^workshop:([A-Za-z0-9_]+):([a-f0-9]{64})$/.exec(assetId),result=parts?spriteWorkshop(db).asset(parts[1],parts[2]):live.asset(assetId);res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));return;}
    if(url.pathname.startsWith('/sprites')){
     const scopes=String(verified.scope??'').split(' ');if(!scopes.includes(req.method==='GET'?'saves:read':'saves:write'))throw Object.assign(Error('Reconnect to approve sprite storage access.'),{status:403});
     if(req.method==='POST'&&input?.action==='generate'&&!scopes.includes('diamonds:write'))throw Object.assign(Error('Reconnect and approve diamond spending.'),{status:403,code:'insufficient_scope'});
@@ -194,8 +199,8 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
   finally{active--;const count=perToken.get(token)-1;if(count)perToken.set(token,count);else perToken.delete(token);}
  })().catch(error=>{if(!error.status)log('zone_request_failed',String(req.url??'').split('?')[0].slice(0,80),error?.constructor?.name??'Error',String(error?.message??'unknown').slice(0,240),String(error?.stack??'').split('\n').slice(1,4).map(s=>s.trim()).join(' | ')); // Unexpected failures only: route, error class, message and the top frames. Never tokens, request bodies or inventories.
   if(res.destroyed)return;if(res.headersSent){res.destroy();return;}res.writeHead(error.status??503,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({error:error.code??'zone_request_failed',error_description:error.status?error.message:'Online zones are temporarily unavailable.'}));});});
- const diveTimer=setInterval(()=>metrics.measure('world.timer',()=>zones.tick()),1000);diveTimer.unref(); // Weekly resets and roaming continue without browser requests.
+ const diveTimer=setInterval(()=>{metrics.measure('world.timer',()=>zones.tick());balance.flush();},1000); /* The flush catches events logged outside any transaction. */diveTimer.unref(); // Weekly resets and roaming continue without browser requests.
  const onlinePrune=setInterval(()=>onlineFeed.prune(),3600000);onlinePrune.unref();server.on('close',()=>clearInterval(onlinePrune));
  const tutorTimer=setInterval(()=>void tutor.kick(),5000),tutorPrune=setInterval(()=>tutor.prune(),3600000);tutorTimer.unref();tutorPrune.unref();server.on('close',()=>{clearInterval(tutorTimer);clearInterval(tutorPrune);}); // Retries and restarts: pending questions are picked up within 5 s.
- server.requestTimeout=10000;server.headersTimeout=5000;server.on('close',()=>{clearInterval(diveTimer);zones.close();artJobs.close();void compute?.close();void shards?.close();sprites.close();metrics.close();db.close();});return {server,db,gm,metrics,live,artJobs,zones,shards,async prepare(){await zones.prepare();await shards?.ready();}};
+ server.requestTimeout=10000;server.headersTimeout=5000;server.on('close',()=>{clearInterval(diveTimer);zones.close();artJobs.close();void compute?.close();void shards?.close();sprites.close();metrics.close();db.close();balance.close();});return {server,db,gm,metrics,balance,live,artJobs,zones,shards,async prepare(){await zones.prepare();await shards?.ready();}};
 } // The standalone database owns characters, fights, chat, presence and durable payouts; the tracker owns only shared currency.

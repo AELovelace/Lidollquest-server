@@ -16,6 +16,10 @@ The server owns the entire interaction while replacement content is available or
 
 Use **+ npc** to open the NPC's block canvas. Keep the generated ID, and select Settings to edit name, description, sprites, wander radius and quest links. Add **Dialogue page**, **Player choice**, and **Greeting reaction** blocks from the palette. Select a page before adding its choices. Connect the Settings greeting output to the default page. Start with a stationary NPC while testing proximity and placement.
 
+In Settings, **Design a Sprite Lab look** chooses body, hair, clothing, accessories and colours. The static quest editor includes the same layer catalogue and artwork, so previewing and saving a look works without a live GM connection. Looks travel with exported NPC records and receive the same validation when imported. A look replaces the walking sprite; a separately selected portrait still takes precedence in conversations.
+
+**Default facing** chooses Down (south), Up (north), Right (east) or Left (west). A wander radius of zero keeps the NPC facing that way. Wanderers begin with that direction and turn when they step. This works for both layered looks and directional walking sprites. Save and publish to update existing placements; a one-frame image has no directional frames to show.
+
 Choose **Save content drafts** to save the NPC bundle independently. **Publish content** publishes the reviewed shared records without requiring a flow. **Back to story flow** keeps the bundle available to save/publish with that story. Specialized artwork tools remain in the advanced NPC editor; its Dialogue section links to this block canvas. Refresh deliberately after another editor changes the same record to avoid stale revisions.
 
 Select one page, choice or reaction to edit its fields in the right inspector. Solid lines select the next page; dashed gray lines identify the page owning each choice. See [content block controls](workshop.md#shared-content-uses-blocks-too). Older tutorial images show the previous forms.
