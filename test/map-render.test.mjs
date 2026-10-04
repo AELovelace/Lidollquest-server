@@ -11,7 +11,7 @@ import {hubData} from '../server/hubs.mjs';
 import {compiledArtwork} from '../server/defeat-scenes.mjs';
 import {createMapRenderer,DEFAULT_LAYERS} from '../server/map-render.mjs';
 import {decodePng} from '../server/png-codec.mjs';
-import {tileAt,paintPlan,tileCell,TILE_SIZE} from '../server/tile-painter.mjs';
+import {tileAt,paintPlan,tileCell,walkableCell,TILE_SIZE} from '../server/tile-painter.mjs';
 import {validateWorldPng} from '../server/world-png.mjs';
 
 const tiles=JSON.parse(readFileSync(new URL('../server/tile-artwork.json',import.meta.url),'utf8')),avatars=JSON.parse(readFileSync(new URL('../server/avatars.json',import.meta.url),'utf8'));
@@ -82,5 +82,20 @@ test('NPCs fit their one 32px cell like the client draws them, even from 64px Pi
   const spill=(withNpc,without)=>{let changed=0;for(let i=0;i<withNpc.data.length;i+=4)if(withNpc.data[i]!==without.data[i]||withNpc.data[i+1]!==without.data[i+1]||withNpc.data[i+2]!==without.data[i+2]){changed++;const x=(i/4)%withNpc.width,y=Math.floor(i/4/withNpc.width);assert.ok(Math.floor(x/TILE_SIZE)===5&&Math.floor(y/TILE_SIZE)===5,`NPC pixel ${x},${y} spills outside its cell`);}return changed;}; // Every pixel the NPC changed must sit in its own cell.
   assert.ok(spill(f.renderer.paint({...view,floor,placements:[npc],players:[]},['content']),f.renderer.paint({...view,floor,placements:[],players:[]},['content']))>50,'the placed NPC was drawn');
   assert.ok(spill(f.renderer.paint({...view,floor:{...floor,fixtures:[{...npc,id:'n'}]},placements:[],players:[]},['scenery']),f.renderer.paint({...view,floor,placements:[],players:[]},['scenery']))>50,'the resident fixture was drawn'); // Hub resident fixtures use the same rule.
+ }finally{f.close();}
+});
+
+test('tiles under hub furniture are painted: the paint view carries terrain walls, not the fixture-stamped grid',()=>{
+ const f=fixture();try{
+  let checked=0;
+  for(const z of f.zones.world.catalog().filter(z=>z.kind==='hub')){
+   const view=f.zones.world.paintMap(z.id),floor=view.floor;if(!floor?.floors)continue; // District and authored rooms paint from tile grids.
+   const plan=paintPlan(floor);
+   for(const fx of floor.fixtures??[])if(fx.solid!==false)for(let dy=0;dy<(fx.span_h??1);dy++)for(let dx=0;dx<(fx.span_w??1);dx++){const x=fx.x+dx,y=fx.y+dy;if(x<0||y<0||x>=floor.width||y>=floor.height)continue;
+    assert.ok(tileAt(floor,x,y,{plan,tilesets:tiles.tilesets}).length>0,z.id+': nothing painted under '+fx.kind+' '+fx.id+' at '+x+','+y);checked++;}
+   assert.ok(walkableCell(floor,0,0)===false,'the border is still solid');
+   const solid=(floor.fixtures??[]).find(fx=>fx.solid!==false);if(solid)assert.equal(walkableCell(floor,solid.x,solid.y),false,z.id+': furniture still blocks walking in the editor');
+  }
+  assert.ok(checked>50,'checked the tiles under many hub fixtures ('+checked+')');
  }finally{f.close();}
 });

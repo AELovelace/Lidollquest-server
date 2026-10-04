@@ -47,8 +47,8 @@ export const payToiletFixture=(id,x,y)=>({id,name:'Pay Toilet',kind:'toilet',sty
 export const addPayToilets=(f,def,data=districtData)=>addSpreadFixtures(f,def,data,{count:def.lobby?.pay_toilets??0,seed:'paytoilets',is:x=>x.kind==='toilet'&&x.style==='paytoilet',make:(n,x,y)=>payToiletFixture('paytoilet-'+n,x,y)}); // Arcadia's few street pay toilets, spread like Honeydew's outhouses.
 export const addChangers=(f,def,data=districtData)=>addSpreadFixtures(f,def,data,{count:def.lobby?.changers??0,seed:'changers',is:x=>x.kind==='changer',make:(n,x,y)=>changerFixture('changer-'+n,x,y)}); // Utopia's Auto-Changing Stations.
 export function addSpreadFixtures(f,def,data,{count,seed,is,make}){ // 1x2 fixtures spread round a lobby town (outhouses, changers). Used by new months and upgrades saved ones in place: its own seed, no reroll.
- const want=Math.max(0,count),have=f.fixtures.filter(is);
- if(have.length>=want)return false;
+ const want=Math.max(0,count),have=f.fixtures.filter(is),removed=(f.patchUndo?.fixturesRemoved??[]).filter(is).length; // GM removals (Map Editor) count as placed, so the town does not grow a replacement
+ if(have.length+removed>=want)return false;
  const {width:W,height:H}=districtSize(def,data),cx=Math.floor(W/2),cy=Math.floor(H/2),rnd=seeded(`${def.hub}:${f.district?.layoutKey??''}:${seed}:v1`);
  const strips=[{...entryStrip(W,H),w:W},westStrip(H),...(def.lobby?.gates?.north?[northStrip(W)]:[]),...(def.lobby?.gates?.south?[southStrip(W,H)]:[])];
  const near=(p,x,y,d)=>Math.abs(p.x-x)<=d&&Math.abs(p.y-y)<=d;
@@ -203,6 +203,7 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
   for(const [kind,make] of [['cauldron',dormitoryCauldron],['reagents',dormitoryReagents],['toilet',dormitoryToilet]]){
    const fixture=make(def.dormitory);
    if(f.fixtures.some(x=>x.id===fixture.id&&x.x===fixture.x&&x.y===fixture.y))continue; // already there
+   if((f.patchUndo?.fixturesRemoved??[]).some(x=>x.id===fixture.id))continue;            // a GM removed it in the Map Editor (floor-patches.mjs): respect that instead of putting it back
    if(districtBlocked(f,fixture.x,fixture.y))continue;                                    // a resident is standing there: try again next load
    f.fixtures.push(fixture);added=true;
   }

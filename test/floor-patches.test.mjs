@@ -206,3 +206,20 @@ test('hub furniture and services move through fixture ops after decoration: vani
   assert.throws(()=>gm('dive-quarters',[{kind:'fixture',op:'move',match:{id:'cauldron',kind:'cauldron'},to:{x:3,y:3}}]),/hub furniture/,'Dives refuse fixture moves');
  }finally{f.close();}
 });
+
+test('a GM-removed district toilet stays removed, later Applies still work, and a floor already holding a re-added duplicate recovers',()=>{
+ const f=fixture();try{
+  const gm=(zone,ops)=>{f.db.exec('BEGIN IMMEDIATE');try{const r=f.patch(zone,ops);f.db.exec('COMMIT');return r;}catch(e){f.db.exec('ROLLBACK');throw e;}}; // As gm.mjs runs every GM action.
+  const hubs=f.zones().world.catalog().filter(z=>z.kind==='hub').map(z=>z.id),zone=hubs.find(id=>f.map(id).floor?.fixtures?.some(x=>x.id==='dormitory-toilet'));assert.ok(zone,'a district has the dormitory toilet');
+  const toilet=f.map(zone).floor.fixtures.find(x=>x.id==='dormitory-toilet'),count=()=>f.map(zone).floor.fixtures.filter(x=>x.id==='dormitory-toilet').length;
+  gm(zone,[{kind:'decoration',op:'remove',match:{id:toilet.id,sprite:toilet.sprite,x:toilet.x,y:toilet.y}}]);assert.equal(count(),0,'the GM removed it');
+  f.tick();f.restart();assert.equal(count(),0,'the dormitory upgrade step no longer puts it back');
+  const spot=f.free(f.map(zone),2);gm(zone,[{kind:'cells',cells:[{x:spot.x,y:spot.y,prop:1}]}]);assert.equal(count(),0,'a later Apply re-runs the stored remove without "That would cover the toilet"');
+  const row=f.db.prepare('SELECT c.edition FROM hub_district_current c WHERE c.zone=?').get(zone),saved=JSON.parse(f.db.prepare('SELECT content FROM hub_district_editions WHERE zone=? AND edition=?').get(zone,row.edition).content);
+  saved.fixtures.push({...toilet});f.db.prepare('UPDATE hub_district_editions SET content=? WHERE zone=? AND edition=?').run(JSON.stringify(saved),zone,row.edition);f.restart(); // The production state: an older server re-added the toilet after the GM removed it.
+  const spot2=f.free(f.map(zone),2);gm(zone,[{kind:'cells',cells:[{x:spot2.x,y:spot2.y,prop:1}]}]);assert.equal(count(),0,'the duplicate is not restored twice, so the stored remove applies again');
+  gm(zone,[{kind:'cells',cells:[{x:spot2.x,y:spot2.y,prop:0}]}]);f.db.exec('BEGIN IMMEDIATE');f.world('world_patch_clear',zone);f.db.exec('COMMIT');assert.equal(count(),1,'clearing the patch brings exactly one toilet back');
+  const town=hubs.find(id=>f.map(id).floor?.fixtures?.some(x=>x.kind==='toilet'&&x.style==='outhouse'&&/^outhouse-/.test(x.id)));if(town){const outhouses=()=>f.map(town).floor.fixtures.filter(x=>x.kind==='toilet'&&x.style==='outhouse'),o=outhouses()[0],before=outhouses().length;
+   gm(town,[{kind:'decoration',op:'remove',match:{id:o.id,sprite:o.sprite,x:o.x,y:o.y}}]);f.tick();f.restart();assert.equal(outhouses().length,before-1,'a removed lobby outhouse is not replaced elsewhere');}
+ }finally{f.close();}
+});
