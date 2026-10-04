@@ -145,3 +145,10 @@ Hub residents expose a greeting and optional **topics** with a **topic label**. 
 **Save content drafts** keeps edits private. **Publish content** changes subsequent interactions. **Compare shipped default** and published revision history can restore a draft for review. Source changes never overwrite your saved edits. Existing conversations and accepted quest definitions retain their pinned data.
 
 The included quest library also shows optional weekly pack definitions as drafts until enabled or published. Opening or saving them does not activate offers. Existing placements are reused; no duplicate NPC or map regeneration is needed. New client builds read published tours/topics/service wording; older clients retain packaged text.
+
+
+## Piko town cast
+
+The shipped townspeople now use 75 Piko/Sprite Workshop designs across 145 cataloged characters. Existing NPC sprite IDs select the new art automatically, including idle and walk previews. The game source includes editable recipes in `art/townspeople/looks.json` and 128x128 sheets in `art/townspeople/sheets/`. Import a sheet into the public Sprite Workshop to edit pixels, then download it and submit it to a GM; that editor has no game-server connection. A saved GM-authored look still overrides the compiled artwork.
+
+The premium player sprite generator and old sprite picker are retired. Old private artwork is no longer downloadable or selectable, including by former owners. Players use Wardrobe; unfinished generation receipts are retained only for settlement/refunds.

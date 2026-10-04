@@ -75,13 +75,14 @@ test('saving a look is free beside a hub mirror and costs one diamond anywhere e
  }finally{w.close();}
 });
 
-test('players switch between their look, a private sprite and the default, but never to an NPC sprite',()=>{
+test('players can wear their saved look but cannot select retired private or NPC sprites',()=>{
  const w=world();
  try{
   const c=w.create('doll',{creation:{look}});w.enter('doll',c.id);
   w.act('doll',c.id,'appearance',{avatar:'player'});assert.equal(w.state(c.id).avatar,'player');
   w.act('doll',c.id,'appearance',{avatar:'look'});assert.equal(w.state(c.id).avatar,'look','"Use my look" switches back for free');
   assert.throws(()=>w.act('doll',c.id,'appearance',{avatar:'objNPCGuard'}),/no longer player avatars/);
+  assert.throws(()=>w.act('doll',c.id,'appearance',{avatar:'private-retired'}),e=>e.status===410);
   // Grandfathered: a character already wearing an NPC sprite keeps it.
   const old=w.create('veteran',{});const s=w.state(old.id);s.avatar='objNPCGuard';w.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(s),old.id);
   w.enter('veteran',old.id);assert.equal(w.read('veteran',old.id).character.avatar,'objNPCGuard','existing NPC avatars stay until the player changes');

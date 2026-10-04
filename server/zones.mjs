@@ -145,8 +145,8 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
  const onScreen=(a,b)=>Math.abs(a.x-b.x)<=reachX&&Math.abs(a.y-b.y)<=reachY; // True when b stands inside the screen-sized rectangle centred on a.
  if(live&&!live.blankCanvas)for(const def of districtData.districts){const id=districtZone(def);for(const [i,npc] of def.npcs.filter(n=>!n.roaming).entries())live.fixtureSheet(id,{...npc,kind:'npc',id:npc.id??'npc-'+i});for(const npc of def.npcs.filter(n=>n.roaming))live.fixtureSheet(id,{...npc,kind:'npc'});} // The blank canvas has no preloaded town residents.
  let privateSprites=null,tutor=null; // tutor: the Pip tutorial NPC (tutor.mjs), handed in by service.mjs through setTutor().
- const chooseAvatar=(value,owner,cid='',look=null)=>{ // What a player may wear on the map: their Sprite Lab look, a diamond private sprite, or the default sprite.
-  if(typeof value==='string'&&value.startsWith('private-'))return privateSprites?.authorize(owner,cid,value)??fail(403,'Private sprites are unavailable.');
+ const chooseAvatar=(value,owner,cid='',look=null)=>{ // Player choices are saved Wardrobe looks or the Piko default; private and NPC selections are retired.
+  if(typeof value==='string'&&value.startsWith('private-'))fail(410,'Private sprites have retired. Use the Wardrobe.');
   if(value==='look')return look?'look':fail(409,'Design a look in the Wardrobe first.');
   if(value==='player')return 'player';
   avatar(value);fail(400,'NPC sprites are no longer player avatars. Dress up in the Wardrobe instead.'); // Doll 2026-10-02: retired for players; characters already wearing one keep it until they change.
@@ -252,6 +252,7 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
  ];
  const guidePlacements=quests?db.prepare("SELECT DISTINCT zone FROM world_placements WHERE json_extract(body,'$.content')=?"):null; // Which zones hold a GM placement (NPC, location, token, interact, orb).
  const questGuide=quests?createQuestGuide({now,zones:guideZones,contentZones:content=>[...guidePlacements.all(content).map(r=>currentZoneId(r.zone)),...[...engines].filter(([,route])=>(route.floor()?.fixtures??[]).some(f=>f.kind==='token'&&f.content===content)).map(([id])=>id)]}):null; // Full-dungeon quest tokens are floor fixtures, not placements.
+ if(questGuide)world.graph=questGuide.graph; // The resolved exit graph also lays out the GM panel's whole-world picture (world-map.mjs).
  function guideSnapshot(c,state,p,questMap){ // The snapshot's questGuide: null unless a quest is tracked and the GM switch (loot tuning quest_guide) is on.
   if(!questGuide||!c||!p||Number(currentTuning().quest_guide??1)<1)return null; // quest_guide 0 hides every marker without touching tracking.
   const q=quests.trackedQuest(c,state);if(!q)return null; // Nothing tracked.

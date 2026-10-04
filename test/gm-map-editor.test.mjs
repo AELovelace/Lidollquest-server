@@ -1,7 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
 import {createQuestService} from '../server/service.mjs';
+
+test('changing the object sprite rebuilds the preview with the new selection',()=>{
+ const source=readFileSync(new URL('../server/gm-map-editor.js',import.meta.url),'utf8');
+ const functions=source.slice(source.indexOf('function field('),source.indexOf('function renderToolOptions('));
+ const state={opts:{sprite:'sprItem',target:'sign',name:'Court sign',lifetime:'persistent'}},renders=[];
+ let scheduled=0;
+ const context={state,el:()=>({}),renderToolOptions:()=>renders.push({...state.opts}),schedule:()=>scheduled++};
+ runInNewContext(functions,context); // Exercise the dropdown's actual change handler without starting the editor.
+ const select=context.field({},'Object / token sprite','sprite','text',[{id:'sprItem'},{id:'sprFairy'}]);
+ for(const sprite of ['sprFairy','sprItem']){
+  select.value=sprite;select.onchange();
+  assert.equal(renders.at(-1)?.sprite,sprite,'the sidebar refreshes on every selection');
+  assert.deepEqual(renders.at(-1),{sprite,target:'sign',name:'Court sign',lifetime:'persistent'});
+ }
+ assert.equal(renders.length,2);
+ assert.equal(scheduled,2,'the map preview still redraws');
+});
 
 test('the Map Editor pop-out is served with the panel hardening and its spliced scripts parse',async()=>{
  const staff='s'.repeat(43),service=createQuestService({log:()=>{},walletClient:{authenticate:async token=>({owner:'staff',gamemaster:token===staff,client:'lidollquest',coins:0,scope:'social:read'})}});await new Promise(resolve=>service.server.listen(0,'127.0.0.1',resolve));const base='http://127.0.0.1:'+service.server.address().port;

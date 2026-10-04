@@ -47,7 +47,7 @@ export function loadQuestPack(path){ // LIDOLLQUEST_QUEST_PACK names a shipped q
  return pack.quests;
 } // Publishing live quest content refuses clients without quest_version:1, so this stays an explicit deployment choice.
 
-export function createQuestService({filename=':memory:',walletClient,spriteProvider,artJobOptions={},now=Date.now,roll,log=console.warn,performanceOptions={},workerCount=0,zoneWorkers=0,authTtlMs=authCacheMs(),onlineToken=process.env.MOMMYBOT_ONLINE_TOKEN||'',gmAllow=process.env.LIDOLLQUEST_GM_ALLOW||'',gmEnabled=envFlag('LIDOLLQUEST_GM_ENABLED',true),gmTrustProxy=process.env.LIDOLLQUEST_GM_TRUST_PROXY||'',gmRequireTls=envFlag('LIDOLLQUEST_GM_REQUIRE_TLS'),questPack=loadQuestPack(process.env.LIDOLLQUEST_QUEST_PACK||''),followerOptions={},followerChatOptions={},gmHelpOptions={},blankCanvas=true}={}){
+export function createQuestService({filename=':memory:',walletClient,artJobOptions={},now=Date.now,roll,log=console.warn,performanceOptions={},workerCount=0,zoneWorkers=0,authTtlMs=authCacheMs(),onlineToken=process.env.MOMMYBOT_ONLINE_TOKEN||'',gmAllow=process.env.LIDOLLQUEST_GM_ALLOW||'',gmEnabled=envFlag('LIDOLLQUEST_GM_ENABLED',true),gmTrustProxy=process.env.LIDOLLQUEST_GM_TRUST_PROXY||'',gmRequireTls=envFlag('LIDOLLQUEST_GM_REQUIRE_TLS'),questPack=loadQuestPack(process.env.LIDOLLQUEST_QUEST_PACK||''),followerOptions={},followerChatOptions={},gmHelpOptions={},blankCanvas=true}={}){
  const poolSize=computeWorkerCount(workerCount),zoneCount=zoneWorkerCount(zoneWorkers);if(zoneCount&&filename===':memory:')throw Error('Zone workers require a persistent database');let compute=null,shards=null; // Validate configuration before opening persistent resources.
  const db=cacheStatements(new DatabaseSync(filename));db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;'); /* NORMAL is SQLite's recommended setting for WAL: every commit survives an application crash, and only an OS crash or power loss can drop the last few milliseconds of commits. It removes the per-commit fsync that FULL paid for every heartbeat, move and chat line. */
  const balance=attachBalanceStats(db,createBalanceStats({filename:filename===':memory:'?':memory:':resolve(dirname(resolve(filename)),'balance.sqlite'),now,log})); // Buffered per game transaction and written only after it commits.
@@ -78,7 +78,7 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
  zones.setTutor(tutor); // Pip appears in the starting lobbies and tutor_ask stores questions.
  db.prepare('INSERT OR IGNORE INTO mommybot_online_seen SELECT owner,seen FROM quest_presence').run(); // Seed existing sessions on rollout without announcing their next heartbeat as a fresh join.
  const cloud=createCloudSaves(db,{now});
- const sprites=createPrivateSprites(db,{walletClient,provider:spriteProvider,now,log});zones.setPrivateSprites(sprites);
+ const sprites=createPrivateSprites(db,{walletClient,now});zones.setPrivateSprites(sprites);
  const management=createCharacterManagement(db,{walletClient,cloud,sprites,now,log});
  spriteWorkshop(db); // Install workshop tables before read-only snapshot workers open the database.
  if(zoneCount){installZoneSnapshotEpochs(db);shards=createZoneShards({size:zoneCount,filename:resolve(filename),blankCanvas,questPack,followerEnabled:zones.followers.enabled,observe:metrics.observe});}
@@ -146,12 +146,12 @@ export function createQuestService({filename=':memory:',walletClient,spriteProvi
    const {verified,fresh}=await metrics.measureAsync('account.authenticate',()=>auth.lookup(token));if(fresh)db.prepare('INSERT INTO wallet_cache VALUES (?,?) ON CONFLICT(owner) DO UPDATE SET coins=excluded.coins').run(verified.owner,verified.coins); // Only a fresh tracker answer may set the balance; a remembered login would roll back newer receipt balances.
    if(gm.suspended(verified.owner))throw Object.assign(Error('This account is suspended from online play.'),{status:403,code:'account_suspended'}); // Checked before any command runs, so a suspension cannot be outlasted by a held connection.
    if(String(verified.scope??'').split(' ').includes('stars:write'))await management.recover(verified.owner,token); // Finish an already-authorized debit before accepting gameplay after reconnect.
+   if(String(verified.scope??'').split(' ').includes('diamonds:write'))await sprites.recover(verified.owner,token); // Finish historical sprite refunds even though the generator UI no longer polls.
    if(url.pathname==='/quests/detail'){if(!String(verified.scope??'').split(' ').includes('social:read'))throw Object.assign(Error('Approve social access.'),{status:403});identity=verified;let result;try{result=zones.questRead(token,url.searchParams.get('character_id'),url.searchParams.get('quest'));}finally{identity=null;}res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));return;}
    if(url.pathname==='/content/asset'){if(!String(verified.scope??'').split(' ').includes('social:read'))throw Object.assign(Error('Approve social access.'),{status:403});const assetId=url.searchParams.get('asset_id')??'',parts=/^workshop:([A-Za-z0-9_]+):([a-f0-9]{64})$/.exec(assetId),result=parts?spriteWorkshop(db).asset(parts[1],parts[2]):live.asset(assetId);res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));return;}
    if(url.pathname.startsWith('/sprites')){
     const scopes=String(verified.scope??'').split(' ');if(!scopes.includes(req.method==='GET'?'saves:read':'saves:write'))throw Object.assign(Error('Reconnect to approve sprite storage access.'),{status:403});
-    if(req.method==='POST'&&input?.action==='generate'&&!scopes.includes('diamonds:write'))throw Object.assign(Error('Reconnect and approve diamond spending.'),{status:403,code:'insufficient_scope'});
-    if(scopes.includes('diamonds:write'))await sprites.recover(verified.owner,token);
+    if(req.method==='POST'&&input?.action==='generate'&&!scopes.includes('diamonds:write'))throw Object.assign(Error('The premium sprite generator has retired.'),{status:410,code:'sprite_generator_retired'});
     const result=url.pathname==='/sprites/asset'?sprites.asset(verified.owner,url.searchParams.get('sprite_id')):req.method==='GET'?sprites.list(verified.owner,url.searchParams.get('character_id')??''):await sprites.act(verified.owner,token,input);
     res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(result));return;
    }

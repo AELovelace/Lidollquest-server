@@ -57,54 +57,17 @@ companion and MommyBot profiles. RP posts capture the current description.
 Deploy with the updated omo-trainer companion and game client. No new environment
 settings or manual migration are required. `test/management.test.mjs` covers the API.
 
-## Premium private sprites
+## Retired premium player sprites (2026-10-03)
 
-The animation compatibility update reads PixelLab `last_response`, requests
-`keep_first_frame: false` so eight generated frames remain eight, and downloads
-the character ZIP when completed jobs return storage metadata. It preserves each
-job's direction and sorts exported frames numerically. `incomplete_animation`
-diagnostics now include bounded idle/per-direction frame counts. Deploy this
-server update before retrying a generation that failed during packing; the game,
-tracker and token configuration need no changes. ZIP retries never submit paid
-generation again. See the [PixelLab API specification](https://api.pixellab.ai/v2/openapi.json).
+The premium player generator and legacy sprite picker are removed. Fresh generation requests and all private artwork downloads return HTTP 410; old sprites cannot be selected, viewed or downloaded by their former owners either.
 
-Deploy the tracker sprite routes and diamond-consent changes before the GX client.
-Install Python 3.11+ and `pip install -r python/requirements.txt`; set the service's
-`PIXELLAB_API_TOKEN` and optionally `PIXELLAB_PYTHON` (default `python3`). Keep these
-secrets on the server. No key disables new generations without affecting saved art.
+At service startup, current private avatars switch to an existing saved look or the Piko default, revision increments once, and private PNGs are cleared. Creation identities/payment receipts are preserved. Completed jobs become retired; queued/running jobs become refundable. Historical ambiguous debits reconcile/refund with their original durable keys on an authorized account request. No provider is invoked and no generated look is saved, preserving incomplete-character setup reminders.
 
-If the game says **Generation is not configured yet**, add `PIXELLAB_API_TOKEN`
-to `/etc/lidollquest/server.env` using `sudoedit`, then restart
-`lidollquest-server` and reopen the private collection. The setting must be loaded
-by the quest service, not just an interactive shell or the tracker. Existing
-environment files are preserved on redeploy. `QUEST_COMPUTE_WORKERS` is independent.
-The Fedora installer ships `python/` and installs system Python, Requests and
-Pillow; use `PIXELLAB_PYTHON=/usr/bin/python3` with those packages. Older releases
-that omitted the worker folder need the corrected release as well as the token.
+Deploy with all players offline and a verified database backup. Artwork deletion needs that backup to roll back. Deploy the matching rebuilt client so default/error portraits use Piko art. This does not perform the separate return-to-starting-city migration.
 
-`GET /sprites`, `GET /sprites/asset`, and `POST /sprites/action` use authenticated
-account ownership. Generations cost one diamond, reserve one of five per-character
-slots before payment, and run in one background worker. The shared Python client
-comes from the desktop walk generator; copy it with the game's
-`python/prepare_private_sprite_worker.py` when that generator changes. Worker
-failures refund through durable wallet receipts; restarting an interrupted worker
-marks its generation for refund rather than resubmitting it. Refund recovery runs
-when the owner opens their collection. Run one service process per SQLite database.
+The shared Python/provider helpers still support GM world-art tools. Configuring `PIXELLAB_API_TOKEN` never re-enables the retired player generator. Test with `node --test test/private-sprites.test.mjs test/player-looks.test.mjs test/private-sprite-provider.test.mjs`.
 
-Draft sprites attach once to the account's next created character. Selection is
-character-exclusive; other players can fetch equipped art only while sharing a
-live zone. Descriptions and saved collections stay private. Deleting a completed
-sprite frees its slot without refunding it. Existing browser grants need renewed
-consent for diamond spending. Test with `node --test test/private-sprites.test.mjs`;
-the GX fixture uses synthetic PNGs and never spends real provider credits.
-
-Generation failures log `quest_sprite_generation_failed` with an allowlisted
-code/stage and optional numeric `http_status`; provider response bodies, prompts,
-tokens and raw Python stderr remain private. Check `journalctl -u lidollquest-server`
-for `python_unavailable`, `worker_missing`, `python_dependency_missing`, or a
-provider HTTP error (401 token, 402 credits, 422 validation, 429 limit). Reopening
-the collection retries outstanding game-diamond refunds. Regression coverage:
-`node --test test/private-sprite-provider.test.mjs test/private-sprites.test.mjs`.
+The game now ships 75 authored Piko NPC designs covering 145 cataloged townspeople and 148 idle/walk resources. `monster-artwork.json` contains their rebuilt previews. Recipes and editable sheets live in the game repository's `art/townspeople/`; see `TOWNSPEOPLE_SPRITE_GUIDE.md`. NPC identities, quest references and routes are unchanged.
 
 ## Shared RP and admin journal
 
@@ -1444,7 +1407,7 @@ Part C, 2026-10-03.
 - `hub-mirrors.mjs` decorates every hub room with beds with a 2x2 vanity mirror (`sprPQDetailVanity`) on a spot that keeps the room connected.
 
 **Avatar rules**
-- `chooseAvatar` allows `look` (needs a look), `player` and owned private sprites, and refuses NPC catalog ids (existing ones stay).
+- `chooseAvatar` allows `look` (needs a look) and the Piko `player` default; private selections return 410 and NPC catalog choices are refused. Existing NPC avatar IDs now display the overhauled Piko art.
 - The paperdoll makeover in `characters/action` answers 410 for new requests.
 
 **Snapshots**

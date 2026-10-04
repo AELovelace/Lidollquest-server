@@ -1,98 +1,80 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
+import {createHash} from 'node:crypto';
 import {createPrivateSprites} from '../server/private-sprites.mjs';
-import {createQuestZones} from '../server/zones.mjs';
 import {createQuestService} from '../server/service.mjs';
-import {randomUUID} from 'node:crypto';
 
-function fixture(provider,{log=()=>{}}={}){
- const db=new DatabaseSync(':memory:');let owner='alice',balance=10,lose=false,calls=0;
- const zones=createQuestZones(db,{grant:()=>({owner,id:owner,client:'lidollquest'}),wallet:()=>({coins:50}),adjust:()=>{},diveOptions:{log:()=>{}},desertOptions:{log:()=>{}}});
- const receipts=new Map(),png=Buffer.alloc(40);Buffer.from([137,80,78,71,13,10,26,10]).copy(png);png.writeUInt32BE(2304,16);png.writeUInt32BE(64,20);
- const output={frames:36,png:png.toString('base64')};
- const walletClient={diamonds:async(_token,b)=>{if(!receipts.has(b.request_id)){if(b.kind==='debit'&&balance<1)throw Object.assign(Error('Insufficient'),{code:'insufficient_balance'});balance+=b.kind==='debit'?-1:1;receipts.set(b.request_id,{balance});}if(lose){lose=false;throw Error('Lost receipt');}return receipts.get(b.request_id);}};
- const make=()=>createPrivateSprites(db,{walletClient,log,provider:provider??(async()=>{calls++;return output;})});
- let sprites=make();zones.setPrivateSprites(sprites);
- const create=(avatar='player',request_id=randomUUID())=>zones.act('secret',{action:'create',name:'Doll',request_id,controller:'window',avatar}).character;
- const generate=(cid='',request_id=randomUUID())=>sprites.act(owner,'secret',{action:'generate',character_id:cid,request_id,prompt:'A knight in a violet coat'});
- return {db,zones,create,generate,receipts,output,get sprites(){return sprites;},get balance(){return balance;},get calls(){return calls;},set owner(v){owner=v;},lose(){lose=true;},empty(){balance=0;},restart(){sprites.close();sprites=make();zones.setPrivateSprites(sprites);},close(){sprites.close();db.close();}};
+function fixture(){
+ const db=new DatabaseSync(':memory:');db.exec(`CREATE TABLE quest_characters(id TEXT PRIMARY KEY,owner TEXT,state TEXT,revision INTEGER DEFAULT 0);CREATE TABLE quest_presence(owner TEXT,character_id TEXT,zone TEXT,seen INTEGER);INSERT INTO quest_characters VALUES ('char','alice','{}',0);`);
+ const receipts=new Map();let balance=10,lose=false,providerCalls=0;
+ const walletClient={diamonds:async(_token,b)=>{if(!receipts.has(b.request_id)){balance+=b.kind==='debit'?-1:1;receipts.set(b.request_id,{balance});}if(lose){lose=false;throw Error('Lost receipt');}return receipts.get(b.request_id);}};
+ const make=()=>createPrivateSprites(db,{walletClient,provider:()=>{providerCalls++;throw Error('Retired provider was called');}});
+ let sprites=make();
+ function seed(status='ready',request='old',cid='char'){
+  const id='private-'+request,prompt='A violet knight with a silver cape';
+  db.prepare('INSERT INTO quest_private_sprites VALUES (?,?,?,?,?,?,?,?,?)').run(id,'alice',cid,request,JSON.stringify([cid,prompt]),prompt,status,status==='ready'?'stored-png':null,1);
+  return {action:'generate',character_id:cid,request_id:request,prompt};
+ }
+ return {db,receipts,seed,get sprites(){return sprites;},get balance(){return balance;},get providerCalls(){return providerCalls;},lose(){lose=true;},restart(){sprites.close();sprites=make();},close(){sprites.close();db.close();}};
 }
-const until=async fn=>{for(let i=0;i<100;i++){if(fn())return;await new Promise(r=>setTimeout(r,5));}assert.fail('Generation did not settle');};
 
-test('failed generation logs sanitized diagnostics and still refunds exactly once',async()=>{
- const logs=[],f=fixture(async()=>{throw Object.assign(Error('secret provider response'),{diagnostic:{code:'provider_http_error',stage:'create',http_status:402,body:'private prompt'}});},{log:(...args)=>logs.push(args)});
- try{
-  await f.generate('','diagnostic');await until(()=>f.sprites.list('alice').sprites[0]?.status==='refunded');
-  assert.deepEqual(logs,[['quest_sprite_generation_failed',{code:'provider_http_error',stage:'create',http_status:402}]]);assert.equal(f.balance,10);assert.equal(f.receipts.size,2);
- }finally{f.close();}
-});
-
-test('incomplete animation logs only bounded direction counts and refunds the failed slot',async()=>{
- const logs=[],f=fixture(async()=>{throw Object.assign(Error('secret'),{diagnostic:{code:'incomplete_animation',stage:'pack',idle_count:4,south:9,north:8,east:-1,west:'secret',prompt:'private'}});},{log:(...args)=>logs.push(args)});
- try{
-  await f.generate('','frame-counts');await until(()=>f.sprites.list('alice').sprites[0]?.status==='refunded');
-  assert.deepEqual(logs,[['quest_sprite_generation_failed',{code:'incomplete_animation',stage:'pack',idle_count:4,south:9,north:8}]]);assert.equal(f.balance,10);
- }finally{f.close();}
-});
-
-test('generation debits once, survives lost responses, claims drafts once, and enforces per-character privacy',async()=>{
+test('retired generation rejects a fresh request without inserting jobs, charging or calling a provider',async()=>{
  const f=fixture();try{
-  f.lose();await assert.rejects(()=>f.generate('','first'));assert.equal(f.balance,9);await f.sprites.recover('alice','new-token');
-  await until(()=>f.sprites.list('alice').sprites[0]?.status==='ready');assert.equal(f.calls,1);
-  const id=f.sprites.list('alice').sprites[0].id;await f.generate('','first');assert.equal(f.balance,9);
-  const c=f.create(id,'creation');assert.equal(f.sprites.list('alice',c.id).used,1);assert.equal(f.sprites.list('alice').used,0);
-  await f.generate('','second');await until(()=>f.sprites.list('alice').sprites[0]?.status==='ready');f.create(id,'creation');assert.equal(f.sprites.list('alice').used,1,'Creation replay must not claim another draft');
-  const other=f.create();assert.throws(()=>f.sprites.authorize('alice',other.id,id),e=>e.status===403);assert.throws(()=>f.sprites.authorize('bob',c.id,id),e=>e.status===403);
-  assert.throws(()=>f.sprites.asset('bob',id),e=>e.status===404);assert.equal(f.sprites.asset('alice',id).frames,36);
-  f.db.prepare('INSERT INTO quest_presence(owner,character_id,zone,grant_id,controller,x,y,seen,moved) VALUES (?,?,?,?,?,?,?,?,?)').run('alice',c.id,'honeydew-lantern','alice','window',2,2,Date.now(),0);
-  f.db.prepare('INSERT INTO quest_presence(owner,character_id,zone,grant_id,controller,x,y,seen,moved) VALUES (?,?,?,?,?,?,?,?,?)').run('bob','bob-character','honeydew-lantern','bob','window',3,2,Date.now(),0);
-  assert.equal(f.sprites.asset('bob',id).frames,36,'Nearby players can render equipped art');
-  f.db.prepare("UPDATE quest_presence SET zone='princess-rose' WHERE owner='bob'").run();assert.throws(()=>f.sprites.asset('bob',id),e=>e.status===404);
-  await f.sprites.act('alice','secret',{action:'delete',character_id:c.id,sprite_id:id,request_id:'delete'});
-  assert.equal(f.zones.read('secret',c.id).character.avatar,'player');assert.throws(()=>f.sprites.asset('alice',id));assert.equal(f.sprites.list('alice',c.id).used,0);
+  await assert.rejects(()=>f.sprites.act('alice','token',{action:'generate',character_id:'char',request_id:'new',prompt:'A new character'}),e=>e.status===410&&e.code==='sprite_generator_retired');
+  assert.equal(f.balance,10);assert.equal(f.providerCalls,0);assert.equal(f.db.prepare('SELECT count(*) n FROM quest_private_sprites').get().n,0);
+  assert.equal(f.sprites.list('alice','char').enabled,false);
  }finally{f.close();}
 });
 
-test('pending jobs reserve all five slots and concurrent sixth requests cannot debit',async()=>{
- const pending=[];const f=fixture((prompt,signal)=>new Promise((resolve,reject)=>{pending.push(resolve);signal.addEventListener('abort',()=>reject(Error('Stopped')));}));
- try{const c=f.create();for(let i=0;i<5;i++)await f.generate(c.id,'slot-'+i);assert.equal(f.balance,5);assert.equal(f.sprites.list('alice',c.id).used,5);
-  await assert.rejects(()=>f.generate(c.id,'sixth'),e=>e.status===409);assert.equal(f.balance,5);assert.equal(pending.length,1,'Only one provider job runs at a time');
-  await assert.rejects(()=>f.sprites.act('alice','secret',{action:'delete',character_id:c.id,sprite_id:f.sprites.list('alice',c.id).sprites[0].id,request_id:'early'}),e=>e.status===409);
+test('an ambiguous historical debit is replayed and refunded once even after a lost response',async()=>{
+ const f=fixture();try{
+  const input=f.seed('charging');f.lose();await assert.rejects(()=>f.sprites.recover('alice','token'));assert.equal(f.balance,9);
+  await Promise.all([f.sprites.recover('alice','token'),f.sprites.recover('alice','token')]);
+  await f.sprites.act('alice','token',input);f.restart();await f.sprites.recover('alice','token');
+  assert.equal(f.balance,10);assert.equal(f.receipts.size,2);assert.equal(f.providerCalls,0);assert.equal(f.sprites.list('alice','char').latestStatus,'refunded');
+  await assert.rejects(()=>f.sprites.act('alice','token',{...input,prompt:'Different request'}),e=>e.status===409);
  }finally{f.close();}
 });
 
-test('failed generations refund once, and insufficient funds never call the provider',async()=>{
- let calls=0;const f=fixture(async()=>{calls++;throw Error('Provider failed');});try{
-  await f.generate('','failed');await until(()=>f.sprites.list('alice').sprites[0].status==='refunded');assert.equal(f.balance,10);assert.equal(f.receipts.size,2);
-  await f.generate('','failed');await f.sprites.recover('alice','secret');assert.equal(f.balance,10);assert.equal(calls,1);
-  f.empty();await f.generate('','empty');assert.equal(f.sprites.list('alice').sprites.find(r=>r.status==='insufficient').status,'insufficient');assert.equal(calls,1);
+test('queued and running purchased jobs refund at restart without new generation',async()=>{
+ const f=fixture();try{
+  f.seed('queued','queued');f.seed('running','running');f.restart();await f.sprites.recover('alice','token');await f.sprites.recover('alice','token');
+  assert.equal(f.receipts.size,2);assert.ok([...f.receipts.keys()].every(k=>k.startsWith('refund-sprite-')));assert.equal(f.providerCalls,0);
+  assert.ok(f.sprites.list('alice','char').sprites.every(r=>r.status==='refunded'));
  }finally{f.close();}
 });
 
-test('restart refunds an interrupted provider request instead of generating or charging again',async()=>{
- let calls=0;const f=fixture((_p,signal)=>{calls++;return new Promise((_resolve,reject)=>signal.addEventListener('abort',()=>reject(Error('Stopped'))));});
- try{await f.generate('','restart');await until(()=>calls===1);f.restart();await f.sprites.recover('alice','renewed');assert.equal(f.balance,10);assert.equal(calls,1);assert.equal(f.sprites.list('alice').sprites[0].status,'refunded');}finally{f.close();}
-});
-
-test('changed retry payloads, unowned characters and malformed strips are rejected',async()=>{
- const f=fixture(async()=>({frames:1,png:'bad'}));try{
-  const c=f.create();await f.generate(c.id,'same');await assert.rejects(()=>f.sprites.act('alice','secret',{action:'generate',character_id:c.id,request_id:'same',prompt:'A different description'}),e=>e.status===409);
-  f.owner='bob';await assert.rejects(()=>f.generate(c.id),e=>e.status===404);await until(()=>f.sprites.list('alice',c.id).sprites[0].status==='refunded');assert.equal(f.balance,10);
+test('retirement removes old artwork access, switches saved appearances and preserves creation receipts',async()=>{
+ const f=fixture();try{
+  const input=f.seed();const look={version:1,slots:{base:'piko_base'}};
+  f.db.prepare('UPDATE quest_characters SET state=?').run(JSON.stringify({avatar:'private-old',look,creationAvatar:'private-old',creation:{old:true}}));
+  f.restart();
+  assert.throws(()=>f.sprites.asset('alice','private-old'),e=>e.status===410);assert.throws(()=>f.sprites.asset('bob','private-old'),e=>e.status===410);
+  assert.throws(()=>f.sprites.authorize('alice','char','private-old'),e=>e.status===410);
+  let row=f.db.prepare('SELECT state,revision FROM quest_characters').get(),state=JSON.parse(row.state);assert.equal(state.avatar,'look');assert.deepEqual(state.look,look);assert.equal(state.creationAvatar,'private-old');assert.deepEqual(state.creation,{old:true});assert.equal(row.revision,1);
+  assert.equal(f.db.prepare('SELECT png FROM quest_private_sprites').get().png,null);
+  await f.sprites.act('alice','token',input);assert.equal(f.receipts.size,0);f.restart();assert.equal(f.db.prepare('SELECT revision FROM quest_characters').get().revision,1);
  }finally{f.close();}
 });
 
-test('HTTP generation requires diamond consent before any billing and preserves native method/origin checks',async()=>{
- let scope='wallet:read saves:read saves:write',charges=0;const service=createQuestService({authTtlMs:0,spriteProvider:async()=>{throw Error('Fixture failure');},walletClient:{authenticate:async()=>({owner:'owner',id:'grant',client:'lidollquest',coins:50,scope}),diamonds:async(_token,body)=>{if(body.kind==='debit')charges++;return {balance:10};}},log:()=>{}});
+test('retirement preserves missing setup and denies old artwork even to nearby observers',()=>{
+ const f=fixture();try{
+  f.seed();f.db.prepare('UPDATE quest_characters SET state=?').run(JSON.stringify({avatar:'private-old'}));f.restart();
+  const saved=JSON.parse(f.db.prepare('SELECT state FROM quest_characters').get().state);assert.equal(saved.avatar,'player');assert.equal(saved.look,undefined);
+  const insert=f.db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?)');insert.run('alice','char','hub',Date.now());insert.run('bob','other','hub',Date.now());
+  assert.throws(()=>f.sprites.asset('bob','private-old'),e=>e.status===410);
+ }finally{f.close();}
+});
+
+test('HTTP rejects new generation even with diamond permission, and ordinary login recovers historical refunds',async()=>{
+ let calls=0;const receipts=[];
+ const service=createQuestService({authTtlMs:0,spriteProvider:()=>{calls++;},walletClient:{authenticate:async()=>({owner:'owner',id:'grant',client:'lidollquest',coins:50,scope:'wallet:read saves:read saves:write social:read diamonds:write'}),diamonds:async(_token,body)=>{receipts.push(body);return {balance:10};}},log:()=>{}});
  await new Promise(resolve=>service.server.listen(0,'127.0.0.1',resolve));const url='http://127.0.0.1:'+service.server.address().port,headers={Authorization:'Bearer '+'a'.repeat(43),'Content-Type':'application/json'};
- const input={action:'generate',character_id:'',request_id:'http-generation',prompt:'A violet knight with a silver cape'};
- const post=extra=>fetch(url+'/sprites/action',{method:'POST',headers:{...headers,...extra},body:JSON.stringify(input)});
  try{
-  assert.equal((await post()).status,403);assert.equal(charges,0);
-  scope+=' diamonds:write';assert.equal((await post({Origin:'https://foreign.invalid'})).status,403);
-  assert.equal((await fetch(url+'/sprites/action',{headers})).status,404);
-  assert.equal((await post()).status,200);assert.equal(charges,1);
-  await until(()=>service.db.prepare('SELECT status FROM quest_private_sprites').get()?.status==='refunded');
-  assert.equal((await post()).status,200);assert.equal(charges,1);
+  const res=await fetch(url+'/sprites/action',{method:'POST',headers,body:JSON.stringify({action:'generate',character_id:'',request_id:'fresh',prompt:'A violet knight'})});assert.equal(res.status,410);assert.equal(calls,0);assert.equal(receipts.length,0);
+  service.db.prepare('INSERT INTO quest_private_sprites VALUES (?,?,?,?,?,?,?,?,?)').run('private-pending','owner','','pending','[]','','refunding',null,1);
+  assert.equal((await fetch(url+'/zones',{headers})).status,200);assert.equal(receipts.length,1);assert.equal(receipts[0].kind,'refund');
+  assert.equal(receipts[0].original_id,'sprite-'+createHash('sha256').update('owner:pending').digest('hex'));
  }finally{service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));}
 });

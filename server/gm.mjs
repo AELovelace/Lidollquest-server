@@ -13,6 +13,7 @@ import {spriteWorkshop} from './sprite-workshop.mjs';
 import {routeCategory,ZONE_CATEGORY} from './zone-categories.mjs';
 import {createMapRenderer} from './map-render.mjs';
 import {compiledArtwork} from './defeat-scenes.mjs';
+import {createWorldPainter,spriteNames,WORLD_SCALES} from './world-map.mjs';
 
 const ONLINE_WINDOW=30000; // Matches the presence freshness window every other module already uses.
 const HUB_SPAWN={x:10,y:9}; // hubDefinition() falls back to this same tile when a lobby declares no spawn of its own.
@@ -79,6 +80,17 @@ export function buildAllowList(text){ // Comma-separated addresses and CIDR bloc
 
 export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=null,welcome=null,guilds=null,playerStores=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,balance=null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn,helpOptions={}}={}){
  const mapRenderer=createMapRenderer({tiles:tileArtwork,compiled:compiledArtwork,avatars:avatarCatalog,asset:key=>live?.asset(key)}); // Decodes each sprite once; caches the last few rendered pictures per zone revision.
+ const worldPainter=createWorldPainter(); // Whole-world poster (GET /gm/world.png), painted on a worker thread one request at a time.
+ function worldPicture(scale,layers){ // Gathers every overworld, dungeon and hub view plus the exit graph; the worker lays them out and paints them.
+  const w=world(),graph=w?.graph?.();if(!graph||!w.paintMap)fail(409,'The world map needs online quests enabled on this server.','gm_world_unavailable');
+  const zones=[],views={},sprites={},avatarSprite=new Map(avatarCatalog.filter(a=>a.sprite).map(a=>[a.id,a.sprite]));
+  for(const z of w.catalog()){if(z.category==='dive'||!graph.has(z.id))continue; // Instanced Dives are weekly boss runs, not places on the map.
+   const view=w.paintMap(z.id);if(!view?.floor)continue;views[z.id]=view;zones.push({id:z.id,name:z.name,width:view.floor.width,height:view.floor.height,exits:graph.get(z.id)});
+   for(const name of spriteNames(view,avatarSprite))if(!tileArtwork.sprites[name]&&!Object.hasOwn(sprites,name)){let record=compiledArtwork[name]??null;if(!record)try{record=live?.asset(name)??null;}catch{record=null;}if(record)sprites[name]=record;} // The worker has the shipped tiles; monster art and GM uploads travel with the request.
+  }
+  const root=graph.has('honeydew-lantern')?'honeydew-lantern':zones[0]?.id,key=[scale,layers.join('+'),...zones.map(z=>z.id+':'+(views[z.id].edition??'')+':'+(views[z.id].revision??''))].join('|');
+  return worldPainter.render({root,zones,views,scale,layers,sprites,avatars:avatarCatalog},key);
+ }
  const help=createGmHelp(helpOptions); // Separate read-only service; staff authentication stays in this router.
  const announcementStore=()=>typeof announcements==='function'?announcements():announcements; // Passed lazily by service.mjs because the zones module is created after the panel.
  const welcomeStore=()=>{const store=typeof welcome==='function'?welcome():welcome;if(!store)fail(409,'The welcome tutorial is not available on this server.','gm_unknown_action');return store;}; // welcome.mjs, likewise lazy.
@@ -526,6 +538,12 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
     const scale=Number(url.searchParams.get('scale')??'32');if(![8,16,32].includes(scale))return send(400,{error:'gm_bad_scale',error_description:'scale must be 8, 16 or 32.'});
     const layers=url.searchParams.get('layers');const png=mapRenderer.render(world().paintMap(zone),{scale,...(layers?{layers:layers.split(',')}:{})});
     res.writeHead(200,{'Content-Type':'image/png','Content-Length':png.length,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(png);return true;
+   }
+   if(url.pathname==='/gm/world.png'&&req.method==='GET'){ // Every overworld, dungeon and hub on one picture, placed by their exits (world-map.mjs).
+    const scale=Number(url.searchParams.get('scale')??'8');if(!WORLD_SCALES.includes(scale))return send(400,{error:'gm_bad_scale',error_description:'scale must be '+WORLD_SCALES.join(' or ')+'.'});
+    const layers=(url.searchParams.get('layers')??'terrain,scenery,content').split(',').filter(l=>['terrain','scenery','content','players','grid','safe'].includes(l));
+    const png=await worldPicture(scale,layers);
+    res.writeHead(200,{'Content-Type':'image/png','Content-Length':png.length,'Content-Disposition':'attachment; filename="lidollquest-world.png"','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(png);return true;
    }
    if(url.pathname==='/gm/tile-artwork'&&req.method==='GET')return send(200,mapRenderer.manifest()); // Sizes, origins and tileset names without the PNG payloads; the editor fetches art through /gm/asset.
    if(url.pathname==='/gm/jobs'&&req.method==='GET')return send(200,{jobs:artJobs.list()});
