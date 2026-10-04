@@ -73,3 +73,14 @@ test('GET /gm/map.png and /gm/tile-artwork are staff-only and serve a real pictu
   const page=await (await fetch(base+'/gm')).text();assert.match(page,/worldMapPng/);const script=page.match(/<script>([\s\S]*?)<\/script>/)[1];new Function(script);assert.doesNotMatch(script,/\/\/.*(const|let|var)\s+\w+\s*=/);
  }finally{service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));}
 });
+
+test('NPCs fit their one 32px cell like the client draws them, even from 64px Piko canvases',()=>{
+ const f=fixture();try{
+  const view=f.zones.world.paintMap('overworld-autumnal-plains'),floor={...view.floor,exits:[],portals:[],chests:[],pickups:[],enemies:[],fixtures:[],decorations:[]}; // An empty content layer, so only the NPC differs.
+  assert.equal(compiledArtwork.sprNPCWhistleblower.height,64,'the townspeople art is a 64px canvas');
+  const npc={kind:'npc',sprite:'sprNPCWhistleblower',x:5,y:5};
+  const spill=(withNpc,without)=>{let changed=0;for(let i=0;i<withNpc.data.length;i+=4)if(withNpc.data[i]!==without.data[i]||withNpc.data[i+1]!==without.data[i+1]||withNpc.data[i+2]!==without.data[i+2]){changed++;const x=(i/4)%withNpc.width,y=Math.floor(i/4/withNpc.width);assert.ok(Math.floor(x/TILE_SIZE)===5&&Math.floor(y/TILE_SIZE)===5,`NPC pixel ${x},${y} spills outside its cell`);}return changed;}; // Every pixel the NPC changed must sit in its own cell.
+  assert.ok(spill(f.renderer.paint({...view,floor,placements:[npc],players:[]},['content']),f.renderer.paint({...view,floor,placements:[],players:[]},['content']))>50,'the placed NPC was drawn');
+  assert.ok(spill(f.renderer.paint({...view,floor:{...floor,fixtures:[{...npc,id:'n'}]},placements:[],players:[]},['scenery']),f.renderer.paint({...view,floor,placements:[],players:[]},['scenery']))>50,'the resident fixture was drawn'); // Hub resident fixtures use the same rule.
+ }finally{f.close();}
+});

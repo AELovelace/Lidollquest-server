@@ -6,7 +6,7 @@ This exercise introduces the live Map Editor's terrain, scenery and placement wo
 
 ## 1. Open and inspect
 
-Choose **Pop out Map Editor** in the GM panel, or **Open in Map Editor** from the Zones tab. Select the zone, then **Fit**. Wheel to zoom; right-drag or Space-drag to pan. Turn on **grid**, **reachability**, and **players**. Select **Inspect / select** and hover over several tiles: the readout identifies terrain and content, including whether the tile is reachable.
+Choose **Pop out Map Editor** in the GM panel, or **Open in Map Editor** from the Zones tab. Select the zone, then **Fit**. Wheel to zoom; right-drag or Space-drag to pan. Turn on **grid**, **reachability**, and **players**. Select **Select / move** and hover over several tiles: the readout identifies terrain and content, including whether the tile is reachable.
 
 Find an open, nonessential area away from arrivals, exits, services and active objectives. Full dungeons disable terrain-patch tools; use a supported overworld or hub instead. Download a **painted PNG** as a visual reference if useful. That picture is not a restorable map backup.
 

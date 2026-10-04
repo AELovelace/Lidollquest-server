@@ -26,8 +26,8 @@ export function createMapRenderer({tiles={sprites:{},tilesets:{}},compiled={},av
   const w=Math.max(1,Math.round(f.sw*scale)),h=Math.max(1,Math.round(f.sh*scale)),scaled=scale===1?crop:scaleNearest(crop,w,h);
   blit(canvas,scaled,x*TILE_SIZE+Math.round((TILE_SIZE-w)/2),y*TILE_SIZE+Math.round((TILE_SIZE-h)/2),{tint});return true;
  }
- function drawStanding(canvas,name,x,y){ // Avatars (NPC and merchant fixtures, placed NPCs): frame 0, bottom-centre anchored to the cell's bottom edge.
-  const img=image(name);if(!img)return false;const f=frameOf(img);blit(canvas,img,x*TILE_SIZE+Math.round(TILE_SIZE/2-f.sw/2),y*TILE_SIZE+TILE_SIZE-f.sh,f);return true;
+ function drawStanding(canvas,name,x,y){ // Avatars (NPC and merchant fixtures, placed NPCs): frame 0 fitted to their one 32px cell, as the client draws residents (32/sprite_get_width). Piko townspeople are 64px canvases, so drawing them unscaled doubled them.
+  return drawFit(canvas,name,x,y);
  }
  function drawMarker(canvas,x,y,colour,inset=8){fillRect(canvas,x*TILE_SIZE+inset,y*TILE_SIZE+inset,TILE_SIZE-inset*2,TILE_SIZE-inset*2,colour);strokeRect(canvas,x*TILE_SIZE+inset,y*TILE_SIZE+inset,TILE_SIZE-inset*2,TILE_SIZE-inset*2,WHITE);} // Flat square for anything without artwork.
  function paintTerrain(canvas,floor){

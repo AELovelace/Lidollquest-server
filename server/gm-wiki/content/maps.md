@@ -86,7 +86,7 @@ Tools:
 | Tool | What it does | Commits |
 | --- | --- | --- |
 | NPC routes | Select an NPC placement, draw waypoints, choose movement and schedule, and set waits | **Save routes**, separate from the terrain queue |
-| Inspect / select | Read a tile; select a placement or DM monster to move, re-lifetime or remove it | immediately |
+| Select / move | Read a tile; select a placement, DM monster or scenery; drag it to move it; Ctrl+C / Ctrl+X / Ctrl+V copy, cut and paste (see below) | placements and monsters immediately; scenery as a pending change |
 | Place content | The Zones-tab placer: monsters, NPCs, interaction objects, quest tokens, location objectives, story orbs, uploads, remove mode, orb scatter | immediately |
 | Terrain brush | Wall, floor, prop and clear-prop brushes (1 to 5 tiles), Shift-drag rectangles; tiled hubs pick atlas cells for floor (left click) and wall (right click) | pending change |
 | Scenery stamp | Any shipped sprite by name, footprint, solid and toilet flags; eraser removes scenery | pending change |
@@ -95,7 +95,25 @@ Tools:
 | Biome layers | Paint tall-grass cover and sheltered spots (Plains, Coast), the Gulch wash, the Coast shoreline per row, Pink Mist tiles, or move the Caldera crater (the heat zone follows) | pending change |
 | Exits & pads | Slide a wall gate along its wall (the old opening closes, the arrival tile follows), move a warp pad to any walkable tile, or add a new gate or pad to a linked wilderness route, a hub, or a neighbour the map already reaches | pending change |
 
-Pending changes preview on the canvas and queue on the right until **Apply**; Undo/Redo and Discard act on the queue. Full dungeons (`dungeon-*`) disable terrain-patch tools; Inspect, Place and NPC routes remain available for managed placements. The overlays toggle a grid, reachability (red = walkable but cut off from every arrival), safe rooms, biome layers and players.
+Pending changes preview on the canvas and queue on the right until **Apply**; Undo/Redo and Discard act on the queue. Full dungeons (`dungeon-*`) disable terrain-patch tools; Select / move (placements and DM monsters), Place and NPC routes remain available for managed placements. The overlays toggle a grid, reachability (red = walkable but cut off from every arrival), safe rooms, biome layers and players.
+
+### Moving, copying and pasting
+
+With **Select / move**, click an object to select it. A placement or DM monster is picked before scenery on the same tile. Drag it, and a dashed ghost shows where it lands; release to move it. For scenery bigger than one tile, the tile you grabbed lands under the pointer.
+
+- **Ctrl+C** copies the selection. **Ctrl+V** pastes a new copy with its top-left on the tile under the pointer. The clipboard stays filled when you switch zones, so you can paste into another map.
+- **Ctrl+X** cuts. Nothing disappears yet: the original is dimmed with a pink dashed outline until you paste, and **Esc** cancels the cut. Pasting a cut on the same map moves the original. Pasting it on a different map places a copy and leaves the original where it was. After any paste the clipboard holds a copy, so you can keep stamping.
+- The selection box also has **Copy** and **Cut** buttons. When you select an empty tile while something is on the clipboard, a **Paste here** button appears.
+
+What each kind keeps:
+
+| Object | Move | Paste |
+| --- | --- | --- |
+| Placement (NPC, object, token, location, orb) | Keeps its ID, quest references, lifetime and routes. Route waypoints stay where they are. | A new placement with the same content, name, artwork and lifetime. A pasted NPC on the same map brings its routes, shifted by the same offset; on another map the routes are not copied. |
+| DM monster | Keeps its ID, definition, **Roam and attack automatically** and **Respawn** flags, and respawns at the new tile (`world_move`). | A new DM monster of the same published type and flags. |
+| Scenery | A grouped remove + stamp in the pending queue: one Undo, one ×, applied with **Apply**. | A pending stamp with the same sprite, footprint, solid and toilet flags. |
+
+Moves and pastes follow the same rules as placing: reachable tiles away from entrances, fixtures and players, and the 128-per-zone limits. Scenery needs the patch layer, so full dungeons only move placements and monsters. Keyboard shortcuts are ignored while you are typing in a field.
 
 ## The patch layer: what persists and when it re-applies
 

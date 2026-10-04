@@ -149,3 +149,19 @@ test('with spawning off, a defeated monster stays gone: hidden, stationary, unen
   assert.throws(()=>f.act(id,'dive_engage',{encounter:'enemy-corpse'}),/not available/);
  }finally{f.close();}
 });
+
+test('world_move slides a DM monster to a new tile in dives and hubs, keeping its id and flags, under world_place rules',()=>{
+ const f=fixture();try{f.player();f.publish('monster',monster);
+  for(const zone of ['dive-quarters','princess-rose']){ // A weekly Dive and a hub court both route world_move through their place() engines.
+   const point=f.free(f.map(zone));f.world('world_place',zone,{monster:monster.id,...point,aggressive:true,respawning:true});const foe=f.map(zone).floor.enemies.find(e=>e.manual);
+   const step=[[1,0],[-1,0],[0,1],[0,-1]].map(([dx,dy])=>({x:point.x+dx,y:point.y+dy})).find(t=>walkable(f.map(zone).floor,t.x,t.y)); // One tile over: the monster's own old tile must not block it.
+   f.world('world_move',zone,{monster:foe.id,...step});const moved=f.map(zone).floor.enemies.find(e=>e.id===foe.id);
+   assert.deepEqual([moved.x,moved.y,moved.spawn.x,moved.spawn.y],[step.x,step.y,step.x,step.y],zone+': moved and respawns there');assert.equal(moved.roaming,true);assert.equal(moved.respawning,true);assert.equal(f.map(zone).floor.enemies.filter(e=>e.manual).length,1,zone+': no copy left behind');
+   assert.throws(()=>f.world('world_move',zone,{monster:foe.id,x:0,y:0}),/free tile/,zone+': walls are refused');
+   assert.throws(()=>f.world('world_move',zone,{monster:foe.id,x:1.5,y:2}),/free tile/,zone+': fractional tiles are refused');
+   assert.throws(()=>f.world('world_move',zone,{monster:'dm-missing',...point}),/DM monster/,zone+': unknown monsters are refused');
+   const stale=f.map(zone);f.world('world_move',zone,{monster:foe.id,...point});assert.throws(()=>f.world('world_move',zone,{monster:foe.id,...step,revision:stale.revision}),/map changed|Refresh/,zone+': stale revisions are refused');
+  }
+  const generated=f.map().floor.enemies.find(e=>!e.manual&&!e.dead);if(generated)assert.throws(()=>f.world('world_move','dive-quarters',{monster:generated.id,x:generated.x,y:generated.y}),/DM monster/,'generated monsters stay put');
+ }finally{f.close();}
+});

@@ -25,6 +25,9 @@ export function createHubEncounters(db,{now,roll,parties,live,definition,ids}){
   function view(){const r=record();return {id:zone,kind:'hub',edition:r.edition,revision:mapRevision(r),floor:r.floor,players:positions().map(c=>({id:c.id,name:c.name,x:c.x,y:c.y}))};}
   function place(input){const r=record();if(input.edition!==r.edition||input.revision!==mapRevision(r))fail('The map changed. Refresh first.');
    if(input.action==='world_remove'){const foe=r.floor.enemies.find(e=>e.id===input.monster);if(!foe||foe.engaged)fail('Choose a monster outside combat.');r.floor.enemies=r.floor.enemies.filter(e=>e!==foe);}
+   else if(input.action==='world_move'){const foe=r.floor.enemies.find(e=>e.id===input.monster&&e.manual&&!e.dead);if(!foe||foe.engaged)fail('Choose a DM monster outside combat.');const z=definition(zone),x=Number(input.x),y=Number(input.y); // The Map Editor's drag and cut/paste: same id, definition and flags, new tile.
+    if(!Number.isInteger(x)||!Number.isInteger(y)||!walkable(r.floor,x,y)||[...r.floor.enemies.filter(e=>e!==foe),...positions(),...(z.fixtures??[]),...(z.portals??[]),z.spawn??{x:10,y:9},...(z.exit?[z.exit]:[])].some(p=>Math.abs(x-p.x)+Math.abs(y-p.y)<=1))fail('Choose a free tile away from players, entrances and fixtures.'); // world_place's rules, minus the monster itself.
+    foe.x=x;foe.y=y;foe.spawn={x,y};}
    else {if(r.floor.enemies.length>=128)fail('This hub already has 128 DM monsters.');const monster=live.published().monsters[input.monster],z=definition(zone),{x,y}=input;
     if(!monster||monster.retired)fail('Choose a published monster.');
     if(!walkable(r.floor,x,y)||[...r.floor.enemies,...positions(),...(z.fixtures??[]),...(z.portals??[]),z.spawn??{x:10,y:9},...(z.exit?[z.exit]:[])].some(p=>Math.abs(x-p.x)+Math.abs(y-p.y)<=1))fail('Choose a free tile away from players, entrances and fixtures.');

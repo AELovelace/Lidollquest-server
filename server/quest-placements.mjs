@@ -85,7 +85,7 @@ export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQues
  function view(zone){const map=base.map(zone);if(!map.floor)return {...map,placements:[]};const placements=realize(zone,map.edition,map.floor,{commit:!readOnly}),fresh=JSON.stringify(map.floor.managedOccupancy??[])===JSON.stringify(placements.filter(p=>p.kind==='npc'&&!p.walking).map(({x,y})=>({x,y})))?map:base.map(zone),revision=hash([fresh.revision,placements]);return {...fresh,baseRevision:fresh.revision,revision,placements};}
  function act(input){
   const map=view(input.zone);if((input.action!=='world_route_content'&&input.revision!==map.revision)||input.edition!==map.edition)fail('The map changed. Refresh before placing content.'); // Routes are checked against the live floor below, so a monster or NPC stepping mid-edit (which changes the revision) never discards a drawn route.
-  if(input.action==='world_place'&&map.placements.some(p=>Math.abs(p.x-input.x)+Math.abs(p.y-input.y)<=1))fail('Choose a tile away from NPCs and quest objectives.');
+  if((input.action==='world_place'||input.action==='world_move')&&map.placements.some(p=>Math.abs(p.x-input.x)+Math.abs(p.y-input.y)<=1))fail('Choose a tile away from NPCs and quest objectives.');
   if(!['world_place_content','world_update_content','world_remove_content','world_scatter_orbs','world_route_content'].includes(input.action))return base.act({...input,revision:map.baseRevision});
   if(map.job)fail('Wait for regeneration to finish.');
   if(input.action==='world_route_content'){ // Replace one NPC placement's routes; the changed definition re-realizes the map, so the NPC restarts from home.
