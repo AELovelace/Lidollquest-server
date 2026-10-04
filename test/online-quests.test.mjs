@@ -410,7 +410,7 @@ test('routed NPCs walk their waypoints, wait, follow schedules, and only block w
  let last=where(),reached=0,waited=0,returned=false;
  for(let n=0;n<80&&!returned;n++){
   slot();const now=where();assert.ok(far(now,last)<=1,'one tile per slot at most');
-  if(now.x!==last.x||now.y!==last.y){assert.equal(now.walking,true);assert.equal(now.facing,now.x!==last.x?(now.x>last.x?2:3):(now.y>last.y?0:1));assert.deepEqual(f.api.quests.placements.positions(zone,map.edition),[],'a walking NPC occupies no tile');}
+  if(now.x!==last.x||now.y!==last.y){assert.equal(now.walking,true);assert.equal(now.facing,now.x!==last.x?(now.x>last.x?2:3):(now.y>last.y?0:1));assert.equal(f.api.read('',f.c.id).worldPlacements.find(p=>p.id===placed.id).facing,now.facing,'the snapshot turns the NPC toward its step, not its published default');assert.deepEqual(f.api.quests.placements.positions(zone,map.edition),[],'a walking NPC occupies no tile');}
   if(now.x===b.x&&now.y===b.y){reached++;if(!now.walking){waited++;assert.deepEqual(f.api.quests.placements.positions(zone,map.edition),[b],'a waiting NPC blocks its tile again');}}
   if(reached&&now.x===a.x&&now.y===a.y)returned=true;last=now;
  }

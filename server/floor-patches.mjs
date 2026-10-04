@@ -7,6 +7,7 @@
 // the GM action transaction (gm.mjs), where act() also re-realizes quest placements and relocates anyone standing in a new wall.
 import {randomUUID} from 'node:crypto';
 import {inExit} from './wilderness-links.mjs';
+import {MOVABLE_FIXTURES} from './hub-fixture-moves.mjs';
 
 const fail=(message,status=409,code='world_patch_conflict')=>{throw Object.assign(Error(message),{status,code});};
 const MAX_OPS=256,MAX_CELLS=4096,MAX_BODY=256*1024,MAX_SPAN=8; // Caps keep one zone's patch a few hundred KB at most.
@@ -19,7 +20,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
  CREATE TABLE IF NOT EXISTS world_floor_patch_history(zone TEXT NOT NULL,revision INTEGER NOT NULL,body TEXT NOT NULL,updated INTEGER NOT NULL,actor TEXT NOT NULL,PRIMARY KEY(zone,revision));`);
  const rowQuery=db.prepare('SELECT * FROM world_floor_patches WHERE zone=?');
  function get(zone){const row=rowQuery.get(zone);if(!row)return {zone,revision:0,ops:[],updated:0,actor:''};const body=JSON.parse(row.body);return {zone,revision:row.revision,ops:body.ops??[],updated:row.updated,actor:row.actor};}
- const revision=zone=>rowQuery.get(zone)?.revision??0;
+ const revisionQuery=db.prepare('SELECT revision FROM world_floor_patches WHERE zone=?'),revision=zone=>revisionQuery.get(zone)?.revision??0; // No body: zone() asks on every call.
  function history(zone){return db.prepare('SELECT revision,updated,actor,body FROM world_floor_patch_history WHERE zone=? ORDER BY revision DESC LIMIT 30').all(zone).map(r=>({revision:r.revision,updated:r.updated,actor:r.actor,count:(JSON.parse(r.body).ops??[]).length}));}
  function store(zone,ops,actor){ // Write the next revision and remember it in the history.
   if(readOnly)fail('Snapshot workers cannot edit floors.',500,'world_patch_readonly');
@@ -81,6 +82,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
    }
    return;
   }
+  if(op.kind==='fixture'){if(kind==='dive')fail('Only hub furniture and services can be moved this way.',400);return;} // Applied after decoration by hub-fixture-moves.mjs.
   if(op.kind==='decoration'){
    if(op.op==='remove'){
     const m=op.match??{};const hit=kind==='dive'?(f.decorations??[]).find(d=>(m.id&&d.id===m.id)||(d.sprite===m.sprite&&d.x===m.x&&d.y===m.y)):(f.fixtures??[]).find(d=>['scenery','toilet'].includes(d.kind)&&((m.id&&d.id===m.id)||(d.sprite===m.sprite&&d.x===m.x&&d.y===m.y)));
@@ -209,7 +211,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
   const changed=reverted||applied>0;if(changed)work.geometryVersion=(work.geometryVersion??0)+1; // Connected clients rebuild collision and the minimap.
   for(const k of Object.keys(floor))if(!(k in work))delete floor[k];Object.assign(floor,work);return changed;
  }
- const describe=op=>op.kind==='cells'?'paint '+op.cells.length+' cell(s)':op.kind==='decoration'?(op.op==='remove'?'remove ':'stamp ')+(op.decoration?.sprite??op.match?.sprite??'scenery'):op.kind==='safeRoom'?(op.op==='remove'?'remove':'add')+' safe room':op.kind==='spawn'?'move arrival':op.kind==='layer'?'paint '+op.layer:op.kind==='exit'?(op.op==='add'?'add a crossing to ':'move the exit to ')+op.zone:op.kind;
+ const describe=op=>op.kind==='cells'?'paint '+op.cells.length+' cell(s)':op.kind==='decoration'?(op.op==='remove'?'remove ':'stamp ')+(op.decoration?.sprite??op.match?.sprite??'scenery'):op.kind==='safeRoom'?(op.op==='remove'?'remove':'add')+' safe room':op.kind==='spawn'?'move arrival':op.kind==='layer'?'paint '+op.layer:op.kind==='exit'?(op.op==='add'?'add a crossing to ':'move the exit to ')+op.zone:op.kind==='fixture'?'move '+op.match.kind+' '+op.match.id:op.kind;
  function view(zone,floor){const p=get(zone);return {revision:p.revision,ops:p.ops,history:history(zone),skipped:floor?.patchSkipped??[],updated:p.updated,actor:p.actor};} // What the Map Editor shows in its Patch layer panel.
 
  function normalizeOps(list){ // Validate the shape of incoming ops before they are stored; geometry rules run in apply().
@@ -223,6 +225,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
    if(raw.kind==='layer'){const layer=String(raw.layer??'');if(!['cover','wash','shore','mist','crater'].includes(layer))fail('Unknown layer '+layer+'.',400);const out={...base,layer};if(layer==='shore'){if(!Array.isArray(raw.rows)||!raw.rows.length||raw.rows.length>512)fail('A shoreline change needs 1 to 512 rows.',400);out.rows=raw.rows.map(r=>({y:Number(r.y),edge:Number(r.edge)}));}else if(layer==='crater'){const c=raw.crater??{};out.crater={x:Number(c.x),y:Number(c.y),r:Number(c.r)};}else{if(!Array.isArray(raw.cells)||!raw.cells.length||raw.cells.length>MAX_CELLS)fail('A layer change needs 1 to '+MAX_CELLS+' cells.',400);out.cells=raw.cells.map(c=>({x:Number(c.x),y:Number(c.y),v:String(c.v??'1').slice(0,1)}));}return out;}
    if(raw.kind==='exit'){const to=raw.to??{};if(raw.op==='add')return {...base,op:'add',zone:String(raw.zone??'').slice(0,80),name:String(raw.name??'').slice(0,60),style:raw.style==='warp'?'warp':'gap',...(raw.side?{side:String(raw.side)}:{}),to:{x:Number(to.x),y:Number(to.y)}};return {...base,op:'move',...(raw.exit?{exit:String(raw.exit).slice(0,80)}:{}),zone:String(raw.zone??'').slice(0,80),to:{x:Number(to.x),y:Number(to.y)}};}
    if(raw.kind==='spawn'){const out={...base};if(raw.entrance)out.entrance={x:Number(raw.entrance.x),y:Number(raw.entrance.y)};if(raw.entries&&typeof raw.entries==='object')out.entries=Object.fromEntries(Object.entries(raw.entries).slice(0,8).map(([z,p])=>[String(z).slice(0,80),{x:Number(p.x),y:Number(p.y)}]));if(!out.entrance&&!out.entries)fail('A spawn change needs an entrance or entries.',400);return out;}
+   if(raw.kind==='fixture'){const m=raw.match??{},to=raw.to??{},id=String(m.id??'').slice(0,80),kind=String(m.kind??'');if(!id||!MOVABLE_FIXTURES.has(kind))fail('Choose furniture or a service to move.',400);return {...base,op:'move',match:{id,kind},to:{x:Number(to.x),y:Number(to.y)}};}
    fail('Unknown change kind '+raw.kind+'.',400);
   });
  }

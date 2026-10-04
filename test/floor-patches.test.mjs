@@ -182,3 +182,27 @@ test('a GM can add a new gate or pad to a legal neighbour, arrivals follow, and 
   assert.deepEqual(Object.keys(r.floor.entries).sort(),Object.keys(p.floor.entries).sort(),'arrivals the patch created are gone');
  }finally{f.close();}
 });
+
+test('hub furniture and services move through fixture ops after decoration: vanity, cauldron and crafting stations keep their ids',()=>{
+ const f=fixture();try{
+  const gm=(zone,ops)=>{f.db.exec('BEGIN IMMEDIATE');try{const r=f.patch(zone,ops);f.db.exec('COMMIT');return r;}catch(e){f.db.exec('ROLLBACK');throw e;}}; // gm.mjs wraps every GM action like this, so a refused move leaves nothing stored.
+  const hubs=f.zones().world.catalog().filter(z=>z.kind==='hub').map(z=>z.id),find=kind=>hubs.find(id=>f.map(id).floor?.fixtures?.some(x=>x.kind===kind));
+  const tryMove=(zone,kind)=>{ // Nearest tile (by distance from where it stands) that the server accepts.
+   const m=f.map(zone),it=m.floor.fixtures.find(x=>x.kind===kind),tiles=[];for(let y=1;y<m.floor.height-1;y++)for(let x=1;x<m.floor.width-1;x++)if(x!==it.x||y!==it.y)tiles.push({x,y});
+   tiles.sort((a,b)=>Math.abs(a.x-it.x)+Math.abs(a.y-it.y)-Math.abs(b.x-it.x)-Math.abs(b.y-it.y));
+   for(const to of tiles.slice(0,60)){try{gm(zone,[{id:'move-'+kind+'-'+to.x+'-'+to.y,kind:'fixture',op:'move',match:{id:it.id,kind},to}]);return {it,to};}catch(e){if(!/cut off|reach|doorway|outer wall|open floor/.test(e.message))throw e;}}
+   throw Error('No tile accepted the '+kind);
+  };
+  const inn=find('mirror');assert.ok(inn,'some bedroom hub has a vanity mirror');
+  const before=f.map(inn).patch.revision,{it:mirror,to}=tryMove(inn,'mirror');
+  const moved=f.map(inn).floor.fixtures.find(x=>x.id===mirror.id);assert.deepEqual([moved.x,moved.y],[to.x,to.y],'the vanity (added by hubMirrors after the patch layer) moved');assert.equal(f.map(inn).floor.fixtures.filter(x=>x.kind==='mirror').length,1,'no second vanity appears');
+  assert.equal(f.map(inn).patch.revision,before+1);
+  assert.throws(()=>gm(inn,[{kind:'fixture',op:'move',match:{id:mirror.id,kind:'mirror'},to:{x:0,y:0}}]),/outer wall/,'walls are refused');assert.equal(f.map(inn).patch.revision,before+1,'a refused move stores nothing');
+  const opId=f.map(inn).patch.ops.find(op=>op.kind==='fixture').id;f.db.exec('BEGIN IMMEDIATE');f.world('world_patch_remove',inn,{op:opId});f.db.exec('COMMIT');
+  const home=f.map(inn).floor.fixtures.find(x=>x.id===mirror.id);assert.deepEqual([home.x,home.y],[mirror.x,mirror.y],'removing the stored move puts the vanity back');
+  const yard=find('cauldron');if(yard){const forge=f.map(yard).floor.fixtures.find(x=>x.kind==='forge'),{it:pot,to:spot}=tryMove(yard,'cauldron'),after=f.map(yard).floor.fixtures;
+   assert.deepEqual([after.find(x=>x.id===pot.id).x,after.find(x=>x.id===pot.id).y],[spot.x,spot.y],'the cauldron moved');if(forge)assert.deepEqual([after.find(x=>x.id===forge.id).x,after.find(x=>x.id===forge.id).y],[forge.x,forge.y],'its crafting stations stay put');}
+  assert.throws(()=>gm(inn,[{kind:'fixture',op:'move',match:{id:'objNPCMerchant',kind:'shop'},to:{x:3,y:3}}]),/furniture or a service/,'shops are not movable');
+  assert.throws(()=>gm('dive-quarters',[{kind:'fixture',op:'move',match:{id:'cauldron',kind:'cauldron'},to:{x:3,y:3}}]),/hub furniture/,'Dives refuse fixture moves');
+ }finally{f.close();}
+});
