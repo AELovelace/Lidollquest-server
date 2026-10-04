@@ -35,6 +35,27 @@ test('character creation saves the wardrobe look and wears it; locked or over-li
  }finally{w.close();}
 });
 
+test('the lobby exposes committed level, class, location and look without inventory or writes',()=>{
+ const w=world();
+ try{
+  const c=w.create('doll',{creation:{look,start_hub:'honeydew-lantern',class_id:'fighter'}});
+  const fresh=w.read('doll').characters.find(row=>row.id===c.id);
+  assert.equal(fresh.overview.level,1);assert.equal(fresh.overview.class_id,'fighter');
+  assert.equal(fresh.overview.location,w.read('doll').zones.find(z=>z.id==='honeydew-lantern').name);
+  w.enter('doll',c.id);
+  const state=w.state(c.id);state.loadout.player_info.level=27;state.loadout.player_info.class_id='mage';
+  w.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),c.id);
+  const before=w.db.prepare('SELECT * FROM quest_characters WHERE id=?').get(c.id);
+  const list=w.read('doll'),row=list.characters.find(row=>row.id===c.id),detail=w.read('doll',c.id).character;
+  assert.deepEqual(row.overview,detail.overview);assert.equal(row.overview.level,27);assert.equal(row.overview.class_id,'mage');
+  assert.deepEqual(row.look,state.look);assert.equal(row.loadout,undefined,'roster must not repeat inventories');
+  assert.ok(Array.isArray(list.spriteWorkshop),'preloading metadata is available before entering the world');
+  assert.deepEqual(w.db.prepare('SELECT * FROM quest_characters WHERE id=?').get(c.id),before,'preview reads leave character state unchanged');
+  assert.equal(w.read('stranger').characters.some(row=>row.id===c.id),false,'character previews remain account scoped');
+  assert.throws(()=>w.read('stranger',c.id),/character|Character|found/);
+ }finally{w.close();}
+});
+
 test('peers see each other\'s looks by content key, and the snapshot cache sends each look only once',()=>{
  const w=world();
  try{
@@ -51,16 +72,44 @@ test('peers see each other\'s looks by content key, and the snapshot cache sends
  }finally{w.close();}
 });
 
-test('saving a look is free beside a hub mirror and costs one diamond anywhere else',()=>{
+test('a character without a saved look gets its first wardrobe save free, including retries',()=>{
  const w=world();
  try{
   const c=w.create('doll',{});w.enter('doll',c.id);
+  assert.throws(()=>w.act('doll',c.id,'look',{look:{...look,slots:{...look.slots,head:'tiara'}}}),/Unlock Tiara/,'free setup does not unlock premium accessories');
+  assert.equal(w.state(c.id).look,undefined,'a rejected look does not consume the first save');
+  const request={request_id:randomUUID(),revision:w.read('doll',c.id).character.revision,look};
+  w.act('doll',c.id,'look',request);
+  assert.equal(w.state(c.id).avatar,'look');assert.equal(w.state(c.id).look.slots.hair,'twin_tails');
+  assert.equal(w.state(c.id).pendingPurchase,undefined,'first save creates no diamond reservation');
+  assert.equal(w.db.prepare('SELECT COUNT(*) AS n FROM hub_purchases').get().n,0);
+  const revision=w.read('doll',c.id).character.revision;
+  w.act('doll',c.id,'look',request);
+  assert.equal(w.read('doll',c.id).character.revision,revision,'retrying the free receipt is not a second save');
+  assert.equal(w.db.prepare('SELECT COUNT(*) AS n FROM hub_purchases').get().n,0);
+  w.act('doll',c.id,'appearance',{avatar:'player'});
+  w.act('doll',c.id,'look',{look:{...look,slots:{...look.slots,hair:'pixie_cut'}}});
+  assert.ok(w.state(c.id).pendingPurchase,'switching to the default sprite does not reset the free save');
+  w.zones.completePurchase(w.state(c.id).pendingPurchase,false);
+  assert.equal(w.state(c.id).look.slots.hair,'twin_tails','declined subsequent changes preserve the first look');
+  w.act('doll',c.id,'leave'); // Finish the first character's lease before testing another on the same account.
+  const second=w.create('doll',{});w.enter('doll',second.id);w.act('doll',second.id,'look',{look});
+  assert.equal(w.state(second.id).pendingPurchase,undefined,'each character gets its own first setup');
+  assert.equal(w.state(second.id).look.slots.hair,'twin_tails');
+ }finally{w.close();}
+});
+
+test('subsequent look saves are free beside a hub mirror and cost one diamond elsewhere',()=>{
+ const w=world();
+ try{
+  const initial={...look,slots:{...look.slots,hair:'piko_hair'}};
+  const c=w.create('doll',{creation:{look:initial}});w.enter('doll',c.id);
   w.act('doll',c.id,'look',{look});
   const pending=w.state(c.id).pendingPurchase;assert.ok(pending,'away from a mirror the save waits on a diamond');
   const row=w.db.prepare('SELECT * FROM hub_purchases WHERE id=?').get(pending);
   assert.deepEqual([JSON.parse(row.item).currency,row.price],['diamonds',1]);
-  assert.equal(w.state(c.id).avatar,'player','nothing changes before the debit lands');
-  w.zones.completePurchase(pending,false);assert.equal(w.state(c.id).look,undefined,'a declined debit keeps the old look');
+  assert.equal(w.state(c.id).look.slots.hair,'piko_hair','nothing changes before the debit lands');
+  w.zones.completePurchase(pending,false);assert.equal(w.state(c.id).look.slots.hair,'piko_hair','a declined debit keeps the creation look');
   w.act('doll',c.id,'look',{look});w.zones.completePurchase(w.state(c.id).pendingPurchase,true);
   assert.equal(w.state(c.id).avatar,'look');assert.equal(w.state(c.id).look.slots.torso,'short_sundress');
   // Walk into the Honeydew inn and stand beside its vanity mirror.

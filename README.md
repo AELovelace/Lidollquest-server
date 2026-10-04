@@ -1,5 +1,7 @@
 # LiDollQuest server
 
+Online character previews: normal zone snapshots include `overview: {level, class_id, location}` on the selected character and roster entries. Values come from committed online state (creation defaults before the first loadout), with a friendly online location name. Rosters still omit inventory. The client warms saved Workshop layers from the roster, refreshes the selected character before Continue, and keeps an account/character-scoped preview through campaign restoration. Cloud preview dates and campaign room names remain recovery metadata. Ship the updated server and client together; no database migration or new authoring fields are required.
+
 Piko clothing body fits: the exported Sprite Lab catalog includes base `body_type` and twenty garments' `body_sprites.masc`. The GM/public look designer resolves the correct texture from the selected base while retaining one garment ID, tint and unlock. `sprite-lab-sheets.json` includes the alternate sheets. Rebuild static editors after importing these assets; the game also needs the matching rebuilt client. Existing flat-bodice garments and explicit published Sprite Workshop art render unchanged.
 
 ## Static Sprite Workshop
@@ -1403,7 +1405,7 @@ Part C, 2026-10-03.
 **Saving a look**
 - A character's Sprite Lab look is `state.look`, worn when `state.avatar === 'look'`.
 - Creation accepts `creation.look`, validated with the account's unlocks. Without an explicit avatar the character wears it.
-- The zone action `look {look}` is free beside a hub `mirror` fixture. Elsewhere it reserves a one-diamond `hub_purchases` row `{look_save, look}`, applied on settlement.
+- The zone action `look {look}` is free when the character has no saved look, including existing characters that skipped setup. Later changes are free beside a hub `mirror` fixture; elsewhere they reserve a one-diamond `hub_purchases` row `{look_save, look}`, applied on settlement. A creation-time look already counts as setup, and switching to the default avatar does not reset eligibility. Accessory/premium unlocks still cost their normal price. Deploy the server and rebuilt client together; no database migration is required.
 - `hub-mirrors.mjs` decorates every hub room with beds with a 2x2 vanity mirror (`sprPQDetailVanity`) on a spot that keeps the room connected.
 
 **Avatar rules**

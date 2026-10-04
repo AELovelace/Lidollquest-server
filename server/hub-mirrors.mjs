@@ -1,5 +1,5 @@
 // Wardrobe mirrors: every hub room with beds (inns, dormitories, pods) gets one vanity mirror, where saving a new
-// Sprite Lab look is free (zones.mjs `look`; elsewhere it costs one diamond). Placed like the crafting stations: on a
+// Sprite Lab look is free (zones.mjs `look`; elsewhere later saves cost one diamond, while the first is free). Placed like the crafting stations: on a
 // reachable 2x2 spot near the beds that keeps every previously reachable floor tile reachable and stays clear of
 // doorways, the spawn and other fixtures. Geometry is cached per layout, so snapshots never repeat the flood fill.
 import {reachableTiles} from './crafting-service.mjs';
