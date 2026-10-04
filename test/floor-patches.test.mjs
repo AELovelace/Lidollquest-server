@@ -223,3 +223,21 @@ test('a GM-removed district toilet stays removed, later Applies still work, and 
    gm(town,[{kind:'decoration',op:'remove',match:{id:o.id,sprite:o.sprite,x:o.x,y:o.y}}]);f.tick();f.restart();assert.equal(outhouses().length,before-1,'a removed lobby outhouse is not replaced elsewhere');}
  }finally{f.close();}
 });
+
+test('GMs place hub furniture from the catalog: real service fixtures that refuse walls and Dives and can be removed again',()=>{
+ const f=fixture();try{
+  const gm=(zone,ops)=>{f.db.exec('BEGIN IMMEDIATE');try{const r=f.patch(zone,ops);f.db.exec('COMMIT');return r;}catch(e){f.db.exec('ROLLBACK');throw e;}}; // As gm.mjs runs every GM action.
+  const tryPlace=(zone,furniture)=>{const m=f.map(zone);for(let y=2;y<m.floor.height-2;y++)for(let x=2;x<m.floor.width-2;x++){try{gm(zone,[{kind:'fixture',op:'add',furniture,to:{x,y}}]);return f.map(zone).floor.fixtures.find(p=>String(p.id).startsWith('patch-')&&p.x===x&&p.y===y);}catch(e){if(!/open floor|cover|reach|cut off|outer wall/.test(e.message))throw e;}}throw Error('nowhere to place '+furniture);};
+  const hubs=f.zones().world.catalog().filter(z=>z.kind==='hub').map(z=>z.id),room='honeydew-lantern-beds';
+  const kitchen=tryPlace(room,'kitchen');assert.equal(kitchen.kind,'kitchen');assert.equal(kitchen.name,'Kitchen');
+  const crib=tryPlace(room,'bed:objBedCrib');assert.equal(crib.kind,'bed');assert.equal(crib.bed,'objBedCrib','a descriptor bed: the client applies the crib rest rules');assert.ok(crib.sprite);
+  const toilet=tryPlace(room,'toilet');assert.deepEqual([toilet.kind,toilet.style],['toilet','porcelain']);
+  assert.throws(()=>gm(room,[{kind:'fixture',op:'add',furniture:'vanity',to:{x:0,y:0}}]),/open floor/,'walls are refused');
+  assert.throws(()=>gm(room,[{kind:'fixture',op:'add',furniture:'throne',to:{x:3,y:3}}]),/Choose furniture/,'unknown furniture is refused');
+  assert.throws(()=>gm('dive-quarters',[{kind:'fixture',op:'add',furniture:'kitchen',to:{x:3,y:3}}]),/hub furniture/,'Dives refuse furniture');
+  gm(room,[{kind:'fixture',op:'remove',match:{id:kitchen.id,kind:'kitchen'}}]);assert.ok(!f.map(room).floor.fixtures.some(p=>p.id===kitchen.id),'placed furniture can be removed');
+  const town=hubs.find(id=>!f.map(id).floor.fixtures.some(p=>p.kind==='cauldron')&&f.map(id).floor.fixtures.some(p=>p.kind==='bed'));
+  if(town){const pot=tryPlace(town,'cauldron'),fx=f.map(town).floor.fixtures;assert.equal(pot.kind,'cauldron');assert.ok(fx.some(p=>p.kind==='forge')&&fx.some(p=>p.kind==='kitchen'),'a first cauldron brings its crafting stations');}
+  const mirrorRoom=hubs.find(id=>!f.map(id).floor.fixtures.some(p=>p.kind==='mirror'));if(mirrorRoom){const v=tryPlace(mirrorRoom,'vanity');assert.deepEqual([v.kind,v.span_w,v.span_h],['mirror',2,2]);}
+ }finally{f.close();}
+});

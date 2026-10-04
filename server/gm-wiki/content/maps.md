@@ -87,7 +87,7 @@ Tools:
 | --- | --- | --- |
 | NPC routes | Select an NPC placement, draw waypoints, choose movement and schedule, and set waits | **Save routes**, separate from the terrain queue |
 | Select / move | Read a tile; select a placement, DM monster, hub furniture or service, or scenery; drag it to move it; Ctrl+C / Ctrl+X / Ctrl+V copy, cut and paste (see below) | placements and monsters immediately; scenery as a pending change |
-| Place content | The Zones-tab placer: monsters, NPCs, interaction objects, quest tokens, location objectives, story orbs, uploads, remove mode, orb scatter | immediately |
+| Place content | The Zones-tab placer: monsters, NPCs, interaction objects, quest tokens, location objectives, story orbs, uploads, remove mode, orb scatter. On hubs, **Furniture / service** places vanities, cauldrons, kitchens, forges, sewing tables, toilets, outhouses, changers, banks, dumpsters and every bed type | immediately; furniture as a pending change |
 | Terrain brush | Wall, floor, prop and clear-prop brushes (1 to 5 tiles), Shift-drag rectangles; tiled hubs pick atlas cells for floor (left click) and wall (right click) | pending change |
 | Scenery stamp | Any shipped sprite by name, footprint, solid and toilet flags; eraser removes scenery | pending change |
 | Safe room | Drag a rectangle (Dives and overworlds); Alt-click removes one | pending change |
@@ -112,9 +112,25 @@ What each kind keeps:
 | Placement (NPC, object, token, location, orb) | Keeps its ID, quest references, lifetime and routes. Route waypoints stay where they are. | A new placement with the same content, name, artwork and lifetime. A pasted NPC on the same map brings its routes, shifted by the same offset; on another map the routes are not copied. |
 | DM monster | Keeps its ID, definition, **Roam and attack automatically** and **Respawn** flags, and respawns at the new tile (`world_move`). | A new DM monster of the same published type and flags. |
 | Scenery | A grouped remove + stamp in the pending queue: one Undo, one ×, applied with **Apply**. | A pending stamp with the same sprite, footprint, solid and toilet flags. |
-| Hub furniture and services (beds, vanity mirror, cauldron, forge, sewing table, kitchen, reagents, changers, toilets, altar, bank, dumpster) | One pending **Move** change; it keeps the fixture's ID, so the service (saving looks at the vanity, brewing at the cauldron, a pay toilet's fee) works at the new spot. | Not copied, because each hub keeps one of each service. A copied toilet pastes as a new toilet stamp. |
+| Hub furniture and services (beds, vanity mirror, cauldron, forge, sewing table, kitchen, reagents, changers, toilets, altar, bank, dumpster) | One pending **Move** change; it keeps the fixture's ID, so the service (saving looks at the vanity, brewing at the cauldron, a pay toilet's fee) works at the new spot. | A pending **Place** change that builds new furniture of the same kind (a crib copies as a crib, an outhouse as an outhouse). Pay toilets, altars and the reagent seller cannot be copied. |
 
 Furniture moves are stored in the patch layer but applied after the room adds its generated services, so the vanity and the crafting stations can move too. The new spot must be open, reachable floor inside the outer wall and off doorways, pads and the arrival tile. The move must not cut off part of the room or any service. The editor refuses a move that breaks these rules. If a later layout (a monthly district reroll, a new wall) no longer fits a stored move, the fixture stays where the room put it and the move is listed as skipped. Shops and NPC residents are not movable here.
+
+### Placing furniture
+
+In **Place content**, choose the kind **Furniture / service (hubs)**, pick an item, and click the tile for its top-left corner. A see-through ghost shows its footprint (the vanity is 2×2, outhouses and changers are 1×2, everything else 1×1). Each item is a real service fixture built the same way the hub generators build theirs:
+
+| Item | What players can do there |
+| --- | --- |
+| Vanity mirror | Open the Wardrobe and save a look for free |
+| Cauldron | Brew. The first cauldron in a hub also brings a forge, sewing table and kitchen beside it, unless the hub already has them |
+| Kitchen, forge, sewing table | Cook, smith and tailor |
+| Toilet, outhouse | Use the toilet |
+| Auto-Changing Station | A free change (Utopia's booth) |
+| Bank counter, dumpster | Banking and throwing things away |
+| Beds (stuffies, crib, children's, cot, full size, memory foam) | Rest, with that bed's own rest rules |
+
+Placed furniture queues on the right until **Apply**. It must stand on open floor inside the outer wall, must not cover doorways, exits or other services, and must leave every service reachable. Tick **Remove mode** and click a piece to queue its removal; a selected piece also has a **Remove** button. The vanity that bedrooms get automatically and the crafting stations beside a cauldron can be moved but not removed. Removing generated furniture sticks: the hub does not quietly put it back on the next load. Furniture is for hubs and their rooms; Dives and overworlds refuse it.
 
 Moves and pastes follow the same rules as placing: reachable tiles away from entrances, fixtures and players, and the 128-per-zone limits. Scenery needs the patch layer, so full dungeons only move placements and monsters. Keyboard shortcuts are ignored while you are typing in a field.
 

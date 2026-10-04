@@ -1,3 +1,4 @@
+import {furnitureCatalog} from './hub-fixture-moves.mjs'; // Map Editor: hub furniture a GM can place.
 import {createCraftingStore} from './crafting-store.mjs';
 import {createGmHelp} from './gm-help.mjs';
 import {serveGmWiki} from './gm-wiki.mjs';
@@ -531,7 +532,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
     if(url.pathname==='/gm/balance/filters')return send(200,{characters:balance.characters(),kinds:balance.kinds()});
    }
    if(url.pathname==='/gm/flows'&&req.method==='GET')return send(200,world().flows.catalog());
-   if(url.pathname==='/gm/content'&&req.method==='GET')return send(200,{...live.view(),worldZones:world().catalog(),onlineNpcs:world().npcCatalog?.()??[],avatarSprites:Object.fromEntries(avatarCatalog.filter(a=>a.sprite).map(a=>[a.id,a.sprite]))}); // avatarSprites: fixture avatar id -> sprite, so the Map Editor draws merchants and residents.
+   if(url.pathname==='/gm/content'&&req.method==='GET')return send(200,{...live.view(),furniture:furnitureCatalog(),worldZones:world().catalog(),onlineNpcs:world().npcCatalog?.()??[],avatarSprites:Object.fromEntries(avatarCatalog.filter(a=>a.sprite).map(a=>[a.id,a.sprite]))}); // avatarSprites: fixture avatar id -> sprite, so the Map Editor draws merchants and residents.
    if(url.pathname==='/gm/map'&&req.method==='GET')return send(200,url.searchParams.get('paint')==='1'?world().paintMap(url.searchParams.get('zone')):world().map(url.searchParams.get('zone'))); // paint=1: the same view plus tile grids, tilesets and hub theme (Map Editor).
    if(url.pathname==='/gm/map.png'&&req.method==='GET'){ // A picture of the zone painted square by square with the game's sprites (map-render.mjs).
     const zone=url.searchParams.get('zone')??'';if(!world()?.paintMap||!world().catalog().some(z=>z.id===zone))return send(400,{error:'gm_unknown_zone',error_description:'Choose a zone from the catalog.'});
