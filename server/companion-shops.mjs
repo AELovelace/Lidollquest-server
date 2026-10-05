@@ -4,9 +4,10 @@ import {rarityConfig,RARITY_ORDER} from './loot.mjs';
 import {BANK_CAPACITY} from './bank.mjs';
 
 // Diaper Atelier and Clothes Emporium: paid gacha rolls a player makes from the tracker's
-// LidollQuest companion. Each roll is a generated base (a style dressing a garment,
-// loot.mjs createBaseGenerator) put through the same rarity + affix roller as chests
-// and hub stock, so a gamemaster tunes it in the /gm Loot tab:
+// LidollQuest companion. Each roll generates a base straight from the live loot bases (a style
+// dressing a garment, loot.mjs createBaseGenerator.generate; no catalog pool_template item is
+// involved) and puts it through the same rarity + affix roller as chests and hub stock, so a
+// gamemaster tunes it in the /gm Loot tab (garments and styles included):
 //   * price     atelier_price / emporium_price
 //   * odds      luck profile `atelier` / `emporium` (missing: the plain rarity weights)
 //   * level     shop_levels.atelier / .emporium clamps the character's level (missing: default)
@@ -28,14 +29,8 @@ const VIEW_STATS=['atk','def','bulk','bulk_threshold','childish','wet_resist','t
 const fail=(message,status=409,code='shop_conflict')=>{throw Object.assign(Error(message),{status,code});};
 const num=(value,fallback)=>Number.isFinite(Number(value))&&value!==null&&value!==''&&typeof value!=='boolean'?Number(value):fallback;
 
-export function createCompanionShops(db,{roller,templates,bank,origins,level}){
- const pools=new Map(); // Template lists per category and diaper flag; the equipment catalog is static for the process.
- const templatesFor=(category,diaper)=>{
-  const key=category+':'+diaper;
-  if(!pools.has(key))pools.set(key,Object.values(templates).filter(item=>item?.pool_template===true&&!item.quest_item&&item.category===category&&(item.is_diaper===true)===diaper));
-  return pools.get(key);
- };
- const stock=(shop,live)=>[...live.generator.pool(shop.diaper)].filter(([category])=>templatesFor(category,shop.diaper).length); // [category, weight] a roll can land on.
+export function createCompanionShops(db,{roller,bank,origins,level}){
+ const stock=(shop,live)=>live.generator?.has?[...live.generator.pool(shop.diaper)]:[]; // [category, weight] a roll can land on: every enabled garment with an enabled style, straight from the live bases.
  const price=(shop,live)=>Math.max(1,Math.floor(num(live.tuning[shop.id+'_price'],3)));
  const floorIndex=live=>Math.max(0,Math.min(RARITY_ORDER.length-1,Math.floor(num(live.tuning.diamond_roll_floor,2)))); // diamond_roll_floor as a tier index, clamped
  const luckFor=(shop,mode,live)=>mode==='diamond'&&live.tuning.luck_profiles?.[shop.id+'_diamond']?shop.id+'_diamond':shop.id; // Diamond rolls prefer their own luck profile, else the shop's.
@@ -61,8 +56,9 @@ export function createCompanionShops(db,{roller,templates,bank,origins,level}){
   const rnd=seeded(key+':pick'),total=rows.reduce((sum,[,w])=>sum+w,0);
   let pick=rnd(1000000)/1000000*total,category=rows.at(-1)[0];
   for(const [cat,weight] of rows){pick-=weight;if(pick<0){category=cat;break;}}
-  const list=templatesFor(category,shop.diaper),template=structuredClone(list[rnd(list.length)]);
-  return live.roll(template,key,{level:live.shopLevel(shop.id,level(state)),luck:luckFor(shop,mode,live),floor:mode==='diamond'?floorIndex(live):0}); // Same style + garment generator and affix roller as chest loot.
+  const base=live.generator.generate(category,seeded(key+':base'),shop.diaper); // A fresh style + garment base; no catalog template is needed.
+  if(!base)fail(shop.name+' has nothing to roll right now.',503,'shop_unavailable');
+  return live.roll(base,key,{level:live.shopLevel(shop.id,level(state)),luck:luckFor(shop,mode,live),floor:mode==='diamond'?floorIndex(live):0}); // Same style + garment generator and affix roller as chest loot.
  }
 
  return {

@@ -9,8 +9,9 @@ const catalog=name=>JSON.parse(readFileSync(new URL('../server/'+name,import.met
 const routes=[catalog('dive-data.json'),catalog('desert-data.json'),catalog('tundra-data.json'),...catalog('campaign-dives-data.json').routes];
 const plain=item=>item.category==='panties'&&!item.is_diaper;
 const routeRoller=data=>createDiveLootRoller(data,{lootTable:data.loot??routes[0].loot,lootBases:data.bases??routes[0].bases}); // Match createDive's shared generated-garment catalog for routes that do not embed their own.
+const weighted=(data,ids)=>ids.flatMap(id=>{const w=Math.floor(Number(data.items[id]?.pool_weight));return Number.isFinite(w)&&w>1?Array(Math.min(w,100)).fill(id):[id];}); // loot seeds repeat by pool_weight (dive-loot.mjs)
 function original(data,edition,character,chest){
- const rnd=seeded(`${data.config.route}:${edition}:1:${character}:${chest.id}`),pool=chest.kind==='food'?data.food_pool:chest.kind==='potion'?data.potion_pool:(data.item_pool??Object.keys(data.items).sort());
+ const rnd=seeded(`${data.config.route}:${edition}:1:${character}:${chest.id}`),pool=chest.kind==='food'?data.food_pool:chest.kind==='potion'?data.potion_pool:weighted(data,data.item_pool??Object.keys(data.items).sort());
  let item=structuredClone(data.items[pool[rnd(pool.length)]]);
  if(item.atk_min!==undefined){item.atk=item.atk_min+rnd(item.atk_max-item.atk_min+1);if(typeof item.desc==='string')item.desc=item.desc.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}
  const key=`${data.config.route}:${edition}:1:${character}:${chest.id}`,loot=createLootRoller(data.loot??routes[0].loot,data.bases??routes[0].bases);
@@ -33,6 +34,18 @@ test('online routes cap panties across chests and pickups, replacing only extra 
   for(const kind of ['food','potion'])assert.deepEqual(roll(edition,'alice',{id:kind,kind},rolls),original(data,edition,'alice',{id:kind,kind}));
  }
  assert.ok(replacements>1000);
+});
+test('loot seeds ship in every route pool, weighted by pool_weight, and roll into generated underwear',()=>{
+ for(const data of [routes[0],...catalog('campaign-dives-data.json').routes]){
+  for(const [id,diaper] of [['loot_seed_diaper',true],['loot_seed_panties',false]]){
+   const seed=data.items[id];
+   assert.ok(seed?.pool_template===true&&seed.category==='panties'&&(seed.is_diaper===true)===diaper,data.config.route+' ships '+id);
+   const pool=weighted(data,data.item_pool??Object.keys(data.items).sort());
+   assert.equal(pool.filter(x=>x===id).length,seed.pool_weight,id+' repeats pool_weight times');
+   const loot=createLootRoller(data.loot??routes[0].loot,data.bases??routes[0].bases),item=loot.roll(structuredClone(seed),'seed:'+id,{level:5});
+   assert.ok(item.item_id.startsWith('gen_'),item.item_id);assert.equal(item.source_item_id,id);assert.equal(item.is_diaper===true,diaper);
+  }
+ }
 });
 test('older rolls survive and fresh progress records get their own allowance',()=>{
  const data=routes[0],roll=routeRoller(data),panties=Object.values(data.items).find(plain),old={old1:structuredClone(panties),old2:structuredClone(panties)};

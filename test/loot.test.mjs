@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createLootRoller,describeLoot,buildName,eligible,itemSlots,LOOT_STAT_KEYS,LOOT_SLOTS,RARITY_ORDER} from '../server/loot.mjs';
 import {createEnchanter} from '../server/enchantment.mjs';
+import {seeded} from '../server/dive-generation.mjs';
 
 // The Adjective + Item + Rarity roller is the authoritative copy for shared Dive loot.
 // These hold its contract: determinism from the chest key, the tier rules (no affixes
@@ -160,10 +161,9 @@ test('numbered pool items become generated style + garment bases before the roll
  assert.equal(roller.generator.fromId('gen_nonsense_thing'),null);
  assert.equal(roller.generator.fromId('printed_diaper'),null,'authored ids are never mistaken for generated ones');
  // Diaper tiers are garments: every generated diaper takes its absorbency from the garment, never the style.
- const diaperTemplate=pick(item=>item.pool_template===true&&item.category==='panties'&&item.is_diaper);
- const seenGarments=new Set(),seenStyles=new Set();
+ const seenGarments=new Set(),seenStyles=new Set(); // No catalog diaper templates remain (2026-10-05): diapers are generated straight from the bases, as the companion Atelier does.
  for(let s=0;s<300;s++){
-  const item=roller.roll(structuredClone(diaperTemplate),'diaper:'+s,{level:20,luck:'chest'});
+  const item=roller.roll(roller.generator.generate('panties',seeded('diaper:'+s+':base'),true),'diaper:'+s,{level:20,luck:'chest'});
   const garment=bases.garments.find(g=>g.id===item.generated.garment),style=bases.styles.find(st=>st.id===item.generated.style);
   assert.ok(style.garments.includes('*')||style.garments.includes(garment.id),style.id+' may not dress '+garment.id);
   assert.equal(item.is_diaper,garment.is_diaper,'is_diaper comes from the garment');

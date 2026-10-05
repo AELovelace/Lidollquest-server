@@ -203,7 +203,7 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
  useTuning(()=>{const revision=loot.revision();if(revision!==tuningCache.revision)tuningCache={revision,tuning:{...DEFAULT_TUNING,...(loot.apply(diveData.loot??null).tuning??{})}};return tuningCache.tuning;}); // Combat, Dives and the arena read HP/damage scaling from the same live table the /gm Loot tab edits; re-merged only when an override lands.
  configureShopLoot(loot); // Hub shopkeepers roll their daily stock through the same live table.
  configureGeneratedItems(loot); // Companion equipping and inspection resolve generated gear (gen_<style>_<garment>) from the same live bases.
- const shops=createCompanionShops(db,{roller:shopRoller,templates:hubData.equipment,bank,origins,level:shopperLevel});purchaseHooks.companionShop=shops.deliver; // Diaper Atelier and Clothes Emporium rolls, paid like hub stock, delivered to the bank.
+ const shops=createCompanionShops(db,{roller:shopRoller,bank,origins,level:shopperLevel});purchaseHooks.companionShop=shops.deliver; // Diaper Atelier and Clothes Emporium rolls, paid like hub stock, delivered to the bank.
  const quarters=createDive(db,{now,roll,adjust,origins,parties,guilds,measure,compute,live,enchantments,loot,alchemyStore,patches,...diveOptions});
  const gulchName=(gulchOptions.data??gulchData).config.name; // The Desert, Plains and Coast label their Gulch crossings with its authored name.
  const highTrail=floor=>addNorthTrail(floor,(highDesertOptions.data??highDesertData).config)|addSouthTrail(floor,{zone_id:GULCH_ZONE,name:gulchName})|openExitGaps(floor); // Dustbreak's north-center gate leads up to the High Desert; its south-center gate down into Echo Gulch.

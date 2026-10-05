@@ -24,7 +24,8 @@ export function rollIngredient(alchemy,zoneId,key,force=false){ // force: a wild
 export function createDiveLootRoller(data,{enchantments=null,table=data.enchantments,loot=null,lootTable=data.loot??null,lootBases=data.bases??null,alchemy=data.alchemy??null,alchemyStore=null,alchemyZone=data.config.zone_id??data.config.route}={}){
  const limit=data.config.non_diaper_panties_per_floor??1;
  if(!Number.isInteger(limit)||limit<0||limit>99)throw Error('Online non-diaper panties per floor must be an integer from 0 to 99.');
- const general=data.item_pool??Object.keys(data.items).sort();
+ const weighted=ids=>ids.flatMap(id=>{const w=Math.floor(Number(data.items[id]?.pool_weight));return Number.isFinite(w)&&w>1?Array(Math.min(w,100)).fill(id):[id];}); // Loot seeds (loot_seed_diaper/_panties, pool_weight in items.json) repeat so generated underwear keeps its share of the uniform pick, as in the campaign pool.
+ const general=weighted(data.item_pool??Object.keys(data.items).sort());
  const diapers=general.filter(id=>data.items[id]?.category==='panties'&&data.items[id].is_diaper&&!data.items[id].quest_item);
  if(general.some(id=>plainPanties(data.items[id]))&&!diapers.length)throw Error('Online panty replacement needs at least one diaper in the loot pool.');
  // Shared 50-curse / 50-blessing table, exported alongside the item catalog. When
