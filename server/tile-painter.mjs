@@ -119,6 +119,31 @@ function poolLayers(pool,floor,x,y){ // Hash-picked floor/wall from a campaign p
  return [{atlas:pool.atlas,tile}];
 }
 
+const ROOM_PAINTERS={ // Campaign painters that colour walls and floors by room type (tilemap_paint_nursery / _school / _hospital). base = the plain wall most cells use for map readability; keep = boss rooms that keep their full palette.
+ nursery:{atlas:'sprTileAutoNursery',block:4,base:()=>10,edge:[11,12,14],hallFloor:[1,3],keep:['control'],
+  walls:{intake:[10,11],changing:[11,11],feeding:[10,12],sleeping:[11,14],observation:[10,13],play:[14,14],control:[15,15,16,17],atrium:[10,11]},
+  floors:{intake:[1,1],changing:[1,1,1,5],feeding:[1,1,1,6],sleeping:[2,7],observation:[3,3],play:[7,2],control:[8,8,9],atrium:[1,3,1,7]}},
+ school:{atlas:'sprTileSchool',block:4,base:room=>room&&hashPick([10,13],room.x,room.y,5)||10,edge:[11,12,14],hallFloor:[1,2],keep:['principals_office','nurses_office'], // Each room is all red brick or all pea green; corridors and the map edge are brick.
+  walls:{atrium:[10,11],entrance:[10,11],classroom:[13,14],hallway:[11,12],nurses_office:[15,15],cafeteria:[10,11],gym:[16,16],library:[11,14],band_room:[13,14],art_room:[14,14],principals_office:[17,17]},
+  floors:{atrium:[1,2,5],entrance:[1,1,2],classroom:[3,3,5],hallway:[1,1,2,5],nurses_office:[4,4],cafeteria:[7,7,5],gym:[6,6],library:[8,8],band_room:[3,3],art_room:[9,9,5],principals_office:[3,3]}},
+ hospital:{atlas:'sprTileHospital',block:5,base:()=>10,edge:[11,16],hallFloor:[1,1,3,4],keep:['directors_office'],
+  walls:{reception:[10,10,15],exam_room:[10,10,16],therapy:[13,13,11],ward:[10,11,10],lab:[16,16,18],pharmacy:[10,15,10],rec_room:[15,15,10],security:[11,11,14],cafeteria:[10,17,10],observation:[12,12,12],nursery_wing:[13,13,13],directors_office:[16,16,16],morgue:[16,11,16]},
+  floors:{reception:[1,1,1,8],exam_room:[1,1,3,3],therapy:[7,7,2,2],ward:[1,1,1,5],lab:[4,4,6,9],pharmacy:[1,1,3,1],rec_room:[2,2,8,8],security:[4,4,4,9],cafeteria:[8,8,1,1],observation:[3,3,4,4],nursery_wing:[7,7,2,7],directors_office:[4,4,1,1],morgue:[4,6,4,6]}},
+};
+const ACCENT_ODDS=[1,0,0,0,0]; // About 1 wall tile in 5 shows the room's accent panel; the rest use the painter's plain base wall so rooms read clearly on the map.
+function roomAt(floor,x,y){for(const r of floor.rooms??[])if(x>=r.x&&x<r.x+r.w&&y>=r.y&&y<r.y+r.h)return r;return null;} // Exact-rect membership, first room wins like the client loops.
+function roomLayers(p,floor,x,y){ // A wall takes the palette of the room floor it directly touches; floors share one rolled index per block.
+ const atlas=p.atlas;
+ if(isWall(floor,x,y)){
+  if(x===0||y===0||x===floor.width-1||y===floor.height-1)return [{atlas,tile:hashPick(ACCENT_ODDS,x,y,4)?hashPick(p.edge,x,y,1):p.base(null)}]; // Map edge: base wall with soft accents.
+  let room=null;for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]]){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=floor.width||ny>=floor.height||isWall(floor,nx,ny))continue;room=roomAt(floor,nx,ny);if(room)break;}
+  const palette=room&&p.walls[room.type];if(palette&&p.keep.includes(room.type))return [{atlas,tile:hashPick(palette,x,y,2)}]; // Boss rooms stand out.
+  const base=p.base(room),accents=(palette??[]).filter(t=>t!==base);return [{atlas,tile:accents.length&&hashPick(ACCENT_ODDS,x,y,4)?hashPick(accents,x,y,2):base}];
+ }
+ const room=roomAt(floor,x,y),pool=(room&&p.floors[room.type])||p.hallFloor,key=hashPick([0,1,2,3],Math.floor(x/p.block),Math.floor(y/p.block),3);
+ return [{atlas,tile:pool[key%pool.length]}];
+}
+
 export function tileAt(floor,x,y,ctx){ // -> [{atlas,tile,tint?}|{fill:[r,g,b,a]}] bottom-to-top for one cell; [] when nothing is painted. ctx: {tilesets,tideReach}.
  if(!floor||x<0||y<0||x>=floor.width||y>=floor.height)return [];
  const plan=ctx&&ctx.plan?ctx.plan:paintPlan(floor),tilesets=ctx&&ctx.tilesets?ctx.tilesets:floor.tilesetMap;
@@ -146,6 +171,7 @@ export function tileAt(floor,x,y,ctx){ // -> [{atlas,tile,tint?}|{fill:[r,g,b,a]
   if(floor.kind==='shops'&&plan.theme!=='rose'&&!floor.store&&!isWall(floor,x,y)&&x>0&&y>0&&x<floor.width-1&&y<floor.height-1){const aisle=(x>=19&&x<=21)||(y>=9&&y<=11)||y>=19;layers[0].tile=plan.theme==='clockwork'?(aisle?18:3):(aisle?8:5);} // Market Hall aisles (online_hub_build).
   return layers;
  }
+ if(ROOM_PAINTERS[plan.theme]&&Array.isArray(floor.rooms))return roomLayers(ROOM_PAINTERS[plan.theme],floor,x,y);
  return poolLayers(POOL_THEMES[plan.theme]??POOL_THEMES.princess_quarters,floor,x,y);
 }
 

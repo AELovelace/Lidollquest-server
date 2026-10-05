@@ -84,6 +84,42 @@ export function generateFullDungeon(data,edition,depth=1){
   stamp();while(x!==b.cx||y!==b.cy){if(verticalFirst&&y!==b.cy)y+=Math.sign(b.cy-y);else if(x!==b.cx)x+=Math.sign(b.cx-x);else y+=Math.sign(b.cy-y);stamp();}
  } // Campaign L-shaped halls use the authored width; Nursery control exits downward only.
  const shuffle=values=>{const a=[...values];for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;};
+ function largestHollow(minW,minH,skip){ // Biggest rectangle whose cells and 1-tile ring are all solid (the ring may be the map edge), at least minW x minH; null when none fits.
+  const fits=(x,y)=>{if(skip[y][x])return false;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(!f.walls[y+dy][x+dx])return false;return true;};
+  const heights=Array(W).fill(0),aspect=s.hollow_space_max_aspect??2;let best=null; // Long strips are clipped to room shapes; the rest of the strip is offered again next pass.
+  for(let y=1;y<H-1;y++){
+   for(let x=0;x<W;x++)heights[x]=x>0&&x<W-1&&fits(x,y)?heights[x]+1:0;
+   const stack=[];for(let x=0;x<=W;x++){const hgt=x<W?heights[x]:0;let left=x;
+    while(stack.length&&stack.at(-1).h>=hgt){const top=stack.pop();let w=Math.min(x-top.x,s.hollow_space_max_width),h=Math.min(top.h,s.hollow_space_max_height);w=Math.min(w,h*aspect);h=Math.min(h,w*aspect);if(h>=minH&&w>=minW&&(!best||w*h>best.w*best.h))best={x:top.x,y:y-top.h+1,w,h};left=top.x;} // Every maximal rectangle is seen once per row, so the size floor never hides a bigger qualifying room.
+    stack.push({x:left,h:hgt});}
+  }
+  return best;
+ }
+ function fillHollowSpaces(pool){ // Nursery: each hollow room grows to fill its pocket of negative space, leaving exactly one wall tile between it and its neighbours; carved biggest first.
+  const skip=Array.from({length:H},()=>Array(W).fill(false)),minRooms=s.hollow_space_min_rooms??0;
+  let minW=s.hollow_space_min_width,minH=s.hollow_space_min_height,count=0;
+  while(count<(s.hollow_space_max_rooms??Infinity)){ // No cap: keep carving until no pocket fits a room.
+   const rect=largestHollow(minW,minH,skip);
+   if(!rect){if(count>=minRooms||(minW<=3&&minH<=3))break;minW=Math.max(3,minW-1);minH=Math.max(3,minH-1);continue;} // Below the guaranteed count, accept smaller pockets rather than give up.
+   const {x,y,w,h}=rect,doors=[],control=f.rooms.find(r=>r.type==='control'),outside=(xx,yy)=>xx>=1&&yy>=1&&xx<W-1&&yy<H-1&&!f.walls[yy][xx]&&!(control&&inside(control,xx,yy)); // The control room keeps its single way in.
+   for(const [dx,dy] of directions){const n=dx?h:w;for(let i=0;i<n;i++){const rx=dx?(dx>0?x+w:x-1):x+i,ry=dy?(dy>0?y+h:y-1):y+i;if(outside(rx+dx,ry+dy))doors.push({rx,ry,dx,dy,i});}} // Wall tiles with open floor right behind them.
+   if(!doors.length){for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++)skip[yy][xx]=true;continue;} // A sealed pocket can't be entered through one wall; leave it solid.
+   const wide=doors.filter(d=>doors.some(e=>e.dx===d.dx&&e.dy===d.dy&&e.i===d.i+1)),door=(wide.length?wide:doors)[rnd(wide.length||doors.length)];
+   const r=rectangle(x,y,w,h);r.type=pool[count%pool.length];r.original_type=r.type;r.is_hollow=true;r.is_atrium=false;f.rooms.push(r);count++;
+   for(let off=0;off<(wide.length?Math.min(2,s.hollow_space_door_width):1);off++)open(door.rx+(door.dy?off:0),door.ry+(door.dx?off:0));
+  }
+  if(count<minRooms)throw Error(`Only ${count} of ${minRooms} guaranteed hollow rooms fit`);
+ }
+ function guaranteeRooms(){ // Every room reachable from the first ward (halls patch any stragglers), and each dungeon's fixed first room (Nursery control, School entrance, Hospital reception) present as a real ward.
+  const anchor=c.theme==='nursery'?'control':c.entrance_type;if(!f.rooms.some(r=>r.type===anchor&&!r.is_hollow&&!r.is_atrium))throw Error('Missing '+anchor+' room');
+  const control=c.theme==='nursery'?f.rooms.find(r=>r.type==='control'):null; // Only the Nursery's control room is limited to its one way in.
+  const reach=()=>{const seen=new Set(),queue=[{x:f.rooms[0].cx,y:f.rooms[0].cy}];for(let i=0;i<queue.length;i++){const p=queue[i];if(f.walls[p.y]?.[p.x]!==0||seen.has(key(p)))continue;seen.add(key(p));for(const [dx,dy] of directions)queue.push({x:p.x+dx,y:p.y+dy});}return seen;};
+  const linked=(seen,r)=>seen.has(`${r.cx},${r.cy}`);
+  for(let seen=reach(),lost=f.rooms.find(r=>!linked(seen,r));lost;seen=reach(),lost=f.rooms.find(r=>!linked(seen,r))){
+   const near=f.rooms.filter(r=>r!==control&&linked(seen,r)).sort((a,b)=>Math.abs(a.cx-lost.cx)+Math.abs(a.cy-lost.cy)-Math.abs(b.cx-lost.cx)-Math.abs(b.cy-lost.cy))[0]; // Never punch a second way into the control room.
+   if(!near)throw Error('Unreachable room '+lost.type);hall(lost,near,false,1);
+  }
+ }
  if(c.theme==='arcadia_factory'&&s.layout==='maintenance_maze'){
   carveBrassworksMaze(f,data,{rnd,open,rectangle}); // Factory walls form a maze before any encounters or furniture are placed.
  }else if(c.theme==='arcadia_dockyard'&&s.layout==='quayside_maze'){
@@ -110,7 +146,8 @@ export function generateFullDungeon(data,edition,depth=1){
   for(let col=0;col<cols;col++)for(let row=0;row<rows;row++){const r=f.rooms[col*rows+row];if(col+1<cols&&r.type!=='control')hall(r,f.rooms[(col+1)*rows+row]);if(row+1<rows)hall(r,f.rooms[col*rows+row+1],r.type==='control');}
   if(s.hollow_spaces_enabled){
    const pool=source.hollow_room_type_pool,t=s.hollow_space_wall_thickness;
-   for(let n=0;n<s.hollow_space_max_rooms;n++){
+   if(s.hollow_space_fill)fillHollowSpaces(pool);
+   else for(let n=0;n<s.hollow_space_max_rooms;n++){
     let carved=false;
     for(let attempt=0;attempt<1800&&!carved;attempt++){
      const w=range(s.hollow_space_min_width,Math.min(s.hollow_space_max_width,sw+6)),h=range(s.hollow_space_min_height,Math.min(s.hollow_space_max_height,sh+6)),x=range(2,W-w-2),y=range(2,H-h-2);
@@ -133,6 +170,7 @@ export function generateFullDungeon(data,edition,depth=1){
     const r=f.rooms.find(r=>r.is_atrium&&r.original_type===type)??f.rooms.find(r=>r.is_atrium);
     if(!r)throw Error('No room available for '+type);r.type=type;r.is_atrium=false;
    }
+   if(s.hollow_space_fill)guaranteeRooms();
   }
  }
  const start=f.rooms.find(r=>r.type===c.entrance_type)||f.rooms[0],end=f.rooms.at(-1);

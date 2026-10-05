@@ -26,3 +26,20 @@ for(const data of content.routes)test(data.config.route+': 100 connected campaig
  }
  assert.deepEqual(stamps,new Set(data.puzzle_stamps.map(s=>s.name)),'all authored stamps are represented across these seeds');
 });
+
+for(const route of ['auto-nursery','regression-school','regression-hospital'])test(route+': hollow rooms fill the negative space behind one wall tile, with every room guaranteed',()=>{
+ const data=content.routes.find(r=>r.config.route===route),s=data.structure,anchor=data.config.theme==='nursery'?'control':data.config.entrance_type;
+ for(let seed=0;seed<40;seed++){
+  const f=generateFullDungeon(data,'hollow-fill-'+seed),hollow=f.rooms.filter(r=>r.is_hollow);
+  assert.ok(hollow.length>=s.hollow_space_min_rooms,`seed ${seed}: only ${hollow.length} hollow rooms`);
+  for(const r of hollow){
+   assert.ok(r.w>=3&&r.h>=3&&r.w<=r.h*(s.hollow_space_max_aspect??2)&&r.h<=r.w*(s.hollow_space_max_aspect??2),`seed ${seed}: ${r.w}x${r.h} is not room-shaped`);
+   for(let y=r.y;y<r.y+r.h;y++)for(let x=r.x;x<r.x+r.w;x++)assert.equal(f.walls[y][x],0,'hollow rooms are fully open');
+   for(const other of f.rooms)if(other!==r)assert.ok(r.x>=other.x+other.w+1||other.x>=r.x+r.w+1||r.y>=other.y+other.h+1||other.y>=r.y+r.h+1,`seed ${seed}: rooms must keep a wall between them`);
+  }
+  const seen=new Set(),queue=[f.entrance];for(let i=0;i<queue.length;i++){const p=queue[i],k=p.x+','+p.y;if(f.walls[p.y]?.[p.x]!==0||seen.has(k))continue;seen.add(k);queue.push({x:p.x+1,y:p.y},{x:p.x-1,y:p.y},{x:p.x,y:p.y+1},{x:p.x,y:p.y-1});}
+  for(const r of f.rooms)assert.ok(seen.has(r.cx+','+r.cy),`seed ${seed}: ${r.type} room unreachable`);
+  assert.ok(f.rooms.some(r=>r.type===anchor&&!r.is_hollow),'the '+anchor+' room is present');
+  for(const type of data.campaign.type_pool)assert.ok(f.rooms.some(r=>r.type===type),'missing ward '+type);
+ }
+});

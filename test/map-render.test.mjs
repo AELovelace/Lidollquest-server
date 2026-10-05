@@ -99,3 +99,26 @@ test('tiles under hub furniture are painted: the paint view carries terrain wall
   assert.ok(checked>50,'checked the tiles under many hub fixtures ('+checked+')');
  }finally{f.close();}
 });
+
+test('Auto-Nursery floors paint per room type like tilemap_paint_nursery',()=>{
+ const W=12,H=8,walls=Array.from({length:H},(_,y)=>Array.from({length:W},(_,x)=>x===0||y===0||x===W-1||y===H-1||x===6||(y===4&&x>6)?1:0));
+ const floor={theme:'nursery',width:W,height:H,walls,rooms:[{x:1,y:1,w:5,h:6,type:'control'},{x:7,y:1,w:4,h:3,type:'play'}]},cell=(x,y)=>tileAt(floor,x,y)[0];
+ assert.equal(cell(2,2).atlas,'sprTileAutoNursery');
+ assert.ok([8,9].includes(cell(2,2).tile),'control room floor is dark wood');assert.ok([15,16,17].includes(cell(6,2).tile),'a wall touching the control room takes its panels');
+ assert.ok([7,2].includes(cell(8,2).tile),'play room floor');assert.ok([10,14].includes(cell(8,4).tile),'play room walls are white with pink floral accents');
+ assert.ok([1,3].includes(cell(8,6).tile),'corridor floor');assert.ok([10,11,12,14].includes(cell(0,3).tile),'the map edge is white with soft accents');
+ floor.walls[6][9]=1;assert.equal(cell(9,6).tile,10,'corridor walls are plain white');
+ let white=0,edge=0;for(let x=0;x<W;x++){edge++;if(cell(x,0).tile===10)white++;}assert.ok(white>edge/2,'walls are mostly white ('+white+'/'+edge+')');
+});
+
+test('School walls are mostly red brick or pea green, Hospital walls mostly white, and boss rooms keep their panels',()=>{
+ const W=30,H=20,walls=Array.from({length:H},(_,y)=>Array.from({length:W},(_,x)=>x===0||y===0||x===W-1||y===H-1||x===15?1:0)),rooms=(boss,type)=>[{x:1,y:1,w:14,h:18,type:boss},{x:16,y:1,w:13,h:18,type}]; // The divider at x=15 takes the left room's palette first, like the client.
+ const share=(floor,tiles,cells)=>cells.filter(([x,y])=>tiles.includes(tileAt(floor,x,y)[0].tile)).length/cells.length;
+ const ring=[];for(let x=0;x<W;x++)ring.push([x,0],[x,H-1]);for(let y=1;y<H-1;y++)ring.push([0,y],[W-1,y],[15,y]);
+ const school={theme:'school',width:W,height:H,walls,rooms:rooms('principals_office','classroom')};
+ assert.equal(tileAt(school,2,2)[0].atlas,'sprTileSchool');assert.ok(share(school,[10,13],ring.filter(([x])=>x!==15))>0.6,'school walls are mostly brick or pea green');
+ assert.equal(tileAt(school,15,5)[0].tile,17,"the principal's office keeps its dark wood");
+ const hospital={theme:'hospital',width:W,height:H,walls,rooms:rooms('directors_office','lab')};
+ assert.equal(tileAt(hospital,2,2)[0].atlas,'sprTileHospital');assert.ok(share(hospital,[10],ring.filter(([x])=>x!==15))>0.6,'hospital walls are mostly white');
+ assert.equal(tileAt(hospital,15,5)[0].tile,16,"the director's office keeps its stainless steel");
+});
