@@ -40,8 +40,9 @@ Follow [Build an NPC patrol](tutorial-npc-patrol.md) to add movement. Finish req
 | Arrival spawn | Choose the default arrival or a neighbour's arrival, click a free walkable tile, then Apply | A fresh arrival uses that tile and can still reach services/exits |
 | Biome layers | On a supported theme, select one available layer and change a small area | The matching cover, shore, wash, mist or crater overlay changes as intended |
 | Exits & pads | Select an existing supported gate/pad and move it within its allowed geometry | The destination and usable arrival side remain correct |
+| Hidden trap | In **Place content** choose kind **Trap**, pick a trap or **Random**, and click a free tile | A red diamond appears; a test character walks onto it, sees the trap scene once, and a second visit does nothing |
 
-Some tools only appear or enable on compatible map types. A gate stays on its existing wall when moved; code-defined building doors are not arbitrary movable gates. Adding a crossing uses permitted destinations, not a way to invent a new zone. See [the Map Editor reference](maps.md#the-map-editor-pop-out) for restrictions before changing travel.
+Trap placements are hidden from players and never block movement; edit the traps themselves in the GM panel's **Traps** tab. See [Floor traps](traps.md). Some tools only appear or enable on compatible map types. A gate stays on its existing wall when moved; code-defined building doors are not arbitrary movable gates. Adding a crossing uses permitted destinations, not a way to invent a new zone. See [the Map Editor reference](maps.md#the-map-editor-pop-out) for restrictions before changing travel.
 
 ## 6. Restore and inspect persistence
 

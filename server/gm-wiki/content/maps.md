@@ -87,7 +87,7 @@ Tools:
 | --- | --- | --- |
 | NPC routes | Select an NPC placement, draw waypoints, choose movement and schedule, and set waits | **Save routes**, separate from the terrain queue |
 | Select / move | Read a tile; select a placement, DM monster, hub furniture or service, or scenery; drag it to move it; Ctrl+C / Ctrl+X / Ctrl+V copy, cut and paste (see below) | placements and monsters immediately; scenery as a pending change |
-| Place content | The Zones-tab placer: monsters, NPCs, interaction objects, quest tokens, location objectives, story orbs, uploads, remove mode, orb scatter. On hubs, **Furniture / service** places vanities, cauldrons, kitchens, forges, sewing tables, toilets, outhouses, changers, banks, dumpsters and every bed type | immediately; furniture as a pending change |
+| Place content | The Zones-tab placer: monsters, NPCs, interaction objects, quest tokens, location objectives, story orbs, hidden traps ([Floor traps](traps.md)), uploads, remove mode, orb scatter. On hubs, **Furniture / service** places vanities, cauldrons, kitchens, forges, sewing tables, toilets, outhouses, changers, banks, dumpsters and every bed type | immediately; furniture as a pending change |
 | Terrain brush | Wall, floor, prop and clear-prop brushes (1 to 5 tiles), Shift-drag rectangles; tiled hubs pick atlas cells for floor (left click) and wall (right click) | pending change |
 | Scenery stamp | Any shipped sprite by name, footprint, solid and toilet flags; eraser removes scenery | pending change |
 | Safe room | Drag a rectangle (Dives and overworlds); Alt-click removes one | pending change |

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createDungeonRules,campaignChoice,campaignDialogue,applyDungeonEffects} from '../server/full-dungeon-rules.mjs';
 import {fullDungeons} from '../server/full-dungeons.mjs';
+import {shippedTraps} from '../server/trap-store.mjs';
 
 test('functional furniture effects commit with a page, reject stale choices and survive a serialized reconnect',()=>{
  const data=fullDungeons.find(d=>d.config.theme==='dungeon'),c={id:'alice'},personal={},record={edition:'week',floor:{fixtures:[{id:'table',x:3,y:3,kind:'detail',name:'Changing Table',narrative:'detail_bsp_changing_table'}]}};
@@ -12,12 +13,13 @@ test('functional furniture effects commit with a page, reject stale choices and 
 });
 
 test('trap struggle gates, page effects, and pending scenes remain independent per character',()=>{
- const original=fullDungeons[0],data={...original,traps:{cage:original.traps.tq_cage_trap}},mem=new Map(),c={id:'alice'},b={id:'bob'},record={edition:'week',floor:{}},state=()=>({loadout:{player_info:{playerHealth:100,playerHealthMax:100,shame:500},inventory:[],world:{}}});
+ const original=fullDungeons[0],glue={...shippedTraps().traps.pq_glue_restraint,zones:['any']},data={...original,traps:{glue},narratives:{...original.narratives,trap_glue_burst:shippedTraps().narratives.trap_glue_burst}},mem=new Map(),c={id:'alice'},b={id:'bob'},record={edition:'week',floor:{}},state=()=>({loadout:{player_info:{playerHealth:100,playerHealthMax:100,shame:500,wet:0,tum:0},inventory:[],world:{}}}); // The campaign's tq_ traps left the registry; the tutorial glue trap keeps a struggle-gated scene (struggle 3 frees you).
  const progress=c=>structuredClone(mem.get(c.id)??{}),rules=createDungeonRules({data,db:{},now:()=>0,roll:()=>0,progress,saveProgress:(c,e,p)=>mem.set(c.id,p),saveFloor:()=>{}}),a=state(),other=state();
- rules.trap(c,a,record,'trap-1');const hp=a.loadout.player_info.playerHealth;rules.trap(c,a,record,'trap-1');assert.equal(a.loadout.player_info.playerHealth,hp);assert.equal(other.dungeonScene,undefined);
- for(let n=0;n<4;n++){const v=rules.scene(a);rules.act(c,a,record,{action:'dungeon_scene_choice',scene:v.id,page:v.page,mechanism_revision:v.revision,choice:0},{x:0,y:0});}
+ rules.trap(c,a,record,'trap-1');const wet=a.loadout.player_info.wet;assert.ok(wet>0);rules.trap(c,a,record,'trap-1');assert.equal(a.loadout.player_info.wet,wet);assert.equal(other.dungeonScene,undefined);
+ assert.equal(mem.get('alice').lingering.length,1);
+ for(let n=0;n<3;n++){const v=rules.scene(a);rules.act(c,a,record,{action:'dungeon_scene_choice',scene:v.id,page:v.page,mechanism_revision:v.revision,choice:0},{x:0,y:0});}
  assert.equal(rules.scene(a).page,'freed_struggle');const v=rules.scene(a);rules.act(c,a,record,{action:'dungeon_scene_choice',scene:v.id,page:v.page,mechanism_revision:v.revision,choice:-1},{});assert.equal(a.dungeonScene,null);
- rules.trap(b,other,record,'trap-1');assert.ok(other.dungeonScene);assert.equal(other.loadout.player_info.playerHealth,hp);
+ rules.trap(b,other,record,'trap-1');assert.ok(other.dungeonScene);assert.equal(other.loadout.player_info.wet,wet);
 });
 
 test('quest services grant the letter once and force vaccine continence with a restorable baseline',()=>{

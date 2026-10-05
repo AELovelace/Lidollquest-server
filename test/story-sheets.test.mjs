@@ -35,7 +35,7 @@ function change(live,row,body,publish=true){return live.change({action:publish?'
 test('every imported NPC, service, scene and tour validates; all native greeting routes retain their behavior',()=>{
  const f=fixture();try{
   const rows=f.live.view().sheets;assert.equal(rows.filter(r=>r.draft.category==='native_npc').length,56);
-  assert.equal(rows.filter(r=>r.draft.category==='narrative').length,266);
+  assert.equal(rows.filter(r=>r.draft.category==='narrative').length,182); // 2026-10-05: the campaign's 21 tq_ traps and their narratives left the registry (84 route narratives).
   for(const row of rows)assert.doesNotThrow(()=>f.live.validateSheet(row.draft),row.draft.key);
   let routes=0;
   for(const d of fullDungeons)for(const [id,npc] of Object.entries(d.npcs)){

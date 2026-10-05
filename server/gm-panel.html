@@ -133,6 +133,7 @@ tr.sel td{background:#2c1e3d}
   <button type="button" role="tab" id="tab-rp" aria-controls="panel-rp" aria-selected="false" tabindex="-1">RP Journal</button>
   <button type="button" role="tab" id="tab-rpp" aria-controls="panel-rpp" aria-selected="false" tabindex="-1">RPP</button>
   <button type="button" role="tab" id="tab-enchantments" aria-controls="panel-enchantments" aria-selected="false" tabindex="-1">Curses &amp; Blessings</button>
+  <button type="button" role="tab" id="tab-traps" aria-controls="panel-traps" aria-selected="false" tabindex="-1">Traps</button>
   <button type="button" role="tab" id="tab-loot" aria-controls="panel-loot" aria-selected="false" tabindex="-1">Loot</button>
   <button type="button" role="tab" id="tab-crafting" aria-controls="panel-crafting" aria-selected="false" tabindex="-1">Crafting</button>
   <button type="button" role="tab" id="tab-alchemy" aria-controls="panel-alchemy" aria-selected="false" tabindex="-1">Alchemy</button>
@@ -309,6 +310,46 @@ tr.sel td{background:#2c1e3d}
         <div style="grid-column:1/-1"><label for="eLockText">Lock text</label><input id="eLockText" maxlength="400"></div>
       </div>
       <div class="row"><input id="eReason" class="grow" maxlength="240" placeholder="Why (recorded in the audit log)"><button class="go" id="eSave">Save enchantment</button><button id="eCancel">Cancel</button></div>
+    </div>
+  </section>
+</div>
+<div class="tab-panel" id="panel-traps" role="tabpanel" aria-labelledby="tab-traps" tabindex="0" hidden>
+  <section class="wide" aria-labelledby="trapHeading">
+    <h2 id="trapHeading">Floor traps</h2>
+    <p class="note">The trap registry behind campaign full-dungeon floors (each route draws from <b>any</b> plus its own zone) and Map Editor trap placements in every online zone. Edits reach the next sprung trap without a restart. Retiring a shipped trap tombstones it; Restore brings it back, or returns an edited shipped trap to its shipped values. Download traps.json to drop the live registry into the game's datafiles/generation for the offline game.</p>
+    <div class="row"><b id="trapCounts" class="mono"></b><button id="trapReload">Reload</button><button id="trapDownload">Download traps.json</button><button class="bad" id="trapResetAll">Reset everything</button></div>
+    <div class="row">
+      <select id="trapZone" aria-label="Filter by zone"><option value="">Every zone</option></select>
+      <select id="trapType" aria-label="Filter by type"><option value="">Every type</option></select>
+      <select id="trapStatus" aria-label="Filter by status"><option value="">Live</option><option value="edited">Edited</option><option value="custom">Custom</option><option value="retired">Retired</option><option value="all">Everything</option></select>
+      <input id="trapSearch" class="grow" placeholder="Search id, name or message" maxlength="60">
+      <button class="go" id="trapNew">New trap</button>
+    </div>
+    <div class="scroll"><table><thead><tr><th>Name</th><th>Type</th><th>Zones</th><th>Amount</th><th>Weight</th><th>Status</th><th></th></tr></thead><tbody id="trapList"></tbody></table></div>
+    <p id="trapEmpty" class="empty" hidden>Nothing matches that filter.</p>
+
+    <div id="trapEditor" class="ench-form" hidden>
+      <h2 id="trapEditorTitle">Edit trap</h2>
+      <div class="ench">
+        <div><label for="tId">Id</label><input id="tId" maxlength="64" placeholder="lowercase_with_underscores"></div>
+        <div><label for="tName">Name</label><input id="tName" maxlength="80"></div>
+        <div><label for="tKind">Type</label><select id="tKind"></select></div>
+        <div><label for="tWeight">Pick weight</label><input id="tWeight" type="number" min="1" max="1000" step="1"></div>
+        <div><label for="tMin">Min</label><input id="tMin" type="number" min="0" max="1000" step="1"></div>
+        <div><label for="tMax">Max</label><input id="tMax" type="number" min="0" max="1000" step="1"></div>
+        <div><label for="tAmount">Fixed amount (instead of min-max)</label><input id="tAmount" type="number" min="0" max="1000" step="1"></div>
+        <div><label for="tStyle">Trigger style</label><select id="tStyle"></select></div>
+        <div><label for="tNarrative">Narrative scene</label><select id="tNarrative"></select></div>
+        <div><label for="tLingerTurns">Lingering turns</label><input id="tLingerTurns" type="number" min="0" max="50" step="1"></div>
+        <div><label for="tLingerWet">Lingering wet per step</label><input id="tLingerWet" type="number" min="0" max="100" step="1"></div>
+        <div><label for="tLingerTum">Lingering tum per step</label><input id="tLingerTum" type="number" min="0" max="100" step="1"></div>
+        <div style="grid-column:1/-1"><label for="tMessage">Message ({value}, {name}, {trigger} and {zone} are filled in)</label><input id="tMessage" maxlength="400"></div>
+      </div>
+      <label class="src">Zones it can roll in</label>
+      <div class="slots" id="tZones"></div>
+      <label class="src" for="tAdvanced">Advanced JSON: checks (avoid_check, detect_check, resist_check: {label, stat, difficulty, partial_text, success_text, state_modifiers}) and extra fields (archetype, struggle_threshold, wait_threshold, lingering_delay, tutorial_label, force_safe_room_only, enemy_id)</label>
+      <textarea id="tAdvanced" rows="8" spellcheck="false"></textarea>
+      <div class="row"><input id="tReason" class="grow" maxlength="240" placeholder="Why (recorded in the audit log)"><button class="go" id="tSave">Save trap</button><button id="tCancel">Cancel</button></div>
     </div>
   </section>
 </div>
@@ -1446,6 +1487,131 @@ tr.sel td{background:#2c1e3d}
  });
 
 
+ // ---- Traps: the floor trap registry (trap-store.mjs) -----------------------
+ var trapData=null,trapEditing=null; // The live registry as the panel last read it.
+ var TRAP_FORM=["trap_id","id","name","type","weight","zones","message","narrative_chunk","min","max","amount","trigger_style","lingering_turns","lingering_wet","lingering_tum"]; // Everything else round-trips through the advanced JSON box.
+ function trapFill(id,values,blank){
+  var s=$(id),keep=s.value;clear(s);
+  if(blank!==undefined){var none=el("option",null,blank);none.value="";s.appendChild(none);}
+  values.forEach(function(v){var o=el("option",null,v);o.value=v;s.appendChild(o);});
+  s.value=keep;
+ }
+ function trapAmount(t){return t.amount!==undefined?String(t.amount):t.min!==undefined?t.min+" - "+t.max:"—";}
+ function renderTrapList(){
+  var zone=$("trapZone").value,type=$("trapType").value,status=$("trapStatus").value,query=$("trapSearch").value.toLowerCase().trim();
+  var body=$("trapList");clear(body);var shown=0;
+  trapData.entries.forEach(function(entry){
+   var t=entry.trap||{};
+   if(status==="all"){}else if(status){if(entry.status!==status)return;}else if(entry.status==="retired")return;
+   if(zone&&(t.zones||[]).indexOf(zone)<0)return;
+   if(type&&t.type!==type)return;
+   if(query&&(entry.id+" "+(t.name||"")+" "+(t.message||"")).toLowerCase().indexOf(query)<0)return;
+   shown++;
+   var tr=el("tr"),name=el("td");
+   name.appendChild(el("span",null,t.name||entry.id));
+   if(t.narrative_chunk)name.appendChild(el("span","tag dive","scene"));
+   if(t.avoid_check||t.detect_check||t.resist_check)name.appendChild(el("span","tag fight","checks"));
+   name.appendChild(el("div","mono",entry.id));
+   tr.appendChild(name);
+   tr.appendChild(el("td",null,t.type||""));
+   tr.appendChild(el("td",null,(t.zones||[]).join(", ")));
+   tr.appendChild(el("td",null,trapAmount(t)));
+   tr.appendChild(el("td",null,String(t.weight??1)));
+   tr.appendChild(el("td","src "+entry.status,entry.status));
+   var actions=el("td"),edit=el("button","sm","Edit");
+   edit.addEventListener("click",function(){openTrapEditor(entry);});actions.appendChild(edit);
+   if(entry.status==="retired"||entry.status==="edited"){
+    var back=el("button","sm",entry.status==="edited"?"Restore shipped":"Restore");
+    back.addEventListener("click",function(){
+     if(entry.status==="edited"&&!window.confirm("Discard the edits to "+entry.id+" and use the shipped trap again?"))return;
+     act("trap_restore",{id:entry.id},"Restored "+entry.id+".").then(loadTraps);
+    });
+    actions.appendChild(back);
+   }
+   if(entry.status!=="retired"){
+    var drop=el("button","sm bad","Retire");
+    drop.addEventListener("click",function(){
+     if(!window.confirm("Retire "+entry.id+"? Dungeon pools stop rolling it and Map Editor placements naming it go inert."))return;
+     act("trap_retire",{id:entry.id},entry.id+" retired.").then(loadTraps);
+    });
+    actions.appendChild(drop);
+   }
+   tr.appendChild(actions);body.appendChild(tr);
+  });
+  $("trapEmpty").hidden=shown>0;
+  $("trapCounts").textContent=trapData.counts.live+" traps live / "+trapData.counts.overrides+" overridden / "+trapData.counts.retired+" retired · revision "+trapData.revision;
+ }
+ function renderTrapZones(selected){
+  var host=$("tZones");clear(host);
+  ["any"].concat(trapData.zoneKeys).forEach(function(zone){
+   var label=el("label"),box=el("input");box.type="checkbox";box.value=zone;box.checked=selected.indexOf(zone)>=0;
+   label.appendChild(box);label.appendChild(document.createTextNode(" "+zone));host.appendChild(label);
+  });
+ }
+ function openTrapEditor(entry){
+  var t=entry?(entry.trap||{}):{type:"damage",weight:1,zones:["any"],min:3,max:8,trigger_style:"pressure",message:"Something clicks underfoot. -{value}."};
+  trapEditing=entry?entry.id:null;
+  $("trapEditorTitle").textContent=entry?("Edit "+entry.id+" ("+entry.status+")"):"Write a new trap";
+  $("tId").value=entry?entry.id:"";$("tId").disabled=Boolean(entry); // Placements and save data name traps by id, so an edit keeps it fixed.
+  $("tName").value=t.name||"";$("tKind").value=t.type||"damage";$("tWeight").value=t.weight??1;
+  $("tMin").value=t.min??"";$("tMax").value=t.max??"";$("tAmount").value=t.amount??"";
+  $("tStyle").value=t.trigger_style||"";$("tNarrative").value=t.narrative_chunk||"";
+  $("tLingerTurns").value=t.lingering_turns??"";$("tLingerWet").value=t.lingering_wet??"";$("tLingerTum").value=t.lingering_tum??"";
+  $("tMessage").value=t.message||"";
+  renderTrapZones(t.zones||[]);
+  var extra={};Object.keys(t).forEach(function(k){if(TRAP_FORM.indexOf(k)<0)extra[k]=t[k];});
+  $("tAdvanced").value=Object.keys(extra).length?JSON.stringify(extra,null,1):"";
+  $("trapEditor").hidden=false;$("tId").focus();
+ }
+ function collectTrap(){
+  var extra={},text=$("tAdvanced").value.trim();
+  if(text){try{extra=JSON.parse(text);}catch(error){throw new Error("Advanced JSON: "+error.message);}if(!extra||typeof extra!=="object"||Array.isArray(extra))throw new Error("Advanced JSON must be an object of extra fields.");}
+  var number=function(id){var v=$(id).value.trim();return v===""?undefined:Number(v);},zones=[],boxes=$("tZones").querySelectorAll("input");
+  for(var i=0;i<boxes.length;i++)if(boxes[i].checked)zones.push(boxes[i].value);
+  var trap=Object.assign({},extra,{trap_id:$("tId").value.trim().toLowerCase(),name:$("tName").value.trim(),type:$("tKind").value,weight:number("tWeight"),zones:zones,message:$("tMessage").value.trim(),
+   narrative_chunk:$("tNarrative").value||undefined,min:number("tMin"),max:number("tMax"),amount:number("tAmount"),trigger_style:$("tStyle").value||undefined,
+   lingering_turns:number("tLingerTurns"),lingering_wet:number("tLingerWet"),lingering_tum:number("tLingerTum")});
+  delete trap.id;Object.keys(trap).forEach(function(k){if(trap[k]===undefined)delete trap[k];});
+  return trap;
+ }
+ function loadTraps(){
+  if(!token)return;
+  var epoch=perfEpoch;
+  return api("/gm/traps").then(function(payload){
+   if(epoch!==perfEpoch||!token)return;
+   trapData=payload;
+   trapFill("trapZone",["any"].concat(payload.zoneKeys),"Every zone");trapFill("trapType",payload.types,"Every type");
+   trapFill("tKind",payload.types);trapFill("tStyle",payload.triggerStyles,"(none)");trapFill("tNarrative",payload.narratives.slice().sort(),"(message only)");
+   renderTrapList();
+  }).catch(function(error){say("err",error.message);});
+ }
+ $("trapReload").addEventListener("click",function(){loadTraps();});
+ ["trapZone","trapType","trapStatus"].forEach(function(id){$(id).addEventListener("change",function(){if(trapData)renderTrapList();});});
+ $("trapSearch").addEventListener("input",function(){if(trapData)renderTrapList();});
+ $("trapNew").addEventListener("click",function(){if(trapData)openTrapEditor(null);});
+ $("tCancel").addEventListener("click",function(){$("trapEditor").hidden=true;trapEditing=null;});
+ $("tSave").addEventListener("click",function(){
+  if(!trapData)return;var trap;
+  try{trap=collectTrap();}catch(error){say("err",error.message);return;}
+  act("trap_save",{trap:trap,reason:$("tReason").value},"Trap "+trap.trap_id+" saved.").then(function(result){
+   if(!result)return; // A rejection already showed its reason; keep the form so it can be corrected.
+   $("trapEditor").hidden=true;trapEditing=null;$("tReason").value="";loadTraps();
+  });
+ });
+ $("trapResetAll").addEventListener("click",function(){
+  if(!window.confirm("Discard every trap edit, retirement and custom trap? The registry returns to the last content export."))return;
+  act("trap_reset",{confirm:true},"Trap registry reset to the shipped content.").then(loadTraps);
+ });
+ $("trapDownload").addEventListener("click",function(){ // The live registry in the client's traps.json format; fetched with the bearer header, then saved locally.
+  fetch("/gm/traps.json",{headers:{Authorization:"Bearer "+token},cache:"no-store"}).then(function(response){
+   if(!response.ok)return response.json().catch(function(){return {};}).then(function(p){throw new Error(p.error_description||p.error||"Download failed");});
+   return response.blob();
+  }).then(function(blob){
+   var url=URL.createObjectURL(blob),link=el("a");link.href=url;link.download="traps.json";document.body.appendChild(link);link.click();link.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);
+   say("ok","traps.json downloaded. Copy it to datafiles/generation/ in the game for the offline game.");
+  }).catch(function(error){say("err",error.message);});
+ });
+
  // ---- Loot: adjective + item + rarity --------------------------------------
  var lootData=null,lootEditing=null,lootAffixSeq=0; // The live table as the panel last read it.
 
@@ -1897,6 +2063,7 @@ tr.sel td{background:#2c1e3d}
    renderZones();renderPlayers();renderSanctions(payload.sanctions);renderAudit(payload.audit);
    loadPerformance();
    if(!ench)loadEnchantments(); // Read the table once per session; edits refresh it themselves.
+   if(!trapData)loadTraps(); // The trap registry, likewise.
    if(!lootData)loadLoot(); // Same for the loot table.
    if(!alchemyData)loadAlchemy(); // And the alchemy tables.
    if(selected)loadPlayer(selected);

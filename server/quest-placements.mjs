@@ -3,10 +3,11 @@ import {randomUUID,createHash} from 'node:crypto';
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'quest_placement_conflict'});};
 const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 export function npcPlacementFacing(npc,placement={}){return (npc?.wander_radius||placement.routes?.length?placement.facing:undefined)??npc?.facing??npc?.look?.facing??0;} // Moving NPCs retain their last step; stationary ones immediately use the published default.
-export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQuests=()=>{},readOnly=false}){ // readOnly: zone snapshot workers (zone-snapshot-runtime.mjs) hold a read-only database and must never commit a placement map.
+export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQuests=()=>{},readOnly=false,traps=null}){ // traps: the live /gm trap registry (trap-store.mjs); without it 'trap' placements are refused. // readOnly: zone snapshot workers (zone-snapshot-runtime.mjs) hold a read-only database and must never commit a placement map.
  db.exec(`CREATE TABLE IF NOT EXISTS world_placements(id TEXT PRIMARY KEY,zone TEXT NOT NULL,body TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS world_placement_exclusions(zone TEXT NOT NULL,id TEXT NOT NULL,PRIMARY KEY(zone,id));
  CREATE TABLE IF NOT EXISTS world_placement_maps(zone TEXT NOT NULL,edition TEXT NOT NULL,signature TEXT NOT NULL,body TEXT NOT NULL,PRIMARY KEY(zone,edition));`);
+ const quiet=p=>p.kind==='trap'?[]:affected(p); // No quest can depend on a trap placement.
  const rows=zone=>db.prepare('SELECT body FROM world_placements WHERE zone=? ORDER BY id').all(zone).map(r=>JSON.parse(r.body));
  function geometry(f){return hash([f.width,f.height,f.walls,f.props,f.entrance,f.entries,f.exits,(f.fixtures??[]).filter(p=>p.kind!=='npc'),f.portals]);}
  function tiles(f){ // Flood from every required entrance, excluding solid terrain; relocated objectives stay reachable.
@@ -75,7 +76,7 @@ export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQues
   p.facing=next.x!==p.x?(next.x>p.x?2:3):(next.y>p.y?0:1);p.x=next.x;p.y=next.y;
  }
  function realize(zone,edition,f,{commit=true,players=[]}={}){
-  const logical=[...(f.authoredPlacements??[]).filter(p=>!db.prepare('SELECT 1 FROM world_placement_exclusions WHERE zone=? AND id=?').get(zone,p.id)&&!rows(zone).some(v=>v.id===p.id)),...rows(zone)];for(const p of logical)if(p.lifetime==='temporary'&&p.edition!==edition&&affected({...p,replacementEdition:edition}).length)fail('Active quests require expiring placement '+p.name+'. Place a persistent replacement or remove it with an explicit failure decision before replacing the map.');
+  const logical=[...(f.authoredPlacements??[]).filter(p=>!db.prepare('SELECT 1 FROM world_placement_exclusions WHERE zone=? AND id=?').get(zone,p.id)&&!rows(zone).some(v=>v.id===p.id)),...rows(zone)];for(const p of logical)if(p.lifetime==='temporary'&&p.edition!==edition&&quiet({...p,replacementEdition:edition}).length)fail('Active quests require expiring placement '+p.name+'. Place a persistent replacement or remove it with an explicit failure decision before replacing the map.');
   const definitions=logical.filter(p=>p.lifetime==='persistent'||p.edition===edition),signature=hash([geometry(f),definitions]),old=db.prepare('SELECT * FROM world_placement_maps WHERE zone=? AND edition=?').get(zone,edition);
   if(!definitions.length){if(commit&&old)db.prepare('DELETE FROM world_placement_maps WHERE zone=? AND edition=?').run(zone,edition);return [];}if(old?.signature===signature)return JSON.parse(old.body);
   const free=tiles(f),dry=f.caveChannels?caveReach({...f,managedOccupancy:[]},undefined,true):null,occupied=[...obstacles(f),...players],placements=[];
@@ -115,17 +116,18 @@ export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQues
    return view(input.zone);
   }
   if(input.action==='world_remove_content'){
-   const p=map.placements.find(p=>p.id===input.placement);if(!p)fail('Placement no longer exists.');const blockers=affected(p);if(blockers.length){if(input.resolution!=='fail')fail('Active quests depend on this placement: '+blockers.map(q=>q.definition.name).join(', ')+'. Place a replacement or explicitly fail these quests.');failQuests(blockers);}
+   const p=map.placements.find(p=>p.id===input.placement);if(!p)fail('Placement no longer exists.');const blockers=quiet(p);if(blockers.length){if(input.resolution!=='fail')fail('Active quests depend on this placement: '+blockers.map(q=>q.definition.name).join(', ')+'. Place a replacement or explicitly fail these quests.');failQuests(blockers);}
    db.prepare('DELETE FROM world_placements WHERE id=?').run(p.id);if(map.floor.authoredPlacements?.some(v=>v.id===p.id))db.prepare('INSERT OR IGNORE INTO world_placement_exclusions VALUES (?,?)').run(input.zone,p.id);
   }else{
    if(rows(input.zone).length>=128)fail('This zone already has 128 managed placements.');
-   if(!['npc','interact','location','token','orb'].includes(input.placement_kind))fail('Choose an NPC, object, location, token or story orb.');
+   if(!['npc','interact','location','token','orb',...(traps?['trap']:[])].includes(input.placement_kind))fail('Choose an NPC, object, location, token, story orb or trap.');
+   const trap=input.placement_kind==='trap'?(input.content?traps.registry()[String(input.content)]??fail('Choose a live trap from the Traps tab, or Random.'):{name:'Random trap'}):null; // Empty content: a random trap from this zone's pool each time it springs.
    const orb=input.placement_kind==='orb'?live.published().orbs?.[input.content]:null;if(input.placement_kind==='orb'&&(!orb||orb.retired))fail('Choose a published story orb.');
    const npc=input.placement_kind==='npc'?live.published().npcs[input.content]:null;if(input.placement_kind==='npc'&&(!npc||npc.retired))fail('Choose a published NPC.');
    const {x,y}=input;if(!tiles(map.floor).some(t=>t.x===x&&t.y===y)||[...obstacles(map.floor),...map.placements,...map.players].some(p=>Math.abs(p.x-x)+Math.abs(p.y-y)<=1))fail('Choose a reachable tile away from entrances, fixtures and occupants.');
-   const key=String(input.content??'');if(!/^[a-z][a-z0-9_-]{1,79}$/.test(key))fail('Use a stable content/objective target ID.');
-   const sprite=orb?'':npc?.sprite??live.assetRef(input.sprite??''); // Persist validated token/object artwork independently of monster definitions; orbs draw as glowing lights, not sprites.
-   const p={id:'place-'+randomUUID(),zone:input.zone,kind:input.placement_kind,content:key,name:orb?.title??npc?.name??String(input.name??key).slice(0,100),sprite,x,y,lifetime:input.lifetime==='temporary'?'temporary':'persistent',edition:map.edition,created:now()};
+   const key=String(input.content??'');if(!trap&&!/^[a-z][a-z0-9_-]{1,79}$/.test(key))fail('Use a stable content/objective target ID.');
+   const sprite=orb||trap?'':npc?.sprite??live.assetRef(input.sprite??''); // Persist validated token/object artwork independently of monster definitions; orbs draw as glowing lights, not sprites.
+   const p={id:'place-'+randomUUID(),zone:input.zone,kind:input.placement_kind,content:key,name:orb?.title??npc?.name??trap?.name??String(input.name??key).slice(0,100),sprite,x,y,lifetime:input.lifetime==='temporary'?'temporary':'persistent',edition:map.edition,created:now()};
    db.prepare('INSERT INTO world_placements VALUES (?,?,?)').run(p.id,p.zone,JSON.stringify(p));
   }
   return view(input.zone);

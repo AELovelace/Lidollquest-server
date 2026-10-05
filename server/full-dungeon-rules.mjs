@@ -110,37 +110,56 @@ export function campaignChoice(choice,c,s,context){
  applyDungeonEffects(effects,c,s,context);if(once)memory.once[once]=true;return next;
 }
 
-export function createDungeonRules({db,data,now,roll,origins,adjust,progress,saveProgress,saveFloor}){
+// ----- Shared trap and scene mechanics: campaign floor traps (below) and Map Editor trap placements (placed-traps.mjs) run this one implementation. -----
+export function pickWeighted(values,roll){if(!values.length)return undefined;const sum=values.reduce((n,e)=>n+(e.weight??1),0);let n=roll(sum);return values.find(e=>(n-=e.weight??1)<0);} // An empty pool rolls nothing (routes without traps).
+export function resolveTrap(raw,s,roll,zone=''){ // Trigger style, detect/avoid/resist checks and the {value} message, in the campaign's roll order. avoided: the player stepped clear.
+ const event=structuredClone(raw);
+ let amount=num(event.amount??event.min)+(event.amount===undefined&&event.max!==undefined?roll(event.max-event.min+1):0),bonus=0;const crawl=!!s.loadout.world?.crawling;
+ if(amount>0){if(event.trigger_style==='wire'&&crawl&&roll(100)<60||event.trigger_style==='click'&&roll(100)<20)amount=0;else if(event.trigger_style==='swing')amount=Math.max(1,crawl?Math.floor(amount*.85):Math.ceil(amount*1.25));else if(event.trigger_style==='sticky')amount=Math.max(1,crawl?Math.floor(amount*.9):Math.ceil(amount*1.1));}
+ if(event.detect_check){const outcome=dungeonSkillCheck(event.detect_check,s,roll);bonus=outcome==='success'?4:outcome==='partial'?2:0;}
+ if(event.avoid_check){const outcome=dungeonSkillCheck(event.avoid_check,s,roll,bonus);if(outcome==='success')return {event,avoided:true};if(outcome==='partial'&&amount>0)amount=Math.max(1,Math.floor(amount*.5));}
+ if(event.resist_check&&amount>0){const outcome=dungeonSkillCheck(event.resist_check,s,roll);if(outcome!=='failure')amount=Math.max(1,Math.floor(amount*(outcome==='success'?.65:.85)));}
+ event.amount=amount;event.message=(event.message??'').replaceAll('{value}',String(amount)).replaceAll('{name}',event.name).replaceAll('{trigger}',event.trigger_style??'pressure').replaceAll('{zone}',zone??'');return {event,avoided:false};
+}
+export function trapEffects(event,s,{spawn=true}={}){ // The effect list one resolved trap commits.
+ if(event.type==='civic_reward'){const tiers=clamp(Math.floor(num(s.loadout.player_info.shame)/100),0,10),mult=Math.max(1,num(event.amount));return [{type:'gold',amount:Math.floor(12+3*tiers*mult)},{type:'xp',amount:Math.floor(8+2*tiers*mult)}];} // LittleBig City pays for a good show: the campaign's _trap_apply_civic_reward defaults.
+ if(event.type==='spawn_enemy'&&!spawn)return []; // Hubs and other floors without dungeon monsters: the ambush simply doesn't happen.
+ return event.effects??[{...event,type:event.type}];
+}
+export function presentScene(s,key,narratives,title,message,narrative=''){ // key: 'dungeonScene' (campaign floors) or 'trapScene' (placed traps); a second scene queues behind the first.
+ const chunk=narratives(narrative),pages=structuredClone(chunk?.beats??[{text:message,next:'close'}]);pages.forEach((p,i)=>p.id??='page_'+i);
+ const scene={id:randomUUID(),title:chunk?.title??title,text:message,narrative,pages,page:pages[0].id,revision:0,struggle:0,wait:0};if(s[key])(s[key+'s']??=[]).push(scene);else s[key]=scene;return scene;
+}
+export function sceneView(v){if(!v)return null;const p=v.pages?.find(p=>p.id===v.page);return {id:v.id,title:v.title,text:p?.text??v.text,page:v.page,revision:v.revision,actions:p?.actions?.map(a=>({label:a.label}))??[]};}
+export function scenePageEffects(page){const map={give_xp:'xp',shame_delta:'shame_delta',wet_delta:'wet',tum_delta:'tum',hunger_delta:'hunger_delta',thirst_delta:'thirst_delta',diaper_wet_delta:'diaper_wet_delta'};return Object.entries(map).filter(([k])=>page[k]!==undefined).map(([k,type])=>({type,amount:page[k]}));}
+export function advanceScene(s,key,input,{apply,choose}){ // One choice on the pending scene: page effects, struggle/wait gates, then the next page or the next queued scene.
+ const v=s[key];if(!v||v.id!==input.scene||v.page!==input.page||v.revision!==input.mechanism_revision)fail('That scene page changed. Refresh before choosing.');
+ const page=v.pages.find(p=>p.id===v.page),actions=page.actions??[],choice=actions.length?actions[input.choice]:input.choice===-1?{}:null;if(!choice||!Number.isInteger(input.choice))fail('Choose a scene option.');
+ apply(scenePageEffects(page));if(!choice.skill_check)apply(scenePageEffects(choice)); // A skill choice commits its own effects through campaignChoice exactly once.
+ v.struggle+=num(choice.trap_struggle);v.wait+=num(choice.trap_wait);let next=choice.skill_check?choose(choice):choice.next??page.next??(page.close_on_continue?'close':v.pages[v.pages.indexOf(page)+1]?.id??'close');
+ for(let n=0;n<32;n++){const dest=v.pages.find((p,i)=>p.id===next||i===next);if(!dest){if(next!=='close'&&next!==-1)throw Error('Invalid dungeon narrative destination '+next);s[key]=s[key+'s']?.shift()??null;return;}
+  if(dest.gate_struggle_gte!==undefined||dest.gate_wait_gte!==undefined){next=(dest.gate_struggle_gte!==undefined?v.struggle>=dest.gate_struggle_gte:v.wait>=dest.gate_wait_gte)?dest.gate_pass:dest.gate_fail;continue;}
+  v.page=dest.id;v.revision++;return;
+ }throw Error('Dungeon narrative gate cycle');
+}
+
+export function createDungeonRules({db,data,now,roll,origins,adjust,progress,saveProgress,saveFloor,traps=null}){ // traps: the live /gm trap registry (trap-store.mjs); without it the exported route pool is used.
  const context=(record)=>({db,data,now,roll,origins,adjust,floor:record.floor});
- function present(s,title,message,narrative=''){
-  const chunk=data.narratives?.[narrative],pages=structuredClone(chunk?.beats??[{text:message,next:'close'}]);pages.forEach((p,i)=>p.id??='page_'+i);
-  const scene={id:randomUUID(),title:chunk?.title??title,text:message,narrative,pages,page:pages[0].id,revision:0,struggle:0,wait:0};if(s.dungeonScene)(s.dungeonScenes??=[]).push(scene);else s.dungeonScene=scene;
- } // A trap and room event on one move retain separate durable interactive presentations.
- function scene(s){const v=s.dungeonScene;if(!v)return null;const p=v.pages?.find(p=>p.id===v.page);return {id:v.id,title:v.title,text:p?.text??v.text,page:v.page,revision:v.revision,actions:p?.actions?.map(a=>({label:a.label}))??[]};}
- function pageEffects(page){const map={give_xp:'xp',shame_delta:'shame_delta',wet_delta:'wet',tum_delta:'tum',hunger_delta:'hunger_delta',thirst_delta:'thirst_delta',diaper_wet_delta:'diaper_wet_delta'};return Object.entries(map).filter(([k])=>page[k]!==undefined).map(([k,type])=>({type,amount:page[k]}));}
- function sceneChoice(c,s,record,input){
-  const v=s.dungeonScene;if(!v||v.id!==input.scene||v.page!==input.page||v.revision!==input.mechanism_revision)fail('That scene page changed. Refresh before choosing.');
-  const page=v.pages.find(p=>p.id===v.page),actions=page.actions??[],choice=actions.length?actions[input.choice]:input.choice===-1?{}:null;if(!choice||!Number.isInteger(input.choice))fail('Choose a scene option.');
-  applyDungeonEffects(pageEffects(page),c,s,context(record));if(!choice.skill_check)applyDungeonEffects(pageEffects(choice),c,s,context(record)); // A skill choice commits its own effects through campaignChoice exactly once.
-  v.struggle+=num(choice.trap_struggle);v.wait+=num(choice.trap_wait);let next=choice.skill_check?campaignChoice(choice,c,s,context(record)):choice.next??page.next??(page.close_on_continue?'close':v.pages[v.pages.indexOf(page)+1]?.id??'close');
-  for(let n=0;n<32;n++){const dest=v.pages.find((p,i)=>p.id===next||i===next);if(!dest){if(next!=='close'&&next!==-1)throw Error('Invalid dungeon narrative destination '+next);s.dungeonScene=s.dungeonScenes?.shift()??null;return;}
-   if(dest.gate_struggle_gte!==undefined||dest.gate_wait_gte!==undefined){next=(dest.gate_struggle_gte!==undefined?v.struggle>=dest.gate_struggle_gte:v.wait>=dest.gate_wait_gte)?dest.gate_pass:dest.gate_fail;continue;}
-   v.page=dest.id;v.revision++;return;
-  }throw Error('Dungeon narrative gate cycle');
- }
+ const narratives=id=>data.narratives?.[id]??traps?.narrative(id)??null; // GM-authored traps may name any shipped trap narrative.
+ const trapZones=data.trap_zones??(data.config.event_zone?['any',data.config.event_zone]:[]); // Recorded by the exporter; arcadia routes have none.
+ const trapPool=()=>traps?traps.pool(trapZones):Object.values(data.traps??{}); // With no /gm overrides this equals the exported route.traps, in the same order.
+ function present(s,title,message,narrative=''){presentScene(s,'dungeonScene',narratives,title,message,narrative);} // A trap and room event on one move retain separate durable interactive presentations.
+ function scene(s){return sceneView(s.dungeonScene);}
+ function sceneChoice(c,s,record,input){advanceScene(s,'dungeonScene',input,{apply:effects=>applyDungeonEffects(effects,c,s,context(record)),choose:choice=>campaignChoice(choice,c,s,context(record))});}
  function effectEvent(c,s,record,event){
-  const lines=applyDungeonEffects(event.effects??[{...event,type:event.type}],c,s,context(record));present(s,event.name,event.message??lines.join(' '),event.narrative_chunk??'');
+  const lines=applyDungeonEffects(event.trap?trapEffects(event,s):event.effects??[{...event,type:event.type}],c,s,context(record));present(s,event.name,event.message??lines.join(' '),event.narrative_chunk??'');
   const personal=progress(c,record.edition);if(event.lingering_turns){personal.lingering??=[];personal.lingering.push({turns:event.lingering_turns,delay:event.lingering_delay??0,wet:event.lingering_wet??0,tum:event.lingering_tum??0});saveProgress(c,record.edition,personal);}saveFloor(record);
  }
- function pick(values){const sum=values.reduce((n,e)=>n+(e.weight??1),0);let n=roll(sum);return values.find(e=>(n-=e.weight??1)<0);}
- function trap(c,s,record,id){
-  const personal=progress(c,record.edition);personal.traps??=[];if(personal.traps.includes(id))return;const raw=pick(Object.values(data.traps));if(!raw)return;const event=structuredClone(raw);personal.traps.push(id);saveProgress(c,record.edition,personal);
-  let amount=num(event.amount??event.min)+(event.amount===undefined&&event.max!==undefined?roll(event.max-event.min+1):0),bonus=0;const crawl=!!s.loadout.world?.crawling;
-  if(amount>0){if(event.trigger_style==='wire'&&crawl&&roll(100)<60||event.trigger_style==='click'&&roll(100)<20)amount=0;else if(event.trigger_style==='swing')amount=Math.max(1,crawl?Math.floor(amount*.85):Math.ceil(amount*1.25));else if(event.trigger_style==='sticky')amount=Math.max(1,crawl?Math.floor(amount*.9):Math.ceil(amount*1.1));}
-  if(event.detect_check){const outcome=dungeonSkillCheck(event.detect_check,s,roll);bonus=outcome==='success'?4:outcome==='partial'?2:0;}
-  if(event.avoid_check){const outcome=dungeonSkillCheck(event.avoid_check,s,roll,bonus);if(outcome==='success'){present(s,event.name,'You avoid the '+event.name+' entirely.');return;}if(outcome==='partial'&&amount>0)amount=Math.max(1,Math.floor(amount*.5));}
-  if(event.resist_check&&amount>0){const outcome=dungeonSkillCheck(event.resist_check,s,roll);if(outcome!=='failure')amount=Math.max(1,Math.floor(amount*(outcome==='success'?.65:.85)));}
-  event.amount=amount;event.message=(event.message??'').replaceAll('{value}',String(amount)).replaceAll('{name}',event.name).replaceAll('{trigger}',event.trigger_style??'pressure').replaceAll('{zone}',data.config.event_zone);effectEvent(c,s,record,event);
+ const pick=values=>pickWeighted(values,roll);
+ function trap(c,s,record,id){ // Hidden generated floor traps: once per character per floor trap per edition (personal.traps).
+  const personal=progress(c,record.edition);personal.traps??=[];if(personal.traps.includes(id))return;const raw=pick(trapPool());if(!raw)return;personal.traps.push(id);saveProgress(c,record.edition,personal);
+  const {event,avoided}=resolveTrap(raw,s,roll,data.config.event_zone);if(avoided){present(s,event.name,'You avoid the '+event.name+' entirely.');return;}
+  event.trap=true;effectEvent(c,s,record,event);
  }
  function step(c,s,record,x,y){
   let personal=progress(c,record.edition);personal.events??={room:-1,left:0,count:0,once:[],last:''};const tracker=personal.events,f=record.floor;

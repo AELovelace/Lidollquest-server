@@ -79,7 +79,7 @@ export function buildAllowList(text){ // Comma-separated addresses and CIDR bloc
  return list;
 } // Rejected loudly at construction so a typo cannot silently admit the whole network.
 
-export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=null,welcome=null,guilds=null,playerStores=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,balance=null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn,helpOptions={}}={}){
+export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=null,welcome=null,guilds=null,playerStores=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,balance=null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,traps=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn,helpOptions={}}={}){
  const mapRenderer=createMapRenderer({tiles:tileArtwork,compiled:compiledArtwork,avatars:avatarCatalog,asset:key=>live?.asset(key)}); // Decodes each sprite once; caches the last few rendered pictures per zone revision.
  const worldPainter=createWorldPainter(); // Whole-world poster (GET /gm/world.png), painted on a worker thread one request at a time.
  function worldPicture(scale,layers){ // Gathers every overworld, dungeon and hub view plus the exit graph; the worker lays them out and paints them.
@@ -119,6 +119,11 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    slots:store.slots,statKeys:store.statKeys,tuningKeys:store.tuningKeys,bounds:store.bounds,
    counts:{curses:live.curses.length,blessings:live.blessings.length}};
  };
+
+ // The floor-trap registry a gamemaster edits (trap-store.mjs): shipped traps-data.json plus
+ // overrides. Full-dungeon pools and Map Editor trap placements read the same tables live.
+ const trapStore=()=>traps??fail(503,'Trap editing is not available on this deployment.','gm_traps_unavailable');
+ const trapView=()=>{const store=trapStore(),entries=store.list();return {revision:store.revision(),entries,effective:store.registry(),counts:{live:Object.keys(store.registry()).length,overrides:entries.filter(e=>e.status!=='shipped').length,retired:entries.filter(e=>e.status==='retired').length},zoneKeys:store.zoneKeys,triggerStyles:store.triggerStyles,types:store.types,stats:store.stats,narratives:store.narrativeIds()};};
 
  // The Adjective + Item + Rarity table a gamemaster edits: the same store every dive
  // route rolls through, layered over the shipped baseline exported into dive-data.json.
@@ -340,6 +345,26 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    record(actor,'enchant_reset','enchantments',{...result,reason:clean(input.reason,240)});
    return {...result,revision:enchantStore().revision()};
   },
+  trap_save(input,actor){
+   const saved=trapStore().save(input.trap,actor); // Refused unless the whole trap validates.
+   record(actor,'trap_save',saved.trap.trap_id,{status:saved.status,name:saved.trap.name,type:saved.trap.type,zones:saved.trap.zones,reason:clean(input.reason,240)});
+   return {...saved,revision:trapStore().revision()};
+  },
+  trap_retire(input,actor){
+   const result=trapStore().retire(input.id,actor); // Shipped traps are tombstoned, not deleted: the next export would bring them back.
+   record(actor,'trap_retire',result.id,{reason:clean(input.reason,240)});
+   return {...result,revision:trapStore().revision()};
+  },
+  trap_restore(input,actor){
+   const result=trapStore().restore(input.id,actor); // A retired trap comes back; an edited shipped trap returns to its shipped values.
+   record(actor,'trap_restore',result.id,{status:result.status,reason:clean(input.reason,240)});
+   return {...result,revision:trapStore().revision()};
+  },
+  trap_reset(input,actor){
+   if(input.confirm!==true)fail(400,'Confirm that every trap override and custom trap is discarded.','gm_invalid_trap');
+   const result=trapStore().reset();record(actor,'trap_reset','traps',{reason:clean(input.reason,240)});
+   return {...result,revision:trapStore().revision()};
+  },
   crafting_save(input,actor){const result=craftingStore.save(input.section,input.value,input.revision);record(actor,'crafting_save',input.section,{revision:result.revision,reason:clean(input.reason,240)});return result;}, // Validate the complete merged content before saving a live section.
   alchemy_save(input,actor){
    const section=String(input.section??'');
@@ -532,7 +557,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
     if(url.pathname==='/gm/balance/filters')return send(200,{characters:balance.characters(),kinds:balance.kinds()});
    }
    if(url.pathname==='/gm/flows'&&req.method==='GET')return send(200,world().flows.catalog());
-   if(url.pathname==='/gm/content'&&req.method==='GET')return send(200,{...live.view(),furniture:furnitureCatalog(),worldZones:world().catalog(),onlineNpcs:world().npcCatalog?.()??[],avatarSprites:Object.fromEntries(avatarCatalog.filter(a=>a.sprite).map(a=>[a.id,a.sprite]))}); // avatarSprites: fixture avatar id -> sprite, so the Map Editor draws merchants and residents.
+   if(url.pathname==='/gm/content'&&req.method==='GET')return send(200,{...live.view(),furniture:furnitureCatalog(),worldZones:world().catalog(),onlineNpcs:world().npcCatalog?.()??[],traps:traps?Object.values(traps.registry()).map(t=>({id:t.trap_id,name:t.name,type:t.type,zones:t.zones})):[],avatarSprites:Object.fromEntries(avatarCatalog.filter(a=>a.sprite).map(a=>[a.id,a.sprite]))}); // avatarSprites: fixture avatar id -> sprite, so the Map Editor draws merchants and residents.
    if(url.pathname==='/gm/map'&&req.method==='GET')return send(200,url.searchParams.get('paint')==='1'?world().paintMap(url.searchParams.get('zone')):world().map(url.searchParams.get('zone'))); // paint=1: the same view plus tile grids, tilesets and hub theme (Map Editor).
    if(url.pathname==='/gm/map.png'&&req.method==='GET'){ // A picture of the zone painted square by square with the game's sprites (map-render.mjs).
     const zone=url.searchParams.get('zone')??'';if(!world()?.paintMap||!world().catalog().some(z=>z.id===zone))return send(400,{error:'gm_unknown_zone',error_description:'Choose a zone from the catalog.'});
@@ -551,6 +576,8 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    if(url.pathname==='/gm/sprite-lab'&&req.method==='GET')return send(200,spriteWorkshop(db).gmLab()); // Layer catalog and sheets for the NPC look designer (gm-sprite-lab.js).
    if(url.pathname==='/gm/asset'&&req.method==='GET'){const id=url.searchParams.get('id');try{return send(200,live.asset(id));}catch(error){if(error.status===404&&tileArtwork.sprites[id])return send(200,tileArtwork.sprites[id]);throw error;}} // Managed uploads and monster art first, then shipped tile atlases and scenery.
    if(url.pathname==='/gm/enchantments'&&req.method==='GET')return send(200,enchantView()); // Content tuning, behind the same staff identity as every moderation tool.
+   if(url.pathname==='/gm/traps'&&req.method==='GET')return send(200,trapView()); // Floor traps: shipped baseline, overrides, effective registry and each trap's status.
+   if(url.pathname==='/gm/traps.json'&&req.method==='GET'){const file=JSON.stringify(trapStore().clientFile(),null,1)+String.fromCharCode(10);res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Content-Disposition':'attachment; filename="traps.json"','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(file);return true;} // The effective registry in the client's datafiles/generation/traps.json format, for singleplayer.
    if(url.pathname==='/gm/loot'&&req.method==='GET')return send(200,lootView()); // Adjective + Item + Rarity tuning and affix authoring.
    if(url.pathname==='/gm/guilds'&&req.method==='GET'){const store=guildStore(),id=url.searchParams.get('id');return send(200,{guilds:store.gm.list(url.searchParams.get('q')??''),detail:id?store.gm.detail(id):null,tuning:store.gm.tuning()});} // Player guilds (guilds.mjs): search, one guild's roster/ledger/weeks, and the live guild_* tuning values.
    if(url.pathname==='/gm/player-stores'&&req.method==='GET'){const gm=storeGm(),id=url.searchParams.get('id');return send(200,{stores:gm.list(url.searchParams.get('q')??''),detail:id?gm.detail(id):null});} // Player shops (player-stores.mjs): every shop, plus one opened shop's stock, orders and ledger.

@@ -138,6 +138,7 @@
           <li><strong>Location objective:</strong> enter a target ID and name. Use it with a visit objective; the player steps onto its marker.</li>
           <li><strong>Monster:</strong> select a published monster. See Monsters and live encounters for spawn behavior.</li>
           <li><strong>Story orb:</strong> select a published orb from the Story Orbs tab. It glows in its own colour and plays its pages when a player presses E beside it.</li>
+          <li><strong>Trap:</strong> choose a live trap from the Traps tab, or <em>Random</em> to roll from the zone's pool. Players never see it; stepping on the tile springs it once per character per map edition. See Floor traps.</li>
         </ul>
         <p>For tokens and objects, Object / token sprite offers shipped icons and managed artwork; Upload sprite PNG adds your own single-image artwork. The preview is 32×32. Choosing artwork does not change the objective target ID.</p>
         <p><strong>Persistent</strong> placements survive map replacement and relocate to reachable tiles if necessary. <strong>Current map only</strong> placements expire with that map. Use persistent for ordinary quests. If an expiring placement would strand active quests, replacement is blocked until you provide a persistent replacement or explicitly fail the affected quests.</p>
@@ -281,6 +282,19 @@
         <p>Every save is checked against the whole table. A number out of range, an unknown ingredient, a recipe naming a missing adjective, or removing an adjective that ingredients lean toward is refused, and the message says why. Nothing is saved when a check fails. Every save and reset goes in the audit log.</p>
         <p>Cauldrons stand in Honeydew's Community Hall, in The Castle's dormitory beside the beds, and in the LittleBig Inn. Players can also brew anywhere with the Portable Alchemy Kit (riskier brews).</p>
         <p><button type="button" data-gm-tool="alchemy">Open the Alchemy tab</button> <button type="button" data-gm-tool="loot">Open the Loot tab</button></p>
+      </article>
+      <article data-guide-id="traps" tabindex="-1" hidden>
+        <h3>Floor traps</h3>
+        <p>The <b>Traps</b> tab edits the live floor-trap registry. Campaign full dungeons (Castle Dungeon, Auto-Nursery, Regression School and Hospital) roll their hidden floor traps from it: each route draws from traps in zone <b>any</b> plus its own zone (bsp, nursery, school, hospital). Map Editor trap placements draw from it in every online zone. Edits apply to the next trap sprung, without a restart.</p>
+        <ul>
+          <li><b>Edit:</b> name, type, weight, min/max or a fixed amount, trigger style, narrative scene, lingering wet/tum and zones are form fields. Checks (avoid, detect, resist) and rarer fields go in the <b>Advanced JSON</b> box. Every save is validated; a bad zone, type, stat or range is refused with the reason.</li>
+          <li><b>Retire / Restore:</b> retiring removes a trap from every pool and makes placements that name it inert. Restore brings a retired trap back; on an edited shipped trap, <b>Restore shipped</b> discards your edits.</li>
+          <li><b>New trap:</b> custom ids use a-z, 0-9 and _. A narrative scene must be one of the shipped trap narratives; otherwise the player just sees the message.</li>
+          <li><b>Download traps.json:</b> the live registry in the game's datafiles/generation/traps.json format, for the offline game. Copy it into the game project and rebuild.</li>
+        </ul>
+        <p><b>Placing traps:</b> in the Map Editor choose placement kind <b>Trap</b>, then a trap or <b>Random</b> (a fresh roll from the zone's pool each time it springs), and click a free tile. Trap tiles stay walkable and are hidden from players; gamemasters see a red marker in the editor and in game. Each character springs a placement once per map edition (a new weekly or monthly map re-arms it). The result plays as a scene in the narrative box. Full dungeons' generated floor traps show as dashed markers for reference only.</p>
+        <p>Every save, retire, restore and reset goes in the audit log.</p>
+        <p><button type="button" data-gm-tool="traps">Open the Traps tab</button> <button type="button" data-gm-tool="world">Open Zones</button></p>
       </article>
       <article data-guide-id="monsters" tabindex="-1" hidden>
         <h3>Monsters and live encounters</h3>

@@ -192,6 +192,14 @@
     "group": "Authoring reference"
   },
   {
+    "slug": "traps",
+    "source": "traps.md",
+    "title": "Floor traps",
+    "kicker": "Traps tab & Map Editor",
+    "description": "Edit the live trap registry, place hidden traps on any map, and know what players experience.",
+    "group": "Authoring reference"
+  },
+  {
     "slug": "npc-routes",
     "source": "npc-routes.md",
     "title": "NPC routes & pathfinding",
