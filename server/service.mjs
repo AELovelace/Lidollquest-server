@@ -88,11 +88,11 @@ export function createQuestService({filename=':memory:',walletClient,artJobOptio
  async function flush(owner,token){
   if(deliveries.has(owner))return deliveries.get(owner);
   const task=(async()=>{
-   for(const row of db.prepare('SELECT * FROM reward_outbox WHERE owner=? AND delivered=0 LIMIT 8').all(owner)){
+   for(const row of db.prepare('SELECT * FROM reward_outbox WHERE owner=? AND delivered=0 ORDER BY rowid LIMIT 8').all(owner)){
     const funded=row.id.startsWith('store-'),amount=funded?Math.min(row.amount-row.paid,dailyCoinCap()):row.amount;
-    const request_id=funded?'store-'+createHash('sha256').update(row.id+':'+row.paid).digest('hex'):'arena-'+row.id;
+    const arena='arena-'+row.id,request_id=funded?'store-'+createHash('sha256').update(row.id+':'+row.paid).digest('hex'):arena.length<=80?arena:'arena-'+createHash('sha256').update(row.id).digest('hex'); // The tracker caps request IDs at 80 characters and rejected longer ones unrecorded, so hashing only those keeps every accepted ID stable.
     try{const receipt=await metrics.measureAsync('account.credit',()=>walletClient.credit(token,{request_id,kind:'credit',amount}));db.prepare('UPDATE reward_outbox SET paid=?,delivered=? WHERE id=?').run(row.paid+amount,Number(row.paid+amount>=row.amount),row.id);db.prepare('UPDATE wallet_cache SET coins=? WHERE owner=?').run(receipt.balance,owner);}
-    catch(error){console.warn('quest_reward_delivery_failed',row.id,error?.status??'transport');return;} // Log no credentials; retry this same entitlement on the next authenticated visit.
+    catch(error){console.warn('quest_reward_delivery_failed',row.id,error?.status??'transport');if(error?.status===400||error?.status===409)continue;return;} // Log no credentials; retry this same entitlement on the next authenticated visit. A row the tracker rejects outright must not hold back the rewards queued behind it.
    }
   })();deliveries.set(owner,task);try{await task;}finally{deliveries.delete(owner);}
  }

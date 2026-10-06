@@ -32,6 +32,22 @@ test('funded payouts survive lost replies, use valid wallet IDs and report only 
  }finally{service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));}
 });
 
+test('long outbox IDs fit the tracker request ID limit and a rejected row does not block later rewards',async()=>{
+ const owner='a'.repeat(64),token='a'.repeat(43),seen=[];let coins=0;
+ const service=createQuestService({walletClient:{authenticate:async()=>({owner,id:'grant',client:'lidollquest',coins}),credit:async(_token,input)=>{
+  seen.push(input.request_id);if(!/^[A-Za-z0-9_-]{1,80}$/.test(input.request_id)||input.request_id==='arena-rejected')throw Object.assign(Error('Bad request'),{status:400}); // Mirrors the tracker's request ID validation.
+  coins+=input.amount;return {request_id:input.request_id,currency:'LiDollCoin',amount:input.amount,balance:coins};
+ }}});
+ await new Promise(resolve=>service.server.listen(0,'127.0.0.1',resolve));
+ const guild='guild-goal-0802ee17-02a9-4abd-8a4e-b83473f49e48-1790593200000-96c6c939ddb79826',insert=service.db.prepare('INSERT INTO reward_outbox(id,owner,amount,reason) VALUES (?,?,?,?)');
+ insert.run('rejected',owner,5,'Rejected');insert.run(guild,owner,40,'Guild goal');insert.run('quest-short',owner,7,'Quest');
+ try{
+  const response=await fetch('http://127.0.0.1:'+service.server.address().port+'/zones',{headers:{Authorization:'Bearer '+token}});assert.equal(response.status,200);
+  const data=await response.json();assert.equal(data.pendingCoins,5);assert.equal(coins,47);
+  assert.ok(seen.includes('arena-quest-short'));assert.ok(seen.every(id=>id.length<=80)); // Short IDs keep their original request ID, so earlier receipts still deduplicate.
+ }finally{service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));}
+});
+
 test('GM crafting authoring requires staff, saves validated sections and detects stale edits',async()=>{
  const staff='s'.repeat(43),player='p'.repeat(43);
  const service=createQuestService({gmEnabled:true,gmAllow:'',walletClient:{authenticate:async token=>({owner:(token===staff?'a':'b').repeat(64),id:'grant',client:'lidollquest',coins:0,gamemaster:token===staff})}});
