@@ -358,7 +358,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    const existing=db.prepare('SELECT * FROM quest_presence WHERE owner=?').get(i.owner);
    if(existing&&existing.seen>now()-30000&&(existing.controller!==input.controller||existing.character_id!==c.id||existing.grant_id!==i.id)&&input.takeover!==true)fail('This account is active in another window.','zone_controller_conflict'); // Explicit re-entry can recover this character without discarding its dungeon fight or items.
    if(action==='enter'&&!state.dive&&state.diveReturned){
-    const arrival=state.diveReturnedPosition??hubArrival([...hubRooms,...hubCatalog].find(z=>z.id===state.diveReturned),returnSource(state.diveReturned,zoneId));
+    const arrival=state.diveReturnedPosition??hubArrival(resolveHub([...hubRooms,...hubCatalog].find(z=>z.id===state.diveReturned)),returnSource(state.diveReturned,zoneId));
     db.prepare('INSERT INTO quest_presence(owner,character_id,zone,grant_id,controller,x,y,seen,moved) VALUES (?,?,?,?,?,?,?,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=excluded.x,y=excluded.y,seen=excluded.seen,moved=0').run(i.owner,c.id,state.diveReturned,i.id,input.controller,arrival.x,arrival.y,now());return;
    } // A browser suspended across reset resumes in its lobby instead of retrying a retired floor forever.
    if(state.run&&state.run.kind!=='dive')fail('Finish your arena run before diving.');

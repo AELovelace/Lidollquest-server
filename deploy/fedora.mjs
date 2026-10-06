@@ -102,7 +102,8 @@ async function main() { // Prepare configuration first; require a usable reward 
   const tests = readdirSync(join(release, 'test')).filter(name => name.endsWith('.test.mjs')).map(name => join(release, 'test', name));
   if (!tests.length) throw Error('Candidate contains no tests.');
   const concurrency = Math.max(1, Number.parseInt(process.env.LIDOLLQUEST_TEST_CONCURRENCY, 10) || 4); // Run four test files at once by default; retain the environment override for host-specific tuning.
-  run('/usr/sbin/runuser', ['-u', 'nobody', '--', NODE, '--test', `--test-concurrency=${concurrency}`, ...tests], {cwd: testDir});
+  console.log(`Running ${tests.length} test files, up to ${concurrency} at a time. File numbers follow start order; test numbers count reported results.`);
+  run('/usr/sbin/runuser', ['-u', 'nobody', '--', NODE, '--test', `--test-concurrency=${concurrency}`, `--test-reporter=${join(release, 'scripts', 'test-progress-reporter.mjs')}`, ...tests], {cwd: testDir}); // Resolve the reporter inside the candidate because tests run from a separate artifact directory.
   console.log(`Test artifacts: ${testDir}`);
   if (!existsSync(unitPath)) { writeFileSync(unitPath, unit, {flag: 'wx', mode: 0o644}); chmodSync(unitPath, 0o644); }
   run('/usr/bin/systemctl', ['daemon-reload']);

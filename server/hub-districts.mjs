@@ -274,13 +274,13 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
   return added;
  };
  const addSideGate=(f,def,side)=>{ // West/east lobby gates added after a month was saved (Utopia's hospital and nursery paths, 2026-09-27): every lobby already has the road and clear strip inside both side walls, so only the wall opening is missing.
-  if(!def.lobby?.gates?.[side])return false;
+  if(!def.lobby?.gates?.[side]||f.portalMoves?.[def.lobby.gates[side]])return false; // A gate the GM moved (floor-patches portalMoves) stays where they put it.
   const x=side==='west'?0:f.width-1,inner=side==='west'?1:f.width-2,cy=Math.floor(f.height/2);if(!f.walls[cy-1][x]&&!f.walls[cy][x])return false; // Already open.
   for(const y of [cy-1,cy]){f.walls[y][x]=0;f.floors[y][x]=f.floors[y][inner];if(f.wallTiles?.[y])f.wallTiles[y][x]=0;} // Rows cy-1..cy, like the generated gate (lobbyGates).
   return true;
  };
  const addEdgeGate=(f,def,side)=>{ // Months generated before Honeydew's north (Woods) or south (Autumnal Plains) gate existed gain it in place: no reroll, nobody sent back to the entrance.
-  if(!def.lobby?.gates?.[side])return false;
+  if(!def.lobby?.gates?.[side]||f.portalMoves?.[def.lobby.gates[side]])return false; // A gate the GM moved stays where they put it.
   const cx=Math.floor(f.width/2),row=side==='south'?f.height-1:0;if(!f.walls[row][cx-1]&&!f.walls[row][cx])return false; // Already open.
   const cells=new Set(carveEdgeGate(f,def,data,side).map(c=>c.x+','+c.y)),buildings=new Set((def.lobby.buildings??[]).map(b=>b.id));
   f.fixtures=f.fixtures.filter(x=>x.kind!=='scenery'||buildings.has(x.id)||!Array.from({length:(x.span_w??1)*(x.span_h??1)},(_,i)=>(x.x+i%(x.span_w??1))+','+(x.y+Math.floor(i/(x.span_w??1)))).some(k=>cells.has(k))); // Loose scenery sitting on the new road is cleared; plaza buildings and people stay.

@@ -206,7 +206,7 @@ test('biome layers and exits patch overworld floors: cover, wash, shoreline, mis
   const gulch='overworld-echo-gulch',g=f.map(gulch),gs=f.free(g);r=f.patch(gulch,[{kind:'layer',layer:'wash',cells:[{x:gs.x,y:gs.y,v:'1'}]}]);assert.equal(r.floor.wash[gs.y].charAt(gs.x),'1');assert.throws(()=>f.patch(plains,[{kind:'layer',layer:'wash',cells:[{x:spot.x,y:spot.y,v:'1'}]}]),/Echo Gulch/);
   const coast='overworld-seafoam-coast',c=f.map(coast),row=10;r=f.patch(coast,[{kind:'layer',layer:'shore',rows:[{y:row,edge:40}]}]);assert.equal(r.floor.shore[row],40);assert.throws(()=>f.patch(coast,[{kind:'layer',layer:'shore',rows:[{y:row,edge:0}]}]),/inside the map/);r=f.world('world_patch_clear',coast);assert.equal(r.floor.shore[row],c.floor.shore[row]);
   const caldera='overworld-emberfall-caldera',k=f.map(caldera),crater=k.floor.crater;r=f.patch(caldera,[{kind:'layer',layer:'crater',crater:{x:crater.x+2,y:crater.y,r:crater.r}}]);assert.equal(r.floor.crater.x,crater.x+2);assert.equal(r.floor.heat.x,crater.x+2);assert.throws(()=>f.patch(caldera,[{kind:'layer',layer:'crater',crater:{x:1,y:1,r:5}}]),/fit inside/);r=f.world('world_patch_clear',caldera);assert.deepEqual(r.floor.crater,crater);
-  assert.throws(()=>f.patch('honeydew-lantern-beds',[{kind:'exit',op:'move',zone:'honeydew-lantern',to:{x:3,y:3}}]),/code-defined/);
+  assert.throws(()=>f.patch('honeydew-lantern-beds',[{kind:'exit',op:'add',zone:'overworld-tundra',style:'warp',to:{x:3,y:3}}]),/cannot open new crossings/); // Hub doors move (see the hub doors test); new crossings stay a wilderness tool.
  }finally{f.close();}
 });
 
@@ -282,5 +282,35 @@ test('GMs place hub furniture from the catalog: real service fixtures that refus
   const town=hubs.find(id=>!f.map(id).floor.fixtures.some(p=>p.kind==='cauldron')&&f.map(id).floor.fixtures.some(p=>p.kind==='bed'));
   if(town){const pot=tryPlace(town,'cauldron'),fx=f.map(town).floor.fixtures;assert.equal(pot.kind,'cauldron');assert.ok(fx.some(p=>p.kind==='forge')&&fx.some(p=>p.kind==='kitchen'),'a first cauldron brings its crafting stations');}
   const mirrorRoom=hubs.find(id=>!f.map(id).floor.fixtures.some(p=>p.kind==='mirror'));if(mirrorRoom){const v=tryPlace(mirrorRoom,'vanity');assert.deepEqual([v.kind,v.span_w,v.span_h],['mirror',2,2]);}
+ }finally{f.close();}
+});
+
+test('hub doors move in the Map Editor: gates slide, doorsteps, room exits and building doorways move, travel follows them, and clearing restores them',()=>{
+ const f=fixture();try{
+  const town=f.map('utopia-arcanum'),doors=town.floor.doors,H=town.floor.height;
+  const gate=doors.find(d=>d.key==='overworld-taiga'),tower=doors.find(d=>d.key==='utopia-arcanum-tower'),doorway=doors.find(d=>d.style==='doorway');
+  assert.ok(gate&&tower&&doorway,'gates, doorsteps and building doorways are listed');assert.equal(gate.side,'bottom');
+  const open=(m,x,y)=>!m.floor.walls[y]?.[x]&&!m.floor.fixtures.some(p=>p.solid!==false&&x>=p.x&&y>=p.y&&x<p.x+(p.span_w??1)&&y<p.y+(p.span_h??1));
+  const to={x:gate.x+6,y:gate.y};f.patch('utopia-arcanum',[{kind:'exit',op:'move',exit:'overworld-taiga',to}]);let m=f.map('utopia-arcanum');
+  for(let dx=0;dx<2;dx++){assert.equal(m.floor.walls[gate.y][gate.x+dx],1,'the old gate closes');assert.ok(m.floor.wallTiles[gate.y][gate.x+dx]>0,'with wall art');assert.equal(m.floor.walls[to.y][to.x+dx],0,'the new gate opens');assert.ok(m.floor.floors[to.y][to.x+dx]>0,'with floor art');}
+  assert.deepEqual([m.floor.doors.find(d=>d.key==='overworld-taiga').x,m.floor.portals.find(p=>p.target==='overworld-taiga').x],[to.x,to.x]);
+  assert.throws(()=>f.patch('utopia-arcanum',[{kind:'exit',op:'move',exit:'overworld-taiga',to:{x:to.x,y:to.y-3}}]),/own wall/);
+  let step=null;for(let r=1;r<=3&&!step;r++)for(const [dx,dy] of [[r,0],[-r,0],[0,r],[r,1],[-r,1]])if(open(m,tower.x+dx,tower.y+dy)&&!m.floor.doors.some(d=>d.x===tower.x+dx&&d.y===tower.y+dy)){step={x:tower.x+dx,y:tower.y+dy};break;}
+  const b=doorway.building,ring=[];for(let x=b.x+1;x<b.x+b.w-1;x++)ring.push({x,y:b.y,i:[0,1]},{x,y:b.y+b.h-1,i:[0,-1]});for(let y=b.y+1;y<b.y+b.h-1;y++)ring.push({x:b.x,y,i:[1,0]},{x:b.x+b.w-1,y,i:[-1,0]});
+  const spot=ring.find(c=>m.floor.walls[c.y][c.x]&&!m.floor.walls[c.y+c.i[1]][c.x+c.i[0]]&&open(m,c.x-c.i[0],c.y-c.i[1]));assert.ok(step&&spot);
+  f.patch('utopia-arcanum',[{kind:'exit',op:'move',exit:'utopia-arcanum-tower',to:step},{kind:'exit',op:'move',exit:doorway.key,to:{x:spot.x,y:spot.y}}]);m=f.map('utopia-arcanum');
+  assert.equal(m.floor.walls[doorway.y][doorway.x],1,'the old doorway walls up');assert.equal(m.floor.walls[spot.y][spot.x],0,'the new doorway opens');
+  assert.throws(()=>f.patch('utopia-arcanum',[{kind:'exit',op:'move',exit:doorway.key,to:{x:b.x,y:b.y}}]),/corners/);
+  f.patch('utopia-arcanum-beds',[{kind:'exit',op:'move',exit:'exit',to:{x:0,y:3}}]);const room=f.map('utopia-arcanum-beds').floor;assert.deepEqual([room.doors[0].y,room.exits[0].y],[3,3]);assert.equal(room.walls[6][0],1,'the old way out walls up');assert.equal(room.walls[3][0],0);
+  const id=f.act(null,'create',{name:'Gatewalker'}).character.id;f.act(id,'enter',{zone:'utopia-arcanum',loadout:{player_info:{playerHealth:50,playerHealthMax:50},inventory:[]}});
+  f.position(id,step.x,step.y);let s=f.act(id,'hub_visit',{zone:'utopia-arcanum-tower'});assert.equal(s.zone,'utopia-arcanum-tower','the moved doorstep opens the Tower');
+  const exit=s.zones.find(z=>z.id===s.zone).exit;f.position(id,exit.x+1,exit.y);s=f.act(id,'move',{direction:'west',world_step:true});assert.equal(s.zone,'utopia-arcanum');assert.equal(Math.abs(s.position.x-step.x)+Math.abs(s.position.y-step.y),1,'back out beside the moved doorstep');
+  const beds=s.zones.find(z=>z.id==='utopia-arcanum').portals.find(p=>p.target==='utopia-arcanum-beds');f.position(id,beds.x,beds.y);s=f.act(id,'hub_visit',{zone:'utopia-arcanum-beds'});assert.deepEqual(s.position,{x:1,y:4},'arrive beside the moved way out');
+  s=f.act(id,'move',{direction:'west',world_step:true});assert.equal(s.zone,'utopia-arcanum','the moved way out leads home');
+  f.position(id,to.x,to.y-1);s=f.act(id,'move',{direction:'south',world_step:true});assert.equal(s.zone,'overworld-taiga','the moved gate opens onto the Taiga');
+  s=f.act(id,'dive_exit',{zone:'utopia-arcanum'});assert.equal(s.zone,'utopia-arcanum');assert.ok(s.position.x>=to.x&&s.position.x<=to.x+1&&s.position.y===H-2,'back beside the moved gate');
+  f.world('world_patch_clear','utopia-arcanum');f.world('world_patch_clear','utopia-arcanum-beds');m=f.map('utopia-arcanum');
+  assert.equal(m.floor.walls[gate.y][gate.x],0);assert.equal(m.floor.walls[to.y][to.x],1);assert.equal(m.floor.walls[doorway.y][doorway.x],0);assert.equal(m.floor.walls[spot.y][spot.x],1);
+  assert.deepEqual(m.floor.doors.map(d=>[d.key,d.x,d.y]),doors.map(d=>[d.key,d.x,d.y]),'every door is back where the code puts it');assert.equal(f.map('utopia-arcanum-beds').floor.exits[0].y,6);
  }finally{f.close();}
 });

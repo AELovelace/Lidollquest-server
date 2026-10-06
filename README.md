@@ -820,6 +820,16 @@ repository. It requires Fedora with systemd and enabled repositories providing
 
 ### Updates and recovery
 
+Update tests print the total number of files and the parallel worker limit, then
+`[File 12] RUNNING example.test.mjs` as each file starts. File completion lines
+show how many started files have finished; compare that count with the initial
+total to gauge overall progress. `[Test 42]` numbers individual reported results.
+Parallel files can finish out of order, and Node can buffer individual results
+behind an earlier file. File counts measure progress, not remaining time.
+`npm test` uses the same reporter. For a focused run, use
+`node --test --test-reporter=./scripts/test-progress-reporter.mjs test/deployment.test.mjs`.
+Assertion details, skipped tests, final totals and failure exit codes remain available.
+
 If `public-quest-editor.test.mjs` fails immediately with `ERR_MODULE_NOT_FOUND`
 for `scripts/build-public-quest-editor.mjs`, update the source checkout to the
 installer fix that includes `scripts/` in `RELEASE_FILES` in `deploy/release.mjs`.

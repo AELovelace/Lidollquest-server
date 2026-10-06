@@ -94,6 +94,7 @@ Tools:
 | Arrival spawn | Move the default arrival or a neighbour's arrival tile | pending change |
 | Biome layers | Paint tall-grass cover and sheltered spots (Plains, Coast), the Gulch wash, the Coast shoreline per row, Pink Mist tiles, or move the Caldera crater (the heat zone follows) | pending change |
 | Exits & pads | Slide a wall gate along its wall (the old opening closes, the arrival tile follows), move a warp pad to any walkable tile, or add a new gate or pad to a linked wilderness route, a hub, or a neighbour the map already reaches | pending change |
+| Doors & gates (hubs) | The same tool in hub towns and rooms. Slide a town gate or a room's wall opening along its own wall (the old opening walls up, a passage is carved inward if needed), move a doorstep (plaza buildings, storefronts, room door tiles) to any reachable floor tile, or move a generated building's street doorway to another outer-wall tile of that building (not a corner, room behind, street in front). Arrivals and travel follow the door; outlines show every movable door, the chosen one in gold | pending change |
 
 Pending changes preview on the canvas and queue on the right until **Apply**; Undo/Redo and Discard act on the queue. Full dungeons (`dungeon-*`) disable terrain-patch tools; Select / move (placements and DM monsters), Place and NPC routes remain available for managed placements. The overlays toggle a grid, reachability (red = walkable but cut off from every arrival), safe rooms, biome layers and players.
 
@@ -148,7 +149,7 @@ Applying a change also moves DM monsters and visitors standing on a newly solid 
 
 - A gate keeps its size and wall. A new crossing can only lead where the travel rules already allow (linked routes, hubs, existing neighbours); arrivals from the other side use your gate's inside tile, and the other zone's own exits are unchanged.
 - Hub visitors see a GM reshape on their next snapshot (the room rebuilds in place with a log line); older clients built before 2026-10-03 repaint on re-entry.
-- Supported gates and warp pads use Exits & pads; code-defined building doors are not draggable route waypoints.
+- Supported gates and warp pads use Exits & pads (Doors & gates in hubs); doors are not draggable route waypoints.
 - Full dungeons keep their generated layout, fixtures and puzzles.
 
 ## Map Editor acceptance checklist

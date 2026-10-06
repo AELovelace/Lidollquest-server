@@ -144,7 +144,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
    return;
   }
   if(op.kind==='exit'){ // Slide a wall-gap crossing along its wall, or move a warp pad; arrivals follow it.
-   if(kind!=='dive')fail('Hub doors and gates are code-defined and cannot be moved.',400);
+   if(kind!=='dive'){if(op.op==='add')fail('Hubs cannot open new crossings; move one of their doors or gates instead.',400);moveHubDoor(f,op,undo,touched,rules.doors??[]);return;}
    const to=op.to;if(!Number.isInteger(to?.x)||!Number.isInteger(to?.y))fail('Choose a tile for the exit.',400);
    if(op.op==='add'){ // A brand-new crossing to a neighbour the travel rules already allow (a linked wilderness route, a hub, or a zone this map already opens onto).
     if(rules.destinations&&!rules.destinations.includes(op.zone))fail('This map cannot open onto '+op.zone+'. Crossings only lead to linked wilderness routes, hubs, or neighbours it already reaches.',400);
@@ -190,10 +190,48 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
  function openGate(f,exit,undo,touched){ // Open a wall gap at exit's rect plus one tile inside it, then carve straight inward (like openExitGaps) until it meets floor already joined to the entrance; scenery in the corridor is cleared. Returns the arrival tile.
   const w=exit.w??1,h=exit.h??1,inward={left:[1,0],right:[-1,0],top:[0,1],bottom:[0,-1]}[exit.side]??[0,0],cells=footprint({x:exit.x,y:exit.y,span_w:w,span_h:h});
   for(const c of cells){remember(undo,f,c.x,c.y);f.walls[c.y][c.x]=0;touched.push(c);const inner={x:c.x+inward[0],y:c.y+inward[1]};remember(undo,f,inner.x,inner.y);f.walls[inner.y][inner.x]=0;if(f.props?.[inner.y])f.props[inner.y][inner.x]=0;touched.push(inner);}
-  const entry={x:cells[0].x+inward[0],y:cells[0].y+inward[1]};let reach=flood(f,[f.entrance]),probe={...entry},carved=0;
-  while(!reach.has(key(probe.x,probe.y))&&carved<10){probe={x:probe.x+inward[0],y:probe.y+inward[1]};if(probe.x<1||probe.y<1||probe.x>f.width-2||probe.y>f.height-2)break;for(const c of cells){const cell={x:probe.x+(c.x-cells[0].x),y:probe.y+(c.y-cells[0].y)};if(cell.x<1||cell.y<1||cell.x>f.width-2||cell.y>f.height-2)continue;remember(undo,f,cell.x,cell.y);f.walls[cell.y][cell.x]=0;if(f.props?.[cell.y])f.props[cell.y][cell.x]=0;touched.push(cell);}carved++;reach=flood(f,[f.entrance]);}
+  const entry={x:cells[0].x+inward[0],y:cells[0].y+inward[1]},origin=f.entrance??f.spawn;let reach=flood(f,[origin]),probe={...entry},carved=0;
+  while(!reach.has(key(probe.x,probe.y))&&carved<10){probe={x:probe.x+inward[0],y:probe.y+inward[1]};if(probe.x<1||probe.y<1||probe.x>f.width-2||probe.y>f.height-2)break;for(const c of cells){const cell={x:probe.x+(c.x-cells[0].x),y:probe.y+(c.y-cells[0].y)};if(cell.x<1||cell.y<1||cell.x>f.width-2||cell.y>f.height-2)continue;remember(undo,f,cell.x,cell.y);f.walls[cell.y][cell.x]=0;if(f.props?.[cell.y])f.props[cell.y][cell.x]=0;touched.push(cell);}carved++;reach=flood(f,[origin]);}
   if(carved){const cut=new Set(touched.map(t=>key(t.x,t.y)));for(const d of [...(f.decorations??[])])if(footprint(d).some(c=>cut.has(key(c.x,c.y)))){f.decorations=f.decorations.filter(x=>x!==d);undo.decorationsRemoved.push(d);for(const c of footprint(d)){remember(undo,f,c.x,c.y);if(f.props?.[c.y])f.props[c.y][c.x]=0;}}}
   return entry;
+ }
+ const movedGaps=(f,doors)=>doors.filter(d=>d.style==='gap'&&f.portalMoves?.[d.key]).map(d=>({...d,...f.portalMoves[d.key]})); // Wall openings a GM moved: the outer-wall check must allow them.
+ function moveHubDoor(f,op,undo,touched,doors){ // Hubs: slide a gate or a room's way out along its own wall, move a doorstep to another floor tile, or move a building's street doorway round that building's walls. The new place is kept in f.portalMoves, which hubs.mjs applies wherever doors are read; the terrain changes go in the undo log like any painted cell.
+  const base=doors.find(d=>d.key===(op.exit||op.zone))??doors.find(d=>!op.exit&&d.target===op.zone),k=base?.key??(op.exit||op.zone); // By key, or by where it leads (a room's way out leads to its parent).if(!base)fail('This map has no door '+k+' to move.',400);
+  const to=op.to;if(!Number.isInteger(to?.x)||!Number.isInteger(to?.y))fail('Choose a tile for the door.',400);
+  const at=d=>({...d,...(f.portalMoves?.[d.key]??{})}),cur=at(base),others=doors.filter(d=>d.key!==k).map(at),w=base.w??1,h=base.h??1;
+  undo.portalMoves??={};if(!(k in undo.portalMoves))undo.portalMoves[k]=f.portalMoves?.[k]?{...f.portalMoves[k]}:null;
+  const seal=(x,y,along)=>{remember(undo,f,x,y);f.walls[y][x]=1;if(grid(f,'wallTiles')&&!f.wallTiles[y][x]){const n=along.map(([dx,dy])=>({x:x+dx,y:y+dy})).find(c=>f.walls[c.y]?.[c.x]&&f.wallTiles[c.y]?.[c.x]);if(n)f.wallTiles[y][x]=f.wallTiles[n.y][n.x];}touched.push({x,y});}; // A closed opening borrows the wall art beside it.
+  const pave=cells=>{if(!grid(f,'floors'))return;for(let pass=0;pass<12;pass++){let left=false;for(const c of cells){if(f.walls[c.y][c.x]||f.floors[c.y][c.x])continue;const n=[[0,-1],[-1,0],[1,0],[0,1]].map(([dx,dy])=>({x:c.x+dx,y:c.y+dy})).find(p=>!f.walls[p.y]?.[p.x]&&f.floors[p.y]?.[p.x]);if(n)f.floors[c.y][c.x]=f.floors[n.y][n.x];else left=true;}if(!left)break;}}; // New openings take the floor art next to them.
+  let place={x:to.x,y:to.y};
+  if(base.style==='doorway'){ // A generated building's street door: any outer wall tile of the same building except a corner, with a room behind it and walkable street in front.
+   const b=base.building,inBuilding=to.x>=b.x&&to.y>=b.y&&to.x<b.x+b.w&&to.y<b.y+b.h,side=!inBuilding?null:to.x===b.x?[1,0]:to.x===b.x+b.w-1?[-1,0]:to.y===b.y?[0,1]:to.y===b.y+b.h-1?[0,-1]:null;
+   const corner=(to.x===b.x||to.x===b.x+b.w-1)&&(to.y===b.y||to.y===b.y+b.h-1);
+   if(!side||corner)fail('A doorway stays in its own building\'s outer wall, away from the corners.',400);
+   if(to.x===cur.x&&to.y===cur.y)return;
+   const inner={x:to.x+side[0],y:to.y+side[1]},outer={x:to.x-side[0],y:to.y-side[1]};
+   if(!f.walls[to.y][to.x])fail('That wall is already open.',400);
+   if(f.walls[inner.y][inner.x]||!walkable(f,outer.x,outer.y))fail('A doorway needs a room behind it and open street in front of it.',400);
+   const tint=f.wallTiles?.[to.y]?.[to.x]??0;
+   remember(undo,f,cur.x,cur.y);f.walls[cur.y][cur.x]=1;if(grid(f,'wallTiles'))f.wallTiles[cur.y][cur.x]=tint;touched.push({x:cur.x,y:cur.y});
+   remember(undo,f,to.x,to.y);f.walls[to.y][to.x]=0;if(grid(f,'wallTiles'))f.wallTiles[to.y][to.x]=0;if(grid(f,'floors'))f.floors[to.y][to.x]=f.floors[inner.y][inner.x];touched.push({...to});
+  }else if(base.style==='gap'){ // A town gate or a room's wall opening: slides along its own wall, keeps its size, and carves inward until it meets the map.
+   const vertical=base.side==='left'||base.side==='right',edge=vertical?cur.x:cur.y;
+   if(vertical?to.x!==edge:to.y!==edge)fail('A gate can only slide along its own wall.',400);
+   const along=vertical?to.y:to.x,limit=vertical?f.height:f.width;if(along<1||along+(vertical?h:w)>limit-1)fail('A gate must stay between the corners.',400);
+   const rect={...cur,x:vertical?edge:along,y:vertical?along:edge,w,h,side:base.side};place={x:rect.x,y:rect.y};
+   if(rect.x===cur.x&&rect.y===cur.y)return;
+   if(footprint({x:rect.x,y:rect.y,span_w:w,span_h:h}).some(c=>others.some(o=>inExit(o,c.x,c.y))))fail('Another door already opens there.',400);
+   const wall=vertical?[[0,-1],[0,1]]:[[-1,0],[1,0]];for(const c of footprint({x:cur.x,y:cur.y,span_w:w,span_h:h}))if(!others.some(o=>inExit(o,c.x,c.y))&&!inExit(rect,c.x,c.y))seal(c.x,c.y,wall); // The old opening closes unless another door shares it.
+   const opened=[],entry=openGate(f,rect,undo,opened);for(const c of opened)if(grid(f,'wallTiles')&&!f.walls[c.y][c.x])f.wallTiles[c.y][c.x]=0;pave(opened);touched.push(...opened);
+   if(!flood(f,[f.spawn]).has(key(entry.x,entry.y)))fail('The moved gate at '+rect.x+','+rect.y+' does not connect to the rest of the map; open a path to it first.');
+  }else{ // A doorstep (a plaza building, a storefront) or a room's door tile: any walkable floor tile inside the walls that can be reached.
+   if(to.x<1||to.y<1||to.x>f.width-2||to.y>f.height-2||!walkable(f,to.x,to.y))fail('Put the door on a walkable floor tile inside the walls.',400);
+   if(others.some(o=>inExit(o,to.x,to.y)))fail('Another door already opens there.',400);
+   if(!flood(f,[f.spawn]).has(key(to.x,to.y)))fail('The door at '+to.x+','+to.y+' cannot be reached from the arrival tile.');
+   touched.push({...to});
+  }
+  f.portalMoves={...(f.portalMoves??{}),[k]:place};
  }
  function revert(f,kind){ // Undo the previous application using the floor's own log, so a new revision starts from the generated layout.
   const undo=f.patchUndo;if(!undo)return false;
@@ -204,16 +242,17 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
   for(const name of undo.created??[])delete f[name];if(undo.shore)for(const [y,edge] of Object.entries(undo.shore))f.shore[y]=edge;if(undo.mistTiles!==undefined&&undo.mistTiles!==null&&f.mist)f.mist.tiles=undo.mistTiles;if(undo.crater){f.crater={...undo.crater.crater};if(undo.crater.heat)f.heat={...undo.crater.heat};}
   if(kind==='dive'){const added=new Set(undo.decorationsAdded);f.decorations=(f.decorations??[]).filter(d=>!added.has(d.id));f.decorations.push(...undo.decorationsRemoved);const addedRooms=new Set(undo.safeRoomsAdded.map(r=>key(r.x,r.y)+'|'+r.w+'x'+r.h));f.safeRooms=(f.safeRooms??[]).filter(r=>!addedRooms.has(key(r.x,r.y)+'|'+r.w+'x'+r.h));f.safeRooms.push(...undo.safeRoomsRemoved);if(undo.entrance)f.entrance={...undo.entrance};for(const [zone,p] of Object.entries(undo.entries??{}))if(f.entries)f.entries[zone]={...p};}
   else {const added=new Set(undo.fixturesAdded);f.fixtures=(f.fixtures??[]).filter(d=>!added.has(d.id));f.fixtures.push(...undo.fixturesRemoved.filter(r=>!f.fixtures.some(d=>d.id===r.id))); /* A fixture an upgrade step already put back (hub-districts addCauldron) is not restored twice: two toilets on one tile made the stored remove fail forever. */if(undo.spawn)f.spawn={...undo.spawn};}
+  for(const [k,v] of Object.entries(undo.portalMoves??{})){if(v)(f.portalMoves??={})[k]={...v};else if(f.portalMoves)delete f.portalMoves[k];}if(f.portalMoves&&!Object.keys(f.portalMoves).length)delete f.portalMoves; // Hub doors return to their code-defined places.
   delete f.patchUndo;delete f.patchRevision;delete f.patchSkipped;return true;
  }
  const editionMatches=(op,f)=>!Array.isArray(op.editions)||op.editions.includes(f.edition)||op.editions.includes(f.district?.layoutKey); // Ops may be pinned to specific editions; the default applies everywhere.
- function apply(zone,floor,{strict=false,kind='dive',openings:extraOpenings=[],destinations=null}={}){ // Mutates floor in place; returns true when geometry changed. strict: any failing op throws (GM actions); otherwise failing ops are skipped and listed in floor.patchSkipped (ticks and regeneration).
+ function apply(zone,floor,{strict=false,kind='dive',openings:extraOpenings=[],doors=[],destinations=null}={}){ // doors (hubs): every movable door at its code-defined place (hubs.mjs hubDoors). // Mutates floor in place; returns true when geometry changed. strict: any failing op throws (GM actions); otherwise failing ops are skipped and listed in floor.patchSkipped (ticks and regeneration).
   const patch=get(zone);if(floor.patchRevision===patch.revision)return false;
-  const work=structuredClone(floor),reverted=revert(work,kind),undo={cells:[],cellIndex:new Set(),decorationsRemoved:[],decorationsAdded:[],fixturesRemoved:[],fixturesAdded:[],safeRoomsRemoved:[],safeRoomsAdded:[],entrance:null,spawn:null,entries:{},exits:[],exitsAdded:[],entriesAdded:[],rows:{},created:[],shore:null,mistTiles:null,crater:null},skipped=[];let applied=0;
+  const work=structuredClone(floor),reverted=revert(work,kind),undo={cells:[],cellIndex:new Set(),decorationsRemoved:[],decorationsAdded:[],fixturesRemoved:[],fixturesAdded:[],safeRoomsRemoved:[],safeRoomsAdded:[],entrance:null,spawn:null,entries:{},exits:[],exitsAdded:[],entriesAdded:[],rows:{},created:[],shore:null,mistTiles:null,crater:null,portalMoves:{}},skipped=[];let applied=0;
   for(const op of patch.ops){
    if(!editionMatches(op,work))continue;
    const trial=structuredClone(work),trialUndo=structuredClone({...undo,cellIndex:[...undo.cellIndex]}),touched=[];trialUndo.cellIndex=new Set(trialUndo.cellIndex);
-   try{applyOp(trial,op,kind,trialUndo,touched,{destinations});validate(trial,kind,extraOpenings,touched,op.kind==='cells'?work:null);}
+   try{applyOp(trial,op,kind,trialUndo,touched,{destinations,doors});validate(trial,kind,kind==='dive'?extraOpenings:[...extraOpenings,...movedGaps(trial,doors)],touched,op.kind==='cells'?work:null);}
    catch(error){if(strict)fail((error.message??String(error))+' (change: '+describe(op)+')',error.status??409,error.code??'world_patch_rejected');skipped.push({id:op.id,reason:error.message});continue;}
    Object.assign(work,trial);Object.assign(undo,trialUndo);applied++;
   }
@@ -221,7 +260,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
   const changed=reverted||applied>0;if(changed)work.geometryVersion=(work.geometryVersion??0)+1; // Connected clients rebuild collision and the minimap.
   for(const k of Object.keys(floor))if(!(k in work))delete floor[k];Object.assign(floor,work);return changed;
  }
- const describe=op=>op.kind==='cells'?'paint '+op.cells.length+' cell(s)':op.kind==='decoration'?(op.op==='remove'?'remove ':'stamp ')+(op.decoration?.sprite??op.match?.sprite??'scenery'):op.kind==='safeRoom'?(op.op==='remove'?'remove':'add')+' safe room':op.kind==='spawn'?'move arrival':op.kind==='layer'?'paint '+op.layer:op.kind==='exit'?(op.op==='add'?'add a crossing to ':'move the exit to ')+op.zone:op.kind==='fixture'?(op.op==='add'?'place '+(FURNITURE[op.furniture]?.label??op.furniture):(op.op==='remove'?'remove ':'move ')+op.match.kind+' '+op.match.id):op.kind;
+ const describe=op=>op.kind==='cells'?'paint '+op.cells.length+' cell(s)':op.kind==='decoration'?(op.op==='remove'?'remove ':'stamp ')+(op.decoration?.sprite??op.match?.sprite??'scenery'):op.kind==='safeRoom'?(op.op==='remove'?'remove':'add')+' safe room':op.kind==='spawn'?'move arrival':op.kind==='layer'?'paint '+op.layer:op.kind==='exit'?(op.op==='add'?'add a crossing to '+op.zone:'move the '+(op.exit&&!op.zone?'door '+op.exit:'exit to '+op.zone)):op.kind==='fixture'?(op.op==='add'?'place '+(FURNITURE[op.furniture]?.label??op.furniture):(op.op==='remove'?'remove ':'move ')+op.match.kind+' '+op.match.id):op.kind;
  function view(zone,floor){const p=get(zone);return {revision:p.revision,ops:p.ops,history:history(zone),skipped:floor?.patchSkipped??[],updated:p.updated,actor:p.actor};} // What the Map Editor shows in its Patch layer panel.
 
  function normalizeOps(list){ // Validate the shape of incoming ops before they are stored; geometry rules run in apply().
@@ -242,7 +281,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
    fail('Unknown change kind '+raw.kind+'.',400);
   });
  }
- function act(input,{zone,floor,kind,openings,actor,commit,destinations=null}){ // GM actions from gm.mjs (inside BEGIN IMMEDIATE). commit(floor): the caller saves the floor, re-realizes placements and relocates occupants; a throw rolls everything back.
+ function act(input,{zone,floor,kind,openings,doors=[],actor,commit,destinations=null}){ // GM actions from gm.mjs (inside BEGIN IMMEDIATE). commit(floor): the caller saves the floor, re-realizes placements and relocates occupants; a throw rolls everything back.
   const current=get(zone);if(Number(input.patch_revision)!==current.revision)fail('The patch layer changed. Refresh before editing.');
   let ops;
   if(input.action==='world_patch_apply')ops=[...current.ops,...normalizeOps(input.ops)].slice(-MAX_OPS);
@@ -251,7 +290,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
   else if(input.action==='world_patch_clear')ops=[];
   else fail('Unknown patch action.',400);
   db.exec('SAVEPOINT world_patch'); // Self-contained even outside gm.mjs's transaction: a refused change never leaves a stored revision behind.
-  try{store(zone,ops,actor);apply(zone,floor,{strict:true,kind,openings,destinations});commit(floor);db.exec('RELEASE world_patch');} // apply() throws with the offending change named.
+  try{store(zone,ops,actor);apply(zone,floor,{strict:true,kind,openings,doors,destinations});commit(floor);db.exec('RELEASE world_patch');} // apply() throws with the offending change named.
   catch(error){db.exec('ROLLBACK TO world_patch');db.exec('RELEASE world_patch');throw error;}
   return view(zone,floor);
  }
