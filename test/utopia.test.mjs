@@ -7,7 +7,7 @@ import {generateDesert,validateDesert} from '../server/desert-generation.mjs';
 import {addSideTrail,addNorthTrail,openExitGaps} from '../server/wilderness-links.mjs';
 import {pathTo} from '../server/dive-generation.mjs';
 import {hubCatalog,hubRooms,wildernessGates,dungeonPortals,hubPortals,hubData} from '../server/hubs.mjs';
-import {districtData,generateDistrict,reachableDistrict,SERVICE_KINDS} from '../server/hub-districts.mjs';
+import {districtData,generateDistrict,reachableDistrict,addDistrictBuildings,SERVICE_KINDS} from '../server/hub-districts.mjs';
 import {UTOPIA_PADS} from '../server/utopia-rooms.mjs';
 
 // Utopia (2026-09-24): the fourth hub, a 60x60 magitek city of littles above the Taiga's north wall. No toilets anywhere:
@@ -31,6 +31,34 @@ test('Utopia is a 60x60 magitek lobby town with a south gate to the Taiga and fi
   const services=f.fixtures.filter(x=>SERVICE_KINDS.includes(x.kind));
   for(const s of services){const beside=[[0,-1],[0,1],[-1,0],[1,0]].some(([dx,dy])=>{const x=s.x+dx,y=s.y+dy;return !f.walls[y]?.[x]&&!f.fixtures.some(o=>o.solid&&covers(o,x,y));});assert.ok(beside||s.span_h>1||s.span_w>1,s.id+' can be reached');}
  }
+});
+
+test('Utopia hollows its leftover tower mass into walk-in buildings: rooms behind street doors, furnished, every tile reachable',()=>{ // 2026-10-06: the solid blocks between the avenues become usable space.
+ const plain={...utopia};delete plain.buildings;const floorCount=f=>f.walls.flat().filter(v=>v===0).length;
+ for(const month of ['2026-10','2026-11','2027-03']){
+  const before=generateDistrict(plain,{edition:month,ends:0}),f=generateDistrict(utopia,{edition:month,ends:0}),seen=reachableDistrict(f),cfg=utopia.buildings;
+  assert.ok(floorCount(f)>=floorCount(before)*1.4,month+' gains at least 40% more floor');assert.ok(f.buildings.length>=6,month);
+  for(const b of f.buildings){
+   assert.ok(b.doors.length>=1&&b.doors.length<=2);
+   for(const d of b.doors){assert.equal(f.walls[d.y][d.x],0);assert.ok(seen.has(d.x+','+d.y),'door '+d.x+','+d.y+' is reachable');}
+   const tints=new Set();for(let y=b.y;y<b.y+b.h;y++)for(let x=b.x;x<b.x+b.w;x++)if(f.walls[y][x])tints.add(f.wallTiles[y][x]);assert.equal(tints.size,1,'one facade colour per building, junctions included');assert.ok(cfg.wall_tiles.includes([...tints][0]));
+  }
+  const rooms=f.rooms.filter(r=>r.building!==undefined);assert.ok(rooms.length>=f.buildings.length);
+  for(const r of rooms){assert.ok(r.w>=cfg.min_room&&r.h>=cfg.min_room);const kind=cfg.rooms.find(k=>k.kind===r.kind);assert.ok(kind,r.kind);assert.equal(f.floors[r.cy][r.cx],kind.floor);for(let y=r.y;y<r.y+r.h;y++)for(let x=r.x;x<r.x+r.w;x++)assert.equal(f.walls[y][x],0);}
+  assert.ok(f.fixtures.some(p=>p.id.startsWith('building-')),'rooms are furnished');
+ }
+});
+
+test('a saved Utopia month gains its buildings in place: streets, scenery and residents stay put, GM-painted cells are left alone',()=>{
+ const plain={...utopia};delete plain.buildings;const saved=generateDistrict(plain,{edition:'2026-09',ends:0});
+ const painted={x:-1,y:-1};for(let y=2;y<58&&painted.x<0;y++)for(let x=2;x<58;x++)if([[0,0],[1,0],[-1,0],[0,1],[0,-1]].every(([dx,dy])=>saved.walls[y+dy][x+dx]===1)){painted.x=x;painted.y=y;break;} // A deep wall cell a GM repainted (floor-patches undo log).
+ saved.patchUndo={cells:[{x:painted.x,y:painted.y,wall:1}],fixturesRemoved:[]};
+ const f=structuredClone(saved);assert.equal(addDistrictBuildings(f,utopia),true);assert.equal(addDistrictBuildings(f,utopia),false,'idempotent once applied');
+ for(let y=0;y<60;y++)for(let x=0;x<60;x++)if(saved.walls[y][x]===0){assert.equal(f.walls[y][x],0);assert.equal(f.floors[y][x],saved.floors[y][x]);}
+ assert.deepEqual(f.fixtures.slice(0,saved.fixtures.length),saved.fixtures);assert.equal(f.walls[painted.y][painted.x],1);assert.equal(f.wallTiles[painted.y][painted.x],saved.wallTiles[painted.y][painted.x]);
+ const solid=new Set(f.fixtures.filter(p=>p.solid!==false).flatMap(p=>Array.from({length:p.span_w*p.span_h},(_,i)=>(p.x+i%p.span_w)+','+(p.y+Math.floor(i/p.span_w)))));
+ assert.equal(reachableDistrict(f).size,f.walls.flat().filter(v=>v===0).length-solid.size,'every new room is reachable');
+ assert.equal(addDistrictBuildings(structuredClone(saved),plain),false,'towns without def.buildings are untouched');
 });
 
 test('the Nap Pods, Workshop and Tower are authored rooms, each with a changer and no toilet',()=>{

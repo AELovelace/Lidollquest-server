@@ -13,6 +13,49 @@ import {combatData} from '../server/combat.mjs';
 import {hubData} from '../server/hubs.mjs';
 import {walkable} from '../server/dive-generation.mjs';
 import {diveData} from '../server/dive.mjs';
+import {createFloorPatches} from '../server/floor-patches.mjs';
+
+function terrainFixture(){ // A deterministic tiled hub reproduces the reported scenery coordinate without monthly generation.
+ const db=new DatabaseSync(':memory:'),patches=createFloorPatches(db),size=34,grid=value=>Array.from({length:size},()=>Array(size).fill(value));
+ const floor={width:size,height:size,walls:grid(0),props:grid(0),floors:grid(1),wallTiles:grid(0),spawn:{x:1,y:1},fixtures:[{id:'generated-tree',kind:'scenery',x:28,y:31,span_w:2,span_h:1,solid:true},{id:'generated-bed',kind:'bed',x:8,y:9,solid:true}]};
+ for(let i=0;i<size;i++)floor.walls[0][i]=floor.walls[size-1][i]=floor.walls[i][0]=floor.walls[i][size-1]=1;
+ const act=(action,extra={})=>patches.act({action,patch_revision:patches.revision('test-hub'),...extra},{zone:'test-hub',floor,kind:'hub',actor:'test',commit:()=>{}}); // Use the real save and rollback path.
+ return {db,patches,floor,paint:cells=>act('world_patch_apply',{ops:[{kind:'cells',cells}]}),clear:()=>act('world_patch_clear')};
+}
+
+test('724 floor brush cells save beneath generated scenery and services, replay, and undo without changing fixtures',()=>{
+ const f=terrainFixture();try{
+  const original=structuredClone(f.floor),cells=[];
+  for(let y=5;y<=31;y++)for(let x=3;x<=29;x++)cells.push({x,y,wall:0,prop:0,floor:3});
+  cells.splice(0,5);assert.equal(cells.length,724); // Include both cells of the scenery at 28,31 and the solid bed.
+  f.paint(cells);assert.equal(f.patches.revision('test-hub'),1);
+  for(const c of cells)assert.equal(f.floor.floors[c.y][c.x],3);
+  assert.deepEqual(f.floor.fixtures,original.fixtures);assert.equal(f.patches.walkable(f.floor,28,31),false,'the tree still blocks movement');
+  const replay=structuredClone(original);f.patches.apply('test-hub',replay,{kind:'hub'});
+  assert.equal(replay.patchSkipped,undefined);assert.equal(replay.floors[31][28],3,'stored paint survives regeneration');
+  f.clear();assert.deepEqual(f.floor.floors,original.floors);assert.deepEqual(f.floor.fixtures,original.fixtures);
+ }finally{f.db.close();}
+});
+
+test('tile repainting and clearing existing collision preserve protections against new walls and props',()=>{
+ const f=terrainFixture();try{
+  f.floor.walls[31][28]=1;f.floor.wallTiles[31][28]=10;f.floor.props[31][29]=1;
+  const original=structuredClone(f.floor);
+  f.paint([{x:28,y:31,wallTile:11},{x:29,y:31,floor:4}]); // Visual edits are valid even where scenery already overlaps collision.
+  f.paint([{x:28,y:31,wall:1,wallTile:12},{x:29,y:31,prop:1,floor:5}]); // Repainting an existing wall or prop adds no blocker.
+  assert.equal(f.floor.wallTiles[31][28],12);assert.equal(f.floor.floors[31][29],5);
+  f.paint([{x:28,y:31,wall:0,floor:3},{x:29,y:31,prop:0,floor:3}]);
+  f.paint([{x:8,y:9,wall:1},{x:8,y:9,wall:0,floor:3}]); // Validate the final result when a cell occurs twice in one operation.
+  const before=structuredClone(f.floor),revision=f.patches.revision('test-hub');
+  for(const cell of [{x:28,y:31,wall:1},{x:29,y:31,prop:1},{x:8,y:9,wall:1},{x:1,y:1,prop:1}]){
+   assert.throws(()=>f.paint([cell]),/That would cover .* \(change: paint 1 cell\(s\)\)/);
+   assert.equal(f.patches.revision('test-hub'),revision);assert.deepEqual(f.floor,before,'rejected paint leaves the floor unchanged');
+  }
+  assert.throws(()=>f.paint([{x:0,y:5,wall:0,floor:3}]),/outer wall/);
+  assert.throws(()=>f.patches.act({action:'world_patch_apply',patch_revision:revision,ops:[{kind:'decoration',decoration:{sprite:'sprTree',x:28,y:31,solid:true}}]},{zone:'test-hub',floor:f.floor,kind:'hub',actor:'test',commit:()=>{}}),/generated scenery/,'new scenery still cannot overlap protected scenery');
+  f.clear();assert.deepEqual(f.floor.walls,original.walls);assert.deepEqual(f.floor.props,original.props);assert.deepEqual(f.floor.wallTiles,original.wallTiles);
+ }finally{f.db.close();}
+});
 
 const monster={id:'patch_monster',enemy_id:'patch_monster',name:'Patch monster',hp:20,str:1,def:0,dex:1,exp:12,spell_cast_chance:0,enemy_spells:[],sprite:'sprItem',battle_sprite:'',roaming:false};
 function fixture(){ // The live world with content, like world-controls.test.mjs.

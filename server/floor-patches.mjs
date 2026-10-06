@@ -48,12 +48,13 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
   for(const p of f.fixtures??[])if(!String(p.id??'').startsWith('patch-'))for(const c of footprint(p))add(c,p.kind==='scenery'?'generated scenery':'the '+p.kind+(p.name?' '+p.name:''));
   return tiles;
  }
- function validate(f,kind,extraOpenings,touched){ // Throws when the patched floor would strand anything; only tiles the patch touched are checked against protections.
+ function validate(f,kind,extraOpenings,touched,terrainBefore=null){ // Cell painting checks newly added terrain blockers; existing fixtures must not block repainting their floor.
   const open=openings(f,kind,extraOpenings),guard=protectedTiles(f,kind);
   for(const t of touched){
    const border=t.x===0||t.y===0||t.x===f.width-1||t.y===f.height-1;
    if(border&&!f.walls[t.y][t.x]&&!open(t.x,t.y))fail('The outer wall at '+t.x+','+t.y+' has to stay solid (only gates and exits open it).');
-   if(blocked(f,t.x,t.y)&&guard.has(key(t.x,t.y)))fail('That would cover '+guard.get(key(t.x,t.y))+' at '+t.x+','+t.y+'.');
+   const covers=terrainBefore?((!!f.walls[t.y][t.x]&&!terrainBefore.walls[t.y][t.x])||(!!f.props?.[t.y]?.[t.x]&&!terrainBefore.props?.[t.y]?.[t.x])):blocked(f,t.x,t.y); // Compare final collision layers with the pre-operation floor, including repeated cells in a stroke.
+   if(covers&&guard.has(key(t.x,t.y)))fail('That would cover '+guard.get(key(t.x,t.y))+' at '+t.x+','+t.y+'.');
   }
   const reach=flood(f);if(!reach.size)fail('The arrival tile is walled in.');
   for(const e of Object.values(f.entries??{}))if(!reach.has(key(e.x,e.y)))fail('The arrival from a neighbour at '+e.x+','+e.y+' is cut off.');
@@ -212,7 +213,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
   for(const op of patch.ops){
    if(!editionMatches(op,work))continue;
    const trial=structuredClone(work),trialUndo=structuredClone({...undo,cellIndex:[...undo.cellIndex]}),touched=[];trialUndo.cellIndex=new Set(trialUndo.cellIndex);
-   try{applyOp(trial,op,kind,trialUndo,touched,{destinations});validate(trial,kind,extraOpenings,touched);}
+   try{applyOp(trial,op,kind,trialUndo,touched,{destinations});validate(trial,kind,extraOpenings,touched,op.kind==='cells'?work:null);}
    catch(error){if(strict)fail((error.message??String(error))+' (change: '+describe(op)+')',error.status??409,error.code??'world_patch_rejected');skipped.push({id:op.id,reason:error.message});continue;}
    Object.assign(work,trial);Object.assign(undo,trialUndo);applied++;
   }

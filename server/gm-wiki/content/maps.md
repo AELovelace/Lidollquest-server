@@ -97,6 +97,8 @@ Tools:
 
 Pending changes preview on the canvas and queue on the right until **Apply**; Undo/Redo and Discard act on the queue. Full dungeons (`dungeon-*`) disable terrain-patch tools; Select / move (placements and DM monsters), Place and NPC routes remain available for managed placements. The overlays toggle a grid, reachability (red = walkable but cut off from every arrival), safe rooms, biome layers and players.
 
+Floor painting can pass beneath existing scenery and furniture, which keep their own collision. Repainting an existing wall tile also saves without treating the scenery already there as a new obstruction. Adding a new wall or prop over protected scenery, services, arrivals or exits is refused; move or remove scenery first when replacing its space with solid terrain. Outer-wall and reachability checks still apply to the whole edit.
+
 ### Moving, copying and pasting
 
 With **Select / move**, click an object to select it. On a shared tile the pick order is: placement, DM monster, hub furniture or service, then scenery. Drag it, and a dashed ghost shows where it lands; release to move it. For scenery bigger than one tile, the tile you grabbed lands under the pointer.

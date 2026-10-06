@@ -586,6 +586,56 @@
         "path_width": 3,
         "building_min_gap": 3
       },
+      "buildings": {
+        "min_size": 5,
+        "max_size": 13,
+        "min_room": 3,
+        "max_depth": 3,
+        "split_area": 24,
+        "second_door_rooms": 3,
+        "props_area": 9,
+        "max_props": 3,
+        "wall_tiles": [10, 11, 12, 13, 14, 15, 16],
+        "rooms": [
+          {
+            "kind": "playroom",
+            "floor": 9,
+            "props": [
+              {"sprite": "sprUtopiaEnvSoftBlocks"},
+              {"sprite": "sprUtopiaEnvToyRobot"},
+              {"sprite": "sprUtopiaEnvHoverPlanter"}
+            ]
+          },
+          {
+            "kind": "rune_atelier",
+            "floor": 6,
+            "props": [
+              {"sprite": "sprUtopiaWorkbench", "span_w": 2},
+              {"sprite": "sprUtopiaConsole"},
+              {"sprite": "sprUtopiaEnvToyRobot"}
+            ]
+          },
+          {
+            "kind": "reading_nook",
+            "floor": 3,
+            "props": [
+              {"sprite": "sprSchoolEnvBookshelf"},
+              {"sprite": "sprSchoolEnvBookshelf"},
+              {"sprite": "sprUtopiaEnvHoloSign", "span_h": 2},
+              {"sprite": "sprUtopiaEnvHoverPlanter"}
+            ]
+          },
+          {
+            "kind": "crystal_parlour",
+            "floor": 2,
+            "props": [
+              {"sprite": "sprUtopiaEnvCrystalSpire", "span_h": 2},
+              {"sprite": "sprUtopiaEnvRuneLamp", "span_h": 2},
+              {"sprite": "sprUtopiaEnvHoverPlanter"}
+            ]
+          }
+        ]
+      },
       "scenery": [
         {
           "sprite": "sprUtopiaEnvRuneLamp",

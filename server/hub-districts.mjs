@@ -103,6 +103,69 @@ export function addLobbyBuildings(f,def){ // Plaza buildings added to hub-distri
  }
  return added;
 }
+export function addDistrictBuildings(f,def){ // Walk-in buildings hollowed out of the solid mass between a town's streets (def.buildings; Utopia since 2026-10-06). Own seed and solid cells only, so saved months gain them in place without moving anything already standing.
+ const cfg=def.buildings;if(!cfg||Array.isArray(f.buildings))return false;
+ const W=f.width,H=f.height,key=(x,y)=>x+','+y,N4=[[1,0],[-1,0],[0,1],[0,-1]],rnd=seeded(`${def.hub}:${f.district?.layoutKey??''}:buildings:v1`);
+ const street=reachableDistrict(f),patched=new Set((f.patchUndo?.cells??[]).map(c=>key(c.x,c.y))); // GM-painted cells stay exactly as the floor patch left them (its undo log restores them).
+ const portals=new Set([f.spawn,f.exit,...(def.lobby?.buildings??[]).map(b=>b.door),...(f.doorsteps??[])].filter(Boolean).map(p=>key(p.x,p.y))); // A building door never opens straight onto a doorstep, the stairs or the arrival tile.
+ const free=Array.from({length:H},(_,y)=>Array.from({length:W},(_,x)=>x>0&&y>0&&x<W-1&&y<H-1&&f.walls[y][x]===1&&!patched.has(key(x,y))));
+ const opens=(x,y)=>street.has(key(x,y))&&!portals.has(key(x,y));
+ function fronts(r){ // Does any side (corners aside) face open street?
+  for(let x=r.x+1;x<r.x+r.w-1;x++)if(opens(x,r.y-1)||opens(x,r.y+r.h))return true;
+  for(let y=r.y+1;y<r.y+r.h-1;y++)if(opens(r.x-1,y)||opens(r.x+r.w,y))return true;
+  return false;
+ }
+ function largest(){ // The biggest street-facing solid rectangle still unclaimed, each side clipped to max_size.
+  const heights=Array(W).fill(0);let best=null;
+  for(let y=0;y<H;y++){
+   for(let x=0;x<W;x++)heights[x]=free[y][x]?heights[x]+1:0;
+   for(let x=0;x<W;x++){let h=Infinity;for(let w=1;w<=cfg.max_size&&x+w<=W;w++){h=Math.min(h,heights[x+w-1]);if(h<cfg.min_size)break;const hh=Math.min(h,cfg.max_size),r={x,y:y-hh+1,w,h:hh};if(w>=cfg.min_size&&(!best||w*hh>best.w*best.h)&&fronts(r))best=r;}}
+  }
+  return best;
+ }
+ f.buildings=[];
+ for(let b;(b=largest());){
+  for(let y=b.y;y<b.y+b.h;y++)for(let x=b.x;x<b.x+b.w;x++)free[y][x]=false;
+  const walls=new Set(),rooms=[],splits=[]; // The outer ring stays wall; inner partitions split the floor into rooms.
+  (function split(r,depth){
+   const canV=r.w>=2*cfg.min_room+1,canH=r.h>=2*cfg.min_room+1;
+   if(depth>=cfg.max_depth||r.w*r.h<cfg.split_area||(!canV&&!canH)){rooms.push(r);return;}
+   const vertical=canV&&(!canH||r.w>r.h||(r.w===r.h&&!!rnd(2))),at=cfg.min_room+rnd((vertical?r.w:r.h)-2*cfg.min_room),line=[];
+   for(let i=0;i<(vertical?r.h:r.w);i++){const c=vertical?{x:r.x+at,y:r.y+i}:{x:r.x+i,y:r.y+at};line.push(c);walls.add(key(c.x,c.y));}
+   splits.push({vertical,line});
+   split(vertical?{...r,w:at}:{...r,h:at},depth+1);split(vertical?{...r,x:r.x+at+1,w:r.w-at-1}:{...r,y:r.y+at+1,h:r.h-at-1},depth+1);
+  })({x:b.x+1,y:b.y+1,w:b.w-2,h:b.h-2},0);
+  const floorCell=(x,y)=>x>b.x&&y>b.y&&x<b.x+b.w-1&&y<b.y+b.h-1&&!walls.has(key(x,y)),ring=[];
+  for(let x=b.x+1;x<b.x+b.w-1;x++)ring.push({x,y:b.y,o:{x,y:b.y-1},i:{x,y:b.y+1},side:'north'},{x,y:b.y+b.h-1,o:{x,y:b.y+b.h},i:{x,y:b.y+b.h-2},side:'south'});
+  for(let y=b.y+1;y<b.y+b.h-1;y++)ring.push({x:b.x,y,o:{x:b.x-1,y},i:{x:b.x+1,y},side:'west'},{x:b.x+b.w-1,y,o:{x:b.x+b.w,y},i:{x:b.x+b.w-2,y},side:'east'});
+  const candidates=ring.filter(d=>opens(d.o.x,d.o.y)&&floorCell(d.i.x,d.i.y));
+  if(!candidates.length)continue; // Nothing to walk in from: it stays a solid rooftop block.
+  const entrances=[candidates[rnd(candidates.length)]];
+  if(rooms.length>=cfg.second_door_rooms){const other=candidates.filter(d=>d.side!==entrances[0].side);if(other.length)entrances.push(other[rnd(other.length)]);} // Bigger buildings get a back door, so they double as shortcuts between avenues.
+  const inner=splits.map(s=>{const ok=s.line.filter(c=>s.vertical?floorCell(c.x-1,c.y)&&floorCell(c.x+1,c.y):floorCell(c.x,c.y-1)&&floorCell(c.x,c.y+1));return {...ok[rnd(ok.length)],vertical:s.vertical};}); // One doorway per partition, never where a cross wall meets it.
+  const themes=rooms.map(()=>cfg.rooms[rnd(cfg.rooms.length)]),tint=cfg.wall_tiles[rnd(cfg.wall_tiles.length)]; // One facade colour per building, inside and out.
+  const roomAt=(x,y)=>rooms.findIndex(r=>x>=r.x&&y>=r.y&&x<r.x+r.w&&y<r.y+r.h),paint=(x,y,tile)=>{f.walls[y][x]=0;f.floors[y][x]=tile;f.wallTiles[y][x]=0;};
+  rooms.forEach((r,i)=>{for(let y=r.y;y<r.y+r.h;y++)for(let x=r.x;x<r.x+r.w;x++)paint(x,y,themes[i].floor);});
+  for(const d of inner){walls.delete(key(d.x,d.y));paint(d.x,d.y,themes[d.vertical?roomAt(d.x-1,d.y):roomAt(d.x,d.y-1)].floor);}
+  for(const d of entrances)paint(d.x,d.y,themes[roomAt(d.i.x,d.i.y)].floor);
+  for(let y=b.y;y<b.y+b.h;y++)for(let x=b.x;x<b.x+b.w;x++)if(f.walls[y][x])f.wallTiles[y][x]=tint; // Ring, partitions and the junctions between them, so no roof tile shows through as a hole.
+  const keep=new Set([...inner,...entrances].flatMap(d=>N4.map(([dx,dy])=>key(d.x+dx,d.y+dy)))),n=f.buildings.length; // Every doorway keeps both its thresholds clear.
+  rooms.forEach((r,i)=>{ // Furniture lines the back (north) wall; every room is at least min_room tall, so the rows below always join every free tile.
+   f.rooms.push({x:r.x,y:r.y,w:r.w,h:r.h,cx:r.x+Math.floor(r.w/2),cy:r.y+Math.floor(r.h/2),kind:themes[i].kind,building:n});
+   const used=new Set();let want=Math.min(cfg.max_props,Math.max(1,Math.floor(r.w*r.h/cfg.props_area)));
+   for(let tries=0;tries<12&&want>0;tries++){
+    const p=themes[i].props[rnd(themes[i].props.length)],sw=p.span_w??1,sh=p.span_h??1,x=r.x+rnd(Math.max(1,r.w-sw+1));
+    if(sw>r.w||sh>=r.h)continue;
+    const cells=[];for(let dy=0;dy<sh;dy++)for(let dx=0;dx<sw;dx++)cells.push(key(x+dx,r.y+dy));
+    if(cells.some(k=>keep.has(k)||used.has(k))||used.has(key(x-1,r.y))||used.has(key(x+sw,r.y)))continue; // A tile of breathing room between pieces.
+    for(const k of cells)used.add(k);
+    f.fixtures.push({id:`building-${n}-${i}-${want}`,kind:'scenery',name:'',sprite:p.sprite,x,y:r.y,span_w:sw,span_h:sh,solid:p.solid!==false});want--;
+   }
+  });
+  f.buildings.push({x:b.x,y:b.y,w:b.w,h:b.h,rooms:rooms.length,doors:entrances.map(({x,y})=>({x,y}))});
+ }
+ return true;
+}
 export function generateDistrict(definition,window,data=districtData){
  const {width,height}=districtSize(definition,data);if(![width,height].every(n=>Number.isInteger(n)&&n>=40&&n<=80)||!Number.isInteger(data.scenery_count)||data.scenery_count<12||data.scenery_count>100)throw Error('Monthly districts require 40-80 tile maps and 12-100 scenery pieces.');
  const cx=Math.floor(width/2),cy=Math.floor(height/2),east=entryStrip(width,height),west=westStrip(height);
@@ -169,6 +232,7 @@ export function generateDistrict(definition,window,data=districtData){
  const profiles=definition.scenery.filter(p=>definition.style!=='nightlife'||!p.sprite.includes('Facade'));
  for(let i=0;i<data.scenery_count;i++)place(profiles[rnd(profiles.length)],i);
  if(f.fixtures.filter(p=>p.kind==='scenery').length<12)throw Error('District scenery is too sparse');
+ addDistrictBuildings(f,definition); // Walk-in buildings in the leftover mass (Utopia): own seed, after every seeded roll, so the streets, scenery and residents never move.
  if(lobby){addOuthouses(f,definition,data);addChangers(f,definition,data);addPayToilets(f,definition,data);} // On their own seeds after every fixed roll, and before the wanderers, so residents never change where they stand.
  addArcadiaAir(f,definition); // Arcadia: smog over the smokestack yards and the shift whistle's schedule (client online_arcadia_step).
  addFullDungeonEntrances(f,districtZone(definition),[],gateTargets(definition)); // Reserve entrance footprints before placing passable wanderers, keeping fixed geometry independent of resident upgrades.
@@ -222,7 +286,7 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
   f.fixtures=f.fixtures.filter(x=>x.kind!=='scenery'||buildings.has(x.id)||!Array.from({length:(x.span_w??1)*(x.span_h??1)},(_,i)=>(x.x+i%(x.span_w??1))+','+(x.y+Math.floor(i/(x.span_w??1)))).some(k=>cells.has(k))); // Loose scenery sitting on the new road is cleared; plaza buildings and people stay.
   return true;
  };
- const upgrade=(id,f,def)=>{const gate=addEdgeGate(f,def,'north')|addEdgeGate(f,def,'south')|addSideGate(f,def,'west')|addSideGate(f,def,'east')|(def.lobby?addOuthouses(f,def,data)|addChangers(f,def,data)|addPayToilets(f,def,data):false)|addArcadiaAir(f,def)|addCastleTemple(f,def)|addLobbyBuildings(f,def),pot=addCauldron(f,def)||gate,residents=(f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)),cleared=cleanFloor(f),patched=patchFloor(id,f);if(residents||pot||cleared||patched)persist(id,f);};
+ const upgrade=(id,f,def)=>{const gate=addEdgeGate(f,def,'north')|addEdgeGate(f,def,'south')|addSideGate(f,def,'west')|addSideGate(f,def,'east')|(def.lobby?addOuthouses(f,def,data)|addChangers(f,def,data)|addPayToilets(f,def,data):false)|addArcadiaAir(f,def)|addCastleTemple(f,def)|addLobbyBuildings(f,def)|addDistrictBuildings(f,def),pot=addCauldron(f,def)||gate,residents=(f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)),cleared=cleanFloor(f),patched=patchFloor(id,f);if(residents||pot||cleared||patched)persist(id,f);};
  const persist=(id,f)=>db.prepare('UPDATE hub_district_editions SET content=? WHERE zone=? AND edition=?').run(JSON.stringify(f),id,f.district.layoutKey);
  function ensure(def){
   if(readOnly){const id=districtZone(def);if(cache.has(id))return cache.get(id);const row=db.prepare('SELECT e.content FROM hub_district_editions e JOIN hub_district_current c ON c.zone=e.zone AND c.edition=e.edition WHERE e.zone=?').get(id);if(!row)throw Error('Zone snapshot requested before district preparation');const floor=JSON.parse(row.content);cache.set(id,floor);return floor;} // Readers use the committed active edition; only the coordinator generates, upgrades or activates maps.
