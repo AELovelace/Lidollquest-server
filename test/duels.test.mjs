@@ -6,7 +6,7 @@ import {createQuestZones} from '../server/zones.mjs';
 
 function fixture(){ // Players standing in one hub room, exactly as the client drives the gateway.
  const db=new DatabaseSync(':memory:');let time=Date.parse('2026-09-23T12:00:00Z');const ids={},awards=[];
- const zones=createQuestZones(db,{now:()=>time,roll:()=>0,grant:secret=>({id:secret,owner:secret,client:'lidollquest'}),wallet:()=>({coins:0}),adjust:(owner,asset,n,id,reason)=>awards.push({owner,n,reason}),diveOptions:{log:()=>{}}});
+ const zones=createQuestZones(db,{now:()=>time,roll:()=>0,grant:secret=>({id:secret,owner:secret,client:'lidollquest'}),wallet:()=>({coins:0}),adjust:(owner,asset,n,id,reason)=>{if(n>9999)throw Error('Invalid server award');awards.push({owner,n,reason});},transfer:(owner,asset,n,id,reason)=>awards.push({owner,n,reason}),diveOptions:{log:()=>{}}}); // adjust mirrors the service's single-award cap (daily_coin_cap 9999); transfer is the funded hook player coins pay out through.
  const loadout=(hp,str,extra={})=>({player_info:{class_id:'fighter',playerHealth:hp,playerHealthMax:hp,str,def:2,dex:8,int:5,cha:5,level:10,xp:0,stat_points:0},inventory:extra.inventory??[],player_spells:['heal_light'],player_mp:20,player_mp_max:20});
  const snap=name=>zones.read(name,ids[name]);
  function command(name,action,extra={}){const s=snap(name);return {action,request_id:randomUUID(),controller:'window',character_id:ids[name],revision:s.character.revision,...(s.character.dive?{edition:s.dive.edition}:{}),...(s.encounter?{battle:s.encounter.id,cycle:s.character.run.cycle}:{}),...extra};}
@@ -130,5 +130,16 @@ test('duels happen in hubs and the open overworld but never inside a dungeon Div
   f.dive('alice','dive-quarters');f.dive('bob','dive-quarters');
   assert.equal(f.snap('alice').duelAllowed,false,'the Quarters are a dungeon Dive');
   assert.throws(()=>f.act('alice','duel_challenge',{target:f.ids.bob}),/not inside a dungeon Dive/);
+ }finally{f.close();}
+});
+
+test('a coin stake above the daily award cap comes back through the funded transfer hook',()=>{
+ const f=fixture();try{ // adjust() throws above 9999 in the fixture, exactly like the service.
+  f.player('alice');f.player('bob');
+  f.act('alice','duel_challenge',{target:f.ids.bob,mode:'wager'});f.act('bob','duel_accept');
+  f.act('alice','duel_stake',{kind:'coins',amount:20000});f.settleCoins('alice');
+  f.act('alice','duel_cancel');
+  assert.equal(f.snap('alice').duel,null,'the cancel committed instead of rolling back');
+  assert.deepEqual(f.awards,[{owner:'alice',n:20000,reason:'Duel stake returned'}]);
  }finally{f.close();}
 });

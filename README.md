@@ -909,14 +909,31 @@ firewall-restricted private interface between hosts.
   account, with the newest 100 retained per zone and at most 40 in a snapshot.
   Control characters and GameMaker text newline markers are removed. Names are
   character display names, not verified real-world identities.
-- A zone holds at most 64 active accounts. Request admission allows 32 concurrent
-  requests and two per token; authenticated traffic is capped at 600 requests per
-  minute per account. These are bounds, not a production load-capacity guarantee.
+- A zone holds at most 64 active accounts. Request admission allows
+  max(32, zone workers × 64) concurrent requests (320 with `QUEST_ZONE_WORKERS=5`)
+  and four per token (two until 2026-10-06: the zone loop, the quest-account loop
+  and a native request GameMaker cannot abort could trip it on their own).
+  Authenticated traffic is capped at 600 requests per minute per account; each
+  zone action counts twice (the command and its snapshot read). These are bounds,
+  not a production load-capacity guarantee.
 - Combat state and a payout entitlement commit atomically. The wallet receives an
   HMAC-signed operation with a stable entitlement ID. Lost responses and service
   restarts replay that ID. Pending awards retry on the owner's next authenticated
   visit; no bearer tokens are stored for unattended delivery. After token
   revocation, reconnect the same account to deliver its pending awards.
+- `reward_outbox.delivered` is 0 (waiting), 1 (paid in full) or 2 (rejected).
+  A row the tracker refuses outright (400 or 409) is parked as 2 and never
+  retried, so it cannot hold back the rewards queued behind it and no longer
+  counts toward `pendingCoins`. Find parked rows for reconciliation with
+  `SELECT * FROM reward_outbox WHERE delivered=2` (2026-10-06).
+- Trade coins and duel stakes pay out through the funded `transfer` hook, the
+  same one player-store sales use, not the single-award `adjust` hook. These coins
+  were already debited from a player, so a pot above `daily_coin_cap` pays out in
+  cap-sized chunks instead of rolling the trade or duel back (2026-10-06).
+- A muted account's chat returns 403 with code `rp_muted`, the same code as the
+  RP-post mute. Clients treat any other 403 as a lost sign-in, so the bare 403
+  used to sign muted players out and replay their chat on every reconnect
+  (2026-10-06).
 - Keep SQLite backups of this service as well as the tracker. For a simple
   consistent backup, stop this service before copying its data directory, then
   start it again. Do not restore just one side of the reward history without

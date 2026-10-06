@@ -39,7 +39,7 @@ test('blocks, mutes and the account spam budget apply to both chat channels',()=
   f.act('Alice','chat',{channel:'area',text:'Area hello'});f.act('Alice','chat',{channel:'global',text:'Global hello'});
   f.blocked.Bob=['Alice'];assert.equal(f.read('Bob').chat.length,0);assert.equal(f.read('Bob').globalChat.length,0);
   f.blocked.Bob=[];assert.equal(f.read('Bob').globalChat.length,1);
-  f.muted.add('Alice');for(const channel of ['area','global'])assert.throws(()=>f.act('Alice','chat',{channel,text:'muted'}),/muted/);
+  f.muted.add('Alice');for(const channel of ['area','global'])assert.throws(()=>f.act('Alice','chat',{channel,text:'muted'}),e=>/muted/.test(e.message)&&e.status===403&&e.code==='rp_muted'); // rp_muted keeps shipped clients signed in; a bare 403 made them drop the wallet and replay the chat forever.
   f.muted.delete('Alice');for(let i=0;i<3;i++)f.act('Alice','chat',{channel:i%2?'area':'global',text:'Budget '+i});
   for(const channel of ['area','global'])assert.throws(()=>f.act('Alice','chat',{channel,text:'over budget'}),error=>error.status===429);
   f.advance(11000);f.act('Alice','chat',{channel:'global',text:'After cooldown'});

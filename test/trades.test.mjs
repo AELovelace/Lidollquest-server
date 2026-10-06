@@ -6,7 +6,7 @@ import {createQuestZones} from '../server/zones.mjs';
 
 function fixture(){ // Two players in one hub room, driven exactly as the client drives the gateway.
  const db=new DatabaseSync(':memory:');let time=Date.parse('2026-09-23T12:00:00Z');const ids={},awards=[];
- const zones=createQuestZones(db,{now:()=>time,roll:()=>0,grant:secret=>({id:secret,owner:secret,client:'lidollquest'}),wallet:()=>({coins:0}),adjust:(owner,asset,n,id,reason)=>awards.push({owner,n,reason}),diveOptions:{log:()=>{}}});
+ const zones=createQuestZones(db,{now:()=>time,roll:()=>0,grant:secret=>({id:secret,owner:secret,client:'lidollquest'}),wallet:()=>({coins:0}),adjust:(owner,asset,n,id,reason)=>{if(n>9999)throw Error('Invalid server award');awards.push({owner,n,reason});},transfer:(owner,asset,n,id,reason)=>awards.push({owner,n,reason}),diveOptions:{log:()=>{}}}); // adjust mirrors the service's single-award cap (daily_coin_cap 9999); transfer is the funded hook player coins pay out through.
  const snap=name=>zones.read(name,ids[name]);
  function command(name,action,extra={}){const s=snap(name);return {action,request_id:randomUUID(),controller:'window',character_id:ids[name],revision:s.character.revision,...extra};}
  function act(name,action,extra={}){time+=100;return zones.act(name,command(name,action,extra));}
@@ -62,5 +62,16 @@ test('decline, cancel and expiry give everything back; full bags block the swap;
   assert.equal(f.snap('alice').trade.sides[0].confirmed,false,'a refused swap needs both to confirm again');
   f.act('alice','trade_cancel');assert.equal(f.bag('alice')[0].item_id,'iron_dagger');
   f.act('alice','duel_challenge',{target:f.ids.bob});assert.throws(()=>f.act('alice','trade_offer',{target:f.ids.bob}),/Finish what you are doing/);
+ }finally{f.close();}
+});
+
+test('a coin pot above the daily award cap still pays out through the funded transfer hook',()=>{
+ const f=fixture();try{ // adjust() throws above 9999 in the fixture, exactly like the service, so the old wiring rolled this trade back.
+  f.player('alice');f.player('bob');
+  f.act('alice','trade_offer',{target:f.ids.bob});f.act('bob','trade_accept');
+  f.act('bob','trade_add',{kind:'coins',amount:20000});f.settleCoins('bob');
+  f.act('alice','trade_confirm');f.act('bob','trade_confirm');
+  assert.equal(f.snap('alice').trade,null,'the swap completed instead of rolling back');
+  assert.deepEqual(f.awards,[{owner:'alice',n:20000,reason:'Trade with bob'}]);
  }finally{f.close();}
 });

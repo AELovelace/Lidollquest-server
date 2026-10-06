@@ -56,7 +56,7 @@ export function createQuestService({filename=':memory:',walletClient,artJobOptio
  if(blankCanvas){migrateBlankCanvas(db,now);migrateRemovedQuestLogs(db,now);restoreCompanionSheets(db,now);} // Companions and Pip are restored exceptions; removed quests stay out of player journals.
  db.exec(`CREATE TABLE IF NOT EXISTS wallet_cache(owner TEXT PRIMARY KEY,coins INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS reward_outbox(id TEXT PRIMARY KEY,owner TEXT NOT NULL,amount INTEGER NOT NULL,reason TEXT NOT NULL,delivered INTEGER NOT NULL DEFAULT 0);
- CREATE INDEX IF NOT EXISTS reward_delivery ON reward_outbox(owner,delivered);`);
+ CREATE INDEX IF NOT EXISTS reward_delivery ON reward_outbox(owner,delivered);`); // delivered: 0 waiting, 1 paid in full, 2 rejected outright by the tracker (kept for reconciliation, never retried).
  if(!db.prepare('PRAGMA table_info(reward_outbox)').all().some(c=>c.name==='paid'))db.exec('ALTER TABLE reward_outbox ADD COLUMN paid INTEGER NOT NULL DEFAULT 0'); // Persist partial delivery of large funded transfers.
  let identity=null; // The simulation below is synchronous; the HTTP layer never awaits while this identity is in use.
  const onlineFeed=createOnlineFeed(db,{token:onlineToken,now});
@@ -92,7 +92,7 @@ export function createQuestService({filename=':memory:',walletClient,artJobOptio
     const funded=row.id.startsWith('store-'),amount=funded?Math.min(row.amount-row.paid,dailyCoinCap()):row.amount;
     const arena='arena-'+row.id,request_id=funded?'store-'+createHash('sha256').update(row.id+':'+row.paid).digest('hex'):arena.length<=80?arena:'arena-'+createHash('sha256').update(row.id).digest('hex'); // The tracker caps request IDs at 80 characters and rejected longer ones unrecorded, so hashing only those keeps every accepted ID stable.
     try{const receipt=await metrics.measureAsync('account.credit',()=>walletClient.credit(token,{request_id,kind:'credit',amount}));db.prepare('UPDATE reward_outbox SET paid=?,delivered=? WHERE id=?').run(row.paid+amount,Number(row.paid+amount>=row.amount),row.id);db.prepare('UPDATE wallet_cache SET coins=? WHERE owner=?').run(receipt.balance,owner);}
-    catch(error){console.warn('quest_reward_delivery_failed',row.id,error?.status??'transport');if(error?.status===400||error?.status===409)continue;return;} // Log no credentials; retry this same entitlement on the next authenticated visit. A row the tracker rejects outright must not hold back the rewards queued behind it.
+    catch(error){console.warn('quest_reward_delivery_failed',row.id,error?.status??'transport');if(error?.status===400||error?.status===409){db.prepare('UPDATE reward_outbox SET delivered=2 WHERE id=? AND delivered=0').run(row.id);continue;}return;} // Log no credentials; retry this same entitlement on the next authenticated visit. A row the tracker rejects outright (400/409 never succeed on retry) is parked as delivered=2: it leaves the LIMIT 8 window and pendingCoins, so it cannot hold back the rewards queued behind it, and the row stays for reconciliation.
    }
   })();deliveries.set(owner,task);try{await task;}finally{deliveries.delete(owner);}
  }
@@ -124,6 +124,7 @@ export function createQuestService({filename=':memory:',walletClient,artJobOptio
   }})();purchases.set(owner,task);try{await task;}finally{purchases.delete(owner);}
  } // Retry a durable debit ID before accepting any subsequent inventory-changing command.
  let active=0;const perToken=new Map();
+ const PER_TOKEN_REQUESTS=4; // One grant may run the zone loop, the quest-account loop and an orphaned request GameMaker cannot abort (native timeouts keep running here) without tripping "busy"; the global cap and 600/min per account still bound abuse. Was 2 until 2026-10-06.
  const auth=createAuthCache(token=>walletClient.authenticate(token),{ttlMs:authTtlMs}); // Gameplay logins are reused for QUEST_AUTH_CACHE_MS (30 s); /gm still authenticates every request.
  const server=createServer((req,res)=>{void (async()=>{
   if(!req.url?.startsWith('/')||req.url.startsWith('//')||req.url.includes('\\'))throw Object.assign(Error('Invalid request target.'),{status:400});
@@ -137,7 +138,7 @@ export function createQuestService({filename=':memory:',walletClient,artJobOptio
   metrics.request(res); // Count gameplay load only; admin refreshes and health probes do not inflate request throughput.
   if(req.headers.origin)throw Object.assign(Error('Use the authenticated game gateway.'),{status:403});
   const token=/^Bearer ([A-Za-z0-9_-]{20,100})$/.exec(req.headers.authorization??'')?.[1];if(!token)throw Object.assign(Error('A linked account is required.'),{status:401});
-  if(active>=Math.max(32,zoneCount*64)||(perToken.get(token)??0)>=2)throw Object.assign(Error('Online zones are busy.'),{status:429});active++;perToken.set(token,(perToken.get(token)??0)+1);
+  if(active>=Math.max(32,zoneCount*64)||(perToken.get(token)??0)>=PER_TOKEN_REQUESTS)throw Object.assign(Error('Online zones are busy.'),{status:429});active++;perToken.set(token,(perToken.get(token)??0)+1);
   try{
    let input;if(req.method==='POST'){
     if(!String(req.headers['content-type']??'').startsWith('application/json'))throw Object.assign(Error('Send JSON.'),{status:415});

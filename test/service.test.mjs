@@ -67,3 +67,17 @@ test('wallet transport signs the exact server award and refuses malformed receip
  const server=createServer(async(req,res)=>{let text='';for await(const b of req)text+=b;const body=JSON.parse(text||'{}');assert.match(req.headers['x-reward-signature'],/^[a-f0-9]{64}$/);res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({request_id:body.request_id,currency:'LiDollCoin',amount:bad?999:body.amount,balance:60}));});await new Promise(r=>server.listen(0,'127.0.0.1',r));
  try{const client=createWalletClient({baseUrl:'http://127.0.0.1:'+server.address().port+'/',key});const body={request_id:'test',kind:'credit',amount:10};assert.equal((await client.credit(token,body)).amount,10);bad=true;await assert.rejects(client.credit(token,body),/receipt/);}finally{await new Promise(r=>server.close(r));}
 });
+
+test('admission lets one grant run four requests at once and refuses the fifth as busy',async()=>{ // Zone loop + quest-account loop + an orphaned native request used to trip the old cap of 2.
+ let release;const gate=new Promise(resolve=>release=resolve);
+ const service=createQuestService({walletClient:{authenticate:async()=>{await gate;return {owner,id:'grant-a',client:'lidollquest',coins:0};}}}); // Sign-in waits on the gate, so admitted requests stay in flight.
+ await new Promise(resolve=>service.server.listen(0,'127.0.0.1',resolve));
+ const url='http://127.0.0.1:'+service.server.address().port+'/zones',headers={Authorization:'Bearer '+token};
+ try{
+  const held=Array.from({length:4},()=>fetch(url,{headers}));
+  await new Promise(resolve=>setTimeout(resolve,100)); // Let all four reach admission before the fifth arrives.
+  const fifth=await fetch(url,{headers});assert.equal(fifth.status,429);assert.equal((await fifth.json()).error_description,'Online zones are busy.');
+  release();for(const response of await Promise.all(held))assert.equal(response.status,200);
+  assert.equal((await fetch(url,{headers})).status,200,'slots free up once requests finish');
+ }finally{release();service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));}
+});
