@@ -1,3 +1,4 @@
+import {DEFAULT_ZONE_CAPACITY,parseZoneCapacity} from './zone-capacity.mjs';
 import {Worker} from 'node:worker_threads';
 import {availableParallelism} from 'node:os';
 import {performance} from 'node:perf_hooks';
@@ -11,14 +12,15 @@ export function zoneWorkerCount(value='auto',cores=availableParallelism()){
 export function zoneShardIndex(zone,size){let hash=2166136261;for(const character of String(zone)){hash^=character.charCodeAt(0);hash=Math.imul(hash,16777619);}return (hash>>>0)%size;} // Stable preferred worker per zone; spare workers may share read-only snapshots from a busy zone.
 export function worldWorkerBudget(zoneValue='auto',computeValue='auto',cores=availableParallelism()){const zoneWorkers=zoneWorkerCount(zoneValue,cores);return {zoneWorkers,workerCount:computeWorkerCount(computeValue,Math.max(1,cores-zoneWorkers))};} // Both automatic pools share the same CPU budget; explicit numbers remain operator choices.
 
-export function createZoneShards({size,filename,blankCanvas,questPack,followerEnabled,maxQueue=256,timeoutMs=10000,observe=()=>{},workerUrl=new URL('./zone-worker.mjs',import.meta.url)}){
+export function createZoneShards({size,filename,blankCanvas,questPack,followerEnabled,zoneCapacity=DEFAULT_ZONE_CAPACITY,maxQueue=256,timeoutMs=10000,observe=()=>{},workerUrl=new URL('./zone-worker.mjs',import.meta.url)}){
+ zoneCapacity=parseZoneCapacity(zoneCapacity); // Validate before spawning workers.
  if(!Number.isInteger(size)||size<1||size>16)throw Error('Zone worker size must be from 1 to 16');
  if(!filename||filename===':memory:')throw Error('Zone workers require a shared persistent SQLite filename');
  const slots=Array.from({length:size},(_,index)=>({index,worker:null,ready:false,job:null,queue:[],completed:0,failed:0,restarts:0,zones:new Set()}));let closed=false,sequence=0,rejected=0,closing;
  const unavailable=message=>Object.assign(Error(message),{status:503,code:'zone_worker_unavailable'});
  function settle(slot,error,result){const job=slot.job;if(!job)return;slot.job=null;clearTimeout(job.timer);if(error){slot.failed++;job.reject(error);}else{slot.completed++;job.resolve(result);}observe('shard.roundtrip',performance.now()-job.started,!!error);}
  function spawn(slot){
-  const worker=new Worker(workerUrl,{workerData:{filename,blankCanvas,questPack,followerEnabled}});slot.worker=worker;slot.ready=false;
+  const worker=new Worker(workerUrl,{workerData:{filename,blankCanvas,questPack,followerEnabled,zoneCapacity}});slot.worker=worker;slot.ready=false;
   let readyResolve,readyReject;const ready=new Promise((resolve,reject)=>{readyResolve=resolve;readyReject=reject;});ready.catch(()=>{});slot.started=ready;
   const bootTimer=setTimeout(()=>fail(unavailable('Zone worker startup timed out.')),30000);
   function fail(error){if(slot.worker!==worker)return;clearTimeout(bootTimer);slot.worker=null;slot.ready=false;slot.restarts++;readyReject(error);settle(slot,unavailable('Zone worker interrupted. Retry the request.'));for(const job of slot.queue.splice(0)){clearTimeout(job.queueTimer);job.reject(unavailable('Zone worker interrupted. Retry the request.'));}void worker.terminate();} // Failed reads can safely retry; no worker can partially commit an action.

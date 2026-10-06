@@ -909,7 +909,11 @@ firewall-restricted private interface between hosts.
   account, with the newest 100 retained per zone and at most 40 in a snapshot.
   Control characters and GameMaker text newline markers are removed. Names are
   character display names, not verified real-world identities.
-- A zone holds at most 64 active accounts. Request admission allows
+- A zone defaults to 256 active accounts; `QUEST_ZONE_CAPACITY` overrides this
+  with a positive integer. Unset or blank uses 256. Restart after changing it in
+  `/etc/lidollquest/server.env`; the startup log prints the effective capacity.
+  Entry checks and coordinator/worker peer snapshots use the same limit. Invalid
+  values reject startup and deployment validation. Request admission allows
   max(32, zone workers × 64) concurrent requests (320 with `QUEST_ZONE_WORKERS=5`)
   and four per token (two until 2026-10-06: the zone loop, the quest-account loop
   and a native request GameMaker cannot abort could trip it on their own).
@@ -1375,6 +1379,41 @@ external wallet latency, remote networking and client rendering. Compute workers
 prepare maps but these safe hubs do not exercise sustained pursuit work; repeat
 representative combat loads on Fedora before promising 200-player capacity.
 Worker memory is additive, so compare RSS against available RAM as well as CPU.
+
+For a single crowded zone, run these sequentially with the same worker counts:
+
+```sh
+node deploy/benchmark-zone-shards.mjs --workers=5 --compute-workers=5 --zone=princess-rose --zone-capacity=200 --players=64 --seconds=30 --hz=2
+node deploy/benchmark-zone-shards.mjs --workers=5 --compute-workers=5 --zone=princess-rose --zone-capacity=200 --players=128 --seconds=30 --hz=2
+node deploy/benchmark-zone-shards.mjs --workers=5 --compute-workers=5 --zone=princess-rose --zone-capacity=200 --players=200 --seconds=30 --hz=2
+```
+
+`--zone-capacity` supplies an internal service option to the isolated benchmark,
+including its snapshot workers; ordinary server startup uses `QUEST_ZONE_CAPACITY`
+(default 256). The
+single-zone run verifies full peer visibility before load and reports
+`peerMin`, `peerMax` and `peerMismatchResponses` throughout the run. Setup refreshes
+seeded presence leases so slow preparation cannot quietly shrink the crowd.
+`scheduled` counts offered request slots; `missed` includes slots lost at the
+measurement deadline. Progress goes to stderr and measurements to stdout.
+
+Single-zone local results (2026-10-06): Windows, Node v24.14.0, Ryzen 9 5900X
+(24 logical CPUs), 31.9 GiB RAM; five snapshot and five compute workers, 30 seconds
+per run at two requests/sec/player, all players in `princess-rose`:
+
+| Players | Completed / scheduled | Requests/sec | Request p95 | Request p99 | Server RSS at end |
+| --- | --- | --- | --- | --- | --- |
+| 64 | 3,840 / 3,840 | 128.0 | 6.5 ms | 8.2 ms | 912.8 MiB |
+| 128 | 7,680 / 7,680 | 256.0 | 7.8 ms | 11.4 ms | 1,208.2 MiB |
+| 200 | 12,000 / 12,000 | 399.8 | 12.2 ms | 39.6 ms | 1,605.9 MiB |
+
+All runs had zero request errors, missed slots or peer-count mismatches; every
+successful response included the full crowd. At 200 players the coordinator
+loop averaged 38.4% utilization and process CPU averaged 252.5% (about 2.53 cores).
+Response bodies alone averaged 37.7 MiB/sec over loopback at that population.
+These short safe-hub measurements establish feasibility for this synthetic
+workload, not production combat/network/browser capacity. The subsequent capacity
+configuration change defaults to 256; this measurement series tested up to 200. Raw results: `build/single-zone-benchmark-r7v0J7/{64,128,200,summary}.json`.
 
 Local Windows run (2026-10-03, 200 players at 2 requests/sec, 30 seconds):
 

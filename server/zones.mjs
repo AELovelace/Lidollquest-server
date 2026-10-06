@@ -1,3 +1,4 @@
+import {DEFAULT_ZONE_CAPACITY,parseZoneCapacity} from './zone-capacity.mjs';
 import {npcPlacementFacing} from './quest-placements.mjs';
 import {createFastTravel} from './fast-travel.mjs';
 import {walkable as beaconWalkable} from './dive-generation.mjs';
@@ -142,7 +143,8 @@ function canonical(value,depth=0){ // Nested loadout property order may change w
  return value;
 }
 
-export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},highDesertOptions={},hauntedWoodsOptions={},spookyMansionOptions={},autumnalPlainsOptions={},farmsteadOptions={},coastOptions={},cavernsOptions={},calderaOptions={},spaOptions={},gulchOptions={},onPresence=()=>{},compute=null,live=null,audit=()=>{},chatReach=CHAT_REACH_DEFAULT,followerOptions={},followerChatOptions={},flowTesting=false,readOnly=false}={}) {
+export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},highDesertOptions={},hauntedWoodsOptions={},spookyMansionOptions={},autumnalPlainsOptions={},farmsteadOptions={},coastOptions={},cavernsOptions={},calderaOptions={},spaOptions={},gulchOptions={},onPresence=()=>{},compute=null,live=null,audit=()=>{},chatReach=CHAT_REACH_DEFAULT,followerOptions={},followerChatOptions={},flowTesting=false,readOnly=false,zoneCapacity=DEFAULT_ZONE_CAPACITY}={}) {
+ zoneCapacity=parseZoneCapacity(zoneCapacity); // Admission and peer snapshots share the validated configured capacity.
  cacheStatements(db); // Reuse compiled SQL for every inline db.prepare (statement-cache.mjs); a no-op when service.mjs already installed it.
  const reachX=Math.max(1,Number(chatReach?.x)||CHAT_REACH_DEFAULT.x),reachY=Math.max(1,Number(chatReach?.y)||CHAT_REACH_DEFAULT.y); // Half-width and half-height of the hearing rectangle, in tiles.
  const onScreen=(a,b)=>Math.abs(a.x-b.x)<=reachX&&Math.abs(a.y-b.y)<=reachY; // True when b stands inside the screen-sized rectangle centred on a.
@@ -312,7 +314,7 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
   relocate(c,state,id,marker,visit){
    if(engines.has(id)){engine(id).gmPlace(c,state,{...visit,origin:visit.origin??state.homeHub??'princess-rose',returnZone:visit.returnZone??state.homeHub??'princess-rose',near:marker});
     if(Math.abs(state.dive.position.x-marker.x)+Math.abs(state.dive.position.y-marker.y)>1)fail(409,'The destination beacon is obstructed. Try again shortly.');
-   }else{if(db.prepare('SELECT COUNT(*) n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(id,now()-30000,c.owner).n>=64)fail(409,'That destination is full.');
+   }else{if(db.prepare('SELECT COUNT(*) n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(id,now()-30000,c.owner).n>=zoneCapacity)fail(409,'That destination is full.');
     db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=?,seen=? WHERE character_id=?').run(id,marker.x,marker.y,now(),now(),c.id);state.dive=null;state.diveReturned=id;state.diveReturnedPosition={x:marker.x,y:marker.y};delete state.hubVisit;
    }
   }}); // Only validated beacon commands reach this relocation helper; the existing party/follower transfer runs in the same transaction.
@@ -333,7 +335,7 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
  function presence(i,c,controller){const p=db.prepare('SELECT * FROM quest_presence WHERE owner=? AND character_id=? AND grant_id=? AND controller=? AND seen>?').get(i.owner,c.id,i.id,controller,now()-30000);if(!p)fail(409,'Enter the zone again; this connection no longer controls the character.');return p;}
  function visitHub(i,state,source,destination){
   if(state.run)fail(409,'Finish or forfeit your arena run before visiting another room.');
-  if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>?').get(destination.id,now()-30000).n>=64)fail(429,'This room is full.');
+  if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>?').get(destination.id,now()-30000).n>=zoneCapacity)fail(429,'This room is full.');
   if(destination.parent)state.hubVisit=destination.id;else delete state.hubVisit;
   const spawn=hubArrival(destination,source.id);
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE owner=?').run(destination.id,spawn.x,spawn.y,now(),i.owner);
@@ -378,7 +380,7 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
   const guildTags=guilds.tagMap(); // character id -> [TAG] for the peer labels; memoised until a guild changes.
   const looks={},addLook=look=>{const key=cacheKey(look);looks[key]=look;return key;}; // Sprite Lab looks by content hash: each peer carries only lookKey, and the snapshot cache sends a look once.
   const p=c?db.prepare('SELECT * FROM quest_presence WHERE owner=? AND character_id=? AND seen>?').get(i.owner,c.id,now()-30000):null;
-  const peers=p?measure('snapshot.peers',()=>db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT 64').all(p.zone,now()-30000).filter(r=>enabled(r.owner)).map(r=>{const peer=JSON.parse(r.state);peerStates.set(r.character_id,peer);return {id:r.character_id,name:r.name,tag:guildTags.get(r.character_id)??'',gm:staffOwners.has(r.owner),...(supporterActive(r.owner)?{supporter:true}:{}),restricted:restricted.includes(r.owner),avatar:peer.avatar??'player',...(peer.avatar==='look'&&peer.look?{lookKey:addLook(peer.look)}:{}),x:r.x,y:r.y,facing:r.facing??0,stage:peer.run?.stage??0,fighting:peer.run?.phase==='fight',smell:smellOf(peer.loadout?.player_info)};})):[]; /* snapshot.peers grows with the crowd: each peer's whole saved state is parsed. facing lets idle avatars show the direction chosen with Ctrl+arrow. */
+  const peers=p?measure('snapshot.peers',()=>db.prepare('SELECT p.*,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT ?').all(p.zone,now()-30000,zoneCapacity).filter(r=>enabled(r.owner)).map(r=>{const peer=JSON.parse(r.state);peerStates.set(r.character_id,peer);return {id:r.character_id,name:r.name,tag:guildTags.get(r.character_id)??'',gm:staffOwners.has(r.owner),...(supporterActive(r.owner)?{supporter:true}:{}),restricted:restricted.includes(r.owner),avatar:peer.avatar??'player',...(peer.avatar==='look'&&peer.look?{lookKey:addLook(peer.look)}:{}),x:r.x,y:r.y,facing:r.facing??0,stage:peer.run?.stage??0,fighting:peer.run?.phase==='fight',smell:smellOf(peer.loadout?.player_info)};})):[]; /* snapshot.peers grows with the crowd: each peer's whole saved state is parsed. facing lets idle avatars show the direction chosen with Ctrl+arrow. */
   const chatArea=isDungeon(p?.zone)?dive.chatArea(c,p):p?{id:p.zone,name:zone(p.zone).name}:null;
   const audible=row=>row.x===null||row.owner===i.owner||row.owner==='activity:'+i.owner||row.heard===1; // Area speech shows only to characters who were on the speaker's screen when it was said; announcements (no tile) and your own lines always show.
   const chatRows=(area,channel)=>measure('snapshot.chat',()=>db.prepare('SELECT seq,name,text,emote,x,y,character_id AS characterId,owner,owner LIKE \'activity:%\' AS activity,(SELECT id FROM quest_rp_posts WHERE chat_seq=seq) AS rpId,EXISTS(SELECT 1 FROM quest_chat_heard h WHERE h.seq=quest_chat.seq AND h.character_id=?) AS heard FROM quest_chat WHERE zone=? AND created>? ORDER BY seq DESC LIMIT 100').all(c.id,area,now()-86400000).filter(row=>!restricted.includes(row.owner.replace(/^activity:/,''))&&(channel!=='area'||audible(row))).slice(0,40).reverse().map(({owner,emote,x,y,heard,...row})=>({...row,npc:String(row.characterId??'').startsWith('follower:'),emote:emote===1,channel}))); // snapshot.chat: one row per stream read (area, global, party, guild). RP links come from committed posts, never from player text; emote is a server-set flag; speaker tiles never leave the server.
@@ -677,7 +679,7 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
     if(input.loadout!==undefined&&!state.run&&!state.hubVisit&&!state.pendingPurchase&&!state.worldTurnDue&&!(input.takeover===true&&state.loadout))state.loadout=importLoadout(input.loadout); // Resume committed turns before importing another campaign inventory.
     if(z.parent)state.hubVisit=z.id; // Explicit annex entry also resumes committed inventory after reconnect.
     if(input.combat_version>=2&&state.run&&state.run.combatVersion!==2&&!state.run.sharedEncounter&&state.loadout)beginRound(state,z,roll); // Preserve the old opponent, HP and pot while upgrading an unfinished run.
-    if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(z.id,now()-30000,i.owner).n>=64)fail(429,'This zone is full. Try again shortly.');
+    if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(z.id,now()-30000,i.owner).n>=zoneCapacity)fail(429,'This zone is full. Try again shortly.');
     const spawn=divePresence?.zone===z.id?{x:divePresence.x,y:divePresence.y}:(remembered&&remembered.zone===z.id&&!blocked(z,remembered.x,remembered.y)?{x:remembered.x,y:remembered.y}:(z.spawn??{x:10,y:9})); /* A lapsed session resumes on its presence tile; a proper log-out resumes on the remembered tile unless a regenerated district has since walled it; otherwise the room's spawn. */db.prepare('INSERT INTO quest_presence(owner,character_id,zone,grant_id,controller,x,y,seen,moved) VALUES (?,?,?,?,?,?,?,?,0) ON CONFLICT(owner) DO UPDATE SET character_id=excluded.character_id,zone=excluded.zone,grant_id=excluded.grant_id,controller=excluded.controller,x=excluded.x,y=excluded.y,seen=excluded.seen,moved=0').run(i.owner,c.id,z.id,i.id,input.controller,spawn.x,spawn.y,now());
    }else{
     p=presence(i,c,input.controller);const z=zone(p.zone);

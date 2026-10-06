@@ -1,3 +1,4 @@
+import {DEFAULT_ZONE_CAPACITY,parseZoneCapacity} from './zone-capacity.mjs';
 import {performance} from 'node:perf_hooks';
 import {openZoneSnapshotDatabase} from './zone-snapshot-database.mjs';
 import {createWorldContent} from './world-content.mjs';
@@ -7,12 +8,13 @@ import {combatData} from './combat.mjs';
 import {hubData} from './hubs.mjs';
 import {parseKnown,elide} from './snapshot-cache.mjs';
 
-export function createZoneSnapshotRuntime({filename,blankCanvas=true,questPack=[],followerEnabled=true}){
+export function createZoneSnapshotRuntime({filename,blankCanvas=true,questPack=[],followerEnabled=true,zoneCapacity=DEFAULT_ZONE_CAPACITY}){
+ zoneCapacity=parseZoneCapacity(zoneCapacity); // Reject invalid limits before opening the read-only connection.
  const database=openZoneSnapshotDatabase(filename),{db}=database;let at=Date.now(),timings=[];
  const now=()=>at,measure=(name,work)=>{const start=performance.now();let failed=true;try{const value=work();failed=false;return value;}finally{timings.push({name,elapsed:performance.now()-start,failed});}};
  const live=createWorldContent(db,{now,blankCanvas,questPack,spells:combatData.spells,equipment:{...hubData.equipment,...combatData.defeat_items},defeatEquipment:combatData.defeat_equipment});
  const enabled=owner=>!db.prepare("SELECT 1 FROM gm_sanctions WHERE owner=? AND kind='suspend' AND (until=0 OR until>?)").get(owner,now());
- const zones=createQuestZones(db,{now,readOnly:true,live,enabled,measure,followerOptions:{enabled:followerEnabled},grant:()=>{throw Error('Snapshot workers cannot accept commands');},adjust:()=>{throw Error('Snapshot workers cannot award currency');},wallet:owner=>({coins:db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(owner)?.coins??0})});
+ const zones=createQuestZones(db,{now,readOnly:true,live,zoneCapacity,enabled,measure,followerOptions:{enabled:followerEnabled},grant:()=>{throw Error('Snapshot workers cannot accept commands');},adjust:()=>{throw Error('Snapshot workers cannot award currency');},wallet:owner=>({coins:db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(owner)?.coins??0})});
  const tutor=createTutor(db,{now,live,log:()=>{}});zones.setTutor(tutor);database.ready(); // No timers, wallet client, AI requests or writable database are installed in a zone worker.
  const hasEpochs=!!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='zone_snapshot_epochs'").get();let epochs={};
  function render(input){

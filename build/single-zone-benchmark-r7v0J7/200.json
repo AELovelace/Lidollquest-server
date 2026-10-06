@@ -1,0 +1,329 @@
+{
+  "workers": 5,
+  "computeWorkers": 5,
+  "zone": "princess-rose",
+  "zoneCapacity": 200,
+  "seconds": 30,
+  "hz": 2,
+  "host": {
+    "node": "v24.14.0",
+    "platform": "win32",
+    "release": "10.0.19045",
+    "cpu": "AMD Ryzen 9 5900X 12-Core Processor            ",
+    "logicalCpus": 24,
+    "ramGiB": 31.92700958251953
+  },
+  "players": 200,
+  "scheduled": 12000,
+  "peerMin": 200,
+  "peerMax": 200,
+  "peerMismatchResponses": 0,
+  "offeredRps": 400,
+  "elapsedSeconds": 30.013708400000002,
+  "requests": 12000,
+  "achievedRps": 399.817304815289,
+  "p50Ms": 6.737200000000485,
+  "p95Ms": 12.167300000000978,
+  "p99Ms": 39.63429999999971,
+  "maxMs": 64.41359999999986,
+  "bytes": 1186065389,
+  "missed": 0,
+  "errors": {},
+  "actions": {
+    "heartbeat": 9600,
+    "move": 2000,
+    "chat": 400
+  },
+  "server": {
+    "cpuPercent": 252.52,
+    "eventLoopPercent": 38.44,
+    "delayP95Ms": 22.68,
+    "delayMaxMs": 33.33,
+    "rssMiB": 1605.92,
+    "lag": {
+      "slowRequests": 0,
+      "severeRequests": 0,
+      "loopStalls": 0,
+      "maxLoopLagMs": 27.33,
+      "requestThresholdMs": 250,
+      "severeThresholdMs": 1000,
+      "loopThresholdMs": 100,
+      "probeMs": 100
+    },
+    "workers": {
+      "size": 5,
+      "queued": 0,
+      "busy": 0,
+      "rejected": 0,
+      "workers": [
+        {
+          "index": 0,
+          "busy": false,
+          "completed": 6,
+          "failed": 0
+        },
+        {
+          "index": 1,
+          "busy": false,
+          "completed": 4,
+          "failed": 0
+        },
+        {
+          "index": 2,
+          "busy": false,
+          "completed": 4,
+          "failed": 0
+        },
+        {
+          "index": 3,
+          "busy": false,
+          "completed": 7,
+          "failed": 0
+        },
+        {
+          "index": 4,
+          "busy": false,
+          "completed": 5,
+          "failed": 0
+        }
+      ]
+    },
+    "shards": {
+      "size": 5,
+      "queued": 0,
+      "busy": 0,
+      "rejected": 0,
+      "workers": [
+        {
+          "index": 0,
+          "threadId": 6,
+          "ready": true,
+          "busy": false,
+          "queued": 0,
+          "completed": 4480,
+          "failed": 0,
+          "restarts": 0,
+          "zones": [
+            "princess-rose"
+          ]
+        },
+        {
+          "index": 1,
+          "threadId": 7,
+          "ready": true,
+          "busy": false,
+          "queued": 0,
+          "completed": 3947,
+          "failed": 0,
+          "restarts": 0,
+          "zones": [
+            "princess-rose"
+          ]
+        },
+        {
+          "index": 2,
+          "threadId": 8,
+          "ready": true,
+          "busy": false,
+          "queued": 0,
+          "completed": 2772,
+          "failed": 0,
+          "restarts": 0,
+          "zones": [
+            "princess-rose"
+          ]
+        },
+        {
+          "index": 3,
+          "threadId": 9,
+          "ready": true,
+          "busy": false,
+          "queued": 0,
+          "completed": 1011,
+          "failed": 0,
+          "restarts": 0,
+          "zones": [
+            "lobby",
+            "princess-rose"
+          ]
+        },
+        {
+          "index": 4,
+          "threadId": 10,
+          "ready": true,
+          "busy": false,
+          "queued": 0,
+          "completed": 191,
+          "failed": 0,
+          "restarts": 0,
+          "zones": [
+            "princess-rose"
+          ]
+        }
+      ]
+    },
+    "timings": [
+      {
+        "name": "zones.shard_refresh",
+        "calls": 12000,
+        "errors": 0,
+        "totalMs": 72116.34,
+        "maxMs": 53.14,
+        "meanMs": 6.01
+      },
+      {
+        "name": "shard.roundtrip",
+        "calls": 12000,
+        "errors": 0,
+        "totalMs": 66661.67,
+        "maxMs": 23,
+        "meanMs": 5.56
+      },
+      {
+        "name": "shard.snapshot",
+        "calls": 12000,
+        "errors": 0,
+        "totalMs": 60975.78,
+        "maxMs": 22.64,
+        "meanMs": 5.08
+      },
+      {
+        "name": "shard.snapshot.build",
+        "calls": 12000,
+        "errors": 0,
+        "totalMs": 53422.47,
+        "maxMs": 20.09,
+        "meanMs": 4.45
+      },
+      {
+        "name": "shard.snapshot.peers",
+        "calls": 12000,
+        "errors": 0,
+        "totalMs": 22043.51,
+        "maxMs": 8.47,
+        "meanMs": 1.84
+      },
+      {
+        "name": "shard.snapshot.views",
+        "calls": 12000,
+        "errors": 0,
+        "totalMs": 18223.01,
+        "maxMs": 13.23,
+        "meanMs": 1.52
+      },
+      {
+        "name": "shard.queue",
+        "calls": 12000,
+        "errors": 0,
+        "totalMs": 5380.52,
+        "maxMs": 40.7,
+        "meanMs": 0.45
+      },
+      {
+        "name": "zones.action",
+        "calls": 12000,
+        "errors": 0,
+        "totalMs": 5007.94,
+        "maxMs": 7.27,
+        "meanMs": 0.42
+      },
+      {
+        "name": "shard.floor.decode",
+        "calls": 36000,
+        "errors": 0,
+        "totalMs": 3927.09,
+        "maxMs": 0.94,
+        "meanMs": 0.11
+      },
+      {
+        "name": "shard.response.serialize",
+        "calls": 12000,
+        "errors": 0,
+        "totalMs": 3700.35,
+        "maxMs": 9.78,
+        "meanMs": 0.31
+      },
+      {
+        "name": "zones.prepare_read",
+        "calls": 12000,
+        "errors": 0,
+        "totalMs": 2884.11,
+        "maxMs": 0.89,
+        "meanMs": 0.24
+      },
+      {
+        "name": "shard.response.cache",
+        "calls": 12000,
+        "errors": 0,
+        "totalMs": 2673.25,
+        "maxMs": 1.45,
+        "meanMs": 0.22
+      },
+      {
+        "name": "shard.snapshot.chat",
+        "calls": 24000,
+        "errors": 0,
+        "totalMs": 2565.21,
+        "maxMs": 5.73,
+        "meanMs": 0.11
+      },
+      {
+        "name": "shard.snapshot.dive",
+        "calls": 12000,
+        "errors": 0,
+        "totalMs": 2369.55,
+        "maxMs": 1.34,
+        "meanMs": 0.2
+      },
+      {
+        "name": "shard.snapshot.rooms",
+        "calls": 12000,
+        "errors": 0,
+        "totalMs": 1997.33,
+        "maxMs": 1.73,
+        "meanMs": 0.17
+      },
+      {
+        "name": "shard.floor.read",
+        "calls": 36000,
+        "errors": 0,
+        "totalMs": 1005.72,
+        "maxMs": 0.85,
+        "meanMs": 0.03
+      },
+      {
+        "name": "tick.parties",
+        "calls": 24030,
+        "errors": 0,
+        "totalMs": 339.37,
+        "maxMs": 0.08,
+        "meanMs": 0.01
+      },
+      {
+        "name": "account.authenticate",
+        "calls": 12000,
+        "errors": 0,
+        "totalMs": 32.83,
+        "maxMs": 0.04,
+        "meanMs": 0
+      },
+      {
+        "name": "floor.decode",
+        "calls": 104,
+        "errors": 0,
+        "totalMs": 15.8,
+        "maxMs": 0.37,
+        "meanMs": 0.15
+      },
+      {
+        "name": "world.timer",
+        "calls": 30,
+        "errors": 0,
+        "totalMs": 6.61,
+        "maxMs": 1.33,
+        "meanMs": 0.22
+      }
+    ]
+  },
+  "scope": "Isolated SQLite, synthetic wallets, one populated safe hub, paced heartbeat/move/Area-chat mix; excludes combat, real wallet latency, remote network and browser rendering. Loop delay p95 is the maximum interval p95; operation timings are the final interval."
+}

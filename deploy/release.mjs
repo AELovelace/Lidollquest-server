@@ -3,6 +3,7 @@ import {isIP} from 'node:net';
 import {createWalletClient} from '../server/wallet.mjs';
 import {worldWorkerBudget} from '../server/zone-shards.mjs';
 import {authCacheMs} from '../server/auth-cache.mjs';
+import {parseZoneCapacity} from '../server/zone-capacity.mjs';
 
 export const RELEASE_FILES=Object.freeze(['package.json','README.md','server','deploy','test','scripts','python','content']); // Ship build helpers imported by candidate tests; the installer and packaged-release regression share this explicit allowlist.
 
@@ -10,6 +11,7 @@ export function validateEnvironment(text) { // Check settings without printing o
   const env = parseEnv(text);
   worldWorkerBudget(env.QUEST_ZONE_WORKERS??'auto',env.QUEST_COMPUTE_WORKERS??'auto'); // Reject either invalid pool setting before stopping the running release.
   authCacheMs(env.QUEST_AUTH_CACHE_MS); // Same for the login cache TTL; unset means the 30 s default.
+  parseZoneCapacity(env.QUEST_ZONE_CAPACITY); // Reject invalid capacity before stopping or switching the running service.
   if (env.DATA_DIR !== '/var/lib/lidollquest-server') throw Error('DATA_DIR must be /var/lib/lidollquest-server for this installer.');
   if (!isIP(env.HOST ?? '')) throw Error('HOST must be an explicit IPv4 or IPv6 bind address.');
   if (!/^\d+$/.test(env.PORT ?? '') || Number(env.PORT) < 1024 || Number(env.PORT) > 65535) throw Error('PORT must be between 1024 and 65535.');
