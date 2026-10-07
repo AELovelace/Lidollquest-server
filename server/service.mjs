@@ -31,7 +31,7 @@ import {createTrapStore} from './trap-store.mjs';
 import {createLootStore} from './loot-store.mjs';
 import {createAlchemyStore} from './alchemy-store.mjs';
 import {diveData} from './dive.mjs';
-import {createPerformanceMonitor} from './performance.mjs';
+import {createPerformanceMonitor,timeWriteLock} from './performance.mjs';
 import {createComputePool,computeWorkerCount} from './compute-pool.mjs';
 import {createAuthCache,authCacheMs} from './auth-cache.mjs';
 import {parseKnown,elide} from './snapshot-cache.mjs';
@@ -64,6 +64,7 @@ export function createQuestService({filename=':memory:',walletClient,artJobOptio
  const onlineFeed=createOnlineFeed(db,{token:onlineToken,now});
  const mommybotProfile=createMommybotProfile(db,{token:onlineToken,enabled:owner=>!gm.suspended(owner),now});
  const metrics=createPerformanceMonitor(db,{log,...performanceOptions,workers:()=>compute?.snapshot()??null,shards:()=>shards?.snapshot()??null}); // Process CPU includes workers; event-loop delay still describes the coordinator.
+ timeWriteLock(db,metrics.observe); // db.write_lock row on /gm: time the coordinator holds SQLite's write lock (the multi-writer ceiling).
  if(poolSize)compute=createComputePool({size:poolSize,observe:metrics.observe});
  const live=createWorldContent(db,{now,blankCanvas,spells:combatData.spells,equipment:{...hubData.equipment,...combatData.defeat_items},defeatEquipment:combatData.defeat_equipment,questPack,questLibraryPack:blankCanvas?[]:loadQuestPack('content/weekly_quests.json')}); // Legacy imports remain available to offline compatibility fixtures, not the production workshop.
  const artJobs=createWorldJobs(db,{live,now,...artJobOptions});

@@ -8,6 +8,28 @@ const emptyRequests=()=>({completed:0,clientErrors:0,serverErrors:0,throttled:0,
 const PROBE_MS=100;
 const emptyLag=()=>({slowRequests:0,severeRequests:0,loopStalls:0,maxLoopLagMs:0,requestThresholdMs:250,severeThresholdMs:1000,loopThresholdMs:100,probeMs:PROBE_MS}); // Store thresholds with each sample so history keeps its original meaning.
 
+// db.write_lock: how long the coordinator's connection holds SQLite's single write lock. Every command runs in one
+// BEGIN IMMEDIATE transaction with its game logic inside, so this row's total, divided by the interval, is the share of
+// time no other writer could commit. It sets the ceiling of any multi-writer design (several coordinators, optimistic
+// writes): at 100% writers can only queue. Measured from node:sqlite's isTransaction flag rather than by parsing SQL,
+// so BEGIN, SAVEPOINT/RELEASE, ROLLBACK TO and a failed COMMIT are all counted correctly. Autocommit statements outside
+// a transaction (single quick writes) are not included.
+export function timeWriteLock(db,observe,clock=()=>performance.now()){
+ if(db.writeLockTimed||typeof db.isTransaction!=='boolean')return db; // Once per handle; skip quietly on a Node without isTransaction.
+ const run=db.exec.bind(db);let started=null; // The exec below us (statement cache, balance stats) and when the open transaction began.
+ db.exec=sql=>{
+  const before=db.isTransaction;
+  try{return run(sql);}
+  finally{
+   const after=db.isTransaction;
+   if(!before&&after)started=clock(); // BEGIN / outermost SAVEPOINT: the lock is now held.
+   else if(before&&!after&&started!==null){observe('db.write_lock',clock()-started);started=null;} // COMMIT / ROLLBACK / outermost RELEASE: released.
+  }
+ };
+ Object.defineProperty(db,'writeLockTimed',{value:true});
+ return db;
+}
+
 export function createPerformanceMonitor(db,{
  now=Date.now,clock=()=>performance.now(),cpuUsage=()=>process.cpuUsage(),memoryUsage=()=>process.memoryUsage(),
  loopUsage=()=>performance.eventLoopUtilization(),delay=monitorEventLoopDelay({resolution:20}),

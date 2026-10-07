@@ -1515,7 +1515,36 @@ The coordinator still parses every save, because its snapshots can run inside
 transactions that roll back. Local A/B at 256 players with needs turns:
 `snapshot.peers` 1.6 → 1.0 ms, worker queue 92 → 60 ms, poll p50/p95
 110/164 → 71/133 ms, 573 → 614 requests/s. Covered by
-`test/zone-workers-http.test.mjs` ("redraw a cached neighbour"). The coordinator is shared by
+`test/zone-workers-http.test.mjs` ("redraw a cached neighbour").
+
+Write-lock timing (2026-10-07): `timeWriteLock` in `performance.mjs` wraps
+the coordinator's `db.exec` and watches node:sqlite's `isTransaction` flag. It
+records one `db.write_lock` timing row per transaction, from the moment the lock
+is taken to COMMIT, ROLLBACK or the outermost RELEASE. Its total ÷ interval is
+the share of time no other writer could commit, which is the ceiling for any
+multi-writer design (several coordinators, optimistic writes). The crowd test
+prints it per stage and in its summary table. Local run, 5 + 5 workers: 64 / 128 /
+256 players held the lock 7% / 16% / 41% of the time, with about 2,200
+transactions a second at 256 (mean 0.19 ms). There are 3–4 transactions per
+request because every poll goes through `resumeStory` → `atomic()` and opens
+`BEGIN IMMEDIATE` even when nothing changes. Making polls check first and only
+lock when they write is the first step before any multi-writer work.
+
+Crowd-scaling view fixes (2026-10-07, found by CPU-profiling the zone-worker
+render with 0 vs 255 neighbours):
+- The worker's `enabled()` loads the suspended-owner set once per render instead
+  of running one `gm_sanctions` query per neighbour (it ran twice per neighbour).
+- Hub RP candidates (`hubRpCandidates`) are built from the peer rows the snapshot
+  already read. Dungeons keep `rpCandidates`, which now selects only id/owner/name
+  (+ state, which only the dungeon floor check needs) instead of `c.*`, and runs
+  the cheap on-screen check first.
+- The peer query selects only the presence columns it uses.
+
+Same-machine render at 256 neighbours: 6.08 → 4.53 ms (`snapshot.views` 2.23 →
+1.22 ms). Local crowd stage at 256, 5 + 5 workers: poll p95 112 → 46 ms, 640 →
+691 requests/s. Covered by `test/roleplay.test.mjs` ("hub RP candidates…").
+Next candidates: `collect` (walks the whole snapshot for sprite slots, ~0.5 ms
+whatever the crowd size) and the 256-row peer query itself (~0.8 ms). The coordinator is shared by
 every zone, so these figures apply to the whole world's population, not just
 one hub. `zones.action` (~1.1 ms per command at 256) and `zones.prepare_read`
 take most of its time.

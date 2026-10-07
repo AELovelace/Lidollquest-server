@@ -94,8 +94,10 @@ async function runServer(){
 }
 
 function summarise(players,crowd,server,elapsedMs,shards,failures){ // Join what the bots saw with what the server measured.
+ const lock=(server?.timings??[]).find(t=>t.name==='db.write_lock'); // Absent when --server points at a checkout from before timeWriteLock.
  return {players,elapsedSeconds:round(elapsedMs/1000),
   coordinator:{eventLoopPercent:server?.eventLoopPercent,delayP95Ms:server?.delayP95Ms,delayMaxMs:server?.delayMaxMs,processCpuPercent:server?.cpuPercent,rssMiB:server?.rssMiB}, // Event-loop busy is the number that says "write-bound or not".
+  writeLock:lock&&server.elapsedMs?{percent:round(100*lock.totalMs/server.elapsedMs),transactions:lock.calls,meanMs:lock.meanMs,maxMs:lock.maxMs}:null, // Share of the window SQLite's write lock was held: the ceiling for any multi-writer design.
   requests:{perSecond:round(crowd.total/(crowd.windowMs/1000)),...crowd.statuses}, // Throughput and outcome counts as the bots saw them.
   latency:crowd.latency, // Bot-side round trip per kind of request: p50 / p95 / p99 / max in ms.
   snapshotKiB:crowd.snapshotKiB, // Average response size; grows with the crowd because every peer is in every snapshot.
@@ -121,7 +123,8 @@ function printStage(row){ // Human-readable block per stage.
  console.log(`  ${r.perSecond} req/s · ok ${r.ok??0} · refused ${r.refused??0} · busy ${r.busy??0} · 5xx ${r.serverError??0} · network ${r.network??0} · snapshot ~${row.snapshotKiB} KiB`);
  for(const kind of Object.keys(l))console.log(`  ${kind.padEnd(5)} p50 ${l[kind].p50} · p95 ${l[kind].p95} · p99 ${l[kind].p99} · max ${l[kind].max} ms (${l[kind].count} calls)`);
  const offThread=t=>t.name.startsWith('shard.')||t.name.startsWith('worker.')||t.name==='zones.shard_refresh'||t.name.startsWith('account.'); // Worker execution and async waits overlap the coordinator, so they are listed apart.
- console.log('  coordinator work: '+row.serverTimings.filter(t=>!offThread(t)).slice(0,6).map(t=>`${t.name} ${t.totalMs} ms`).join(' · '));
+ console.log('  coordinator work: '+row.serverTimings.filter(t=>!offThread(t)&&t.name!=='db.write_lock').slice(0,6).map(t=>`${t.name} ${t.totalMs} ms`).join(' · ')); // db.write_lock overlaps zones.action, so it gets its own line.
+ const w=row.writeLock;if(w)console.log(`  write lock held ${w.percent}% of the window · ${w.transactions} transactions · mean ${w.meanMs} ms · max ${w.maxMs} ms`);
  const worker=row.serverTimings.find(t=>t.name==='shard.snapshot');if(worker)console.log(`  zone workers: ${worker.calls} snapshots, mean ${worker.meanMs} ms, max ${worker.maxMs} ms`);
  if(row.unexpectedErrors.length)console.log('  unexpected: '+row.unexpectedErrors.slice(0,5).map(e=>`${e.count}× ${e.message}`).join(' | '));
  console.log('  → '+row.verdict);
@@ -145,8 +148,8 @@ function printPanel(row,players){ // The measured window in the /gm Performance 
 
 function printComparison(results){ // One table across stages so the trend is easy to read.
  if(results.length<2)return;
- console.log('\nplayers | coord busy | req/s | read p95 | move p95 | snapshot | verdict');
- for(const r of results)console.log(`${String(r.players).padStart(7)} | ${String(r.coordinator.eventLoopPercent+'%').padStart(10)} | ${String(r.requests.perSecond).padStart(5)} | ${String((r.latency.read?.p95??'—')+' ms').padStart(8)} | ${String((r.latency.move?.p95??'—')+' ms').padStart(8)} | ${String(r.snapshotKiB+' KiB').padStart(8)} | ${r.verdict}`);
+ console.log('\nplayers | coord busy | write lock | req/s | read p95 | move p95 | snapshot | verdict');
+ for(const r of results)console.log(`${String(r.players).padStart(7)} | ${String(r.coordinator.eventLoopPercent+'%').padStart(10)} | ${String(r.writeLock?r.writeLock.percent+'%':'—').padStart(10)} | ${String(r.requests.perSecond).padStart(5)} | ${String((r.latency.read?.p95??'—')+' ms').padStart(8)} | ${String((r.latency.move?.p95??'—')+' ms').padStart(8)} | ${String(r.snapshotKiB+' KiB').padStart(8)} | ${r.verdict}`);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

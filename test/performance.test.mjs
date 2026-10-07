@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {DatabaseSync} from 'node:sqlite';
-import {createPerformanceMonitor} from '../server/performance.mjs';
+import {createPerformanceMonitor,timeWriteLock} from '../server/performance.mjs';
 
 function harness({automatic=false}={}){
  const db=new DatabaseSync(':memory:');let time=0,wall=1_800_000_000_000,user=0,system=0,active=0,idle=0,disabled=false;
@@ -117,4 +117,16 @@ test('the minute timer records with no dashboard reads and shutdown saves one pa
   assert.equal(JSON.parse(rows[1].data).elapsedMs,5000);assert.equal(h.disabled(),true);
   h.advance(60000);t.mock.timers.tick(60000);assert.equal(h.db.prepare('SELECT COUNT(*) n FROM server_performance_samples').get().n,2);
  }finally{h.close();}
+});
+
+test('db.write_lock times each transaction from its first lock to its release',()=>{
+ const db=new DatabaseSync(':memory:'),rows=[];let time=0;db.exec('CREATE TABLE t(v INTEGER)');
+ timeWriteLock(db,(name,elapsed)=>rows.push([name,elapsed]),()=>time);
+ db.exec('BEGIN IMMEDIATE');time+=5;db.prepare('INSERT INTO t VALUES (1)').run();time+=2;db.exec('COMMIT'); // A normal command: 7 ms under the lock.
+ db.exec('BEGIN IMMEDIATE');time+=3;db.exec('ROLLBACK'); // A refused command still held the lock.
+ db.exec('SAVEPOINT outer');time+=1;db.exec('SAVEPOINT inner');db.exec('ROLLBACK TO inner');time+=1;db.exec('RELEASE inner');time+=1;db.exec('RELEASE outer'); // Migrations: only the outermost savepoint opens and closes the lock.
+ assert.throws(()=>db.exec('COMMIT')); // No transaction open: the error passes through and nothing is recorded.
+ time+=50;db.exec('INSERT INTO t VALUES (2)'); // Autocommit statements are not counted.
+ assert.deepEqual(rows,[['db.write_lock',7],['db.write_lock',3],['db.write_lock',3]]);
+ assert.equal(timeWriteLock(db,()=>assert.fail('installed twice')),db); // Installing again is a no-op.
 });

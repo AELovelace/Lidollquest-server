@@ -123,3 +123,14 @@ test('ordinary level changes reset current counters while lifetime word and char
   const progress=f.read('Alice').rp.progress;assert.equal(progress.level_chars,0);assert.equal(progress.level_words,0);assert.equal(progress.total_chars,13);assert.equal(progress.total_words,3);assert.equal(progress.target,1000);
  }finally{f.close();}
 });
+
+test('hub RP candidates in the snapshot match the partners rp_post accepts: on screen only, sorted by name',()=>{
+ const f=fixture();try{
+  for(const who of ['Zed','Alice','Mia','Bea'])f.player(who);
+  f.db.prepare('UPDATE quest_presence SET x=x+40 WHERE character_id=?').run(f.ids.Mia); // Well beyond the 15x10-tile screen reach.
+  const listed=f.read('Alice').rp.candidates;
+  assert.deepEqual(listed.map(c=>c.name),['Bea','Zed']); // Built from the peer rows (hubRpCandidates): self and off-screen Mia left out, name order kept.
+  assert.ok(f.act('Alice','rp_post',{text:'Hello hub',partners:listed.map(c=>c.id)}).receipt.rpId); // The SQL path used by rp_post agrees with the list.
+  assert.throws(()=>f.act('Alice','rp_post',{text:'Hello Mia',partners:[f.ids.Mia]})); // Off screen in both versions.
+ }finally{f.close();}
+});

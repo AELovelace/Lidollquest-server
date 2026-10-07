@@ -13,12 +13,13 @@ export function createZoneSnapshotRuntime({filename,blankCanvas=true,questPack=[
  const database=openZoneSnapshotDatabase(filename),{db}=database;let at=Date.now(),timings=[];
  const now=()=>at,measure=(name,work)=>{const start=performance.now();let failed=true;try{const value=work();failed=false;return value;}finally{timings.push({name,elapsed:performance.now()-start,failed});}};
  const live=createWorldContent(db,{now,blankCanvas,questPack,spells:combatData.spells,equipment:{...hubData.equipment,...combatData.defeat_items},defeatEquipment:combatData.defeat_equipment});
- const enabled=owner=>!db.prepare("SELECT 1 FROM gm_sanctions WHERE owner=? AND kind='suspend' AND (until=0 OR until>?)").get(owner,now());
+ let suspended=null; // Owners suspended at this render's moment, loaded once per render instead of one query per neighbour (peers and RP candidates each ask for every player in the room).
+ const enabled=owner=>{if(!suspended)suspended=new Set(db.prepare("SELECT owner FROM gm_sanctions WHERE kind='suspend' AND (until=0 OR until>?)").all(now()).map(r=>r.owner));return !suspended.has(owner);};
  const zones=createQuestZones(db,{now,readOnly:true,live,zoneCapacity,enabled,measure,followerOptions:{enabled:followerEnabled},grant:()=>{throw Error('Snapshot workers cannot accept commands');},adjust:()=>{throw Error('Snapshot workers cannot award currency');},wallet:owner=>({coins:db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(owner)?.coins??0})});
  const tutor=createTutor(db,{now,live,log:()=>{}});zones.setTutor(tutor);database.ready(); // No timers, wallet client, AI requests or writable database are installed in a zone worker.
  const hasEpochs=!!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='zone_snapshot_epochs'").get();let epochs={};
  function render(input){
-  at=input.at;timings=[];db.exec('BEGIN');
+  at=input.at;timings=[];suspended=null;db.exec('BEGIN'); // Fresh suspension list for this render's clock and WAL snapshot.
   try{
    const next=hasEpochs?Object.fromEntries(db.prepare('SELECT domain,revision FROM zone_snapshot_epochs').all().map(r=>[r.domain,r.revision])):null;
    zones.invalidateSnapshotCaches(next?Object.keys(next).filter(key=>next[key]!==epochs[key]):undefined); // One WAL snapshot pairs the cache epochs with their committed content, even while the coordinator writes.
