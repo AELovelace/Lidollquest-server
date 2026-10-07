@@ -1452,6 +1452,44 @@ latency. Regression tests: `node --test test/*.test.mjs`, especially
 `compute-pool.test.mjs`, `parallel-dive.test.mjs`, `service.test.mjs` and
 `performance.test.mjs`.
 
+### Crowd test (manual load test)
+
+`deploy/crowd-test.mjs` puts 64, then 128, then 256 players in one hub and
+measures the real service. It is a manual one-off: `npm test` never runs it.
+The script boots `service.mjs` on a temporary database with zone workers,
+compute workers and the world timer. A separate process plays the crowd over
+HTTP, so the bots' own CPU stays out of the server's numbers. Each bot paces
+like the client: one request in flight, then 500 ms. About half its requests
+are moves, 3% are area chat and the rest are polls. It sends the snapshot-diet
+`known=` keys, so responses are client-sized.
+
+```
+node --no-warnings deploy/crowd-test.mjs
+node --no-warnings deploy/crowd-test.mjs --players=8 --seconds=10      # smoke run
+node --no-warnings deploy/crowd-test.mjs --zone-workers=5 --compute-workers=5 --out=artifacts/crowd.json
+```
+
+Other options: `--zone`, `--warmup`, `--move`, `--chat`, `--poll-ms`,
+`--keep`, and `--server=<dir>` to A/B an older checkout. The most important
+number is **coordinator busy** (the event-loop share, as on `/gm`). Under 60%
+is fine, 60–85% means the ceiling is close, and above 85% means the coordinator
+is saturated. A "busy" count means 429 "Online zones are busy." refusals, which
+signal overload. "Refused" counts normal gameplay refusals (walls, movement
+pacing, chat quota).
+
+Dev PC baseline (24 cores, 4 zone + 6 compute workers, 2026-10-07):
+
+| Players | Coordinator busy | Requests/s | Poll p95 | Response size |
+|---|---|---|---|---|
+| 64 | 12% | 125 | 15 ms | 52 KiB |
+| 128 | 26% | 250 | 19 ms | 59 KiB |
+| 256 | 56% | 493 | 48 ms | 71 KiB |
+
+There were no errors or busy refusals at any size. The coordinator is shared by
+every zone, so these figures apply to the whole world's population, not just
+one hub. `zones.action` (~1.1 ms per command at 256) and `zones.prepare_read`
+take most of its time.
+
 ## Sprite Lab looks and accessory unlocks
 
 `server/sprite-looks.mjs` (2026-10-03) holds the one validator for layered appearances, `validateLook`. Shopkeepers use it today and player looks will next. It checks registered layers, slot fit, RGB and strength.
