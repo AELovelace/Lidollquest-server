@@ -12,12 +12,12 @@ export function importLoadout(input) { // Campaign data is intentionally client-
  if(!object(input)||!object(input.player_info)||!Array.isArray(input.inventory)||input.inventory.length>512)fail('Send character stats and at most 512 inventory slots.');
  if(Buffer.byteLength(JSON.stringify(input))>192*1024)fail('Character data is too large.');
  let nodes=0;
- function copy(value,depth=0){
+ function copy(value,depth=0,colours=false){ // colours: this object is an alchemy pigments map, whose keys are colour names (gold, silver...), never currency.
   if(++nodes>20000||depth>16)fail('Character data is too complex.');
   if(value===null||typeof value==='boolean'||typeof value==='string')return value;
   if(typeof value==='number'){if(!Number.isFinite(value))fail('Character numbers must be finite.');return value;}
   if(Array.isArray(value))return value.map(v=>copy(v,depth+1));
-  if(object(value))return Object.fromEntries(Object.entries(value).filter(([key])=>!currencies.has(key.toLowerCase())&&!['__proto__','prototype','constructor'].includes(key)).map(([key,v])=>[key,copy(v,depth+1)]));
+  if(object(value))return Object.fromEntries(Object.entries(value).filter(([key])=>(colours||!currencies.has(key.toLowerCase()))&&!['__proto__','prototype','constructor'].includes(key)).map(([key,v])=>[key,copy(v,depth+1,key==='pigments')])); // Currency keys are dropped everywhere except as pigment colours, so a gold-pigment ingredient keeps its gold through enter/world_turn.
   fail('Unsupported character data.');
  }
  const result=copy({player_info:input.player_info,inventory:input.inventory,...(object(input.world)?{world:input.world}:{}),childish:number(input.childish,0,0,10),player_spells:input.player_spells??[],player_mp:input.player_mp??0,player_mp_max:input.player_mp_max??0,attack:input.attack??Math.max(1,number(input.player_info.str,0)*2)});
