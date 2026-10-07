@@ -28,7 +28,7 @@ function fixture({published=false}={}){
   const candidate=pathTo(f,foe,{x,y},3);
   if(candidate?.length===3&&candidate.every(p=>!others.has(p.x+','+p.y)&&!safe.some(r=>inside(r,p.x,p.y))))path=candidate;
  }
- assert.ok(path);for(const enemy of f.enemies)if(enemy.id!==foe.id)enemy.roaming=false;saveFloor(f);
+ assert.ok(path);for(const enemy of f.enemies)if(enemy.id!==foe.id){enemy.roaming=false;if(published)enemy.nextStep=time+60000;}saveFloor(f); // Published content restores authored roaming flags, so postpone unrelated enemies for this focused chase.
  const state=()=>JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(character.id).state);
  const saveState=s=>db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(s),character.id);
  const target=path.at(-1),s=state();s.dive.position=target;s.dive.safeUntil=0;saveState(s);
@@ -43,7 +43,7 @@ test('parallel pursuit matches synchronous movement and starts exactly one encou
  const h=fixture();try{
   for(let step=0;step<3;step++){
    h.tick();h.db.exec('BEGIN');h.db.exec('ROLLBACK'); // A pending worker must never hold the writer transaction open.
-   await h.finish();const foe=JSON.parse(h.record().content).enemies.find(e=>e.id===h.foe.id);
+   if(!h.state().run)await h.finish();const foe=JSON.parse(h.record().content).enemies.find(e=>e.id===h.foe.id);
    if(step<2)assert.deepEqual({x:foe.x,y:foe.y},h.path[step]);
   }
   assert.equal(h.state().run?.encounter,h.foe.id);assert.equal(JSON.parse(h.record().content).enemies.filter(e=>e.engaged===h.character.id).length,1);
@@ -56,10 +56,10 @@ test('published Quarters keeps roaming when pathfinding runs in workers',async()
   assert.deepEqual({x:foe.x,y:foe.y},h.path[0]);
  }finally{h.close();}
 });
-test('parallel pursuit creates one current-protocol shared encounter',async()=>{
- const h=fixture();try{
+for(const published of [false,true])test('parallel pursuit creates one current-protocol shared encounter (published='+published+')',async()=>{
+ const h=fixture({published});try{
   const s=h.state();s.diveCombatVersion=3;h.saveState(s);
-  for(let step=0;step<3;step++){h.tick();await h.finish();}
+  for(let step=0;step<3;step++){h.tick();if(!h.state().run)await h.finish();}
   const run=h.state().run;assert.ok(run.sharedEncounter);assert.equal(run.encounter,h.foe.id);
   assert.equal(h.db.prepare('SELECT COUNT(*) n FROM quest_dive_encounters').get().n,1);
   assert.equal(JSON.parse(h.record().content).enemies.find(e=>e.id===h.foe.id).engaged,run.sharedEncounter);
@@ -110,8 +110,9 @@ test('a roaming switch published while a worker is busy rejects its pending move
 });
 test('parallel pursuit starts combat using fresh inventory and character revision',async()=>{
  const h=fixture();try{
-  h.tick();await h.finish();h.tick();await h.finish();
-  h.tick();const s=h.state();s.loadout.inventory.push({item_id:'synthetic-keepsake'});h.saveState(s);
+  h.tick();await h.finish();h.tick();
+  h.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(h.path[1].x,h.path[1].y,h.character.id); // Become adjacent while the second path is pending.
+  const s=h.state();s.loadout.inventory.push({item_id:'synthetic-keepsake'});h.saveState(s);
   const revision=h.db.prepare('SELECT revision FROM quest_characters WHERE id=?').get(h.character.id).revision;
   await h.finish();assert.equal(h.state().loadout.inventory[0].item_id,'synthetic-keepsake');assert.equal(h.state().run.encounter,h.foe.id);
   assert.ok(h.db.prepare('SELECT revision FROM quest_characters WHERE id=?').get(h.character.id).revision>revision);
@@ -119,7 +120,8 @@ test('parallel pursuit starts combat using fresh inventory and character revisio
 });
 for(const stateKey of ['run','pendingDefeat','worldTurnDue'])test('parallel pursuit rechecks new '+stateKey+' before engaging',async()=>{
  const h=fixture();try{
-  h.tick();await h.finish();h.tick();await h.finish();h.tick();
+  h.tick();await h.finish();h.tick();
+  h.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(h.path[1].x,h.path[1].y,h.character.id); // Revalidate a player who moved into contact after dispatch.
   const s=h.state();s[stateKey]={id:'arrived-during-computation'};h.saveState(s);await h.finish();
   assert.deepEqual(h.state()[stateKey],{id:'arrived-during-computation'});
   assert.equal(JSON.parse(h.record().content).enemies.find(e=>e.id===h.foe.id).engaged,null);
@@ -129,4 +131,26 @@ test('parallel pursuit ignores a result after shutdown',async()=>{
  const h=fixture();try{
   h.tick();h.close();await h.finish(); // Closing SQLite before delivery must not produce an unhandled rejection or late write.
  }finally{h.api.close();if(h.db.isOpen)h.db.close();}
+});
+
+test('adjacent hostile contact starts while an older path job is still pending',async()=>{
+ const h=fixture();try{
+  const state=h.state();state.diveCombatVersion=3;h.saveState(state);
+  h.tick(); // Leave the first worker result deliberately undelivered.
+  h.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(h.path[0].x,h.path[0].y,h.character.id);
+  h.tick();const run=h.state().run;
+  assert.equal(run?.encounter,h.foe.id,'standing beside a hostile enemy must not wait for a path worker');
+  assert.ok(run.sharedEncounter);await h.finish();
+  assert.equal(h.state().run.sharedEncounter,run.sharedEncounter,'the older worker result cannot replace the fight');
+  assert.equal(h.db.prepare('SELECT COUNT(*) n FROM quest_dive_encounters').get().n,1);
+ }finally{h.close();}
+});
+
+for(const protection of ['neutral','safeUntil','worldTurnDue'])test('immediate contact preserves '+protection+' protection',async()=>{
+ const h=fixture();try{
+  h.tick();h.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(h.path[0].x,h.path[0].y,h.character.id);
+  if(protection==='neutral'){const floor=JSON.parse(h.record().content),foe=floor.enemies.find(e=>e.id===h.foe.id);foe.definition={...diveData.enemies[foe.type],temperament:'neutral'};h.saveFloor(floor);}
+  else{const state=h.state();if(protection==='safeUntil')state.dive.safeUntil=Date.parse('2099-01-01');else state.worldTurnDue={id:'unfinished-needs-turn'};h.saveState(state);}
+  h.tick();assert.equal(h.state().run,null);await h.finish();assert.equal(h.state().run,null);
+ }finally{h.close();}
 });

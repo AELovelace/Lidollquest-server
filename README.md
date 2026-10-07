@@ -1168,6 +1168,19 @@ Campaign enemy definitions export `roaming` from their source zone's `stationary
 
 Deploy the service and regenerated `campaign-dives-data.json` together, then restart the service. No client rebuild, database migration or weekly-floor reset is required. `test/dive-movement.test.mjs` exercises all nine routes with new and legacy floor records; the game browser fixture `--movement-only` checks two-client Mansion synchronization and pursuit.
 
+Adjacent hostile contact with compute workers (2026-10-06): the coordinator now
+checks due, roaming hostile enemies beside eligible players before requesting
+paths. Previously even adjacent combat waited for an asynchronous path result;
+a pending or repeatedly invalidated job could leave an enemy beside a player
+while manual engagement still worked. The direct check preserves safe rooms,
+arrival/recovery immunity, neutral enemies, map roaming controls, encounter
+locks and party readiness. A newly committed encounter invalidates older paths.
+This is a service-only fix; restart the updated service without resetting maps.
+`test/parallel-dive.test.mjs` reproduces a deliberately withheld worker result;
+`test/enemy-contact-service.test.mjs` verifies automatic combat through HTTP with
+real compute and snapshot workers. This reproduction does not inspect the live
+server's worker state or establish which guard affected a particular character.
+
 ### Rose-only Quarters entry and client text shadows
 
 `dungeonPortals` offers Quarters only at Rose Court (6,4). Lantern and Clockwork no longer accept new Quarters entries, including legacy direct-lobby requests; their other pads retain their coordinates. Existing Quarters visits reconnect and return to their stored hall normally, preserving editions and progress. Deploy this service before the rebuilt client, whose world labels and Dive status use the HUD shadow color instead of black plates. No database migration or floor reset is needed. `test/rose-hall-access.test.mjs` covers exact rosters, forged entry and legacy visit recovery.

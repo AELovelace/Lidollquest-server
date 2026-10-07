@@ -252,9 +252,9 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(config.roaming===false)return; // World panel "enemies roam" switch for this map: while it is off nobody walks or chases; flipping it back on resumes on the next tick.
   if(now()-active.updated<stride)return;
   if(!active.floor.enemies.some(e=>roams(e)&&e.respawnAt<=now()&&turnDue(e,now())))return; // Nobody's turn yet: skip the player query, path search and whole-floor write.
-  const players=roamingPlayers();
+  let players=roamingPlayers();
   if(!players.length)return; // Nothing to pursue: skip the random walk and, more importantly, the unconditional whole-floor write below.
-  if(compute){scheduleRoaming(active,players);return;}
+  if(compute){const contacted=engageAdjacent(active,players);if(contacted){active=contacted;players=roamingPlayers();}if(active.floor.enemies.some(e=>roams(e)&&e.respawnAt<=now()&&turnDue(e,now())))scheduleRoaming(active,players);return;} // Contact needs no path worker; any older pending path is invalidated by the committed encounter lock.
   roam(active,players);
  }
  function stepRoaming(){ // Between full passes: only enemy movement, and only while somebody is on the floor.
@@ -264,6 +264,20 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function roams(e){return !e.engaged&&!gone(e)&&enemyRoams(data,e);}
  function turnDue(e,at){return (e.nextStep??0)<=at;} // Floors from before per-enemy timers have no nextStep: those enemies are due at once and spread out from their first step.
  function roamingPlayers(){return db.prepare('SELECT p.*,c.revision,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id').all(zoneId,now()-30000);}
+ function engageAdjacent(active,players){ // Commit hostile contact now, even while the compute pool is busy or returning stale paths.
+  let changed=false,targets=null;
+  for(let index=0;index<active.floor.enemies.length;index++){
+   const foe=active.floor.enemies[index];
+   if(!foe||!roams(foe)||foe.respawnAt>now()||!turnDue(foe,now())||foe.definition?.temperament==='neutral')continue;
+   targets??=pursuitTargets(active,players);
+   const target=targets.find(p=>{const distance=Math.abs(foe.x-p.x)+Math.abs(foe.y-p.y);return distance<=1&&distance<=(p.reach??Infinity)&&(distance===0||walkable(active.floor,p.x,p.y))&&JSON.parse(p.state).loadout?.player_info.playerHealth>0;});
+   if(!target)continue;
+   const c={id:target.character_id,owner:target.owner,revision:target.revision},s=JSON.parse(target.state);
+   start(c,s,active,foe);saveCharacter(c,s);changed=true;
+   active=getFloor(active.edition);players=roamingPlayers();targets=null; // Re-read party state and reinforcement locks before considering another enemy.
+  }
+  return changed?active:null;
+ }
  function scheduleRoaming(active,players){
   if(roamingPending||closed)return;
   const scheduledAt=now(),f=active.floor,starts=f.enemies.filter(e=>roams(e)&&turnDue(e,scheduledAt+stride)).map(e=>({id:e.id,x:e.x,y:e.y})); // Include imminent respawns and steps so time passing during calculation cannot leave a due enemy without a plan.
@@ -290,20 +304,22 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  }
  function pursuitLimit(){return config.features?.echo?Math.max(config.pursuit_steps,config.features.echo.max_reach??16):config.pursuit_steps;} // Echo Gulch paths are searched out to the loudest possible echo, then trimmed per player in roam().
  function hearing(p,s){return config.features?.echo?echoReading(s,config.features.echo,config.pursuit_steps,now(),echoItems()).reach:config.pursuit_steps??Infinity;} // Path steps within which a monster notices this player (pursuit_steps everywhere but the Gulch; routes without one, like the Quarters, chase from any distance).
+ function pursuitTargets(active,players){ // Share immunity and party-readiness checks between immediate contact and calculated pursuit.
+  return players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return v.pendingDefeat||v.dive?.route!==route||v.dive?.edition!==active.edition||(!v.run&&!v.dungeonScene&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0);});if(ready)p.reach=hearing(p,s); // Parsed state is at hand here, so each player's hearing distance is worked out once per tick.
+   return ready&&(!live?.published().enabled||s.contentVersion===1)&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.dungeonScene&&!s.worldTurnDue&&s.dive.safeUntil<=now()&&!safe(active.floor,p.x,p.y);}); // Storing points cannot grant immunity from roaming enemies or block party encounters.
+ }
  function roam(active,players,plans=null,tickAt=now()){
   const f=active.floor;
   const occupied=new Set(f.enemies.filter(e=>e.respawnAt<=now()&&!gone(e)).map(e=>e.x+','+e.y)); // Unrevived corpses no longer block the tile they fell on.
   const rnd=seeded(active.edition+':'+Math.floor(tickAt/stride));
   let acted=false;
   let targets=null; // Eligible pursuit targets, parsed once per tick instead of once per enemy (enemies x party states was ~1 s/tick on big dungeons).
-  const eligible=()=>players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return v.pendingDefeat||v.dive?.route!==route||v.dive?.edition!==active.edition||(!v.run&&!v.dungeonScene&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0);});if(ready)p.reach=hearing(p,s); // Parsed state is at hand here, so each player's hearing distance is worked out once per tick.
-   return ready&&(!live?.published().enabled||s.contentVersion===1)&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.dungeonScene&&!s.worldTurnDue&&s.dive.safeUntil<=now()&&!safe(f,p.x,p.y);}); // Storing points cannot grant immunity from roaming enemies or block party encounters.
   for(const foe of f.enemies){
    if(!roams(foe)||foe.respawnAt>now())continue; // A corpse that will not respawn must never chase anyone: reaching a player would throw in start() and roll back the whole route's tick.
    if(!turnDue(foe,tickAt)||plans&&!plans.has(foe.id))continue; // Not its turn yet, or it came due after this batch of paths was requested: it moves on a later stride with a path of its own.
    acted=true;foe.nextStep=tickAt+600+rnd(500); // Each enemy draws its own next beat (0.6-1.1 s, about the old one tile a second once strides round it up), so the floor never steps in unison.
    if(foe.definition?.temperament==='neutral'){const [dx,dy]=[[1,0],[-1,0],[0,1],[0,-1]][rnd(4)],x=foe.x+dx,y=foe.y+dy;if(walkable(f,x,y)&&!occupied.has(x+','+y)&&!players.some(p=>p.x===x&&p.y===y)){occupied.delete(foe.x+','+foe.y);foe.x=x;foe.y=y;occupied.add(x+','+y);}continue;} // Prey wander without selecting a player target.
-   targets??=eligible(); // First roaming enemy builds the list; later enemies reuse it.
+   targets??=pursuitTargets(active,players); // First roaming enemy builds the list; later enemies reuse it.
    let target=null,best=null;
    for(const p of targets){const path=plans?plans.get(foe.id)?.get(p.character_id):measure('pathfinding.'+zoneId,()=>pathTo(f,foe,p,pursuitLimit()));if(path&&path.length<=(p.reach??Infinity)&&(!best||path.length<best.length)){target=p;best=path;}} // Too far away to hear (Echo Gulch: quiet players are only noticed up close). // Worker paths are consumed only against revalidated coordinates; combat remains on the coordinator.
    if(best?.length===0||best?.length===1){const c={id:target.character_id,owner:target.owner,revision:target.revision},s=JSON.parse(target.state);if(s.loadout?.player_info.playerHealth>0){start(c,s,active,foe);saveCharacter(c,s);target.state=c.state;target.revision=c.revision;targets=null;}continue;} // An engagement changes that player's (and their party's) readiness, so rebuild the list for the next enemy.
