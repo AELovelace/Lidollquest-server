@@ -28,3 +28,18 @@ test('shared-world zone workers preserve cross-zone chat, ownership, replay and 
   service.db.prepare("INSERT INTO gm_sanctions(owner,kind,until,reason,created) VALUES (?,'suspend',0,'test',?)").run(token('alice'),now());assert.equal((await read('alice')).status,403);
  }finally{service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));await service.shards?.close();rmSync(directory,{recursive:true,force:true});}
 });
+
+test('zone workers redraw a cached neighbour as soon as their save changes',async()=>{
+ const directory=mkdtempSync(join(tmpdir(),'quest-peer-cache-')),filename=join(directory,'world.sqlite');
+ const service=createQuestService({filename,zoneWorkers:2,log:()=>{},walletClient:{authenticate:async token=>({owner:token,id:token,client:'lidollquest',coins:0,scope:'wallet:read wallet:write social:read'})}}),states={};
+ try{
+  await service.prepare();await new Promise(resolve=>service.server.listen(0,'127.0.0.1',resolve));const base='http://127.0.0.1:'+service.server.address().port,token=who=>who.padEnd(43,'x');
+  const command=async(who,input)=>{const response=await fetch(base+'/zones/action',{method:'POST',headers:{Authorization:'Bearer '+token(who),'Content-Type':'application/json'},body:JSON.stringify({request_id:randomUUID(),controller:who,character_id:states[who]?.character.id,revision:states[who]?.character.revision,...input})}),result=await response.json();assert.equal(response.status,200,JSON.stringify(result));states[who]=result;return result;};
+  const aliceSeenBy=async who=>{const response=await fetch(base+'/zones?character_id='+states[who].character.id,{headers:{Authorization:'Bearer '+token(who)}}),result=await response.json();return result.peers.find(p=>p.id===states.alice.character.id);};
+  for(const who of ['alice','bob']){await command(who,{action:'create',name:who});await command(who,{action:'enter',zone:'honeydew-lantern',combat_version:3,follower_version:1,loadout:{player_info:{level:1,playerHealth:100,playerHealthMax:100},inventory:[]}});}
+  for(let n=0;n<4;n++)assert.equal((await aliceSeenBy('bob')).fighting,false); // Prime the peer cache on both workers.
+  const row=service.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(states.alice.character.id),state=JSON.parse(row.state);state.run={phase:'fight',stage:3};
+  service.db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),states.alice.character.id); // Same write shape every state change uses: the revision moves with it.
+  for(let n=0;n<4;n++){const alice=await aliceSeenBy('bob');assert.equal(alice.fighting,true);assert.equal(alice.stage,3);} // Every worker re-reads Alice instead of serving the cached view.
+ }finally{service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));await service.shards?.close();rmSync(directory,{recursive:true,force:true});}
+});

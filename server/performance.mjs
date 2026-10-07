@@ -11,7 +11,7 @@ const emptyLag=()=>({slowRequests:0,severeRequests:0,loopStalls:0,maxLoopLagMs:0
 export function createPerformanceMonitor(db,{
  now=Date.now,clock=()=>performance.now(),cpuUsage=()=>process.cpuUsage(),memoryUsage=()=>process.memoryUsage(),
  loopUsage=()=>performance.eventLoopUtilization(),delay=monitorEventLoopDelay({resolution:20}),
- cores=availableParallelism(),automatic=true,log=console.warn,workers=()=>null,shards=()=>null,
+ cores=availableParallelism(),automatic=true,probeLag=automatic,log=console.warn,workers=()=>null,shards=()=>null, // probeLag: run the 100 ms stall heartbeat even when sampling is manual (deploy/crowd-test.mjs takes its own samples).
 }={}){
  db.exec('CREATE TABLE IF NOT EXISTS server_performance_samples(id INTEGER PRIMARY KEY,sampled_at INTEGER NOT NULL,data TEXT NOT NULL)');
  const insert=db.prepare('INSERT INTO server_performance_samples(sampled_at,data) VALUES (?,?)');
@@ -74,7 +74,7 @@ export function createPerformanceMonitor(db,{
   baseline=value.baseline;requests=emptyRequests();lag=emptyLag();timings=new Map();peakActive=active;delay.reset();requestLatency.reset();
   return value.row;
  }
- const probe=automatic?setInterval(()=>{
+ const probe=probeLag?setInterval(()=>{
   const at=clock(),late=Math.max(0,at-lastProbe-PROBE_MS);lastProbe=at;
   lag.maxLoopLagMs=Math.max(lag.maxLoopLagMs,late);if(late>=lag.loopThresholdMs)lag.loopStalls++;
  },PROBE_MS):null;probe?.unref(); // Count one delayed heartbeat when the loop resumes, not every missed beat; subtract the scheduled wait.

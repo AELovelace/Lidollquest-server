@@ -1470,7 +1470,18 @@ node --no-warnings deploy/crowd-test.mjs --zone-workers=5 --compute-workers=5 --
 ```
 
 Other options: `--zone`, `--warmup`, `--move`, `--chat`, `--poll-ms`,
-`--keep`, and `--server=<dir>` to A/B an older checkout. The most important
+`--keep`, and `--server=<dir>` to A/B an older checkout.
+
+Each move sends `world_step: true` and is followed by the `world_turn` that
+hands the loadout back, like the client. This means every step bumps the
+walker's revision twice, as in live play. `--needs-turns=off` sends plain moves,
+for comparing with the first runs below, which didn't have needs turns. `--gm`
+also prints each stage in the `/gm` Performance tab's own wording: the top tiles,
+the request/lag/worker lines and **every** timing row. That way you can compare a
+line from the test with the live panel. With `--out`, the whole panel sample is
+saved per stage too. The service's performance monitor runs with
+`{automatic:false, probeLag:true}`, so loop-stall counts work without the
+60-second auto-sample splitting the window. The most important
 number is **coordinator busy** (the event-loop share, as on `/gm`). Under 60%
 is fine, 60–85% means the ceiling is close, and above 85% means the coordinator
 is saturated. A "busy" count means 429 "Online zones are busy." refusals, which
@@ -1485,7 +1496,26 @@ Dev PC baseline (24 cores, 4 zone + 6 compute workers, 2026-10-07):
 | 128 | 26% | 250 | 19 ms | 59 KiB |
 | 256 | 56% | 493 | 48 ms | 71 KiB |
 
-There were no errors or busy refusals at any size. The coordinator is shared by
+There were no errors or busy refusals at any size.
+
+aedith (12 cores, automatic 4 zone + 6 compute workers, 2026-10-07): 16% / 36% /
+66% busy, and poll p95 was 10 / 15 / 282 ms. At 256 players the zone workers were
+the limit, not the coordinator: each snapshot took 9.9 ms and there were 396 a
+second, which kept all 4 workers fully busy. Snapshot cost grows with the crowd
+because `shard.snapshot.peers` parses every peer's saved state. With 8 zone + 2
+compute workers it got worse (20.6 ms per snapshot, 88% coordinator busy),
+because more threads competed for the same cores. Keep the live 5 + 5.
+
+Peer view cache (2026-10-07): zone workers (`readOnly`) leave `state` out of the
+peer query. They keep each neighbour's visible fields (avatar, look, smell,
+fight stage, dive edition) per character `revision` (`peerView` in `zones.mjs`)
+and only parse a save again when its revision moves. This is safe because every
+state write bumps `revision`, and a read-only worker only sees committed rows.
+The coordinator still parses every save, because its snapshots can run inside
+transactions that roll back. Local A/B at 256 players with needs turns:
+`snapshot.peers` 1.6 → 1.0 ms, worker queue 92 → 60 ms, poll p50/p95
+110/164 → 71/133 ms, 573 → 614 requests/s. Covered by
+`test/zone-workers-http.test.mjs` ("redraw a cached neighbour"). The coordinator is shared by
 every zone, so these figures apply to the whole world's population, not just
 one hub. `zones.action` (~1.1 ms per command at 256) and `zones.prepare_read`
 take most of its time.
