@@ -32,6 +32,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
  // ----- Geometry helpers shared by apply() and validation -----
  const solidFixtures=f=>(f.fixtures??[]).filter(p=>p.solid!==false);
  function blocked(f,x,y){return !!(f.walls?.[y]?.[x])||!!(f.props?.[y]?.[x])||solidFixtures(f).some(p=>x>=p.x&&x<p.x+(p.span_w??1)&&y>=p.y&&y<p.y+(p.span_h??1));} // Same rule as quest-placements.mjs tiles().
+ function blockedBy(f,x,y){ /* Why a tile is not walkable, in words for the GM (the inspector shows tile art, not collision). */if(f.walls?.[y]?.[x])return 'a wall';if(f.props?.[y]?.[x])return 'a scenery prop';const p=solidFixtures(f).find(p=>x>=p.x&&x<p.x+(p.span_w??1)&&y>=p.y&&y<p.y+(p.span_h??1));return p?'solid '+(p.kind??'scenery')+' '+(p.name||p.sprite||p.id||'')+' at '+p.x+','+p.y+((p.span_w??1)*(p.span_h??1)>1?' ('+(p.span_w??1)+'×'+(p.span_h??1)+')':''):'';}
  const walkable=(f,x,y)=>Number.isInteger(x)&&Number.isInteger(y)&&x>=0&&y>=0&&x<f.width&&y<f.height&&!blocked(f,x,y);
  function flood(f,from=null){const seeds=(from??[f.entrance,f.spawn,...Object.values(f.entries??{})]).filter(p=>p&&walkable(f,p.x,p.y)),seen=new Set(seeds.map(p=>key(p.x,p.y))),queue=[...seeds];for(let i=0;i<queue.length;i++){const p=queue[i];for(const [dx,dy] of [[0,-1],[-1,0],[1,0],[0,1]]){const x=p.x+dx,y=p.y+dy;if(!seen.has(key(x,y))&&walkable(f,x,y)){seen.add(key(x,y));queue.push({x,y});}}}return seen;}
  const footprint=p=>{const cells=[];for(let dy=0;dy<(p.span_h??1);dy++)for(let dx=0;dx<(p.span_w??1);dx++)cells.push({x:p.x+dx,y:p.y+dy});return cells;};
@@ -157,7 +158,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
      if(!f.entries?.[op.zone]){f.entries??={};f.entries[op.zone]={...entry};undo.entriesAdded.push(op.zone);} // Arrivals from the new neighbour stand just inside the gate unless this map already had an arrival for them.
      if(!flood(f,[f.entrance]).has(key(entry.x,entry.y)))fail('The new gate at '+rect.x+','+rect.y+' does not connect to the rest of the map; open a path to it first.');
     }else{
-     if(!walkable(f,to.x,to.y)||to.x<1||to.y<1||to.x>f.width-2||to.y>f.height-2)fail('Place the pad on a walkable tile inside the map.',400);
+     if(!walkable(f,to.x,to.y)||to.x<1||to.y<1||to.x>f.width-2||to.y>f.height-2)fail('Place the pad on a walkable tile inside the map'+(blockedBy(f,to.x,to.y)?' ('+to.x+','+to.y+' is under '+blockedBy(f,to.x,to.y)+').':'.'),400);
      const neighbour=[[0,1],[0,-1],[1,0],[-1,0]].map(([dx,dy])=>({x:to.x+dx,y:to.y+dy})).find(p=>walkable(f,p.x,p.y));if(!neighbour)fail('The pad needs a walkable neighbour for arrivals.',400);
      Object.assign(added,{x:to.x,y:to.y});f.exits.push(added);const rect={x:to.x-1,y:to.y,w:3,h:2};f.safeRooms??=[];f.safeRooms.push(rect);undo.safeRoomsAdded.push(rect);touched.push({...to});
      if(!f.entries?.[op.zone]){f.entries??={};f.entries[op.zone]={...neighbour};undo.entriesAdded.push(op.zone);}
@@ -178,7 +179,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
     const rect={x:vertical?edge:along,y:vertical?along:edge,w,h};swapSafe({x:exit.x,y:exit.y,w,h},rect);Object.assign(exit,{x:rect.x,y:rect.y});const entry=openGate(f,exit,undo,touched);retarget(entry);
     if(!flood(f,[f.entrance]).has(key(entry.x,entry.y)))fail('The moved gate at '+rect.x+','+rect.y+' does not connect to the rest of the map; open a path to it first.');
    }else{
-    if(!walkable(f,to.x,to.y)||to.x<1||to.y<1||to.x>f.width-2||to.y>f.height-2)fail('Place the pad on a walkable tile inside the map.',400);
+    if(!walkable(f,to.x,to.y)||to.x<1||to.y<1||to.x>f.width-2||to.y>f.height-2)fail('Place the pad on a walkable tile inside the map'+(blockedBy(f,to.x,to.y)?' ('+to.x+','+to.y+' is under '+blockedBy(f,to.x,to.y)+').':'.'),400);
     const neighbour=[[0,1],[0,-1],[1,0],[-1,0]].map(([dx,dy])=>({x:to.x+dx,y:to.y+dy})).find(p=>walkable(f,p.x,p.y)&&!(p.x===exit.x&&p.y===exit.y));if(!neighbour)fail('The pad needs a walkable neighbour for arrivals.',400);
     swapSafe({x:exit.x-1,y:exit.y,w:3,h:2},{x:to.x-1,y:to.y,w:3,h:2});Object.assign(exit,{x:to.x,y:to.y});retarget(neighbour);touched.push({...to});
     if(!flood(f,[f.entrance]).has(key(neighbour.x,neighbour.y)))fail('The moved pad at '+to.x+','+to.y+' does not connect to the rest of the map.');
@@ -226,7 +227,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
    const opened=[],entry=openGate(f,rect,undo,opened);for(const c of opened)if(grid(f,'wallTiles')&&!f.walls[c.y][c.x])f.wallTiles[c.y][c.x]=0;pave(opened);touched.push(...opened);
    if(!flood(f,[f.spawn]).has(key(entry.x,entry.y)))fail('The moved gate at '+rect.x+','+rect.y+' does not connect to the rest of the map; open a path to it first.');
   }else{ // A doorstep (a plaza building, a storefront) or a room's door tile: any walkable floor tile inside the walls that can be reached.
-   if(to.x<1||to.y<1||to.x>f.width-2||to.y>f.height-2||!walkable(f,to.x,to.y))fail('Put the door on a walkable floor tile inside the walls.',400);
+   if(to.x<1||to.y<1||to.x>f.width-2||to.y>f.height-2||!walkable(f,to.x,to.y))fail('Put the door on a walkable floor tile inside the walls'+(blockedBy(f,to.x,to.y)?' ('+to.x+','+to.y+' is under '+blockedBy(f,to.x,to.y)+').':'.'),400);
    if(others.some(o=>inExit(o,to.x,to.y)))fail('Another door already opens there.',400);
    if(!flood(f,[f.spawn]).has(key(to.x,to.y)))fail('The door at '+to.x+','+to.y+' cannot be reached from the arrival tile.');
    touched.push({...to});
