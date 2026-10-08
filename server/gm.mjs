@@ -436,7 +436,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    return {...result,revision:lootStore().revision()};
   },
   loot_item_save(input,actor){ // Add a GM item to the base item pool (copied from a template), or edit one.
-   const item=lootStore().saveItem(input.item,{shipped:lootCatalog(),catalog:hubData.equipment??{}},actor); // Explicit edits may target shipped weapons; new items must have unused IDs.
+   const item=lootStore().saveItem(input.item,{shipped:lootCatalog(),catalog:hubData.equipment??{}},actor); // Explicit edits: full numbers on shipped weapons, a rename on other shipped items; new items must have unused IDs.
    record(actor,'loot_item_save',item.item_id,{name:item.name,category:item.category,template:clean(input.item?.template,64),reason:clean(input.reason,240)});
    return {item,revision:lootStore().revision()};
   },

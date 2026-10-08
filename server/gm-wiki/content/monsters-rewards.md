@@ -72,6 +72,8 @@ For directional effects, use a positive amount to mean the named direction. Do n
 
 Explain consequential effects in the scene. Preview does not apply these effects to a real character; verify their actual clamps, inventory handling, and equipment consequences in an isolated in-game session.
 
+To check a stat consequence such as `force_equip_item`, open **Items** and press **C** (or **Stats**) in the test session. The stat line at the top of the game screen shows only base stats, so a forced garment never changes it. The Stats panel splits each stat into base, gear, wet clothing, and buffs, and lists what every worn item adds. The forced item's bonuses or penalties appear in the **GEAR** column.
+
 ## Failure and reward checks
 
 Test victory, defeat and retreat; reconnect while the encounter is outstanding; repeat a continuation; fill inventory before a claim; reach the coin cap; and revisit after success. A stalled reward should leave a clear recovery path, such as freeing inventory and trying again, rather than asking the player to repeat an already-won battle.

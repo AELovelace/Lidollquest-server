@@ -230,6 +230,8 @@ const ITEM_FLAGS=['is_diaper','conceals_panties','is_bloomers','is_drink']; // Y
 const ITEM_BLOCKED_CATEGORIES=['quest','currency','ingredient']; // Never loot-pool items.
 export const ITEM_STAT_KEYS=Object.freeze([...Object.keys(ITEM_NUMBER_BOUNDS),...ITEM_FLAGS,'weapon_class']);
 const isPoolDiaper=item=>item?.category==='panties'&&item.is_diaper===true&&!item.quest_item; // Same test the dive roller uses for its diaper list.
+const isGarmentTemplate=item=>!!item&&item.pool_template===true&&!item.quest_item&&GENERATED_CATEGORIES.includes(item.category); // Same test as createBaseGenerator's isTemplate (loot.mjs): such a drop is swapped for a generated garment, so its own name never shows.
+const withRename=(base,o)=>({...base,name:o.name,desc:o.desc}); // A rename-only override lays new words over the current shipped item, so a later content export still updates its stats.
 
 export function validateLootItem(input,{shipped={},catalog={},custom={},overrides={}}={}){ // Copy a template, edit a GM item, or explicitly override a shipped weapon for future rolls.
  if(!input||typeof input!=='object'||Array.isArray(input))fail('Send an item to save.');
@@ -237,10 +239,15 @@ export function validateLootItem(input,{shipped={},catalog={},custom={},override
  if(!ID.test(id))fail('Id must be 3-48 characters: a lowercase letter, then letters, digits or underscores.');
  if(id.startsWith('gen_'))fail('Ids starting with gen_ belong to generated garments; pick another id.');
  const editing=input.edit_shipped===true;
- if(editing&&shipped[id]?.category!=='weapon')fail('Only a shipped pool weapon can be edited in place.');
+ if(editing&&!Object.hasOwn(shipped,id))fail('Only an item from the shipped pool can be edited in place.');
+ if(editing&&isGarmentTemplate(shipped[id]))fail(`'${id}' never drops under its own name: each drop becomes a generated Style + Garment. Rename it under Garments or Styles.`);
+ if(editing&&shipped[id].category!=='weapon'){ // Shipped non-weapons: a rename only (2026-10-08). Stats stay the shipped ones, merged at roll time by applyItems().
+  return {item_id:id,category:shipped[id].category,name:clean(input.name,40)||fail('Give the item a name.'),desc:clean(input.desc??shipped[id].desc,240),gm_pool_override:true,rename_only:true};
+ }
  if(!editing&&(Object.hasOwn(shipped,id)||Object.hasOwn(catalog,id)))fail(`'${id}' is already a shipped item. Pick a new id.`);
  const templateId=clean(input.template,64);
- const base=editing?(overrides[id]??shipped[id]):Object.hasOwn(custom,id)?custom[id]:templateId?(custom[templateId]??overrides[templateId]??shipped[templateId]??fail('Pick the item to copy from the pool list.')):fail('Pick an existing item to copy from.');
+ const shippedView=key=>overrides[key]?.rename_only&&shipped[key]?withRename(shipped[key],overrides[key]):(overrides[key]??shipped[key]); // a renamed item copies with its full shipped stats
+ const base=editing?shippedView(id):Object.hasOwn(custom,id)?custom[id]:templateId?(custom[templateId]??shippedView(templateId)??fail('Pick the item to copy from the pool list.')):fail('Pick an existing item to copy from.');
  const out=structuredClone(base);
  delete out.quest_item;delete out.pool_template; // A GM item always drops as itself, never swapped for a generated garment.
  const categories=new Set(Object.values(shipped).map(i=>i?.category).filter(c=>typeof c==='string'&&!ITEM_BLOCKED_CATEGORIES.includes(c)));
@@ -425,7 +432,15 @@ export function createLootStore(db,{now=Date.now}={}){
   return itemCache;
  };
  const customItems=()=>itemState().custom; // Every GM-added definition, removed ones included, so copies players already hold keep resolving.
- const applyItems=shipped=>({...customItems(),...shipped,...Object.fromEntries(Object.entries(itemState().overrides).filter(([id])=>shipped?.[id]?.category==='weapon'))}); // Only the current route's shipped weapons receive overrides.
+ const applyItems=shipped=>{ // Only the current route's shipped items receive overrides: full edits for weapons, new words for renamed items.
+  const out={...customItems(),...shipped};
+  for(const [id,o] of Object.entries(itemState().overrides)){
+   const base=shipped?.[id];if(!base)continue;                                  // not on this route
+   if(o.rename_only){if(!isGarmentTemplate(base))out[id]=withRename(base,o);}   // a template drops as a generated garment, so a rename could never show
+   else if(base.category==='weapon')out[id]=o;
+  }
+  return out;
+ };
  const removedItems=()=>itemState().removed; // Ids that no longer drop.
  function itemPool(ids,{addCustom=true}={}){ // A route's pool with removed ids taken out and (for the general pool) live GM items added.
   const {custom,removed}=itemState(),out=(ids??[]).filter(id=>!removed.has(id));
@@ -435,7 +450,7 @@ export function createLootStore(db,{now=Date.now}={}){
  function listItems(shipped){ // The panel roster: every shipped pool item plus GM items, each marked live or removed.
   const {custom,removed}=itemState(),out=[];
   const stats=item=>Object.fromEntries(ITEM_STAT_KEYS.filter(k=>item?.[k]!==undefined&&item[k]!==false).map(k=>[k,item[k]])); // Only the fields the panel edits, so "Copy from" can fill the form.
-  for(const [id,base] of Object.entries(shipped??{})){const item=itemState().overrides[id]??base;out.push({...stats(item),id,name:item?.name??id,category:item?.category??'',desc:item?.desc??'',value:item?.value??0,source:'shipped',modified:!!itemState().overrides[id],removed:removed.has(id)});}
+  for(const [id,base] of Object.entries(shipped??{})){const o=itemState().overrides[id],item=o?.rename_only?withRename(base,o):(o??base);out.push({...stats(item),id,name:item?.name??id,category:item?.category??'',desc:item?.desc??'',value:item?.value??0,source:'shipped',modified:!!o,renamed:!!o?.rename_only,template:isGarmentTemplate(base),removed:removed.has(id)});} // template: drops as a generated garment, so the panel offers no rename
   for(const [id,item] of Object.entries(custom))out.push({...item,id,source:'custom',removed:removed.has(id)});
   out.sort((a,b)=>a.id.localeCompare(b.id));
   return out;
@@ -466,9 +481,9 @@ export function createLootStore(db,{now=Date.now}={}){
   else db.prepare('DELETE FROM gm_loot_bases WHERE kind=? AND id=?').run('item',key); // Shipped item: drop the tombstone.
   return {id:key,restored:true};
  }
- function resetItem(id,actor=''){ // Reset one weapon without changing other pool edits or its removed/live state.
+ function resetItem(id,actor=''){ // Reset one edited weapon or renamed item without changing other pool edits or its removed/live state.
   const key=clean(id,48).toLowerCase(),row=db.prepare("SELECT * FROM gm_loot_bases WHERE kind='item' AND id=?").get(key);
-  if(!row||!JSON.parse(row.payload).gm_pool_override)fail('That weapon has no edited values.');
+  if(!row||!JSON.parse(row.payload).gm_pool_override)fail('That item has no edited values.');
   if(row.retired)db.prepare("UPDATE gm_loot_bases SET payload=?,updated=?,actor=? WHERE kind='item' AND id=?").run(JSON.stringify({id:key}),now(),String(actor??''),key);
   else db.prepare("DELETE FROM gm_loot_bases WHERE kind='item' AND id=?").run(key);
   return {id:key,reset:true};

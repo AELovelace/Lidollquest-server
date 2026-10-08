@@ -31,9 +31,31 @@ test('shipped weapon edits affect future rolls and preview data while receipts, 
  const copy=s.saveItem({id:'rattle_copy',template:'rattle',name:'Copy'},{shipped:items});assert.equal(copy.atk_min,30);assert.equal(copy.gm_pool_override,undefined);
  assert.throws(()=>s.saveItem({id:'rattle',edit_shipped:true,name:'Invalid',atk_min:90,atk_max:20},{shipped:items}),/minimum/);
  assert.throws(()=>s.saveItem({id:'rattle',edit_shipped:true,name:'Invalid',category:'torso'},{shipped:items}),/weapon category/);
- assert.throws(()=>s.saveItem({id:'frilly_top',edit_shipped:true,name:'Invalid'},{shipped:items}),/Only a shipped/);
+ assert.throws(()=>s.saveItem({id:'not_shipped',edit_shipped:true,name:'Invalid'},{shipped:items}),/Only an item from the shipped pool/);
  s.resetItem('rattle');assert.deepEqual(s.applyItems(items).rattle,items.rattle);assert.ok(s.customItems().rattle_copy);
  s.saveItem({id:'rattle',edit_shipped:true,name:'Again',atk:20},{shipped:items});s.removeItem('rattle',items);s.resetItem('rattle');assert.ok(s.removedItems().has('rattle'));s.restoreItem('rattle');assert.deepEqual(s.applyItems(items).rattle,items.rattle);
+});
+
+test('any shipped item that drops as itself can be renamed; numbers stay shipped; generated templates refuse (2026-10-08)',()=>{
+ const s=store(),items={...shipped,frilly_top:{...shipped.frilly_top},maid_dress_7:{item_id:'maid_dress_7',category:'dress',name:'Maid Dress #7',desc:'Template.',def:1,value:4,pool_template:true}};
+ const data={config:{route:'renames'},items,loot:diveData.loot,bases:diveData.bases,enchantments:diveData.enchantments},roll=createDiveLootRoller(data,{loot:s});
+ const old=roll('ed','char',{id:'old',item_id:'diaper'},{});
+ const saved=s.saveItem({id:'diaper',edit_shipped:true,name:'Puffy Night Diaper',desc:'Extra thick.',bulk:20,def:50,is_diaper:false},{shipped:items}); // numbers and switches are ignored on a rename
+ assert.deepEqual(saved,{item_id:'diaper',category:'panties',name:'Puffy Night Diaper',desc:'Extra thick.',gm_pool_override:true,rename_only:true});
+ const live=s.applyItems(items).diaper;
+ assert.equal(live.name,'Puffy Night Diaper');assert.equal(live.desc,'Extra thick.');
+ assert.equal(live.bulk,3);assert.equal(live.def,0);assert.equal(live.is_diaper,true,'shipped numbers and switches survive a rename');
+ assert.equal(items.diaper.name,'Fluffy Diaper','the shipped catalog is never mutated');
+ items.diaper.bulk=4;assert.equal(s.applyItems(items).diaper.bulk,4,'a later content export still updates a renamed item');items.diaper.bulk=3;
+ const row=s.listItems(items).find(r=>r.id==='diaper');assert.equal(row.name,'Puffy Night Diaper');assert.ok(row.renamed&&row.modified);assert.equal(row.bulk,3);
+ assert.ok(roll('ed','char',{id:'new',item_id:'diaper'},{}).name.includes('Puffy Night Diaper'),'future drops carry the new name');
+ assert.deepEqual(roll('ed','char',{id:'old',item_id:'diaper'},{old}),old,'claimed loot keeps its name');
+ const copy=s.saveItem({id:'night_copy',template:'diaper',name:'Copy'},{shipped:items});assert.equal(copy.bulk,3,'copying a renamed item copies its shipped numbers');assert.equal(copy.desc,'Extra thick.');
+ s.removeItem('diaper',items);s.restoreItem('diaper');assert.equal(s.applyItems(items).diaper.name,'Puffy Night Diaper','remove/restore keeps the rename');
+ s.resetItem('diaper');assert.deepEqual(s.applyItems(items).diaper,items.diaper,'reset brings the shipped name back');
+ assert.ok(s.listItems(items).find(r=>r.id==='maid_dress_7').template,'the roster marks generated templates');
+ assert.throws(()=>s.saveItem({id:'maid_dress_7',edit_shipped:true,name:'Nope'},{shipped:items}),/Garments or Styles/);
+ assert.throws(()=>s.saveItem({id:'frilly_top',edit_shipped:true,name:''},{shipped:items}),/name/);
 });
 
 test('a GM item copies its template, applies the panel fields and can never shadow a shipped id',()=>{
