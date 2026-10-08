@@ -82,7 +82,7 @@ A parcel collection objective can connect directly to a Battle. Its count contro
 
 Drag 1-3 monsters from the library onto the Battle. Its lineup accepts duplicates; remove slots on the card or replace/reorder them in the inspector. Outputs are `victory`, `defeat`, and `retreat`; all three need destinations. The server creates and starts an ordinary authoritative PvE encounter using all captured monster definitions. Victory waits for every lineup member. Existing eligibility and party/follower limits apply.
 
-The runner waits for authoritative settlement. Mandatory defeat handling finishes before the defeat branch. A disconnected client does not award itself victory. See [Battles](monsters-rewards.md#battle-blocks-and-party-behavior).
+The runner waits for authoritative settlement. Mandatory defeat handling finishes before the defeat branch. A disconnected client does not award itself victory. After a defeat or retreat, the lineup's surviving monsters are removed from the map; they do not stay behind. If the defeat branch loops back to the Battle, the retry creates a fresh lineup. See [Battles](monsters-rewards.md#battle-blocks-and-party-behavior).
 
 ## Reward
 

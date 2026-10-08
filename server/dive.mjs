@@ -1,6 +1,6 @@
 import {cavernBreath,cavernStep,cavernDelay} from './caverns-features.mjs';
 import {storyFoes} from './story-encounter.mjs';
-import {movementDelay,moveBurst,paceStep,paceSingle} from './crawl.mjs';
+import {movementDelay,moveBurst,paceStep,paceSingle,extendTrail} from './crawl.mjs';
 import {createDiveControls} from './world-dive.mjs';
 import {addCraftingWildlife,awardWildlife,awardCraftingDungeon} from './crafting-wildlife.mjs';
 import {createDiveEncounters} from './dive-encounters.mjs';
@@ -203,7 +203,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function storyEncounter(c,s,monster,receipt,fight=true){
   if(s.diveCombatVersion!==3)fail('Update the game before entering a story encounter.');
   const record=getFloor(s.dive?.edition);if(!record)fail('Enter this dungeon first.');
-  const foes=storyFoes(record.floor,c,s.dive.position,monster,receipt),foe=foes[0];if(!fight)saveFloor(record);
+  const foes=storyFoes(record.floor,c,s.dive.position,monster,receipt,fight),foe=foes[0];if(!fight)saveFloor(record);
   if(fight){start(c,s,record,foe,foes);return s.run.sharedEncounter;}return foe.id;
  } // Story foes pin their published stats and use the normal party/follower combat roster.
  function sweepDue(){return now()>=nextSweep;} // The sweep schedules itself from the soonest real deadline it saw, so recovery still lands on its exact second.
@@ -448,18 +448,19 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   }
   if(action==='walk'){ // Queued steps from the walk protocol (zones.mjs imported their needs turns first). Commit in order; stop where anything but plain floor happens.
    if(state.run)fail('Finish combat first.');
-   const delay=input.walkDelay??movementDelay(state.loadout,currentTuning()),burst=moveBurst(currentTuning()),path=[];let at={x:p.x,y:p.y},clock=p.moved,stop=input.walkCut?'special':''; // Each accepted step uses its own terrain cost.
+   const delay=input.walkDelay??movementDelay(state.loadout,currentTuning()),burst=moveBurst(currentTuning()),path=[],timed=[];let at={x:p.x,y:p.y},clock=p.moved,stop=input.walkCut?'special':''; // timed: the same steps with their paced clock, for the peers' walking trail. // Each accepted step uses its own terrain cost.
    for(const direction of input.steps){
     const d=WALK_DIRECTIONS[direction],x=at.x+d[0],y=at.y+d[1],next=paceStep(clock,now(),delay+cavernDelay(f,at.x,at.y,config,now()),burst);
     if(next===null){stop='too_fast';break;} // Faster than move_delay_ms on average, even with the burst allowance.
     if(!walkable(f,x,y)){stop='blocked';break;}
     if(f.enemies.some(e=>e.x===x&&e.y===y&&e.respawnAt<=now())||f.exits?.some(e=>inExit(e,x,y))||!(f.exits?.length)&&x===f.entrance.x&&y===f.entrance.y||[...f.chests,...(f.pickups??[])].some(ch=>ch.x===x&&ch.y===y)){stop='special';break;} // Encounters, exits and loot keep the single-step `move` with its own server-ordered needs turn.
-    clock=next;at={x,y};path.push({x,y});
+    clock=next;at={x,y};path.push({x,y});timed.push({x,y,t:clock});
     db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(x,y,clock,c.id);reveal(c,state,f,x,y); // Same writes as one ordinary step, with the paced clock instead of now().
     cavernStep(f,state,x,y,config,now(),echoItems());
     dungeonRules?.step(c,state,record,x,y); // Room timers, events and lullaby rooms count every committed step.
     if(state.run||state.dungeonScene||state.pendingDefeat||!owns(state.dive)){stop='event';break;} // A room event or scene ends the batch on the tile where it happened.
    }
+   if(timed.length)db.prepare('UPDATE quest_presence SET trail=? WHERE character_id=?').run(extendTrail(p,timed),c.id); // Other players replay these exact tiles (snapshot peer trail) instead of cutting corners between polls.
    state.walkReceipt={request:input.request_id,walked:path.length,stop,path}; // zones.mjs hands the path to quests and the companion trail, then drops it; the client reads walked/stop.
    return;
   }
@@ -472,7 +473,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    const exit=f.exits?.find(e=>inExit(e,x,y)); // Pads are one tile; overworld wall gaps span two.
    const entranceReturn=!(f.exits?.length)&&x===f.entrance.x&&y===f.entrance.y;
    if(exit||entranceReturn){back(c,state,exit?.zone);return;} // Stepping onto any return portal commits the transfer; spawning/reconnecting on it never triggers a bounce.
-   db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(x,y,paced,c.id);reveal(c,state,f,x,y); // Claim the paced slot, like a walk step.
+   db.prepare('UPDATE quest_presence SET x=?,y=?,moved=?,trail=? WHERE character_id=?').run(x,y,paced,extendTrail(p,[{x,y,t:paced}]),c.id);reveal(c,state,f,x,y); // Claim the paced slot, like a walk step; the step joins the peers' walking trail.
    cavernStep(f,state,x,y,config,now(),echoItems());
    dungeonRules?.step(c,state,record,x,y); // Room timers and traps count committed moves only.
    if(input.world_step===true)state.worldTurnDue={id:randomUUID(),mist:mistAt(f,x,y)||!!smokeCfg()?.enabled&&smokeAt(route,f,smokeCfg(),now(),x,y,record.edition),lullaby:!!state.dungeonLullaby}; // Loot commits first; the needs tick resumes from that inventory rather than overwriting the grant.

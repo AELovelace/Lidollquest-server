@@ -37,7 +37,7 @@ export function createHubEncounters(db,{now,roll,parties,live,definition,ids}){
   function storyEncounter(c,s,monster,receipt,fight=true){
    if(s.diveCombatVersion!==3||s.contentVersion!==1)fail('Update the game before entering a story encounter.');
    const r=record(),p=db.prepare('SELECT * FROM quest_presence WHERE character_id=?').get(c.id);if(p?.zone!==zone)fail('Enter this area first.');
-   const foes=storyFoes(r.floor,c,p,monster,receipt),foe=foes[0];if(!fight)saveFloor(r);
+   const foes=storyFoes(r.floor,c,p,monster,receipt,fight),foe=foes[0];if(!fight)saveFloor(r);
    if(fight){encounters.start(c,s,r,foe,foes);return s.run.sharedEncounter;}return foe.id;
   } // Uses shared encounter settlement while keeping story initiation personal.
   function recover(c,s){if(s.pendingDefeat?.hub===zone&&s.pendingDefeat.sceneComplete&&now()>=s.pendingDefeat.readyAt){const p=s.pendingDefeat.position;delete s.pendingDefeat;relocate(c,s,p);return true;}return false;}

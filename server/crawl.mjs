@@ -37,4 +37,18 @@ export function paceStep(moved,at,delay,burst=1){ // Step clock for queued walki
 export function paceSingle(moved,at,delay,burst=1){ // Step clock for one ordinary `move` (doors, chests, stairs, pads, the classic path). Returns the slot to store as `moved`, or null when too fast.
  return paceStep(moved,at,delay,burst); // Same allowance as a walk step. A late batch re-anchors the clock to its own arrival, so the chest/door bump timed on the client's schedule always looked early; the burst absorbs that lag (and ordinary jitter) while the average pace stays capped at one step per delay.
 }
+export const TRAIL_STEPS=16,TRAIL_WINDOW=2000; // Walking trail kept per presence row, and how far back (ms) a snapshot shares it. A 500 ms poll plus a slow reply fits well inside the window.
+export function extendTrail(p,steps){ // p: the presence row before this move; steps: [{x,y,t}] committed in order (t = the paced step clock). Returns the new quest_presence.trail JSON.
+ let prev=null;try{prev=p.trail?JSON.parse(p.trail):null;}catch{prev=null;} // A malformed trail just restarts; it is presentation only.
+ const tail=prev?.z===p.zone&&Array.isArray(prev.s)?prev.s:[],last=tail[tail.length-1];
+ const start=last&&last[0]===p.x&&last[1]===p.y?tail:[[p.x,p.y,p.moved]]; // Continue only from where the avatar actually stood; a teleport since (any write that skips extendTrail) restarts from this tile.
+ return JSON.stringify({z:p.zone,s:[...start,...steps.map(q=>[q.x,q.y,q.t])].slice(-TRAIL_STEPS)}); // {z: zone, s: [[x, y, server ms], ...]}
+}
+export function trailView(row,zone,at){ // Snapshot peer fields {trailAt, trail:[x, y, msBeforeTrailAt, ...]} for a player who stepped in the last TRAIL_WINDOW ms, else null.
+ if(!row.trail)return null;let t;try{t=JSON.parse(row.trail);}catch{return null;}
+ const s=Array.isArray(t?.s)?t.s:[],last=s[s.length-1];
+ if(t.z!==zone||!last||last[0]!==row.x||last[1]!==row.y||last[2]<at-TRAIL_WINDOW)return null; // Stale (resting) or invalidated by a teleport/room change: the plain x/y is the whole story.
+ const first=Math.max(0,s.findIndex(q=>q[2]>=at-TRAIL_WINDOW)-1); // Keep one older step as the anchor the first recent step walked from.
+ return {trailAt:last[2],trail:s.slice(first).flatMap(q=>[q[0],q[1],last[2]-q[2]])}; // Flat and relative keeps it ~3 small numbers per step on the wire.
+}
 export function movementDelay(loadout,tuning=null){const d=moveDelays(tuning);return isCrawling(loadout)&&!loadoutCrawlFree(loadout)?d.crawl:d.walk;} // Milliseconds the server demands between online steps. Shared NPC clocks stay unchanged; only the crawler is slowed.

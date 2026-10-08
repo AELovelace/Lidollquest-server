@@ -106,6 +106,7 @@ export function createDiveEncounters(db,{origins,live=null,now,roll,data,parties
   const xp=e.enemies.filter(v=>v.data.hp<=0).reduce((n,v)=>n+(v.data.exp??0),0),bossDown=e.enemies.some(v=>v.id===boss&&v.data.hp<=0);
   e.finished=true;message(e,win?'The encounter is cleared.':'The encounter is over.');
   for(const enemy of e.enemies){const foe=record.floor.enemies.find(v=>v.id===enemy.id);if(!foe)continue;foe.dead=enemy.data.hp<=0;foe.diedAt=foe.dead?now():null;foe.engaged=null;foe.respawnAt=enemy.data.hp<=0?now()+(foe.id===boss?config.boss_respawn_seconds:config.enemy_respawn_seconds)*1000:0;Object.assign(foe,foe.spawn);}
+  record.floor.enemies=record.floor.enemies.filter(v=>!(v.storyBattle&&!v.dead&&e.enemies.some(x=>x.id===v.id))); // A story Battle step's foes leave the map after a loss or retreat; the flow's defeat/retreat branch (or a retry with a fresh receipt) decides what happens next. Beaten ones stay for victory bookkeeping.
   for(const {a,c,s} of rows){s.run=a.run;const needsBefore=balanceNeeds(s),hpLeft=a.run.hp;clearEffects(s);
    if(a.npc){a.state={loadout:s.loadout};parties.followers.settle(a,e.id,['flee','abandoned','owner_out'].includes(a.status)?0:xp);continue;}if(['defeat','charm_backfire'].includes(a.status))a.run.hp=Math.max(1,Math.ceil(a.run.maxHp/4));
    const enemy=a.defeatEnemy??e.enemies[0].data;a.run.enemy={...enemy,exp:xp};if(xp)awardExperience(s,roll);syncRunHealth(s,a.run);
