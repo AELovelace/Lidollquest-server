@@ -139,6 +139,7 @@ tr.sel td{background:#2c1e3d}
   <button type="button" role="tab" id="tab-alchemy" aria-controls="panel-alchemy" aria-selected="false" tabindex="-1">Alchemy</button>
   <button type="button" role="tab" id="tab-tutor" aria-controls="panel-tutor" aria-selected="false" tabindex="-1">Tutor NPC</button>
   <button type="button" role="tab" id="tab-welcome" aria-controls="panel-welcome" aria-selected="false" tabindex="-1">Welcome</button>
+  <button type="button" role="tab" id="tab-music" aria-controls="panel-music" aria-selected="false" tabindex="-1">Music</button>
   <button type="button" role="tab" id="tab-guilds" aria-controls="panel-guilds" aria-selected="false" tabindex="-1">Guilds</button>
   <button type="button" role="tab" id="tab-stores" aria-controls="panel-stores" aria-selected="false" tabindex="-1">Player shops</button>
   <button type="button" role="tab" id="tab-moderation" aria-controls="panel-moderation" aria-selected="false" tabindex="-1">Moderation</button>
@@ -580,6 +581,15 @@ tr.sel td{background:#2c1e3d}
     <h2>Preview</h2>
     <p class="note">What players see, one card per page, as currently saved on the server (save first to update it).</p>
     <div id="welcomePreview" class="log"></div>
+  </section>
+</div>
+<div class="tab-panel" id="panel-music" role="tabpanel" aria-labelledby="tab-music" tabindex="0" hidden>
+  <section class="wide">
+    <h2>Zone music</h2>
+    <p class="note">Pick which game track plays in each online zone. <strong>Field</strong> is the music while walking around; <strong>Battle</strong> and <strong>Boss</strong> replace the game's own combat and boss tracks for fights started in that zone. A blank Field slot inherits: a hub room (Inn, temple, store...) uses its hub's track, then the <strong>Default</strong> row. <strong>(silence)</strong> plays no music at all. Volume (0-100) multiplies each player's own music slider. Changes reach players on their next poll. The track list comes from the game's <code>bgm</code> audio group: import a new track there, run <code>python/export_online_music.py</code>, then deploy the server.</p>
+    <p id="musicStatus" role="status"></p>
+    <div class="row"><label for="musicFilter">Find a zone</label><input id="musicFilter" class="grow" maxlength="40" placeholder="Name or id"><button id="musicStop">Stop preview</button><button id="musicLoad">Refresh</button></div>
+    <div id="musicZones"></div>
   </section>
 </div>
 <div class="tab-panel" id="panel-guilds" role="tabpanel" aria-labelledby="tab-guilds" tabindex="0" hidden>
@@ -1092,6 +1102,100 @@ tr.sel td{background:#2c1e3d}
   api("/gm/action",{method:"POST",body:body}).then(function(response){say("ok","Tutor saved: "+(response.result.enabled?"on":"off")+", named "+response.result.name+".");loadTutor();}).catch(function(error){say("err",error.message);}).finally(function(){$("tutorSave").disabled=false;});
  });
 
+ var musicEpoch=0,musicData=null,musicAudio=null,musicUrl=""; // musicData: the /gm/music payload. One shared Audio element plays previews from a blob: URL, because a plain src cannot carry the bearer token.
+ var MUSIC_GROUPS=[["hub","Hubs"],["room","Hub rooms"],["overworld","Overworlds"],["dive","Dungeons and Dives"],["safe","Other safe rooms"]]; // Zone category from /gm/music -> heading.
+ function musicStop(){
+  if(musicAudio){musicAudio.pause();musicAudio=null;}
+  if(musicUrl){URL.revokeObjectURL(musicUrl);musicUrl="";} // Free the mp3 bytes held by the last preview.
+ }
+ function musicPreview(name){
+  musicStop();if(!name||name==="none")return; // Nothing to hear for inherit or silence.
+  fetch("/gm/music/"+encodeURIComponent(name)+".mp3",{headers:{Authorization:"Bearer "+token},cache:"no-store"}).then(function(response){
+   if(!response.ok)throw new Error("No preview for "+name+" (HTTP "+response.status+"). Run python/export_online_music.py and deploy.");
+   return response.blob();
+  }).then(function(blob){
+   musicStop();musicUrl=URL.createObjectURL(blob);musicAudio=new Audio(musicUrl);musicAudio.loop=true;
+   return musicAudio.play();
+  }).catch(function(error){say("err",error.message);});
+ }
+ function musicRow(zone){ // The saved row for a zone id, or an empty one.
+  return (musicData&&musicData.mapping[zone])||{track:null,battle:null,boss:null,volume:100};
+ }
+ function musicEffective(z){ // What the Field slot really plays here and why, following the client's zone -> parent hub -> Default walk.
+  var own=musicRow(z.id).track;if(own)return {track:own,from:"this zone"};
+  if(z.parent){var up=musicRow(z.parent).track;if(up)return {track:up,from:"its hub"};}
+  var fallback=musicRow(musicData.defaultZone).track;if(fallback&&z.id!==musicData.defaultZone)return {track:fallback,from:"Default"};
+  return {track:"",from:"nothing mapped"};
+ }
+ function musicSelect(slot,value,label){
+  var s=el("select");s.setAttribute("aria-label",label);
+  var first=el("option",null,slot==="track"?"(inherit)":"(game default)");first.value="";s.appendChild(first);
+  if(slot==="track"){var off=el("option",null,"(silence)");off.value=musicData.silence;s.appendChild(off);}
+  musicData.catalog.forEach(function(t){var o=el("option",null,t.name+" ("+Math.round(t.duration)+"s)");o.value=t.name;s.appendChild(o);});
+  s.value=value||"";
+  if(value&&s.value!==value){var lost=el("option",null,value+" (not in this build)");lost.value=value;s.appendChild(lost);s.value=value;} // A track removed from the game still shows what is saved.
+  return s;
+ }
+ function musicLine(z){ // One table row: name, three slots with preview buttons, volume, what plays, Save/Clear.
+  var saved=musicRow(z.id),tr=el("tr"),name=el("td");tr.dataset.find=(z.name+" "+z.id).toLowerCase();
+  name.appendChild(el("strong",null,z.name));name.appendChild(el("div","note",z.id===musicData.defaultZone?"used where nothing else is set":z.id+(z.parent?" · in "+z.parent:"")));tr.appendChild(name);
+  var selects={};
+  [["track","Field"],["battle","Battle"],["boss","Boss"]].forEach(function(pair){
+   var td=el("td"),s=musicSelect(pair[0],saved[pair[0]],pair[1]+" music for "+z.name),play=el("button","sm","▶");
+   play.type="button";play.title="Preview the chosen track";play.setAttribute("aria-label","Preview "+pair[1]+" music for "+z.name);
+   play.addEventListener("click",function(){var pick=s.value||(pair[0]==="track"?musicEffective(z).track:"");if(!pick||pick==="none"){say("err","Nothing chosen to preview.");return;}musicPreview(pick);});
+   td.appendChild(s);td.appendChild(play);tr.appendChild(td);selects[pair[0]]=s;
+  });
+  var volTd=el("td"),vol=el("input");vol.type="number";vol.min="0";vol.max="100";vol.step="1";vol.style.width="70px";vol.value=String(saved.volume==null?100:saved.volume);vol.setAttribute("aria-label","Volume for "+z.name);volTd.appendChild(vol);tr.appendChild(volTd);
+  var eff=musicEffective(z);tr.appendChild(el("td","note",eff.track?(eff.track==="none"?"silence":eff.track)+" (from "+eff.from+")":"keeps whatever was playing"));
+  var actions=el("td"),save=el("button","go sm","Save"),clear=el("button","sm","Clear");save.type="button";clear.type="button";
+  save.addEventListener("click",function(){
+   save.disabled=true;
+   api("/gm/action",{method:"POST",body:{action:"music_set",zone:z.id,track:selects.track.value||null,battle:selects.battle.value||null,boss:selects.boss.value||null,volume:Number(vol.value)}}).then(function(){say("ok","Music saved for "+z.name+".");loadMusic(true);}).catch(function(error){say("err",error.message);}).finally(function(){save.disabled=false;});
+  });
+  clear.disabled=!musicData.mapping[z.id];
+  clear.addEventListener("click",function(){
+   clear.disabled=true;
+   api("/gm/action",{method:"POST",body:{action:"music_clear",zone:z.id}}).then(function(){say("ok","Music cleared for "+z.name+"; it inherits again.");loadMusic(true);}).catch(function(error){say("err",error.message);clear.disabled=false;});
+  });
+  actions.appendChild(save);actions.appendChild(clear);tr.appendChild(actions);
+  return tr;
+ }
+ function musicTable(title,zones){
+  var wrap=el("div","scroll"),table=el("table"),head=el("thead"),hr=el("tr"),body=el("tbody");
+  wrap.appendChild(el("h2",null,title));
+  ["Zone","Field","Battle","Boss","Volume","Plays",""].forEach(function(h){hr.appendChild(el("th",null,h));});
+  head.appendChild(hr);table.appendChild(head);
+  zones.forEach(function(z){body.appendChild(musicLine(z));});
+  table.appendChild(body);wrap.appendChild(table);return wrap;
+ }
+ function musicFilterRows(){
+  var q=$("musicFilter").value.trim().toLowerCase();
+  Array.from($("musicZones").querySelectorAll("tbody tr")).forEach(function(tr){tr.hidden=!!q&&tr.dataset.find.indexOf(q)<0;}); // The Default row hides too while searching.
+ }
+ function musicRender(){
+  var box=$("musicZones");box.textContent="";
+  box.appendChild(musicTable("Default",[{id:musicData.defaultZone,name:"Default"}]));
+  MUSIC_GROUPS.forEach(function(group){
+   var zones=musicData.zones.filter(function(z){return z.category===group[0];}).sort(function(a,b){return a.name.localeCompare(b.name);});
+   if(zones.length)box.appendChild(musicTable(group[1],zones));
+  });
+  var known=MUSIC_GROUPS.map(function(g){return g[0];}),other=musicData.zones.filter(function(z){return known.indexOf(z.category)<0;});
+  if(other.length)box.appendChild(musicTable("Other",other));
+  musicFilterRows();
+ }
+ function loadMusic(force){
+  var epoch=++musicEpoch,session=perfEpoch;
+  return api("/gm/music").then(function(data){
+   if(epoch!==musicEpoch||session!==perfEpoch||!token)return;
+   musicData=data;
+   var mapped=Object.keys(data.mapping).length;
+   $("musicStatus").textContent=data.catalog.length+" track(s) in the game's music group · "+mapped+" row(s) saved"+(data.catalog.length?"":" · no music-catalog.json on this server yet: run python/export_online_music.py and deploy");
+   if(force===true||!$("musicZones").contains(document.activeElement))musicRender(); // Never rebuild the rows under a GM who is still choosing, except right after their own save.
+  }).catch(function(error){say("err",error.message);});
+ }
+ $("tab-music").addEventListener("click",loadMusic);$("musicLoad").addEventListener("click",function(){loadMusic(true);});
+ $("musicStop").addEventListener("click",musicStop);$("musicFilter").addEventListener("input",musicFilterRows);
  var welcomeEpoch=0,welcomeLinks={},welcomeLimits={title:60,heading:60,body:600,label:24,pages:8}; // Links and limits come from /gm/welcome; the numbers here only cover the moment before the first load.
  function welcomeField(label,input){var wrap=el("label");wrap.appendChild(document.createTextNode(label+" "));wrap.appendChild(input);wrap.style.display="block";wrap.style.margin="4px 0";return wrap;} // One labelled input per line inside a page block.
  function welcomePageBlock(page){ // Builds the editor block for one page; the page order is the DOM order, so Up/Down just move nodes.

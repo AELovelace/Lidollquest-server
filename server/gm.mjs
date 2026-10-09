@@ -79,7 +79,7 @@ export function buildAllowList(text){ // Comma-separated addresses and CIDR bloc
  return list;
 } // Rejected loudly at construction so a typo cannot silently admit the whole network.
 
-export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=null,welcome=null,guilds=null,playerStores=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,balance=null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,traps=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn,helpOptions={}}={}){
+export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=null,welcome=null,zoneMusic=null,guilds=null,playerStores=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,balance=null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,traps=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn,helpOptions={}}={}){
  const mapRenderer=createMapRenderer({tiles:tileArtwork,compiled:compiledArtwork,avatars:avatarCatalog,asset:key=>live?.asset(key)}); // Decodes each sprite once; caches the last few rendered pictures per zone revision.
  const worldPainter=createWorldPainter(); // Whole-world poster (GET /gm/world.png), painted on a worker thread one request at a time.
  function worldPicture(scale,layers){ // Gathers every overworld, dungeon and hub view plus the exit graph; the worker lays them out and paints them.
@@ -95,6 +95,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
  const help=createGmHelp(helpOptions); // Separate read-only service; staff authentication stays in this router.
  const announcementStore=()=>typeof announcements==='function'?announcements():announcements; // Passed lazily by service.mjs because the zones module is created after the panel.
  const welcomeStore=()=>{const store=typeof welcome==='function'?welcome():welcome;if(!store)fail(409,'The welcome tutorial is not available on this server.','gm_unknown_action');return store;}; // welcome.mjs, likewise lazy.
+ const musicStore=()=>{const store=typeof zoneMusic==='function'?zoneMusic():zoneMusic;if(!store)fail(409,'Zone music is not available on this server.','gm_unknown_action');return store;}; // zone-music.mjs, likewise lazy.
  const storeGm=()=>{const s=typeof playerStores==='function'?playerStores():playerStores;if(!s)fail(409,'Player shops are not available on this server.','gm_unknown_action');return s.gm;}; // player-stores.mjs gm surface, lazy like guilds.
  const guildStore=()=>{const store=typeof guilds==='function'?guilds():guilds;if(!store)fail(409,'Guilds are not available on this server.','gm_unknown_action');return store;}; // guilds.mjs, likewise lazy.
  const rp=createRoleplay(db,{now}); // RP journals use the same live staff authorization as every moderation tool.
@@ -262,6 +263,8 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
  const actions={
   tutor_settings(input,actor){if(!tutor)fail(409,'The tutor NPC is not available on this server.');const saved=tutor.gmSet(input,actor);record(actor,'tutor_settings','tutor',{enabled:saved.enabled,name:saved.name,greeting:saved.greeting});return saved;}, // Pip on/off, name and greeting (tutor.mjs).
   welcome_settings(input,actor){const saved=welcomeStore().gmSet(input,actor);record(actor,'welcome_settings','welcome',{enabled:saved.enabled,show_to_existing:saved.show_to_existing,title:saved.title,pages:saved.pages.length});return saved;}, // Welcome tutorial switches, title and pages (welcome.mjs); the audit row keeps the page count, not the prose.
+  music_set(input,actor){const saved=musicStore().gmSet(input,actor);record(actor,'music_set',saved.zone,{track:saved.track,battle:saved.battle,boss:saved.boss,volume:saved.volume});return saved;}, // One zone's field/battle/boss music and volume (zone-music.mjs); '*' is the Default row.
+  music_clear(input,actor){const cleared=musicStore().gmClear(input);record(actor,'music_clear',cleared.zone,{});return cleared;}, // Forget a zone's row so it inherits again.
   welcome_reset(input,actor){const saved=welcomeStore().reset(actor);record(actor,'welcome_reset','welcome',{pages:saved.pages.length});return saved;}, // Back to the shipped four pages.
   test_build_start(input,actor){const build=testing.startBuild(input,actor);record(actor,'test_build_start','testing',{build:build.id,label:build.label});return build;}, // New build under test; audited because it resets everyone's view.
   test_build_notes(input,actor){const build=testing.buildNotes(input);record(actor,'test_build_notes','testing',{build:build.id,label:build.label});return build;}, // "What changed" note on a version.
@@ -518,7 +521,7 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
   if(['/gm','/gm/flow-editor','/gm/help','/gm/map-editor','/gm/balance'].includes(url.pathname)){
    if(req.method!=='GET')return send(405,{error:'gm_method_not_allowed'});
    res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Frame-Options':'DENY','Referrer-Policy':'no-referrer',
-    'Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; form-action 'none'; base-uri 'none'"});
+    'Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; media-src blob:; form-action 'none'; base-uri 'none'"});
    res.end(url.pathname==='/gm/help'?helpPage:url.pathname==='/gm/flow-editor'?flowPage:url.pathname==='/gm/map-editor'?mapPage:url.pathname==='/gm/balance'?balancePage:panelPage);return true; // The shell carries no player data: every figure on it arrives through an authenticated fetch below.
   }
   const origin=req.headers.origin;
@@ -583,6 +586,13 @@ export function createGameMasterPanel(db,{tutor=null,walletClient,announcements=
    if(url.pathname==='/gm/player-stores'&&req.method==='GET'){const gm=storeGm(),id=url.searchParams.get('id');return send(200,{stores:gm.list(url.searchParams.get('q')??''),detail:id?gm.detail(id):null});} // Player shops (player-stores.mjs): every shop, plus one opened shop's stock, orders and ledger.
    if(url.pathname==='/gm/tutor'&&req.method==='GET')return send(200,tutor?tutor.gmView():{configured:false,settings:null,recent:[]}); // Pip's switch, npc-rag health and the latest questions/answers.
    if(url.pathname==='/gm/welcome'&&req.method==='GET')return send(200,welcomeStore().gmView()); // Welcome tutorial: current settings, code defaults, link targets, install epoch and limits.
+   if(url.pathname==='/gm/music'&&req.method==='GET')return send(200,musicStore().gmView()); // Music tab: saved rows, the exported track list and every zone (with each hub room's parent).
+   if(url.pathname.startsWith('/gm/music/')&&req.method==='GET'){ // Preview mp3 for the Music tab. The panel fetches it with its bearer token and plays it from a blob: URL.
+    const match=/^[/]gm[/]music[/]([A-Za-z][A-Za-z0-9_]{0,63})[.]mp3$/.exec(url.pathname),file=match?musicStore().previewFile(match[1]):null; // Catalog names only, so no path can leave music-preview/.
+    if(!file)return send(404,{error:'gm_unknown_track',error_description:'That track is not in music-catalog.json.'});
+    let audio;try{audio=readFileSync(file);}catch{return send(404,{error:'gm_unknown_track',error_description:'Run python/export_online_music.py and deploy to add the preview file.'});}
+    res.writeHead(200,{'Content-Type':'audio/mpeg','Content-Length':audio.length,'Cache-Control':'private, max-age=3600','X-Content-Type-Options':'nosniff'});res.end(audio);return true;
+   }
    if(url.pathname==='/gm/crafting'&&req.method==='GET')return send(200,craftingStore.view());
    if(url.pathname==='/gm/alchemy'&&req.method==='GET')return send(200,alchemyView()); // Chest odds and brewing rules (alchemy-store.mjs).
    if(url.pathname==='/gm/rp'&&req.method==='GET')return send(200,rp.journal(Object.fromEntries(url.searchParams)));

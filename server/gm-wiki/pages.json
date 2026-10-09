@@ -176,6 +176,14 @@
     "group": "Authoring reference"
   },
   {
+    "slug": "zone-music",
+    "source": "zone-music.md",
+    "title": "Zone music",
+    "kicker": "GM panel tab",
+    "description": "Pick the field, battle and boss music for every online zone, with inheritance and in-browser previews.",
+    "group": "Authoring reference"
+  },
+  {
     "slug": "player-shops",
     "source": "player-shops.md",
     "title": "Player shops",

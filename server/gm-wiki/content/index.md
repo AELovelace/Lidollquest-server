@@ -45,6 +45,7 @@ Each guide has real editor pictures, field-by-field instructions, a publication 
 | Paint terrain and inspect reachability | [The Map Editor](maps.md#the-map-editor-pop-out), [Map editing tutorial](tutorial-map-editing.md) |
 | Give an NPC a patrol or daily schedule | [Route reference and interactive demo](npc-routes.md), [Patrol tutorial](tutorial-npc-patrol.md), [Schedule tutorial](tutorial-npc-schedules.md) |
 | Change the pages a new character reads on arrival | [Welcome tutorial](welcome-tutorial.md) |
+| Choose which music plays in a zone, or in its fights | [Zone music](zone-music.md) |
 | Moderate a player shop or read its ledger | [Player shops](player-shops.md) |
 | Try a story without affecting real progression | [Preview and isolated tests](testing.md) |
 | Release or restore an earlier version | [Save, publish and rollback](publishing.md) |
