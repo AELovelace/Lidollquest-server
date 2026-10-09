@@ -8,19 +8,19 @@ import {generateFloor,seeded,pathTo} from '../server/dive-generation.mjs';
 import {selectReinforcements,selectEncounterEnemies,actionDelay,enemyActionDelay,encounterTuning,applyCombatPatch} from '../server/dive-encounters.mjs';
 
 function fixture(roll=()=>0){
- const db=new DatabaseSync(':memory:');let time=Date.parse('2026-09-17T12:00:00Z'),zones;const ids={},awards=[];
+ const db=new DatabaseSync(':memory:');let time=Date.parse('2026-09-17T12:00:00Z'),zones,lastCommand;const ids={},awards=[];
  const setup=()=>zones=createQuestZones(db,{now:()=>time,roll,grant:secret=>({id:secret,owner:secret,client:'lidollquest'}),wallet:()=>({coins:0}),adjust:(owner,asset,n)=>awards.push({owner,n}),diveOptions:{log:()=>{}}});setup();
  const loadout=(klass='fighter')=>({player_info:{class_id:klass,playerHealth:500,playerHealthMax:500,str:100,def:8,dex:8,int:20,cha:100,level:30,xp:0,stat_points:0},inventory:[],player_spells:['fireball','heal'],player_mp:100,player_mp_max:100});
  const snap=name=>zones.read(name,ids[name]);
  function command(name,action,extra={}){const s=snap(name);return {action,request_id:randomUUID(),controller:'window',character_id:ids[name],revision:s.character.revision,...(s.character.dive?{edition:s.dive.edition}:{}),...(s.encounter?{battle:s.encounter.id,cycle:s.character.run.cycle}:{}),...extra};}
- function act(name,action,extra={}){time++;return zones.act(name,command(name,action,extra));}
+ function act(name,action,extra={}){time++;lastCommand=command(name,action,extra);return zones.act(name,lastCommand);}
  function player(name,klass='fighter',hub='princess-rose'){const s=zones.act(name,{action:'create',name,controller:'window',request_id:randomUUID()});ids[name]=s.character.id;return act(name,'enter',{zone:hub,combat_version:3,loadout:loadout(klass)});}
  function join(name){act('alice','party_invite',{member:ids[name]});return act(name,'party_accept',{invitation:snap(name).partyInvitations[0].id});}
  function place(name,x,y){const id=ids[name],s=snap(name).character;delete s.id;delete s.name;delete s.revision;if(s.dive){s.dive.position={x,y};s.dive.safeUntil=time+600000;}db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(s),id);db.prepare('UPDATE quest_presence SET x=?,y=?,seen=?,moved=0 WHERE character_id=?').run(x,y,time,id);}
  function engage(name='alice',encounter='iris'){const s=snap(name),foe=s.dive.enemies.find(e=>e.id===encounter),f=s.zones.find(z=>z.id===s.zone),path=pathTo(f,f.entrance,foe),p=path.at(-2);place(name,p.x,p.y);return act(name,'dive_engage',{encounter:foe.id});}
  function advance(ms){time+=ms;zones.tick();}
  function win(name='alice'){for(let n=0;n<40;n++){/* Levelled packs take more swings than the old flat rosters. */let s=snap(name);if(!s.encounter)return s;advance(Math.max(0,s.character.run.readyAt-time));s=act(name,'turn_ready',{patch:[],forfeit:false});if(!s.encounter)return s;s=act(name,s.character.loadout.player_info.class_id==='diplomat'?'allure':'attack',{target:s.encounter.enemies.find(e=>e.hp>0).id});if(!s.encounter)return s;}throw Error('Fight did not finish');}
- return {db,ids,awards,loadout,player,join,snap,act,command,place,engage,advance,win,raw:(name,input)=>zones.act(name,input),restart:setup,close:()=>db.close()};
+ return {db,ids,awards,loadout,player,join,snap,act,command,place,engage,advance,win,lastCommand:()=>lastCommand,raw:(name,input)=>zones.act(name,input),restart:setup,close:()=>db.close()};
 }
 
 function recoveringParty(f){ // One member loses while the survivor finishes the real shared encounter.
@@ -29,6 +29,28 @@ function recoveringParty(f){ // One member loses while the survivor finishes the
  f.act('bob','submit');f.win('alice');
  return f.snap('bob').character.pendingDefeat;
 }
+
+test('ordinary shared victories pay each survivor once and retain payouts across reconnect',()=>{
+ const f=fixture();try{
+  f.player('alice');f.player('bob');f.join('bob');f.act('alice','dive_enter',{zone:'dive-quarters'});
+  const foe=f.snap('alice').dive.enemies.find(e=>e.id!=='iris');
+  const fight=f.engage('alice',foe.id),count=fight.encounter.enemies.length;
+  f.win();f.raw('alice',f.lastCommand()); // Replaying the final attack must reuse its receipt without paying again.
+  for(const name of ['alice','bob']){
+   assert.equal(f.snap(name).character.lastResult.coins,count); // roll(0) pays the 1-coin fallback for each old-export monster.
+   assert.deepEqual(f.awards.filter(a=>a.owner===name),[{owner:name,n:count}]);
+  }
+  f.restart();f.snap('alice');f.snap('bob');assert.equal(f.awards.length,2);
+ }finally{f.close();}
+});
+
+test('retreating from an ordinary encounter awards no monster coins',()=>{
+ const f=fixture();try{
+  f.player('alice');f.act('alice','dive_enter',{zone:'dive-quarters'});
+  f.engage('alice',f.snap('alice').dive.enemies.find(e=>e.id!=='iris').id);
+  f.act('alice','flee');assert.equal(f.awards.length,0);
+ }finally{f.close();}
+});
 
 test('banked stat points survive party travel and do not block shared fights',()=>{
  const f=fixture();try{
@@ -196,7 +218,7 @@ test('group portals commit together; pending needs roll back everyone; campaign 
 test('shared live battle locks three enemies, preserves independent cycles and settles full personal XP once',()=>{
  const f=fixture();try{f.player('alice');f.player('bob','mage');f.player('cara','diplomat');f.join('bob');f.join('cara');f.act('alice','dive_enter',{zone:'dive-quarters'});const start=f.engage();assert.equal(start.encounter.players.length,3);assert.equal(start.encounter.enemies.length,3);const xp=start.encounter.enemies.reduce((n,e)=>n+e.exp,0);assert.ok(start.dive.enemies.filter(e=>e.engaged===start.encounter.id).length===3);
   assert.throws(()=>f.act('alice','turn_ready',{patch:[],forfeit:false}),/gauge/);f.advance(2000);const prepared=f.act('bob','turn_ready',{patch:[],forfeit:false});const pending=f.command('bob','cast',{spell:'fireball',target:prepared.encounter.enemies[1].id});f.act('cara','turn_ready',{patch:[],forfeit:false});f.raw('bob',pending);assert.deepEqual(f.raw('bob',pending).receipt,f.raw('bob',pending).receipt);assert.equal(f.snap('cara').character.run.cycle,1);
-  f.act('cara','flee');const end=f.win();assert.equal(end.encounter,null);for(const n of ['alice','bob','cara'])assert.equal(f.snap(n).character.loadout.player_info.xp,xp);assert.equal(f.awards.length,3);
+  f.act('cara','flee');const end=f.win();assert.equal(end.encounter,null);for(const n of ['alice','bob','cara'])assert.equal(f.snap(n).character.loadout.player_info.xp,xp);assert.equal(f.awards.length,5); // Three weekly boss awards plus ordinary drops for the two surviving members.
  }finally{f.close();}
 });
 

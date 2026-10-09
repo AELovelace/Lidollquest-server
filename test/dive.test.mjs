@@ -165,7 +165,7 @@ test('shared encounter locks, authored stats, class combat, respawns and weekly 
   f.as('alice');const day=Math.floor(Date.parse('2026-09-16T12:00:00Z')/86400000);f.db.prepare('INSERT INTO quest_reward_days VALUES (?,?,?)').run('alice',day,DAILY_COIN_CAP-10); // Ten coins left, so the 50-coin boss payout is partially capped.
   s=f.win(a);assert.equal(s.character.run,null);assert.equal(s.dive.completed,true);assert.equal(s.dive.claimableCoins,40);assert.equal(f.awards.reduce((n,a)=>n+a.n,0),10);assert.equal(f.act(a,'dive_claim_reward').dive.claimableCoins,40);
   f.setTime('2026-09-17T12:00:00Z');f.act(a,'enter',{zone:DIVE_ZONE});assert.equal(f.act(a,'dive_claim_reward').dive.claimableCoins,0);assert.equal(f.awards.reduce((n,a)=>n+a.n,0),50);
-  for(const cls of ['mage','diplomat']){let l=f.snap(a).character.loadout;l.player_info.class_id=cls;f.act(a,'loadout',{loadout:l});f.engage(a);s=f.win(a);assert.equal(s.character.run,null);assert.equal(f.awards.reduce((n,a)=>n+a.n,0),50);f.advance(301000);f.act(a,'enter',{zone:DIVE_ZONE});}
+  let expectedCoins=50;for(const cls of ['mage','diplomat']){let l=f.snap(a).character.loadout;l.player_info.class_id=cls;f.act(a,'loadout',{loadout:l});f.engage(a);s=f.win(a);assert.equal(s.character.run,null);assert.equal(f.awards.reduce((n,a)=>n+a.n,0),++expectedCoins);f.advance(301000);f.act(a,'enter',{zone:DIVE_ZONE});}
  }finally{f.close();}
 });
 test('encounter expiry restores enemies and keeps committed inventory; restart preserves floor and claims',()=>{
@@ -175,7 +175,7 @@ test('encounter expiry restores enemies and keeps committed inventory; restart p
 });
 test('weekly reset returns idle visitors, grants active fights grace and rejects stale editions',()=>{
  const f=fixture();try{const a=f.player();f.setTime('2026-09-21T10:59:50Z');f.act(a,'enter',{zone:DIVE_ZONE});f.engage(a);const old=f.snap(a).dive.edition;
-  f.setTime('2026-09-21T11:00:01Z');let s=f.act(a,'heartbeat');assert.equal(s.zone,DIVE_ZONE);assert.equal(s.dive.edition,old);s=f.win(a);assert.equal(s.zone,'princess-rose');assert.equal(f.awards.reduce((n,a)=>n+a.n,0),50);
+  f.setTime('2026-09-21T11:00:01Z');let s=f.act(a,'heartbeat');assert.equal(s.zone,DIVE_ZONE);assert.equal(s.dive.edition,old);s=f.win(a);assert.equal(s.zone,'princess-rose');assert.equal(f.awards.reduce((n,a)=>n+a.n,0),51);
   s=f.act(a,'dive_enter');assert.notEqual(s.dive.edition,old);assert.equal(s.dive.claimed,0);assert.throws(()=>f.act(a,'move',{direction:'east',edition:old}),/edition changed/);
   f.setTime('2026-10-05T11:00:01Z');f.tick();assert.equal(f.snap(a).character.dive,null);assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM dive_editions WHERE route='quarters-pilot'").get().n,3,'downtime creates only the currently due edition');
  }finally{f.close();}

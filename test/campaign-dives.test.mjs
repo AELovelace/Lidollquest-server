@@ -18,7 +18,8 @@ test('six authored weekly destinations retain connected content and collision ov
 
 test('new Dives enforce hub adjacency, isolate claims, retain fights/reconnects and fit the gateway',()=>{
  const db=new DatabaseSync(':memory:');let now=Date.parse('2026-09-17T12:00:00Z'),c,api;
- const setup=()=>api=createQuestZones(db,{now:()=>now,grant:()=>({owner:'alice',id:'grant',client:'lidollquest'}),wallet:()=>({coins:0}),adjust:()=>{throw Error('New Dives do not award coins');}});
+ const awards=[]; // Ordinary victories now pay coins even on routes without a weekly boss bonus.
+ const setup=()=>api=createQuestZones(db,{now:()=>now,grant:()=>({owner:'alice',id:'grant',client:'lidollquest'}),wallet:()=>({coins:0}),adjust:(owner,asset,n)=>awards.push(n)});
  setup();
  const act=(action,extra={})=>{now+=400;const result=api.act('',{action,controller:'browser',request_id:randomUUID(),character_id:c?.id,revision:c?.revision,...(c?.dive?{edition:c.dive.edition}:{}),...extra});c=result.character;return result;};
  const place=(x,y)=>{const state=JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(c.id).state);if(state.dive){state.dive.position={x,y};state.dive.safeUntil=now+60000;}db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),c.id);db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(x,y,c.id);};
@@ -46,7 +47,9 @@ test('new Dives enforce hub adjacency, isolate claims, retain fights/reconnects 
    assert.throws(()=>act('dive_engage',{encounter:enemy.id}),error=>error.status===409&&error.code==='dive_conflict'&&error.message==='Approach that enemy first.'); // Keep the real distance guard covered instead of weakening production encounter rules.
    place(approach.x,approach.y);act('dive_engage',{encounter:enemy.id});setup();
    assert.equal(act('enter',{zone:zone_id}).character.run.encounter,enemy.id);
+   const paidBefore=awards.reduce((sum,n)=>sum+n,0);
    act('turn_ready',{loadout:c.loadout,forfeit:false});act('attack');assert.equal(c.run,null);
+   assert.ok(c.lastResult.coins>=1&&c.lastResult.coins<=3);assert.equal(awards.reduce((sum,n)=>sum+n,0)-paidBefore,c.lastResult.coins); // The legacy solo path reports exactly what the wallet received.
    assert.equal(act('dive_exit').zone,hub+'-dives');place(10,9);act('hub_visit',{zone:hub});act('leave');
    for(const other of ['princess-rose','honeydew-lantern','littlebig-clockwork'].filter(h=>h!==hub))assert.ok(!dungeonPortals(other).some(p=>p.target===zone_id));
   }

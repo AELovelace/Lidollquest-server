@@ -137,6 +137,19 @@
    {"id": "content-pip", "title": "Pip the tutor", "detail": "Pip answers questions in every lobby and enforces the daily limit."},
    {"id": "content-applet", "title": "Companion web applet", "detail": "Gear, eat and drink, shop rolls, bank, guild management and guild chat all work."}
   ]},
+  {"area": "Music and audio", "items": [
+   {"id": "audio-title-song", "title": "Title song plays", "detail": "The title song starts (browsers: on the first click or key). No music ships in the game package any more."},
+   {"id": "audio-campaign-rooms", "title": "Campaign room music", "detail": "Town, safe room, dungeon, forest and desert rooms play their songs; a song already playing continues across rooms."},
+   {"id": "audio-zone-map", "title": "Zone music and inheritance", "detail": "Map a hub on the Music tab: it plays, its Inn inherits it, an unmapped zone uses Default, silence stops music."},
+   {"id": "audio-battle-slots", "title": "Battle and boss songs", "detail": "A zone's Battle/Boss songs play in fights started there, else combat/boss; the field song returns afterwards."},
+   {"id": "audio-uploads", "title": "GM song uploads", "detail": "Upload a wav or flac: it converts to 96 kbps, previews with the play button, and a zone can use it at once. Deleting one in use is refused."},
+   {"id": "audio-bgm-slider", "title": "BGM slider and volume", "detail": "The title, save-menu and online MENU sliders re-level the playing song immediately; a zone's volume makes it quieter."},
+   {"id": "audio-story-block", "title": "Story Workshop Music block", "detail": "Scene music plays during a scene, a sting plays once then resumes, silence works, a kept song follows the character until cleared."},
+   {"id": "audio-stage-music", "title": "Quest stage music", "detail": "A stage's music plays only while that stage is current; an exact zone beats Any zone."},
+   {"id": "audio-map-editor", "title": "Map Editor Zone music box", "detail": "Shows the same slots as the Music tab, saves there, and lists quest stages that override the zone."},
+   {"id": "audio-desktop-cache", "title": "Desktop music cache", "detail": "Windows build: a new song starts after a short download, then plays from music_cache with no download on re-entry or restart."},
+   {"id": "audio-sfx", "title": "Sound effects", "detail": "Menu, footstep, battle and chest sounds still play promptly (now stored compressed in the package)."}
+  ]},
   {"area": "Operations", "items": [
    {"id": "ops-gm-signin", "title": "GM sign-in", "detail": "Only accounts with the gamemaster role get in; others are refused."},
    {"id": "ops-live-tuning", "title": "Live tuning", "detail": "Changing a Loot tab value reaches the next chest or request with no restart."},

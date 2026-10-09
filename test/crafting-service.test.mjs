@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {createCraftingService,resourceNodes,validBusinessTile} from '../server/crafting-service.mjs';
+import {createCraftingService,resourceNodes,validBusinessTile,reachableTiles} from '../server/crafting-service.mjs';
 import {createItemOrigins} from '../server/item-origins.mjs';
 import {craftCatalog,resolveCraftItem,planCraft,craftingData} from '../server/crafting.mjs';
 import {createCraftingStore} from '../server/crafting-store.mjs';
@@ -21,6 +21,22 @@ test('harvesting is personal, daily and refuses remote or repeated claims',()=>{
  const f=fixture();try{const n=resourceNodes('overworld-taiga',f.floor).find(n=>!n.kind),p={zone:'overworld-taiga',x:n.x,y:n.y};
   assert.throws(()=>f.act({action:'craft_harvest',fixture:n.id},{...p,x:29,y:29}),/Stand next/);f.act({action:'craft_harvest',fixture:n.id},p);const quantity=f.s.loadout.inventory[0].quantity;
   assert.equal(stackTokens(f.s.loadout.inventory[0]).length,quantity);assert.throws(()=>f.act({action:'craft_harvest',fixture:n.id},p),/today/);f.advance(86400000);f.act({action:'craft_harvest',fixture:n.id},p);assert.ok(f.s.loadout.inventory[0].quantity>quantity);
+ }finally{f.db.close();}
+});
+
+test('wood piles appear near every forest entry with stable claims and verified harvests',()=>{
+ const f=fixture();try{
+  f.floor.edition='wood-gates';f.floor.entries={south:{x:15,y:27},north:{x:15,y:2}};
+  const zone='overworld-haunted-woods',nodes=resourceNodes(zone,f.floor);
+  assert.equal(nodes.filter(n=>n.item==='wood'&&!n.id.startsWith('resource_wood_gate_')).length,2); // Existing scattered IDs remain available.
+  for(const [gate,entry] of Object.entries(f.floor.entries)){
+   const node=nodes.find(n=>n.id==='resource_wood_gate_'+gate);assert.ok(node);
+   assert.ok(Math.abs(node.x-entry.x)+Math.abs(node.y-entry.y)<=5);
+   assert.ok(reachableTiles(f.floor).some(p=>p.x===node.x&&p.y===node.y));
+   const p={zone,x:node.x,y:node.y};f.act({action:'craft_harvest',fixture:node.id},p);
+   assert.throws(()=>f.act({action:'craft_harvest',fixture:node.id},p),/today/);
+  }
+  const wood=f.s.loadout.inventory.find(n=>n.item_id==='wood');assert.equal(wood.quantity,6);assert.equal(stackTokens(wood).length,6);
  }finally{f.db.close();}
 });
 test('crafting consumes verified units across mixed stacks and preserves untracked copies',()=>{

@@ -4,6 +4,7 @@ import {movementDelay,moveBurst,paceStep,paceSingle,extendTrail} from './crawl.m
 import {createDiveControls} from './world-dive.mjs';
 import {addCraftingWildlife,awardWildlife,awardCraftingDungeon} from './crafting-wildlife.mjs';
 import {createDiveEncounters} from './dive-encounters.mjs';
+import {awardMonsterCoins} from './monster-rewards.mjs';
 import {generatorName} from './compute-tasks.mjs'; // Maps a generator function to the name the worker pool understands.
 import {addPinkMist,mistAt} from './dive-mist.mjs';
 import {smokeConfig,smokeView,smokeAt} from './pink-smoke.mjs'; // Drifting Pink Smoke clouds on overworlds.
@@ -62,7 +63,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  CREATE TABLE IF NOT EXISTS dive_progress(character_id TEXT NOT NULL,route TEXT NOT NULL,edition TEXT NOT NULL,depth INTEGER NOT NULL,state TEXT NOT NULL,PRIMARY KEY(character_id,route,edition,depth));
  CREATE INDEX IF NOT EXISTS dive_editions_latest ON dive_editions(route,starts,updated,edition);`); // Covering index for latest(): without it every tick read each retained edition's row, including walking past its large floor JSON to reach `updated`, then sorted them.
  const dungeonRules=config.full_dungeon_version?createDungeonRules({db,data,now,roll,origins,adjust,progress,saveProgress,saveFloor,traps}):null;
- const encounters=createDiveEncounters(db,{live,now,roll,data,parties,origins,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate,gone});
+ const encounters=createDiveEncounters(db,{live,now,roll,data,parties,origins,adjust,saveFloor,progress,saveProgress,pay,back,entry,saveCharacter,relocate,gone});
  let lastTick=-Infinity,lastRoam=-Infinity,nextSweep=-Infinity,retryAt=0,dressingRetryAt=0,generationPending=null,roamingPending=null,closed=false,settledKey=null; // settledKey: edition|content revision of the last full maintain pass (idle fast path).
  const presentQuery=db.prepare('SELECT 1 FROM quest_presence WHERE zone=? AND seen>? LIMIT 1'); // Cheap "is anybody here?" check; same 30 s window as roamingPlayers().
  const floorQuery=db.prepare('SELECT * FROM dive_editions WHERE route=? AND edition=? AND depth=1');
@@ -174,7 +175,9 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   applyDefeatDignity(state,run,outcome); // Lost fights drain dignity like the campaign (-64, -96 in a childish outfit, scaled by Shame); lines land in run.log.
   applyDefeatAftermath(state,run,outcome); // The loss blurb's own effects (bladder/tummy fill, Dignity, needs) settle once; its accident beats play on the client.
   logEncounterEnd(state,run,outcome,{needsBefore,hp_left:hpLeft,boss:run.encounter===bossId?1:0});
-  syncRunHealth(state,run);state.lastResult={outcome,coins:0,rounds:1,zone:zoneId,log:run.log,...defeatPresentation(run,outcome),...(equipment?{defeatEquipment:equipment}:{})};state.run=null;
+  const bonus=outcome==='win'?pay(c,state,record,now()<record.ends+10*minutes):0; // Settle the deferred first-clear entitlement before ordinary drops, as shared combat does.
+  const coins=bonus+(outcome==='win'?awardMonsterCoins(db,{character:c,enemies:[run.enemy],adjust,now,roll}):0); // Legacy solo encounters use the same account allowance as shared combat.
+  syncRunHealth(state,run);state.lastResult={outcome,coins,rounds:1,zone:zoneId,log:run.log,...defeatPresentation(run,outcome),...(equipment?{defeatEquipment:equipment}:{})};state.run=null;
   if(state.dive)state.dive.safeUntil=now()+10*seconds;
   if(record)saveFloor(record);
  } // Combat settlement is independent of arena rounds, pots and handicaps.
@@ -493,12 +496,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    else fail('Unknown dungeon action.');
   }
   if(['win','defeat','charm_backfire'].includes(result)){
-   const grace=state.run?.kind==='dive'&&now()<record.ends+10*minutes;
    finish(c,state,record,result);
-   if(result==='win'){ // A fight already underway at reset may settle its first boss entitlement during grace.
-    if(record.edition===latest())state.lastResult.coins=pay(c,state,record);
-    else if(grace)state.lastResult.coins=pay(c,state,record,true);
-   }
    if(record.edition!==latest())back(c,state);
   }
  }

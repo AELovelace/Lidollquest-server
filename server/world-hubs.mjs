@@ -4,7 +4,7 @@ import {createDiveEncounters} from './dive-encounters.mjs';
 import {mapRevision} from './world-dive.mjs';
 import {pathTo,walkable} from './dive-generation.mjs';
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'hub_encounter_conflict'});};
-export function createHubEncounters(db,{now,roll,parties,live,definition,ids}){
+export function createHubEncounters(db,{now,roll,parties,live,definition,ids,adjust}){
  db.exec('CREATE TABLE IF NOT EXISTS world_hub_maps(zone TEXT PRIMARY KEY,edition TEXT NOT NULL,content TEXT NOT NULL,updated INTEGER NOT NULL)');
  const engines=new Map();
  function engine(zone){
@@ -19,7 +19,7 @@ export function createHubEncounters(db,{now,roll,parties,live,definition,ids}){
    if(scene&&s.deferDefeatReturn){s.pendingDefeat={id:scene.id,position,readyAt:downedAt+60000,sceneComplete:false,hub:zone};return;}
    s.hubSafeUntil=now()+10000;db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(position.x,position.y,c.id);
   }
-  const encounters=createDiveEncounters(db,{live,now,roll,data,parties,saveFloor,saveCharacter,progress:()=>({}),saveProgress:()=>{},pay:()=>0,back:()=>{},entry:f=>f.entrance,relocate,context:{eligible:(s,c)=>s.contentVersion===1&&db.prepare('SELECT zone FROM quest_presence WHERE character_id=?').get(c.id)?.zone===zone}});
+  const encounters=createDiveEncounters(db,{live,now,roll,data,parties,adjust,saveFloor,saveCharacter,progress:()=>({}),saveProgress:()=>{},pay:()=>0,back:()=>{},entry:f=>f.entrance,relocate,context:{eligible:(s,c)=>s.contentVersion===1&&db.prepare('SELECT zone FROM quest_presence WHERE character_id=?').get(c.id)?.zone===zone}});
   const players=()=>db.prepare('SELECT c.*,p.x,p.y,p.seen FROM quest_characters c JOIN quest_presence p ON p.character_id=c.id WHERE p.zone=?').all(zone);
   const positions=()=>db.prepare('SELECT c.id,c.name,p.x,p.y FROM quest_characters c JOIN quest_presence p ON p.character_id=c.id WHERE p.zone=?').all(zone); // Same rows as players() without each character's whole saved state: the map view and placement checks only need where people stand.
   function view(){const r=record();return {id:zone,kind:'hub',edition:r.edition,revision:mapRevision(r),floor:r.floor,players:positions().map(c=>({id:c.id,name:c.name,x:c.x,y:c.y}))};}

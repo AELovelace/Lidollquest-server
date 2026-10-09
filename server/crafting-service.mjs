@@ -47,6 +47,14 @@ export function resourceNodes(zone,floor){
  const materials=[...region.nodes,...region.nodes,...(region.rare??[])],nodes=[];
  for(let i=0;i<materials.length;i++){const at=rnd(tiles.length),p=tiles.splice(at,1)[0];if(!p)break;nodes.push({...p,id:'resource_'+i,item:materials[i],name:craftCatalog[materials[i]]?.name??materials[i],quantity:region.rare?.includes(materials[i])?1:2+rnd(3)});}
  const spot=tiles.find(p=>Math.abs(p.x-(floor.entrance?.x??0))+Math.abs(p.y-(floor.entrance?.y??0))>3);if(spot)nodes.push({...spot,id:'craft_campfire',kind:'campfire',name:'Campfire'});
+ if(region.nodes.includes('wood')){
+  const entries=Object.entries(floor.entries??{entrance:floor.entrance}).filter(([,p])=>p);
+  for(const [gate,entry] of entries){
+   const reserved=[...nodes,...(floor.chests??[]),...(floor.pickups??[]),...(floor.exits??[])];
+   const nearby=reachableTiles({...floor,spawn:entry}).find(p=>{const distance=Math.abs(p.x-entry.x)+Math.abs(p.y-entry.y);return distance>=2&&distance<=5&&reserved.every(n=>n.x!==p.x||n.y!==p.y);});
+   if(nearby)nodes.push({...nearby,id:'resource_wood_gate_'+gate,item:'wood',name:craftCatalog.wood.name,quantity:3}); // Append stable IDs so existing daily claims and scattered nodes keep their identity.
+  }
+ } // Visible wood near each forest/taiga arrival makes the gathering source discoverable without rerolling the map.
  if(resourceCache.size>100)resourceCache.clear();resourceCache.set(cacheKey,nodes);return nodes;
 }
 export function createCraftingService(db,{now=Date.now,origins,loot,alchemyStore}){
