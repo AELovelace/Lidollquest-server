@@ -9,7 +9,8 @@ import {pathTo,inside} from '../server/dive-generation.mjs';
 function fixture(options={}){
  const db=new DatabaseSync(':memory:');let time=Date.parse('2026-09-16T12:00:00Z'),owner='alice',api;
  const loadout={player_info:{class_id:'fighter',playerHealth:500,playerHealthMax:500,str:100,def:20,dex:20,int:20,cha:100,level:30,xp:0,stat_points:0},inventory:[],player_spells:['fireball'],player_mp:100,player_mp_max:100};
- const setup=()=>api=createQuestZones(db,{now:()=>time,roll:()=>0,grant:()=>({owner,id:owner,client:'lidollquest'}),wallet:()=>({coins:0}),adjust:()=>assert.fail('The Tundra does not mint boss coins'),diveOptions:{log:()=>{}},tundraOptions:{log:()=>{},generate:(...args)=>{const f=generateDesert(...args);f.enemies.forEach(e=>e.roaming=false);return f;},...options}});setup(); // Freeze roaming only in command tests so synthetic positioning cannot race the clock.
+ const paid=[],adjust=(owner,asset,amount,receipt,reason)=>{assert.equal(reason,'Monster victory','The Tundra pays monster drops, never boss bonuses');paid.push({owner,asset,amount});}; // Record ordinary loot while still rejecting unexpected wallet rewards.
+ const setup=()=>api=createQuestZones(db,{now:()=>time,roll:()=>0,grant:()=>({owner,id:owner,client:'lidollquest'}),wallet:()=>({coins:0}),adjust,diveOptions:{log:()=>{}},tundraOptions:{log:()=>{},generate:(...args)=>{const f=generateDesert(...args);f.enemies.forEach(e=>e.roaming=false);return f;},...options}});setup(); // Freeze roaming only in command tests so synthetic positioning cannot race the clock.
  const snap=id=>api.read('',id);
  function command(id,action,extra={}){const s=snap(id);return {action,request_id:randomUUID(),controller:'window',character_id:id,revision:s.character.revision,...(s.character.dive?{edition:s.dive.edition}:{}),...extra};}
  function act(id,action,extra={}){time+=350;return api.act('',command(id,action,extra));}
@@ -17,7 +18,7 @@ function fixture(options={}){
  function place(id,p){const state=JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(id).state);state.dive.position={x:p.x,y:p.y};state.dive.safeUntil=time+600000;db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),id);db.prepare('UPDATE quest_presence SET x=?,y=?,seen=? WHERE character_id=?').run(p.x,p.y,time,id);}
  const floor=id=>snap(id).zones.find(z=>z.id===TUNDRA_ZONE);
  function near(id,p){const f=floor(id),path=pathTo(f,f.entrance,p);place(id,path.length>1?path.at(-2):f.entrance);}
- return {db,loadout,snap,act,command,raw:i=>api.act('',i),player,place,near,floor,restart:setup,as:n=>owner=n,time:t=>time=Date.parse(t),tick:()=>api.tick()};
+ return {db,paid,loadout,snap,act,command,raw:i=>api.act('',i),player,place,near,floor,restart:setup,as:n=>owner=n,time:t=>time=Date.parse(t),tick:()=>api.tick()};
 }
 
 test('Tundra preserves the gateway response limit, full inventory claims and pending needs turns',()=>{
@@ -51,6 +52,8 @@ test('fresh characters can fight the beginner roster with each existing class',(
    }
    assert.equal(f.snap(id).character.lastResult.outcome,'win',cls);
    assert.equal(f.snap(id).dive.claimableCoins,0);
+   const coins=f.snap(id).character.lastResult.coins;assert.ok(Number.isSafeInteger(coins)&&coins>0);
+   assert.deepEqual(f.paid,[{owner:'alice',asset:'coins',amount:coins}]); // Beginner victories receive ordinary monster loot without a boss entitlement.
   }finally{f.db.close();}
  }
 });
@@ -133,6 +136,9 @@ test('all classes fight authored Tundra enemies; engagement locks and committed 
    f.as('alice');f.restart();assert.equal(f.snap(a).character.run.encounter,enemy.id);
    for(let n=0;n<12&&f.snap(a).character.run;n++){let s=f.snap(a);if(!s.character.run.turnReady)f.act(a,'turn_ready',{loadout:s.character.loadout,forfeit:false});f.act(a,cls==='mage'?'cast':cls==='diplomat'?'allure':'attack',{spell:'fireball'});}
    assert.equal(f.snap(a).character.run,null);assert.equal(f.snap(a).character.lastResult.outcome,'win');assert.equal(f.snap(a).dive.claimableCoins,0);
+   const coins=f.snap(a).character.lastResult.coins;assert.ok(Number.isSafeInteger(coins)&&coins>0);
+   assert.deepEqual(f.paid,[{owner:'alice',asset:'coins',amount:coins}]); // One monster payout matches the result; no boss bonus or payment to the blocked challenger.
+   f.restart();assert.equal(f.snap(a).character.lastResult.coins,coins);assert.equal(f.paid.length,1,'Reconnect must not repay the victory');
   }finally{f.db.close();}
  }
 });

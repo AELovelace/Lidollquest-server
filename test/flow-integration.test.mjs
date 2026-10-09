@@ -54,7 +54,13 @@ for(const lineupSize of [1,2,3])test('actual story combat with '+lineupSize+' en
    if(i<targets.length-1){assert.equal(c.run.sharedEncounter,encounter);assert.equal(paid.length,1);assert.equal(c.fullDungeon.flags.story_scout,false);}
   }
 
-  assert.equal(c.run,null);assert.equal(r.flowScene,null);assert.equal(paid.length,2,'One real flow reward per completed run');
+  assert.equal(c.run,null);assert.equal(r.flowScene,null);
+  const flowRewards=paid.filter(v=>v[4]===entry.name),monsterRewards=paid.filter(v=>v[4]==='Monster victory'); // Combat loot is separate from the story node's reward receipt.
+  assert.deepEqual(flowRewards.map(v=>v.slice(0,3)),[['gm','coins',3],['gm','coins',3]],'One real flow reward per completed run');
+  assert.ok(Number.isSafeInteger(c.lastResult.coins)&&c.lastResult.coins>0);
+  assert.deepEqual(monsterRewards.map(v=>v.slice(0,3)),[['gm','coins',c.lastResult.coins]],'One monster payout for the completed lineup');
+  assert.equal(paid.length,3,'No other wallet rewards are issued');
+  api.close();boot();r=api.read('',c.id);c=r.character;assert.equal(paid.length,3,'Reconnect must not repay monster or story rewards');
   assert.equal(c.fullDungeon.flags.story_scout,true);assert.ok(r.onlineQuests.instances.some(q=>q.quest===quest.id&&q.status==='claimed'));
   db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(at.x+1,at.y,c.id); // Return from the encounter tile before revisiting the scout.
   r=act('npc_talk',{placement:at.id,edition:map.edition});assert.equal(r.onlineQuests.conversation.text,'Thank you');act('npc_close');
