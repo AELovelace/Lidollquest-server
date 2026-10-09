@@ -180,7 +180,7 @@
     "source": "zone-music.md",
     "title": "Zone music",
     "kicker": "GM panel tab",
-    "description": "Pick the field, battle and boss music for every online zone, with inheritance and in-browser previews.",
+    "description": "Zone, Map Editor and Story Workshop music: library songs, GM uploads, inheritance, story overrides and the priority order.",
     "group": "Authoring reference"
   },
   {

@@ -1,0 +1,47 @@
+{
+  "boss": {
+    "id": "1d185911f40c11e3378ea8c29549ea12",
+    "seconds": 141.3,
+    "source": "7f6a8f3c0de21299d9f7abf1975c518c05aab487cad5ea768db745d1e593bb63"
+  },
+  "castle": {
+    "id": "7011790a3ac6742dfe2dd85cac1c2328",
+    "seconds": 1.9,
+    "source": "0dfef69ec18a75712d1c37589fdfeb9858582bc3355de31e4cf44b8fa90816fe"
+  },
+  "combat": {
+    "id": "fc55890478a598d359176b6cff1ee86c",
+    "seconds": 45.3,
+    "source": "5755914b950640749291239273ef87138227281b14a9663f8f1767a4bbaa79b9"
+  },
+  "desert": {
+    "id": "b522702b2653067d8f93329b5efaf970",
+    "seconds": 144.1,
+    "source": "3912c52933866ff14300e3ddff9cee16a5158d5a549a96d53df7ee79f70b960d"
+  },
+  "dungeon": {
+    "id": "6391a7b3ad1866fb194b39a019d39c57",
+    "seconds": 30.1,
+    "source": "fe27988cc7d9de82aa3a18e65e62b29bf186b177e32891b3b844f6f6f42b656d"
+  },
+  "forest": {
+    "id": "e2e632187ebf61e0bdd37a98cf66f6b4",
+    "seconds": 30.1,
+    "source": "6e65d21ce971c19706cd89378cf99070a28d7816a11bcf705ed2ce1141278c04"
+  },
+  "princess": {
+    "id": "1aeaece3345f9e0db847535c849fbe20",
+    "seconds": 30.1,
+    "source": "2bcec0237724b282b45c0f99d548cb44bf5473dddb998f1a6cacbd1335347a32"
+  },
+  "princess2": {
+    "id": "1aeaece3345f9e0db847535c849fbe20",
+    "seconds": 30.1,
+    "source": "2bcec0237724b282b45c0f99d548cb44bf5473dddb998f1a6cacbd1335347a32"
+  },
+  "town": {
+    "id": "d0b0c76214298f07988ba9ba598e21e7",
+    "seconds": 60.1,
+    "source": "2dc998ec90ffac589e7b8bd644aae8425d7d225bb384c837522734bc72e842ff"
+  }
+}

@@ -127,7 +127,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
   const q={id:previous?.id??randomUUID(),quest:key,character_id:c.id,revision:digest(definition),definition,created:previous?.created??now(),state:previous?{...previous.state,status:previous.state.abandoned_status??'active'}:{status:'active',stage:definition.stages[0].id,progress:{},tokens:{},elapsed:0,last_tick:now(),branch:[]}};
   db.prepare('INSERT INTO online_quests VALUES (?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state').run(q.id,c.id,key,q.revision,JSON.stringify(definition),JSON.stringify(q.state),q.created);if(autoTrack)s.questTracked=q.id;evaluate(q,c,s);return q;
  } // Reaccepting an abandoned attempt resumes its original timer and progress instead of resetting eligibility.
- function transition(q,to){if(['complete','failed'].includes(to))q.state.status=to==='complete'?'ready':'failed';else{q.state.stage=to;q.state.status='active';q.state.stage_started=q.state.elapsed;}}
+ function transition(q,to){if(['complete','failed'].includes(to))q.state.status=to==='complete'?'ready':'failed';else{q.state.stage=to;q.state.status='active';q.state.stage_started=q.state.elapsed;q.state.stage_entered=now();}} // stage_entered: wall clock, so stage music from two quests can be ordered.
  function completeObjective(q,stage,o,s){
   q.state.completed_objectives??={};q.state.completed_objectives[stage.id+':'+o.id]=true; // Remember success even after later stages or inventory changes, for objective entry blocks.
   const targets=o.on_complete_flags??[],key=stage.id+':'+o.id;if(!targets.length||q.state.completion_flags_applied?.[key])return;
@@ -267,6 +267,19 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
    db.prepare('UPDATE online_conversations SET page=?,expires=? WHERE character_id=?').run(next,now()+300000,c.id);
   }else if(input.action==='npc_close')db.prepare('DELETE FROM online_conversations WHERE character_id=?').run(c.id);else fail('Unknown quest action.');
  }
+  function stageMusic(c,zone){ // Quest stage music for this character in `zone`: exact zone beats "any zone", then the most recently entered stage wins.
+  if(!c||!zone)return null;let best=null,rank=-1;
+  for(const q of instances(c)){
+   if(!['active','choice'].includes(q.state.status))continue;
+   const stage=q.definition.stages.find(v=>v.id===q.state.stage);if(!stage?.music?.length)continue;
+   for(const m of stage.music){
+    if(m.zone!==zone&&m.zone!=='*')continue;
+    const score=(m.zone===zone?1e15:0)+(q.state.stage_entered??q.created??0); // Exact zone first, then recency.
+    if(score>rank){rank=score;best={track:m.track??null,battle:m.battle??null,boss:m.boss??null,volume:m.volume??100,quest:q.definition.name,stage:stage.name||stage.id};}
+   }
+  }
+  return best;
+ }
  function publicQuest(q,s){const stage=q.definition.stages.find(v=>v.id===q.state.stage);return {id:q.id,quest:q.quest,revision:q.revision,name:q.definition.name,description:q.definition.description,status:q.state.status,stage:stage?.id,text:stage?.text,objectives:(stage?.objectives??[]).map(o=>({...o,text:o.text===q.definition.description?fullDungeonObjectiveText(q.quest,{...o,stage:stage.id}):o.text,progress:q.state.progress[stage.id+':'+o.id]??0})),branches:q.state.status==='choice'?stage.branches.filter(b=>conditions(s,b.conditions)).map(({id,label})=>({id,label})):[],rewards:q.definition.rewards,turn_in:q.definition.turn_in,remaining:q.definition.timer.seconds?Math.max(0,q.definition.timer.seconds-Math.floor(q.state.elapsed/1000)):null,reward:q.state.reward??null,failure:q.state.failure??q.definition.failure_text};}
  function snapshot(c,s){if(!c)return null;const talk=db.prepare('SELECT * FROM online_conversations WHERE character_id=? AND expires>?').get(c.id,now());let conversation=null;
   if(talk){const d=JSON.parse(talk.definition),page=d.dialogue.find(p=>p.id===talk.page);conversation={id:talk.id,npc:d.id,name:d.name,sprite:d.battle_sprite||d.sprite,...(d.look&&!d.battle_sprite?{look:d.look}:{}),page:talk.page,text:(page?.text??'End of conversation.')+(page?.actions.filter(a=>a.effect==='offer').map(a=>{const review=d.quest_reviews?.[a.quest];if(!review)return '';const r=review.rewards;return '\n\n'+review.name+' rewards: '+r.xp+' XP; '+r.coins+' coins (account cap applies); '+r.rpp+' RPP; items: '+r.items.map(i=>i.count+' x '+i.id).join(', ')+'; spells: '+r.spells.join(', ')+'; permanent stats: '+Object.entries(r.stats).map(([key,value])=>key+' '+value).join(', ')+'; forced equipment: '+r.equipment.join(', ');}).join('')??''),ended:!page,choices:page?.actions.map((a,index)=>({index,label:a.label,available:conditions(s,a.conditions)&&(a.effect!=='offer'||canOffer(c,s,offerDefinition(c,a.quest),d.id))}))??[]};}
@@ -298,7 +311,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
   else {const q=active(c,n.ref);if(q){q.state.abandoned_status=q.state.status;q.state.status='abandoned';save(q);}}
  } // Flow operations retain ordinary prerequisites, progress and reward receipts.
  function flowObjective(c,key){return instances(c).some(q=>q.quest===key&&['ready','claimed'].includes(q.state.status));}
- return {placements,visiblePlacements,act,after,event,flow,flowObjective,snapshot,conditions,gm,gmCatalog,resetFlags,trackedQuest(c,s){const q=c?tracked(c,s):null;return q?publicQuest(q,s):null;}/* The tracked quest's public view, for the minimap guide (quest-guide.mjs). */,detail(c,s,id){const q=instances(c).find(q=>q.id===id||q.quest===id);if(!q)fail('Quest not found.',404);return publicQuest(q,s);},tick(){const full=now()>=nextQuestSweep;if(full)nextQuestSweep=now()+30000; // Offline characters' online timers cannot advance (elapsed stops at seen+30 s), so they only need the 30 s sweep; after() still ticks them on their next action.
+ return {placements,visiblePlacements,act,after,event,flow,flowObjective,snapshot,conditions,gm,gmCatalog,resetFlags,stageMusic,trackedQuest(c,s){const q=c?tracked(c,s):null;return q?publicQuest(q,s):null;}/* The tracked quest's public view, for the minimap guide (quest-guide.mjs). */,detail(c,s,id){const q=instances(c).find(q=>q.id===id||q.quest===id);if(!q)fail('Quest not found.',404);return publicQuest(q,s);},tick(){const full=now()>=nextQuestSweep;if(full)nextQuestSweep=now()+30000; // Offline characters' online timers cannot advance (elapsed stops at seen+30 s), so they only need the 30 s sweep; after() still ticks them on their next action.
   for(const c of db.prepare('SELECT DISTINCT c.* FROM online_quest_flag_resets r JOIN quest_characters c ON c.id=r.character_id WHERE r.applied=0 AND r.due<=?').all(now())){
    const state=JSON.parse(c.state),before=JSON.stringify(state.fullDungeon?.flags);resetFlags(c,state);savePassiveFlags(c,state,before);
   } // Due-only sweep includes offline characters and commits clears before evaluating any timer objectives.

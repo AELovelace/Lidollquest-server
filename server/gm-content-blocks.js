@@ -115,6 +115,19 @@ function contentSelect(parent,label,obj,key,options){
  const opts=[{id:'',name:'Choose…'},...options];if(obj[key]&&!opts.some(o=>o.id===obj[key]))opts.push({id:obj[key],name:obj[key]+' (current reference)'});
  return field(parent,label,obj,key,'text',opts);
 } // Preserve existing native or draft references even when they are absent from a filtered catalogue.
+function stageMusicProperties(host,stage){ // While this stage is current, the listed zones play these songs for the player (zone music otherwise).
+ el('h3','Stage music',host);
+ const songs=cat.music?.songs,options=blank=>[{id:'',name:blank},...(songs?songs.catalog.map(t=>({id:t.name,name:t.name})):[]),...(songs?songs.uploads.map(u=>({id:'upload:'+u.id,name:u.title+' (upload)'})):[])];
+ for(const [i,m] of (stage.music??[]).entries()){
+  const box=el('fieldset',undefined,host);
+  field(box,'Zone',m,'zone','text',[{id:'*',name:'Any zone'},...referenceOptions('zones')]);
+  field(box,'Field song',m,'track','text',options('(zone music)'));field(box,'Battle song',m,'battle','text',options('(zone / game default)'));field(box,'Boss song',m,'boss','text',options('(zone / game default)'));
+  const volume=field(box,'Volume (0-100)',m,'volume','number');volume.min=0;volume.max=100;volume.step=1;
+  button(box,'Remove',()=>{checkpoint();stage.music.splice(i,1);if(!stage.music.length)delete stage.music;changed();properties();});
+ }
+ button(host,'+ Stage music',()=>{checkpoint();stage.music??=[];stage.music.push({zone:'*',track:'',battle:'',boss:'',volume:100});changed();properties();});
+ el('p','Overrides zone music for this player only, while this stage is current. An exact zone beats "Any zone"; if two quests overlap, the stage entered most recently wins. Story Workshop scene music and stings still play over it.',host).className='hint';
+}
 function contentProperties(){
  if(contentAsset()?.kind==='sheet')return sheetProperties();
  const a=contentAsset(),d=a.entry,host=$('properties'),g=contentGraph(),n=g.nodes.find(n=>selected.has(n.id))??g.nodes[0];host.replaceChildren();
@@ -151,7 +164,7 @@ function contentProperties(){
  else if(n.role==='failed')field(host,'Failure message',d,'failure_text','textarea');
  else if(n.role!=='close'){
   for(const key of Object.keys(n.data)){
-   if(['objectives','branches','actions','next','to','page','entry'].includes(key))continue;
+   if(['objectives','branches','actions','next','to','page','entry','music'].includes(key))continue; // music: its own list editor below (stageMusicProperties)
    if(key==='quest'){contentSelect(host,'Journal quest',n.data,key,referenceOptions('quests'));continue;}
    if(key==='effect'){field(host,'Quest action',n.data,key,'text',['none','offer','turn_in','branch']);continue;}
    if(key==='mode'){field(host,'Objectives required',n.data,key,'text',[{id:'all',name:'All objectives'},{id:'any',name:'Any objective'}]);continue;}
@@ -160,6 +173,7 @@ function contentProperties(){
    form(host,{get [key](){return n.data[key];},set [key](v){n.data[key]=v;}});
   }
   if(n.role==='action'&&!Object.hasOwn(n.data,'branch'))field(host,'Branch ID (branch action)',n.data,'branch');
+   if(n.role==='stage')stageMusicProperties(host,n.data);
   if(n.role==='reaction')field(host,'Flow entry (instead of dialogue page)',n.data,'entry').addEventListener('change',()=>{if(n.data.entry)n.data.page='';changed();});
  }
  for(const output of n.outputs){

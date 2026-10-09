@@ -475,6 +475,48 @@ existing chain, which is what the right-to-left walk above expects. Publish only
 `/gm`: the gameplay API authenticates its own callers and does not belong on this
 hostname.
 
+### Served music (2026-10-09)
+
+No music is compiled into the game. Every song (library tracks and GM uploads) is
+a file this service serves publicly at `GET /music/<id>.mp3|.ogg`. Files are named
+by content hash and sent with immutable cache headers and byte-range support. The
+game fetches songs from its own site at `/quest-music/`. The browser build plays
+the mp3; desktop builds download the ogg once into their save folder.
+
+- **Library:** `server/music-library/` and `server/music-library.json` are written
+  by the game repo's `python/export_online_music.py` from its `audio-masters/music/`
+  folder. Commit them like any other export.
+- **Uploads:** stored in `$DATA_DIR/music` (`/var/lib/lidollquest-server/music`) and
+  converted by ffmpeg (`server/music-transcode.mjs`). `deploy/fedora-deploy.sh`
+  installs `ffmpeg-free` and refuses to continue unless both the `libmp3lame` and
+  `libvorbis` encoders are present.
+- **Environment:** `QUEST_FFMPEG`, `QUEST_MUSIC_BITRATE_KBPS`,
+  `QUEST_MUSIC_MAX_UPLOAD_MB` and `QUEST_MUSIC_PUBLIC_BASE` are described in
+  `deploy/server.env.example`.
+
+One-time proxy setup on the nginx host:
+
+1. Install `deploy/nginx-quest-music-cache.conf` in the HTTP context (for example
+   `/etc/nginx/conf.d/`). Create its cache folder:
+   `sudo mkdir -p /var/cache/nginx/quest-music && sudo chown nginx:nginx /var/cache/nginx/quest-music`.
+2. Include `deploy/nginx-quest-music.conf` inside the `lidoll.dev` HTTPS server
+   block. It publishes `/quest-music/` with `proxy_cache_lock`, so a crowd hearing a
+   new song costs one upstream fetch. Its `proxy_pass` must reach this service the
+   same way your `/gm` location does. `HOST` in `/etc/lidollquest/server.env`
+   defaults to `127.0.0.1`, which only local callers can reach.
+3. Place that snippet's `location = /gm/music/upload` beside your existing `/gm`
+   location, with the same proxy settings. It allows 50 MB bodies and a 200 s read
+   timeout for conversion.
+4. If the `/game/` page sends a Content-Security-Policy, allow `media-src 'self'`.
+5. Run `sudo nginx -t && sudo systemctl reload nginx`. Then check
+   `curl -sI https://lidoll.dev/quest-music/<id>.mp3` twice: the second response
+   shows `X-Cache-Status: HIT`.
+
+Takedown: deleting an upload removes it from this service. Copies stay in the
+proxy cache until they go 14 days unrequested; purge them with
+`sudo rm -rf /var/cache/nginx/quest-music/*`. The GM-facing guide is
+`server/gm-wiki/content/zone-music.md`.
+
 ### Routes
 
 `GET /gm` serves a single self-contained page with no external assets; the shell

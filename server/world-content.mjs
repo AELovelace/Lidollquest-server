@@ -95,7 +95,7 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
  function validate(kind,value){
   if(!value||!id(value.id))fail('Choose a stable lowercase content ID.');
   if(kind==='sheet')return storySheets.validate(value);
-  if(['npc','quest'].includes(kind))return validateQuestContent(kind,value,{assetRef,spells,equipment,look:value=>validateLook(value,{db,fail})}); // NPC looks use shared artwork, not another account's personal layers.
+  if(['npc','quest'].includes(kind))return validateQuestContent(kind,value,{assetRef,spells,equipment,look:value=>validateLook(value,{db,fail}),musicTrack}); // musicTrack: zone-music.mjs song names for quest stage music (set by zones.mjs). // NPC looks use shared artwork, not another account's personal layers.
   if(kind==='monster'){
    const out={id:value.id,enemy_id:value.enemy_id??value.id,name:text(value.name,100),retired:!!value.retired};if(!id(out.enemy_id))fail('Invalid enemy identity.');
    for(const key of ['hp','str','def','dex','exp'])out[key]=integer(value[key],key==='hp'?1:0,key==='hp'?100000:10000);
@@ -202,9 +202,9 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
   if(typeof input.request_id!=='string'||! /^[A-Za-z0-9_-]{8,100}$/.test(input.request_id))fail('A request ID is required.');const fingerprint=JSON.stringify(input),prior=db.prepare('SELECT * FROM world_commands WHERE actor=? AND id=?').get(actor,input.request_id);
   if(prior){if(prior.fingerprint!==fingerprint)fail('Request ID was already used.',409);return JSON.parse(prior.result);}const result=work();db.prepare('INSERT INTO world_commands VALUES (?,?,?,?)').run(actor,input.request_id,fingerprint,JSON.stringify(result));return result;
  }
- let referenceCheck=null,storyReferenceCheck=null;
+ let referenceCheck=null,storyReferenceCheck=null,musicTrack=null; // musicTrack: set once zone music exists (setMusicTrack).
  registerQuestPack(questPack); // Before any caller reads published(), so the first snapshot already carries the pack.
  if(!blankCanvas)registerQuestLibrary(questLibraryPack); // Empty online canvases no longer preload the old quest-writing library.
  registerInteractionPresentation({registerSheet}); // Load editable presentation defaults once; saved rows remain overlays.
- return {blankCanvas,cleanFloor:floor=>blankCanvas&&clearBuiltinFixtures(floor),mapReady:null,questEvent:null,placementPositions:null,setReferenceCheck(fn){referenceCheck=fn;},setStoryReferenceCheck(fn){storyReferenceCheck=fn;},register,registerQuestPack,registerSheet,fixtureSheet,sheet,sheetHistory,sheetDefault,validateSheet,published,entry,markAuthorship,change,bundle,view,resolve,putAsset,asset,assetRef,once,invalidate(){cache=null;}}; // Placements share the editor's compiled/immutable artwork validation.
+ return {blankCanvas,cleanFloor:floor=>blankCanvas&&clearBuiltinFixtures(floor),mapReady:null,questEvent:null,placementPositions:null,setReferenceCheck(fn){referenceCheck=fn;},setMusicTrack(fn){musicTrack=typeof fn==='function'?fn:null;},setStoryReferenceCheck(fn){storyReferenceCheck=fn;},register,registerQuestPack,registerSheet,fixtureSheet,sheet,sheetHistory,sheetDefault,validateSheet,published,entry,markAuthorship,change,bundle,view,resolve,putAsset,asset,assetRef,once,invalidate(){cache=null;}}; // Placements share the editor's compiled/immutable artwork validation.
 }

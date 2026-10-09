@@ -7,7 +7,7 @@ const id=v=>typeof v==='string'&&/^[a-z][a-z0-9_-]{0,79}$/.test(v)&&!['construct
 const text=(v='',max=4000)=>typeof v==='string'&&v.length<=max?v:fail('Text is too long.');
 const list=(v=[],max=256)=>Array.isArray(v)&&v.length<=max?v:fail('Too many entries.');
 export const FLOW_NODES={
- entry:['next'],npc_entry:['next'],flag_entry:['next'],objective_entry:['next'],dialogue:['next'],narrative:['next'],choice:[],condition:['match','no_match'],piety_check:['match','no_match'],set_flag:['next'],clear_flag:['next'],quest:['next'],objective:['complete'],battle:['victory','defeat','retreat'],reward:['next'],effect:['next'],travel:['next'],spawn:['next'],reveal_orb:['next'],hide_orb:['next'],end:[]
+ entry:['next'],npc_entry:['next'],flag_entry:['next'],objective_entry:['next'],dialogue:['next'],narrative:['next'],choice:[],condition:['match','no_match'],piety_check:['match','no_match'],set_flag:['next'],clear_flag:['next'],quest:['next'],objective:['complete'],battle:['victory','defeat','retreat'],reward:['next'],effect:['next'],travel:['next'],spawn:['next'],reveal_orb:['next'],hide_orb:['next'],music:['next'],end:[]
 };
 export function flowPorts(node){return node.type==='choice'?node.choices.map(c=>c.id):FLOW_NODES[node.type]??[];}
 export function battleMonsters(node){return node.monsters??(node.ref?[node.ref]:[]);} // Old single-monster stories remain valid without migrating saved runs.
@@ -21,6 +21,13 @@ export function validateFlow(input,{catalog=null,flags=[],publish=false}={}){
   if(triggerTypes.includes(node.type)){node.start_zone=text(n.start_zone,160);node.start_location=text(n.start_location,160);if(node.start_zone&&catalog&&!catalog.zones?.some(z=>z.id===node.start_zone))problem(node.id,'Choose an existing start zone.');if(node.start_location&&!node.start_zone)problem(node.id,'Choose a zone for the start location.');}
   if(node.type==='npc_entry'){node.repeatable=n.repeatable!==false;if(!node.ref)problem(node.id,'Choose the NPC whose dialogue this entry replaces.');}
   if(node.type==='piety_check')node.piety=validatePietyCheck(n.piety);
+  if(node.type==='music'){ // Music block: scene = loop until the scene ends, once = a sting, silence, keep = a song that follows the character, clear = forget it.
+   node.mode=['scene','once','silence','keep','clear'].includes(n.mode)?n.mode:fail('Choose what the Music block does.');
+   node.track=['scene','once','keep'].includes(node.mode)?text(n.track??'',80):'';
+   node.volume=Number.isSafeInteger(n.volume??100)&&(n.volume??100)>=0&&(n.volume??100)<=100?(n.volume??100):fail('Music volume is a whole number from 0 to 100.');
+   if(['scene','once','keep'].includes(node.mode)&&!node.track)problem(node.id,'Choose a song for this Music block.');
+   else if(node.track&&catalog?.music&&!catalog.music.tracks.includes(node.track)&&!catalog.music.uploads.includes(node.track))problem(node.id,'Choose a song from the library or the uploads.');
+  }
   if(node.type==='flag_entry'&&!flags.some(f=>f.id===node.flag&&!f.retired))problem(node.id,'Choose an active flag for this entry.');
   if(node.type==='objective_entry'){
    node.stage=text(n.stage,80);node.objective=text(n.objective,80);

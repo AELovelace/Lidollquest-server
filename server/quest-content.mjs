@@ -15,7 +15,17 @@ export function validateObjectiveFlags(value,action='Objective completion can on
  const flags=list(value,16);if(flags.some(flag=>typeof flag!=='string'||!/^story_[a-z0-9_]{1,74}$/.test(flag)))fail(action+' authored story_ flags.');
  return [...new Set(flags)];
 } // Drafts retain a bounded list of authored IDs; publication checks their active definitions.
-export function validateQuestContent(kind,v,{assetRef,spells,equipment,look}){
+export function validateStageMusic(value,musicTrack=null){ // Optional quest stage music: while the stage is current, these zones play these songs for this player.
+ return list(value,16).map(m=>{
+  if(!m||typeof m!=='object')fail('Each stage music entry needs a zone.');
+  const zone=m.zone==='*'?'*':text(m.zone??'',160);if(!zone)fail('Choose a zone (or any zone) for stage music.');
+  const out={zone},song=(value,key)=>{if(value===null||value===undefined||value==='')return null;if(typeof value!=='string'||value.length>80)fail('Choose a song for stage music.');return musicTrack?musicTrack(value,key):value;}; // The public editor has no song list; the server checks names.
+  for(const key of ['track','battle','boss']){const v=song(m[key],key);if(v)out[key]=v;}
+  if(!out.track&&!out.battle&&!out.boss)fail('Stage music needs at least one song.');
+  out.volume=num(m.volume??100,0,100);return out;
+ });
+}
+export function validateQuestContent(kind,v,{assetRef,spells,equipment,look,musicTrack=null}){
  const out={id:id(v.id),name:text(v.name??'',100),description:text(v.description??''),retired:!!v.retired};
  if(kind==='npc'){
   out.sprite=assetRef(v.sprite??'');out.battle_sprite=assetRef(v.battle_sprite??'');out.wander_radius=num(v.wander_radius??0,0,8);
@@ -37,6 +47,7 @@ export function validateQuestContent(kind,v,{assetRef,spells,equipment,look}){
   out.turn_in={mode:choose(v.turn_in?.mode??'npc',['npc','journal']),npc:v.turn_in?.npc?text(v.turn_in.npc,160):''};
   out.givers=list(v.givers??[],32).map(x=>text(x,160));
   out.stages=unique(list(v.stages??[],64).map(s=>({id:id(s.id),name:text(s.name??'',100),text:text(s.text??''),mode:choose(s.mode??'all',['all','any']),next:s.next??'complete',objectives:unique(list(s.objectives??[],32).map(o=>({id:id(o.id),type:choose(o.type,objectiveTypes),text:text(o.text??'',500),target:text(o.target??'',160),npc:text(o.npc??'',160),zone:text(o.zone??'',100),count:num(o.count??1,1),sharing:choose(o.sharing??'personal',['personal','party']),conditions:validateConditions(o.conditions),...(o.type==='state'?{field:choose(o.field,stateFields),op:choose(o.op??'gte',['gte','lte','eq']),value:num(o.value??0,-1000000)}:{}),...(o.type==='equipment'?{slot:text(o.slot??'',40)}:{}),token:!!o.token,...(o.on_complete_flags!==undefined?{on_complete_flags:validateObjectiveFlags(o.on_complete_flags)}:{})}))),branches:unique(list(s.branches??[],8).map(b=>({id:id(b.id),label:text(b.label??'',160),to:b.to??'complete',conditions:validateConditions(b.conditions)})))})));
+  for(const [i,s] of list(v.stages??[],64).entries())if(s?.music!==undefined&&!(Array.isArray(s.music)&&!s.music.length))out.stages[i].music=validateStageMusic(s.music,musicTrack); // Optional (and dropped when empty) so stages without music keep their original hashes.
   const names=new Set(out.stages.map(s=>s.id)),visited=new Set(),active=new Set();
   function walk(key){if(key==='complete'||key==='failed')return;if(!names.has(key))fail('Stage destination does not exist.');if(active.has(key))fail('Quest stages cannot form a cycle.');if(visited.has(key))return;active.add(key);const s=out.stages.find(v=>v.id===key);for(const next of s.branches.length?s.branches.map(b=>b.to):[s.next])walk(next);active.delete(key);visited.add(key);}
   if(out.stages.length){walk(out.stages[0].id);if(visited.size!==names.size)fail('Every stage must be reachable.');}

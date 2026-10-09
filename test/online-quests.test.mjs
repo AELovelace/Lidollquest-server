@@ -427,3 +427,16 @@ test('routed NPCs walk their waypoints, wait, follow schedules, and only block w
  slot(600000);assert.ok(far(where(),a)<=1&&far(where(),home)>0,'the next period starts another lap');
  for(let n=0;n<30;n++)slot();assert.deepEqual({x:where().x,y:where().y},home);
 }finally{f.close();}});
+
+test('quest stage music overrides the zone for this player while the stage is current (zone-music.mjs musicOverride)',()=>{
+ const f=fixture();
+ try{
+  const music=[{zone:'*',track:'forest'},{zone:'honeydew-lantern',track:'town',boss:'boss',volume:70}];
+  f.publish('quest',quest({stages:[{id:'start',name:'Explore',objectives:[{id:'wait',type:'timer',count:10000}],next:'complete',music}]}));
+  assert.equal(f.last.musicOverride,undefined,'no story music before the quest is accepted');
+  acceptQuest(f,{quest:'first_quest'});
+  assert.deepEqual(f.last.musicOverride.quest,{track:'town',battle:null,boss:'boss',volume:70,quest:'First quest',stage:'Explore'},'an exact zone beats "any zone"');
+  assert.ok(f.api.zoneMusic.gmView().overrides.some(o=>o.quest==='First quest'&&o.zone==='honeydew-lantern'&&o.track==='town'),'the Map Editor lists the override');
+  assert.throws(()=>f.publish('quest',quest({id:'second_quest',stages:[{id:'start',name:'Explore',objectives:[{id:'wait',type:'timer',count:10}],next:'complete',music:[{zone:'*',track:'nope'}]}]})),/Field music/,'stage music only names real songs');
+ }finally{f.close();}
+});

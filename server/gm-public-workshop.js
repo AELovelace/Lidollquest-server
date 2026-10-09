@@ -60,6 +60,7 @@ function createPublicWorkshopApi({snapshot,rules,storage,now=()=>Date.now()}){
    if(n.type==='battle'){if(!outcome)break;next(r,['victory','defeat','retreat'].includes(outcome)?outcome:'retreat');outcome=null;continue;}
    if(['reveal_orb','hide_orb'].includes(n.type)){s.orbVisibility??={};s.orbVisibility[n.ref]=n.type==='reveal_orb';}
    if(n.type==='set_flag'||n.type==='clear_flag')rules.setStoryFlag(s,n.flag,n.type==='set_flag',r.definition.flags);
+    if(n.type==='music'){if(n.mode==='keep')s.storyMusic={track:n.track,volume:n.volume};else if(n.mode==='clear')delete s.storyMusic;} // Mirrors story-flows.mjs storyMusic; the offline editor plays no audio.
    next(r,'next');
   }
  } // The same walk as the server's simulation mode: pages pause, checks branch, actions pass straight through.

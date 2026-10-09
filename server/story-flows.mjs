@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {validateFlow,FLOW_NODES,flowPorts,battleMonsters} from './flow-content.mjs';
 import {storyFlagsMatch,storyRequirementsMatch,setStoryFlag,flagId} from './story-flags.mjs';
 const fail=(message,status=409)=>{throw Object.assign(Error(message),{status,code:'flow_conflict'});};
-export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapters={}}){
+export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapters={},music=null}){ // music: zone-music.mjs (song list for the editor, sting lengths)
  db.exec(`CREATE TABLE IF NOT EXISTS story_flow_content(id TEXT PRIMARY KEY,revision INTEGER NOT NULL,draft TEXT NOT NULL,published TEXT);
  CREATE TABLE IF NOT EXISTS story_flow_history(id TEXT NOT NULL,revision INTEGER NOT NULL,body TEXT NOT NULL,actor TEXT NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(id,revision));
  CREATE TABLE IF NOT EXISTS story_flag_definitions(id TEXT PRIMARY KEY,revision INTEGER NOT NULL,body TEXT NOT NULL);
@@ -19,7 +19,7 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
  const row=r=>r?{...r,draft:JSON.parse(r.draft),published:r.published?JSON.parse(r.published):null}:null;
  const get=id=>{const r=row(db.prepare('SELECT * FROM story_flow_content WHERE id=?').get(id));return r?{...r,history:db.prepare('SELECT revision,actor,created FROM story_flow_history WHERE id=? ORDER BY revision DESC').all(id)}:null;};
  const list=()=>db.prepare('SELECT * FROM story_flow_content ORDER BY id').all().map(row);
- function catalog(){const p=live.published(),v=live.view();return {enabled,nodes:FLOW_NODES,faith:flowFaithCatalog,records:v,flags:flags(),flagReferences:Object.fromEntries(flags().map(f=>[f.id,references(f.id)])),flows:list(),npcs:[...Object.values(p.npcs),...(world.npcCatalog?.()??[])],orbs:Object.values(p.orbs??{}),quests:Object.values(p.quests),monsters:Object.values(p.monsters),zones:world.catalog(),sprites:[...v.compiledSprites,...v.assets.map(a=>a.id)],items:v.equipment,assets:v.assets,placements:world.placementCatalog?.()??[]};} // Read authored pickup targets without generating or changing any maps.
+ function catalog(){const p=live.published(),v=live.view();return {enabled,nodes:FLOW_NODES,faith:flowFaithCatalog,records:v,flags:flags(),flagReferences:Object.fromEntries(flags().map(f=>[f.id,references(f.id)])),flows:list(),npcs:[...Object.values(p.npcs),...(world.npcCatalog?.()??[])],orbs:Object.values(p.orbs??{}),quests:Object.values(p.quests),monsters:Object.values(p.monsters),music:music?{tracks:music.library().map(t=>t.name),uploads:music.gmView().uploads.map(u=>'upload:'+u.id),songs:music.gmView()}:null,zones:world.catalog(),sprites:[...v.compiledSprites,...v.assets.map(a=>a.id)],items:v.equipment,assets:v.assets,placements:world.placementCatalog?.()??[]};} // Read authored pickup targets without generating or changing any maps.
  function flagSave(input){const d=input.entry;if(!d||!flagId(d.id)||!/^story_[a-z0-9_]{1,74}$/.test(d.id))fail('Authored flag IDs must start with story_.',400);const old=db.prepare('SELECT * FROM story_flag_definitions WHERE id=?').get(d.id);if((old?.revision??0)!==input.revision)fail('This flag changed. Reload it.');if(typeof d.name!=='string'||!d.name.trim()||d.name.length>100||typeof (d.description??'')!=='string'||(d.description??'').length>1000)fail('Give the flag a name and short description.',400);const next={id:d.id,name:d.name,description:d.description??'',retired:!!d.retired,engineOwned:false,revision:(old?.revision??0)+1};
   if(next.retired&&references(d.id).length)fail('Remove the flag from published content before retiring it.');db.prepare('INSERT INTO story_flag_definitions VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET revision=excluded.revision,body=excluded.body').run(d.id,next.revision,JSON.stringify(next));return next;
  }
@@ -45,6 +45,13 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
  const write=r=>db.prepare('UPDATE story_flow_runs SET state=?,updated=? WHERE id=?').run(JSON.stringify(r.state),now(),r.id);
  const node=r=>r.definition.flow.nodes.find(n=>n.id===r.state.node);
  function next(r,port){const edge=r.definition.flow.edges.find(e=>e.from===r.state.node&&e.port===port);if(!edge)fail('This story has a missing connection.');r.state.node=edge.to;r.state.step++;r.state.wait=null;}
+ function storyMusic(r,s,n){ // Music block. Scene music lives on the run (ends with the scene); stings and kept songs live on the character.
+  if(n.mode==='scene'||n.mode==='silence')r.state.music={track:n.mode==='silence'?'none':n.track,volume:n.volume};
+  else if(n.mode==='once')s.storySting={track:n.track,volume:n.volume,key:r.id+':'+r.state.step,at:now()}; // The key makes each sting play once even though every poll repeats it.
+  else if(n.mode==='keep')s.storyMusic={track:n.track,volume:n.volume};
+  else if(n.mode==='clear')delete s.storyMusic;
+ }
+ function sceneMusic(c){const r=c?active(c):null;return r?.state?.music??null;} // The active scene's music for the snapshot's musicOverride, or null.
  function run(r,c,s,{simulation=false,outcome=null}={}){
   const before=JSON.stringify(r.state);
   for(let budget=0;budget<256;budget++){
@@ -64,6 +71,7 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
     if(s.run||s.pendingDefeat||s.dungeonScene||!r.state.wait.outcome)break;
     next(r,r.state.wait.outcome);continue;
    }
+   if(n.type==='music'){storyMusic(r,s,n);next(r,'next');continue;} // Inline like set_flag: no adapter, so it also runs in preview and the public editor.
    if(simulation&&['reveal_orb','hide_orb'].includes(n.type)){s.orbVisibility??={};s.orbVisibility[n.ref]=n.type==='reveal_orb';}
    if(n.type==='set_flag'||n.type==='clear_flag')setStoryFlag(s,n.flag,n.type==='set_flag',r.definition.flags);
    else if(!['entry','npc_entry',...triggerTypes].includes(n.type)&&!simulation){const effect=adapters[n.type];if(!effect)fail('This story action is not available: '+n.type);effect(c,s,n,r.definition,receipt);r.state.effects=(r.state.effects??0)+1;}
@@ -166,5 +174,5 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
   if(input.action==='flow_flag_set'){const c=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(input.character_id);if(!c)fail('Character not found.',404);if(c.revision!==input.revision)fail('Character changed. Refresh first.');const s=JSON.parse(c.state);setStoryFlag(s,input.flag,input.value,flags());db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(s),c.id);return inspect(c.id);}
   fail('Unknown flow action.',400);
  }
- return {catalog,list,get,flags,references,gm,testDefinition,start,available,npcOverride,npcPending,npcActive,review,act,exit,resume,settled,snapshot,active,blocking,objectives,beginTest,enabled,flagsCleared:triggers.flagsCleared};
+ return {catalog,list,get,flags,references,gm,testDefinition,start,available,npcOverride,npcPending,npcActive,review,act,exit,resume,settled,snapshot,sceneMusic,active,blocking,objectives,beginTest,enabled,flagsCleared:triggers.flagsCleared};
 }

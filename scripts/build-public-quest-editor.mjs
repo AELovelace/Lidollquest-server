@@ -69,6 +69,7 @@ export function renderPage(snapshot,{title='LiDollQuest Quest Editor',wikiHref='
  const editor=read('gm-flow-editor.js').replace('/* CONTENT_BLOCKS */',()=>read('gm-content-blocks.js')+'\n'+read('gm-story-sheets.js')+'\n'+read('gm-sprite-lab.js')),runtime=renderRuntime(snapshot),bundle=read('gm-quest-bundle.js');
  for(const [label,source] of [['editor',editor],['runtime',runtime],['bundle',bundle]])if(/<\/script/i.test(source))throw Error('Inline '+label+' script would close its tag early.');
  swap('<script>/* QUEST_BUNDLE */</script>','<script>'+bundle+'</script>');
+ swap('<script>/* MUSIC_WIDGET */</script>','<script>'+read('gm-music-widget.js')+'</script>'); // Same splice as the served page; offline there is no song list, so no preview buttons appear.
  swap('<script>/* FLOW_EDITOR */</script>','<script>'+runtime+'</script><script>'+editor+'</script>');
  return html;
 } // Same assembly as the served /gm/flow-editor page, with the stand-in API loaded first and the staff-only links removed.

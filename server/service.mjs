@@ -35,6 +35,8 @@ import {createPerformanceMonitor,timeWriteLock} from './performance.mjs';
 import {createComputePool,computeWorkerCount} from './compute-pool.mjs';
 import {createAuthCache,authCacheMs} from './auth-cache.mjs';
 import {parseKnown,elide} from './snapshot-cache.mjs';
+import {createTranscoder} from './music-transcode.mjs'; // ffmpeg conversion of GM song uploads (mp3 for browsers, ogg for desktop).
+import {MUSIC_PATH,sendMusic} from './music-route.mjs'; // Public GET /music/<id>.mp3|.ogg (nginx: /quest-music/).
 import {cacheStatements} from './statement-cache.mjs';
 import {createBalanceStats,attachBalanceStats,logOwnerBalance} from './balance-stats.mjs'; // Game-balance statistics live in their own file, balance.sqlite, beside the game database.
 
@@ -49,7 +51,7 @@ export function loadQuestPack(path){ // LIDOLLQUEST_QUEST_PACK names a shipped q
  return pack.quests;
 } // Publishing live quest content refuses clients without quest_version:1, so this stays an explicit deployment choice.
 
-export function createQuestService({filename=':memory:',walletClient,artJobOptions={},now=Date.now,roll,log=console.warn,performanceOptions={},workerCount=0,zoneWorkers=0,zoneCapacity=parseZoneCapacity(process.env.QUEST_ZONE_CAPACITY),authTtlMs=authCacheMs(),onlineToken=process.env.MOMMYBOT_ONLINE_TOKEN||'',gmAllow=process.env.LIDOLLQUEST_GM_ALLOW||'',gmEnabled=envFlag('LIDOLLQUEST_GM_ENABLED',true),gmTrustProxy=process.env.LIDOLLQUEST_GM_TRUST_PROXY||'',gmRequireTls=envFlag('LIDOLLQUEST_GM_REQUIRE_TLS'),questPack=loadQuestPack(process.env.LIDOLLQUEST_QUEST_PACK||''),followerOptions={},followerChatOptions={},gmHelpOptions={},blankCanvas=true}={}){
+export function createQuestService({filename=':memory:',musicOptions=null,walletClient,artJobOptions={},now=Date.now,roll,log=console.warn,performanceOptions={},workerCount=0,zoneWorkers=0,zoneCapacity=parseZoneCapacity(process.env.QUEST_ZONE_CAPACITY),authTtlMs=authCacheMs(),onlineToken=process.env.MOMMYBOT_ONLINE_TOKEN||'',gmAllow=process.env.LIDOLLQUEST_GM_ALLOW||'',gmEnabled=envFlag('LIDOLLQUEST_GM_ENABLED',true),gmTrustProxy=process.env.LIDOLLQUEST_GM_TRUST_PROXY||'',gmRequireTls=envFlag('LIDOLLQUEST_GM_REQUIRE_TLS'),questPack=loadQuestPack(process.env.LIDOLLQUEST_QUEST_PACK||''),followerOptions={},followerChatOptions={},gmHelpOptions={},blankCanvas=true}={}){
  zoneCapacity=parseZoneCapacity(zoneCapacity); // Validate explicit overrides before opening the database; all readers receive this same capacity.
  const poolSize=computeWorkerCount(workerCount),zoneCount=zoneWorkerCount(zoneWorkers);if(zoneCount&&filename===':memory:')throw Error('Zone workers require a persistent database');let compute=null,shards=null; // Validate configuration before opening persistent resources.
  const db=cacheStatements(new DatabaseSync(filename));db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;'); /* NORMAL is SQLite's recommended setting for WAL: every commit survives an application crash, and only an OS crash or power loss can drop the last few milliseconds of commits. It removes the per-commit fsync that FULL paid for every heartbeat, move and chat line. */
@@ -70,7 +72,7 @@ export function createQuestService({filename=':memory:',walletClient,artJobOptio
  const artJobs=createWorldJobs(db,{live,now,...artJobOptions});
  const tutor=createTutor(db,{now,log,live}); // Created before the GM panel (which edits its settings) and handed to zones below.
  const gm=createGameMasterPanel(db,{helpOptions:gmHelpOptions,tutor,walletClient,announcements:()=>zones.announcements,welcome:()=>zones.welcome,zoneMusic:()=>zones.zoneMusic,guilds:()=>zones.guilds,playerStores:()=>zones.playerStores(),live,artJobs,world:()=>zones.world,performanceSnapshot:metrics.snapshot,balance,enchantments:createEnchantmentStore(db,{now}),enchantmentTable:()=>diveData.enchantments,loot:createLootStore(db,{now}),lootTable:()=>diveData.loot,lootItems:()=>diveData.items,lootBases:()=>diveData.bases,alchemy:createAlchemyStore(db,{now}),alchemyTable:()=>diveData.alchemy,traps:createTrapStore(db,{now}),allow:gmAllow,trustProxy:gmTrustProxy,requireTls:gmRequireTls,enabled:gmEnabled,now,log}); // Staff moderation owns its own tables and never touches wallet credentials.
- const zones=createQuestZones(db,{now,roll,compute,live,zoneCapacity,followerOptions,followerChatOptions,measure:metrics.measure,onPresence:onlineFeed.record,enabled:owner=>!gm.suspended(owner),muted:gm.muted,audit:gm.record,grant:()=>{if(!identity)throw Error('Missing request identity');return identity;},wallet:owner=>({coins:db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(owner)?.coins??0}),adjust:(owner,asset,amount,id,reason)=>{
+ const zones=createQuestZones(db,{musicOptions:musicOptions??(filename===':memory:'?{}:{uploadDir:resolve(dirname(resolve(filename)),'music'),transcoder:createTranscoder()}),now,roll,compute,live,zoneCapacity,followerOptions,followerChatOptions,measure:metrics.measure,onPresence:onlineFeed.record,enabled:owner=>!gm.suspended(owner),muted:gm.muted,audit:gm.record,grant:()=>{if(!identity)throw Error('Missing request identity');return identity;},wallet:owner=>({coins:db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(owner)?.coins??0}),adjust:(owner,asset,amount,id,reason)=>{
   if(asset!=='coins'||!Number.isSafeInteger(amount)||amount<1||amount>dailyCoinCap())throw Error('Invalid server award'); // A single entitlement can never exceed one day's whole allowance.
   db.prepare('INSERT INTO reward_outbox(id,owner,amount,reason) VALUES (?,?,?,?)').run(id,owner,amount,reason);
   logOwnerBalance(db,'coins',owner,{value:amount,reason});
@@ -135,6 +137,7 @@ export function createQuestService({filename=':memory:',walletClient,artJobOptio
   if(onlineFeed.route(req,res,url))return;
   if(mommybotProfile.route(req,res,url))return;
   if(await gm.route(req,res,url))return; // The staff surface authenticates itself and never reaches the player gateway below.
+  if(MUSIC_PATH.test(url.pathname)&&(req.method==='GET'||req.method==='HEAD')){const [,id,ext]=MUSIC_PATH.exec(url.pathname),file=zones.zoneMusic.musicFile(id,ext);if(!file){res.writeHead(404,{'Content-Type':'application/json'});res.end('{"error":"music_not_found"}');return;}sendMusic(req,res,file);return;} // Served music is public (content-hash names, immutable); it skips the player gateway, its token limiter and the request metrics.
   if(url.pathname==='/health'&&req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});res.end('{"ok":true}');return;}
   const methods={'/quests/detail':'GET','/content/asset':'GET','/zones':'GET','/zones/action':'POST','/zones/inspect':'GET','/cloud':'GET','/cloud/action':'POST','/characters/action':'POST','/sprites':'GET','/sprites/asset':'GET','/sprites/action':'POST'};
   if(methods[url.pathname]!==req.method)throw Object.assign(Error('Endpoint not found.'),{status:404});

@@ -64,6 +64,7 @@ tr.sel td{background:#2c1e3d}
 .msg.act .who{color:var(--mint);font-style:italic}
 .msg .when{margin-left:auto;font-size:11px;color:var(--dim);white-space:nowrap}
 .note{color:var(--dim);font-size:12px;margin:6px 0 0}
+.music-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:10px}.music-grid .music-group{grid-column:1/-1;margin:10px 0 0}.music-zone{border:1px solid var(--edge);border-radius:8px;padding:8px;background:#1b1226}.music-line{display:flex;gap:6px;align-items:center;margin:4px 0}.music-line select{flex:1;min-width:0}.music-slot{width:52px;color:var(--dim);font-size:12px}
 .flash{padding:8px 12px;border-radius:8px;margin:0 14px;display:none}
 .flash.ok{display:block;background:#1d3a30;border:1px solid var(--mint);color:var(--mint)}
 .flash.err{display:block;background:#3d1c26;border:1px solid var(--red);color:var(--red)}
@@ -586,10 +587,17 @@ tr.sel td{background:#2c1e3d}
 <div class="tab-panel" id="panel-music" role="tabpanel" aria-labelledby="tab-music" tabindex="0" hidden>
   <section class="wide">
     <h2>Zone music</h2>
-    <p class="note">Pick which game track plays in each online zone. <strong>Field</strong> is the music while walking around; <strong>Battle</strong> and <strong>Boss</strong> replace the game's own combat and boss tracks for fights started in that zone. A blank Field slot inherits: a hub room (Inn, temple, store...) uses its hub's track, then the <strong>Default</strong> row. <strong>(silence)</strong> plays no music at all. Volume (0-100) multiplies each player's own music slider. Changes reach players on their next poll. The track list comes from the game's <code>bgm</code> audio group: import a new track there, run <code>python/export_online_music.py</code>, then deploy the server.</p>
+    <p class="note">Pick the song for each online zone. <strong>Field</strong> plays while walking around; <strong>Battle</strong> and <strong>Boss</strong> replace the <code>combat</code> and <code>boss</code> library tracks for fights started there. A blank Field slot inherits: a hub room (Inn, temple, store...) uses its hub's song, then the <strong>Default</strong>. <strong>(silence)</strong> plays nothing. Volume (0-100) multiplies each player's own music slider. Quest stages and Story Workshop Music blocks can override a zone for one player while their story runs. Every song is a served file: players download it once, then their browser or desktop cache keeps it. The Map Editor has the same Zone music box.</p>
     <p id="musicStatus" role="status"></p>
     <div class="row"><label for="musicFilter">Find a zone</label><input id="musicFilter" class="grow" maxlength="40" placeholder="Name or id"><button id="musicStop">Stop preview</button><button id="musicLoad">Refresh</button></div>
-    <div id="musicZones"></div>
+    <div id="musicZones" class="music-grid"></div>
+  </section>
+  <section class="wide">
+    <h2>Uploaded songs</h2>
+    <p class="note">Upload mp3, ogg, wav, flac or m4a. The server converts every upload to a 96 kbps mp3 (browsers) and ogg (desktop), so keep your original files. Songs can be up to 10 minutes. <strong>Only upload music you have the rights to.</strong> A song cannot be deleted while a zone, Story Workshop flow or quest stage still plays it. Library tracks come from the game repo's <code>audio-masters/music/</code> (see the GM wiki).</p>
+    <p id="musicUploadStatus" role="status"></p>
+    <div class="row"><label for="musicFile">File</label><input id="musicFile" type="file" accept="audio/*"><label for="musicTitle">Title</label><input id="musicTitle" class="grow" maxlength="60"><button class="go" id="musicUpload">Upload</button></div>
+    <div id="musicUploads" class="log"></div>
   </section>
 </div>
 <div class="tab-panel" id="panel-guilds" role="tabpanel" aria-labelledby="tab-guilds" tabindex="0" hidden>
@@ -1102,100 +1110,71 @@ tr.sel td{background:#2c1e3d}
   api("/gm/action",{method:"POST",body:body}).then(function(response){say("ok","Tutor saved: "+(response.result.enabled?"on":"off")+", named "+response.result.name+".");loadTutor();}).catch(function(error){say("err",error.message);}).finally(function(){$("tutorSave").disabled=false;});
  });
 
- var musicEpoch=0,musicData=null,musicAudio=null,musicUrl=""; // musicData: the /gm/music payload. One shared Audio element plays previews from a blob: URL, because a plain src cannot carry the bearer token.
+/* MUSIC_WIDGET */
+ var musicEpoch=0,musicData=null; // musicData: the /gm/music payload (rows, library, uploads, zones).
  var MUSIC_GROUPS=[["hub","Hubs"],["room","Hub rooms"],["overworld","Overworlds"],["dive","Dungeons and Dives"],["safe","Other safe rooms"]]; // Zone category from /gm/music -> heading.
- function musicStop(){
-  if(musicAudio){musicAudio.pause();musicAudio=null;}
-  if(musicUrl){URL.revokeObjectURL(musicUrl);musicUrl="";} // Free the mp3 bytes held by the last preview.
- }
- function musicPreview(name){
-  musicStop();if(!name||name==="none")return; // Nothing to hear for inherit or silence.
-  fetch("/gm/music/"+encodeURIComponent(name)+".mp3",{headers:{Authorization:"Bearer "+token},cache:"no-store"}).then(function(response){
-   if(!response.ok)throw new Error("No preview for "+name+" (HTTP "+response.status+"). Run python/export_online_music.py and deploy.");
-   return response.blob();
-  }).then(function(blob){
-   musicStop();musicUrl=URL.createObjectURL(blob);musicAudio=new Audio(musicUrl);musicAudio.loop=true;
-   return musicAudio.play();
-  }).catch(function(error){say("err",error.message);});
- }
- function musicRow(zone){ // The saved row for a zone id, or an empty one.
-  return (musicData&&musicData.mapping[zone])||{track:null,battle:null,boss:null,volume:100};
- }
- function musicEffective(z){ // What the Field slot really plays here and why, following the client's zone -> parent hub -> Default walk.
-  var own=musicRow(z.id).track;if(own)return {track:own,from:"this zone"};
-  if(z.parent){var up=musicRow(z.parent).track;if(up)return {track:up,from:"its hub"};}
-  var fallback=musicRow(musicData.defaultZone).track;if(fallback&&z.id!==musicData.defaultZone)return {track:fallback,from:"Default"};
-  return {track:"",from:"nothing mapped"};
- }
- function musicSelect(slot,value,label){
-  var s=el("select");s.setAttribute("aria-label",label);
-  var first=el("option",null,slot==="track"?"(inherit)":"(game default)");first.value="";s.appendChild(first);
-  if(slot==="track"){var off=el("option",null,"(silence)");off.value=musicData.silence;s.appendChild(off);}
-  musicData.catalog.forEach(function(t){var o=el("option",null,t.name+" ("+Math.round(t.duration)+"s)");o.value=t.name;s.appendChild(o);});
-  s.value=value||"";
-  if(value&&s.value!==value){var lost=el("option",null,value+" (not in this build)");lost.value=value;s.appendChild(lost);s.value=value;} // A track removed from the game still shows what is saved.
-  return s;
- }
- function musicLine(z){ // One table row: name, three slots with preview buttons, volume, what plays, Save/Clear.
-  var saved=musicRow(z.id),tr=el("tr"),name=el("td");tr.dataset.find=(z.name+" "+z.id).toLowerCase();
-  name.appendChild(el("strong",null,z.name));name.appendChild(el("div","note",z.id===musicData.defaultZone?"used where nothing else is set":z.id+(z.parent?" · in "+z.parent:"")));tr.appendChild(name);
-  var selects={};
-  [["track","Field"],["battle","Battle"],["boss","Boss"]].forEach(function(pair){
-   var td=el("td"),s=musicSelect(pair[0],saved[pair[0]],pair[1]+" music for "+z.name),play=el("button","sm","▶");
-   play.type="button";play.title="Preview the chosen track";play.setAttribute("aria-label","Preview "+pair[1]+" music for "+z.name);
-   play.addEventListener("click",function(){var pick=s.value||(pair[0]==="track"?musicEffective(z).track:"");if(!pick||pick==="none"){say("err","Nothing chosen to preview.");return;}musicPreview(pick);});
-   td.appendChild(s);td.appendChild(play);tr.appendChild(td);selects[pair[0]]=s;
-  });
-  var volTd=el("td"),vol=el("input");vol.type="number";vol.min="0";vol.max="100";vol.step="1";vol.style.width="70px";vol.value=String(saved.volume==null?100:saved.volume);vol.setAttribute("aria-label","Volume for "+z.name);volTd.appendChild(vol);tr.appendChild(volTd);
-  var eff=musicEffective(z);tr.appendChild(el("td","note",eff.track?(eff.track==="none"?"silence":eff.track)+" (from "+eff.from+")":"keeps whatever was playing"));
-  var actions=el("td"),save=el("button","go sm","Save"),clear=el("button","sm","Clear");save.type="button";clear.type="button";
-  save.addEventListener("click",function(){
-   save.disabled=true;
-   api("/gm/action",{method:"POST",body:{action:"music_set",zone:z.id,track:selects.track.value||null,battle:selects.battle.value||null,boss:selects.boss.value||null,volume:Number(vol.value)}}).then(function(){say("ok","Music saved for "+z.name+".");loadMusic(true);}).catch(function(error){say("err",error.message);}).finally(function(){save.disabled=false;});
-  });
-  clear.disabled=!musicData.mapping[z.id];
-  clear.addEventListener("click",function(){
-   clear.disabled=true;
-   api("/gm/action",{method:"POST",body:{action:"music_clear",zone:z.id}}).then(function(){say("ok","Music cleared for "+z.name+"; it inherits again.");loadMusic(true);}).catch(function(error){say("err",error.message);clear.disabled=false;});
-  });
-  actions.appendChild(save);actions.appendChild(clear);tr.appendChild(actions);
-  return tr;
- }
- function musicTable(title,zones){
-  var wrap=el("div","scroll"),table=el("table"),head=el("thead"),hr=el("tr"),body=el("tbody");
-  wrap.appendChild(el("h2",null,title));
-  ["Zone","Field","Battle","Boss","Volume","Plays",""].forEach(function(h){hr.appendChild(el("th",null,h));});
-  head.appendChild(hr);table.appendChild(head);
-  zones.forEach(function(z){body.appendChild(musicLine(z));});
-  table.appendChild(body);wrap.appendChild(table);return wrap;
- }
+ function musicPost(body){return api("/gm/action",{method:"POST",body:body});} // The widget's save/clear transport.
+ function musicWidgetFor(host,z){return musicWidget(host,{zone:z,data:musicData,post:musicPost,token:function(){return token;},say:say,onSaved:function(){loadMusic(true);}});}
  function musicFilterRows(){
   var q=$("musicFilter").value.trim().toLowerCase();
-  Array.from($("musicZones").querySelectorAll("tbody tr")).forEach(function(tr){tr.hidden=!!q&&tr.dataset.find.indexOf(q)<0;}); // The Default row hides too while searching.
+  Array.from($("musicZones").querySelectorAll(".music-zone")).forEach(function(card){card.hidden=!!q&&card.dataset.find.indexOf(q)<0;}); // The Default card hides too while searching.
  }
  function musicRender(){
   var box=$("musicZones");box.textContent="";
-  box.appendChild(musicTable("Default",[{id:musicData.defaultZone,name:"Default"}]));
+  musicWidgetFor(box,{id:musicData.defaultZone,name:"Default"});
   MUSIC_GROUPS.forEach(function(group){
    var zones=musicData.zones.filter(function(z){return z.category===group[0];}).sort(function(a,b){return a.name.localeCompare(b.name);});
-   if(zones.length)box.appendChild(musicTable(group[1],zones));
+   if(!zones.length)return;
+   box.appendChild(el("h2","music-group",group[1]));
+   zones.forEach(function(z){musicWidgetFor(box,z);});
   });
   var known=MUSIC_GROUPS.map(function(g){return g[0];}),other=musicData.zones.filter(function(z){return known.indexOf(z.category)<0;});
-  if(other.length)box.appendChild(musicTable("Other",other));
+  if(other.length){box.appendChild(el("h2","music-group","Other"));other.forEach(function(z){musicWidgetFor(box,z);});}
   musicFilterRows();
+ }
+ function musicRenderUploads(){
+  var box=$("musicUploads");box.textContent="";
+  if(!musicData.uploads.length){box.appendChild(el("p","note","No uploads yet."));return;}
+  musicData.uploads.forEach(function(u){
+   var line=el("div","row");line.appendChild(el("strong",null,u.title));
+   line.appendChild(el("span","note",Math.round(u.seconds)+" s · "+(u.bytes/1048576).toFixed(2)+" MB · "+(u.used_by.length?"used by "+u.used_by.join(", "):"not used")+" · by "+(u.actor||"?")));
+   line.appendChild(musicWidgetPlayButton(musicData,function(){return musicData.uploadPrefix+u.id;},function(){return token;},say,u.title));
+   var del=el("button","bad sm","Delete");del.type="button";del.disabled=u.used_by.length>0;del.title=u.used_by.length?"Still in use":"Delete this upload";
+   del.addEventListener("click",function(){
+    if(!confirm("Delete "+u.title+"? Players who cached it keep their copy, but no zone can pick it any more."))return;
+    del.disabled=true;
+    musicPost({action:"music_delete",id:u.id}).then(function(){say("ok","Deleted "+u.title+".");loadMusic(true);}).catch(function(error){say("err",error.message);del.disabled=false;});
+   });
+   line.appendChild(del);box.appendChild(line);
+  });
  }
  function loadMusic(force){
   var epoch=++musicEpoch,session=perfEpoch;
   return api("/gm/music").then(function(data){
    if(epoch!==musicEpoch||session!==perfEpoch||!token)return;
    musicData=data;
-   var mapped=Object.keys(data.mapping).length;
-   $("musicStatus").textContent=data.catalog.length+" track(s) in the game's music group · "+mapped+" row(s) saved"+(data.catalog.length?"":" · no music-catalog.json on this server yet: run python/export_online_music.py and deploy");
-   if(force===true||!$("musicZones").contains(document.activeElement))musicRender(); // Never rebuild the rows under a GM who is still choosing, except right after their own save.
+   $("musicStatus").textContent=data.catalog.length+" library track(s) · "+data.uploads.length+" upload(s) · "+Object.keys(data.mapping).length+" zone row(s) saved"+(data.catalog.length?"":" · no music-library.json on this server yet: run python/export_online_music.py and deploy");
+   $("musicUploadStatus").textContent=!data.uploadsEnabled?"Uploads are off on this server (no data folder).":data.ffmpegReady?"Ready: uploads convert to "+data.kbps+" kbps, up to "+Math.round(data.maxInputBytes/1048576)+" MB per file.":"ffmpeg is missing or lacks mp3/vorbis encoders: run deploy/fedora-deploy.sh on the server.";
+   $("musicUpload").disabled=!(data.uploadsEnabled&&data.ffmpegReady);
+   if(force===true||!$("musicZones").contains(document.activeElement))musicRender(); // Never rebuild the cards under a GM who is still choosing, except right after their own save.
+   musicRenderUploads();
   }).catch(function(error){say("err",error.message);});
  }
  $("tab-music").addEventListener("click",loadMusic);$("musicLoad").addEventListener("click",function(){loadMusic(true);});
- $("musicStop").addEventListener("click",musicStop);$("musicFilter").addEventListener("input",musicFilterRows);
+ $("musicStop").addEventListener("click",musicWidgetStop);$("musicFilter").addEventListener("input",musicFilterRows);
+ $("musicFile").addEventListener("change",function(){var f=$("musicFile").files[0];if(f&&!$("musicTitle").value.trim())$("musicTitle").value=f.name.replace(/[.][^.]+$/,"").replace(/[_-]+/g," ").slice(0,60);}); // Prefill the title from the file name.
+ $("musicUpload").addEventListener("click",function(){
+  var f=$("musicFile").files[0],title=$("musicTitle").value.trim();
+  if(!f){say("err","Choose a song file first.");return;}
+  if(!title){say("err","Give the song a title.");return;}
+  $("musicUpload").disabled=true;$("musicUploadStatus").textContent="Uploading and converting "+f.name+"... this can take a minute.";
+  fetch("/gm/music/upload?title="+encodeURIComponent(title),{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":f.type||"application/octet-stream"},body:f,cache:"no-store"}).then(function(response){
+   return response.json().catch(function(){return {};}).then(function(payload){if(!response.ok)throw new Error(payload.error_description||payload.error||"Upload failed (HTTP "+response.status+").");return payload.result;});
+  }).then(function(saved){
+   say("ok",saved.duplicate?"That song was already uploaded as "+saved.title+".":"Uploaded "+saved.title+" ("+Math.round(saved.seconds)+" s).");
+   $("musicFile").value="";$("musicTitle").value="";loadMusic(true);
+  }).catch(function(error){say("err",error.message);$("musicUploadStatus").textContent=error.message;}).finally(function(){$("musicUpload").disabled=false;});
+ });
  var welcomeEpoch=0,welcomeLinks={},welcomeLimits={title:60,heading:60,body:600,label:24,pages:8}; // Links and limits come from /gm/welcome; the numbers here only cover the moment before the first load.
  function welcomeField(label,input){var wrap=el("label");wrap.appendChild(document.createTextNode(label+" "));wrap.appendChild(input);wrap.style.display="block";wrap.style.margin="4px 0";return wrap;} // One labelled input per line inside a page block.
  function welcomePageBlock(page){ // Builds the editor block for one page; the page order is the DOM order, so Up/Down just move nodes.

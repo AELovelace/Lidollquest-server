@@ -67,6 +67,15 @@ async function loadZone({keepPending=false}={}){
  if(syncRoute()&&state.tool==='route')renderToolOptions();
  for(const atlas of state.plan?.atlases??[])art(atlas);
  renderBadge();renderControls();renderPatch();renderPending();if(changed&&!state.base)fit();schedule();
+ if(map.id!==state.musicZone)renderZoneMusic(); // Only on a zone switch: the 5 s auto-refresh must not rebuild the box under a GM who is choosing.
+}
+async function renderZoneMusic(){ // Zone music box: the same widget, data and music_set/music_clear actions as the panel's Music tab.
+ const zone=state.zone,host=$('zoneMusic');state.musicZone=zone;
+ try{
+  const data=await liveApi('/gm/music');if(state.zone!==zone)return; // The GM switched zones while this loaded.
+  clear(host);const z=data.zones.find(v=>v.id===zone)??{id:zone,name:zone};
+  musicWidget(host,{zone:z,data,post:body=>liveApi('/gm/action',body),token:grantToken,say:(kind,text)=>say(text,kind==='err'),onSaved:()=>{state.musicZone=null;renderZoneMusic();}});
+ }catch(error){clear(host);host.appendChild(document.createTextNode('Zone music unavailable: '+error.message));}
 }
 function renderBadge(){const m=state.map;$('badge').textContent=m?.floor?m.id+' · '+(m.floor.width+'×'+m.floor.height)+' · '+(m.edition??'')+' · rev '+String(m.revision??'').slice(0,8)+(m.job?' · '+m.job.status:'')+(m.patch?' · patch r'+m.patch.revision:''):'map not ready';}
 function renderControls(){const m=state.map,d=m?.district;$('regenerate').hidden=!(m?.kind==='dive'&&!m.job)&&!d;$('cancel').hidden=!m?.job;$('lock').hidden=!d;if(d)$('lock').textContent=d.locked?'Unlock layout (follow monthly reset)':'Lock layout (skip monthly reset)';}

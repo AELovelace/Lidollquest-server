@@ -2,45 +2,95 @@
 
 [Wiki home](index.md)
 
-The **Music** tab of the GM panel (`/gm`), right after **Welcome**, sets which game track plays in each online zone. Every hub, hub room (Inns, temples, stores, the Farmstead), overworld, dungeon and Dive has a row. Changes reach players on their next screen refresh. Nobody needs to restart or redeploy anything.
+Every song in LiDollQuest is a file the server sends, not something built into the game, so GMs can change music without a game update. This page covers the three places music is set:
 
-## The three slots
+- the **Music** tab of the GM panel (`/gm`), right after **Welcome**
+- the **Zone music** box in the Map Editor
+- the **Music** block and quest **Stage music** in the Story Workshop
+
+## Songs: library and uploads
+
+| Kind | Where it comes from | How slots name it |
+| --- | --- | --- |
+| **Library** | The game's built-in tracks (`boss`, `combat`, `desert`, `dungeon`, `forest`, `princess`, `princess2`, `town`, `castle`). They are converted from the game repo's `audio-masters/music/` folder. | By name, e.g. `town` |
+| **Uploaded songs** | A GM uploads them on the Music tab. | By title in the menus (stored as `upload:<id>`) |
+
+**Uploading.** On the Music tab, under **Uploaded songs**, choose a file (mp3, ogg, wav, flac or m4a, up to 50 MB), give it a title and press **Upload**.
+
+- The server converts it to a 96 kbps mp3 for the browser game and an ogg copy for the desktop game. **Keep your original file**, because the converted copies are smaller and lower quality.
+- Songs can be up to 10 minutes long.
+- Uploading the same audio twice keeps one copy.
+- **Only upload music you have the rights to.**
+
+**Deleting** an upload is refused while any zone, Story Workshop flow or quest stage still plays it. The refusal names what still uses it. Players who already downloaded it keep their copy in their own cache, but nothing can pick it any more.
+
+**What it costs players:** each player downloads a song once, about 0.7 MB per minute of music. After that their browser (or the desktop game's music cache) keeps it, so coming back to a zone costs nothing.
+
+## Zone music: the three slots
 
 | Slot | What it does | Left blank |
 | --- | --- | --- |
-| **Field** | The music while walking around the zone. **(silence)** plays no music at all. | Inherits (see below). |
-| **Battle** | Replaces the game's `combat` track for ordinary fights started in this zone. | Inherits, then the game's own `combat` track. |
-| **Boss** | Replaces the game's `boss` track for boss fights started in this zone. | Inherits, then the game's own `boss` track. |
+| **Field** | The music while walking around the zone. **(silence)** plays nothing. | Inherits (see below) |
+| **Battle** | Replaces the `combat` song for ordinary fights started in this zone. | Inherits, then the `combat` library track |
+| **Boss** | Replaces the `boss` song for boss fights started in this zone. | Inherits, then the `boss` library track |
 
-**Volume** (0-100) sets how loud this zone's field track plays. It multiplies each player's own music slider, so 50 is half as loud as the player chose. It never makes music louder than the player's setting.
+**Volume** (0-100) sets how loud the zone's field song plays. It multiplies each player's own music slider.
 
-## Inheritance
-
-Each slot is looked up separately, in this order:
+**Inheritance.** Each slot is looked up in this order:
 
 1. The zone's own row.
-2. For a hub room, its hub's row. For example, Honeydew Inn (`honeydew-lantern-beds`) uses Honeydew Village (`honeydew-lantern`).
-3. The **Default** row at the top of the tab.
+2. For a hub room, its hub's row. For example, Honeydew Inn uses Honeydew Village.
+3. The **Default** row.
 
-The **Plays** column shows what the Field slot ends up as for each zone and where that comes from. If nothing is set anywhere, the zone keeps whatever was already playing, which is how online play behaved before this tab existed. **Clear** forgets a zone's row so it inherits again.
+The **Plays** line on each zone shows the field song it ends up with and where that comes from. **Clear** forgets a zone's row so it inherits again.
 
-## Previewing
+**Previewing.** Every song menu has a **▶** button that plays the song in your browser. **Stop preview** ends it.
 
-Each slot has a **▶** button that plays the chosen track in your browser. For a blank Field slot it plays the inherited track. Only one preview plays at a time; **Stop preview** ends it. The preview is the same mp3 the game plays.
+## The Map Editor's Zone music box
 
-## Adding a new track
+The Map Editor has a **Zone music** box at the bottom of the right-hand column. It shows the zone you are looking at, with the same slots, volume, preview, Save and Clear as the Music tab, and it saves to the same place. It also lists any **story overrides** for that zone, i.e. quest stages whose Stage music names it or "any zone".
 
-The list holds the sounds in the game's **`bgm`** audio group. To add one:
+## Story music and priority
 
-1. Import the track into GameMaker and put it in the `bgm` audio group. Sounds in the default group follow the SFX slider and are not offered here.
-2. Run `python python/export_online_music.py` from the game repo. This rewrites `server/music-catalog.json` and copies the mp3s into `server/music-preview/`.
-3. Commit the server repo and deploy as usual. A player's game build must also contain the track: an older build skips a track it does not have and keeps playing what it had.
+A player's own story can override zone music for that player only:
 
-`castle.wav` in the game's `sounds/castle/` folder is not registered in the IDE yet, so it does not appear in the list.
+- **Music block** (Story Workshop):
+  - **scene:** plays a song until the scene ends
+  - **once:** a sting that plays one time, then the previous music comes back
+  - **silence:** no music until the scene ends
+  - **keep:** a song that follows the character into every zone, even after logging out
+  - **clear:** stops the kept song
+
+  See [Flow block reference](blocks.md#music).
+- **Stage music** (quest stage blocks): while a stage is current, the listed zones (or "any zone") play the listed field, battle and boss songs. See [Quest stages and objectives](quests.md#stage-music).
+
+When several apply, the game plays the first of:
+
+1. sting
+2. scene music
+3. kept song
+4. quest stage music
+5. zone music
+
+Fights keep their battle music and return to the right song afterwards.
+
+## Adding a library track
+
+1. Put the original file in the game repo's `audio-masters/music/` folder. Its file name becomes the song name, e.g. `castle.mp3` becomes `castle`.
+2. Run `python python/export_online_music.py`. It converts new or changed masters into the server repo's `server/music-library/` folder and updates both `music-library.json` and the game's `datafiles/generation/music_library.json`.
+3. Commit both repos, deploy the server, and ship a game build. The game needs the updated `music_library.json` to know the new name; uploads need no game build.
 
 ## Troubleshooting
 
 - **Save refused:** the message names the slot. Silence is allowed only in the Field slot, and volume must be a whole number from 0 to 100.
-- **Preview says "No preview":** the server is missing `music-preview/<track>.mp3`. Re-run the exporter and deploy.
-- **The music did not change in game:** the player may be in a fight, since battles keep their music until they end. Otherwise the zone may inherit from a row you did not expect; check its **Plays** column.
-- The audit log records `music_set` and `music_clear` with the zone, the three slots and the volume.
+- **Upload refused:**
+  - "Upload mp3, ogg, wav, flac or m4a": the file isn't audio.
+  - "ffmpeg is not installed": run `deploy/fedora-deploy.sh` on the server.
+  - "Another song is converting": wait a moment and try again.
+- **A preview or song does not play in game:**
+  - The nginx proxy must publish `/quest-music/` (`deploy/nginx-quest-music.conf`).
+  - The game page must allow media from its own site.
+  - Check `curl -sI https://lidoll.dev/quest-music/<id>.mp3`. The second request should show `X-Cache-Status: HIT`.
+- **Desktop players:** the first visit to an area keeps the old music for a moment while the song downloads.
+- **Takedown:** after deleting an upload, purge the proxy cache on the nginx host: `sudo rm -rf /var/cache/nginx/quest-music/*`.
+- The audit log records `music_set`, `music_clear`, `music_upload` and `music_delete`.

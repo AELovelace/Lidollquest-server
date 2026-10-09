@@ -42,6 +42,16 @@ Set next to another stage ID, `complete`, or `failed`. Every stage must be reach
 
 `complete` means the quest is **ready to claim**. It does not mean the player has received rewards. This distinction matters for prerequisite quests, flags that represent a fully completed request, and flow waits.
 
+## Stage music
+
+A quest stage block has a **Stage music** list. Each entry names a zone (or **Any zone**) and a field, battle and/or boss song with a volume. While that stage is the player's current stage, those zones play those songs for that player only; the next stage (or finishing the quest) ends it.
+
+- An exact zone beats **Any zone**. If two active quests both match, the stage the player entered most recently wins.
+- A blank slot falls back to the zone's own music ([Zone music](zone-music.md)). Story Workshop scene music and stings still play over stage music.
+- The Map Editor's Zone music box lists every stage that overrides the zone you are viewing.
+
+Stages without music are unchanged, so adding music to one stage never alters the others.
+
 ## Objective completion flags
 
 Create an authored flag in **Flag library**, select the objective block, then choose **+ Set flag on completion**. Pick the flag in the attached action's inspector; up to 16 authored flags can be set. The objective and action stay connected on the quest canvas, and deleting the action removes its effects. Save and publish the content, then accept a new quest to test it.

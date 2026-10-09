@@ -114,6 +114,22 @@ Choose a monster reference. Output is `next`. This creates a personal story-owne
 
 Use Battle when the next story action is an immediate fight. Use Spawn monster when the player should encounter it through world play, and pair it with an appropriate quest objective or wait if later story steps depend on defeating it. Spawning alone does not wait for a kill and is not a general shared-monster placement tool.
 
+## Music
+
+Plays served music for this player only. Output is `next`; the block never pauses the scene. Choose what it does:
+
+| Mode | Effect | Ends |
+| --- | --- | --- |
+| **Play for this scene** | Loops the song | When this story scene (flow run) ends or the player leaves it |
+| **Play once (sting)** | Plays the song one time, then the previous music comes back | After one play |
+| **Silence for this scene** | No music | When the scene ends |
+| **Keep playing after the scene** | A song that follows the character into every zone, even after logging out | When a Music block set to **Stop the kept song** runs |
+| **Stop the kept song** | Forgets the kept song | n/a |
+
+Pick the song from **Library** or **Uploaded songs** and set its **Volume** (0-100). **▶ Preview song** plays it in your browser. A sting plays once per run, even if the player reconnects. When several apply, the game plays sting, then scene, then kept song, then [quest stage music](quests.md#stage-music), then [zone music](zone-music.md). Fights keep their battle music.
+
+Typical uses: a scene song under a dramatic conversation, a short sting when a secret is revealed, or a kept "cursed tune" that follows the player until they lift the curse. Remember that a kept song outlives the scene: always give the story a way to reach a **Stop the kept song** block.
+
 ## End
 
 End marks the current run complete and has no output. It does not automatically claim quests, set flags, remove every spawned object, or clear unrelated progress. Put required completion operations before it.

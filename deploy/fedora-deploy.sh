@@ -28,9 +28,14 @@ esac
 [[ -d /run/systemd/system ]] || { echo 'This installer requires running systemd.' >&2; exit 1; }
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-# Fedora supplies Node plus the headless private-sprite worker's Python dependencies.
-dnf install -y nodejs24 ca-certificates util-linux shadow-utils policycoreutils python3 python3-requests python3-pillow
+# Fedora supplies Node, the headless private-sprite worker's Python dependencies and ffmpeg for music uploads.
+# ffmpeg-free converts GM song uploads to mp3 (browser build) and Ogg Vorbis (desktop build); see server/music-transcode.mjs.
+dnf install -y nodejs24 ca-certificates util-linux shadow-utils policycoreutils python3 python3-requests python3-pillow ffmpeg-free
 [[ -x /usr/bin/node-24 ]] || { echo 'Fedora did not provide /usr/bin/node-24.' >&2; exit 1; }
+ffmpeg_encoders="$(ffmpeg -hide_banner -encoders 2>/dev/null || true)" # Captured first: with pipefail, grep -q closing a pipe early would fail the check.
+for encoder in libmp3lame libvorbis; do # Both outputs are required: a missing encoder would only show up as failed uploads later.
+  grep -q "$encoder" <<<"$ffmpeg_encoders" || { echo "ffmpeg lacks the $encoder encoder needed for song uploads." >&2; exit 1; }
+done
 
 # A host-wide lock prevents two deployments from switching releases together.
 exec /usr/bin/flock --nonblock /run/lock/lidollquest-deploy.lock \

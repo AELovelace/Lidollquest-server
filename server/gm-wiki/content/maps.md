@@ -100,6 +100,8 @@ Pending changes preview on the canvas and queue on the right until **Apply**; Un
 
 Floor painting can pass beneath existing scenery and furniture, which keep their own collision. Repainting an existing wall tile also saves without treating the scenery already there as a new obstruction. Adding a new wall or prop over protected scenery, services, arrivals or exits is refused; move or remove scenery first when replacing its space with solid terrain. Outer-wall and reachability checks still apply to the whole edit.
 
+The bottom of the right-hand column holds the **Zone music** box: the zone's Field, Battle and Boss songs, volume, ▶ preview, Save and Clear, exactly as on the panel's Music tab, plus a list of quest stages that override the zone. See [Zone music](zone-music.md).
+
 ### Moving, copying and pasting
 
 With **Select / move**, click an object to select it. On a shared tile the pick order is: placement, DM monster, hub furniture or service, then scenery. Drag it, and a dashed ghost shows where it lands; release to move it. For scenery bigger than one tile, the tile you grabbed lands under the pointer.
