@@ -30,6 +30,18 @@ const flowOf=flag=>({id:'story_scout',name:'Scout rescue',description:'',repeata
  nodes:[{id:'entry_1',type:'entry',label:'Start',x:0,y:0,conditions:{all:[],any:[],none:[]},choices:[],effects:[],rewards:{}},{id:'dialogue_1',type:'dialogue',label:'Thanks',text:'The scout thanks you.',x:300,y:0,conditions:{all:[],any:[],none:[]},choices:[],effects:[],rewards:{}},{id:'set_1',type:'set_flag',label:'Remember',flag,x:600,y:0,conditions:{all:[],any:[],none:[]},choices:[],effects:[],rewards:{}},{id:'end_1',type:'end',label:'Finish',x:900,y:0,conditions:{all:[],any:[],none:[]},choices:[],effects:[],rewards:{}}],
  edges:[{from:'entry_1',port:'next',to:'dialogue_1'},{from:'dialogue_1',port:'next',to:'set_1'},{from:'set_1',port:'next',to:'end_1'}]});
 
+test('offline story quest targets survive draft reload and use the live validation rules',async()=>{
+ const {api,reload,rules}=sandbox(),task=quest('narrative_task','unused','keeper');task.stages[0].objectives=[{id:'story_step',type:'story',text:'Finish the scene.'}];
+ const assets=[{kind:'npc',id:'keeper',revision:0,entry:npc('keeper')},{kind:'quest',id:task.id,revision:0,entry:task}];
+ const entry={id:'narrative_story',name:'Narrative story',nodes:[{id:'start',type:'entry'},{id:'step',type:'quest',operation:'complete_objective',ref:task.id,stage:'stage_a1',objective:'story_step'},{id:'end',type:'end'}],edges:[{from:'start',port:'next',to:'step'},{from:'step',port:'next',to:'end'}]};
+ assert.equal((await act(api,'flow_validate',{entry,assets})).issues.filter(i=>i.severity==='error').length,0);
+ await act(api,'flow_save',{id:entry.id,revision:0,entry,assets});
+ const saved=(await reload()('/gm/flows')).flows.find(f=>f.id===entry.id).draft;
+ assert.equal(saved.nodes[1].stage,'stage_a1');assert.equal(saved.nodes[1].objective,'story_step');
+ const options={catalog:{quests:[task]},publish:true};same(rules.validateFlow(entry,options).flow,validateFlow(entry,options).flow);
+ entry.nodes[1].stage='missing';assert.ok((await act(api,'flow_validate',{entry,assets})).issues.some(i=>/existing stage/.test(i.message)));
+});
+
 test('quest bundles round-trip and malformed files are refused with a reason',()=>{
  const data=bundleApi.serializeQuestBundle({flow:flowOf('story_x'),assets:[{kind:'quest',id:'quest_1',revision:3,entry:quest('quest_1','slime','npc_1')}],flags:[{id:'story_x',name:'X'}],source:'public-quest-editor',now:()=>new Date('2026-10-03T00:00:00Z')});
  assert.equal(data.format,'lidollquest-quest-bundle');assert.equal(data.exported,'2026-10-03T00:00:00.000Z');assert.equal(data.assets[0].revision,undefined);assert.equal(data.flags[0].description,'');

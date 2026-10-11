@@ -45,7 +45,15 @@ export function validateFlow(input,{catalog=null,flags=[],publish=false}={}){
   if(node.effects.some(e=>['give_item','force_equip_item','replace_diaper'].includes(e.type)&&!e.item))problem(node.id,'Choose an item for each item effect.');
   if(node.type==='choice'&&!node.choices.length)problem(node.id,'Add at least one choice.');
   if(['dialogue','narrative','choice'].includes(node.type)&&!node.text.trim())problem(node.id,'Write the player-facing text.');
-  if(node.type==='quest'&&!['accept','claim','abandon','branch'].includes(node.operation))problem(node.id,'Choose a quest operation.');
+  if(node.type==='quest'&&!['accept','claim','abandon','branch','complete_objective','complete_stage'].includes(node.operation))problem(node.id,'Choose a quest operation.');
+  if(node.type==='quest'&&['complete_objective','complete_stage'].includes(node.operation)){
+   node.stage=text(n.stage,80);if(node.operation==='complete_objective')node.objective=text(n.objective,80);
+   if(!node.stage)problem(node.id,'Choose the quest stage to complete.');
+   if(node.operation==='complete_objective'&&!node.objective)problem(node.id,'Choose the quest objective to complete.');
+   const stage=catalog?.quests?.find(q=>q.id===node.ref&&!q.retired)?.stages?.find(s=>s.id===node.stage);
+   if(catalog&&!stage)problem(node.id,'Choose an existing stage in this quest.');
+   if(catalog&&node.operation==='complete_objective'&&!stage?.objectives?.some(o=>o.id===node.objective))problem(node.id,'Choose an existing objective in this quest stage.');
+  } // Store explicit targets so replaying a story can never advance whichever stage happens to be current.
   if(node.type==='objective'&&!['quest','flag'].includes(node.operation))problem(node.id,'Choose what this block waits for.');
   if(node.type==='quest'&&node.operation==='branch'&&!node.branch)problem(node.id,'Choose a quest branch.');
   if(catalog){const groups={npc_entry:'npcs',reveal_orb:'orbs',hide_orb:'orbs',battle:'monsters',spawn:'monsters',quest:'quests',travel:'zones'};const group=node.type==='objective'&&node.operation==='quest'?'quests':groups[node.type];if(group&&!catalog[group]?.some(r=>r.id===node.ref&&!r.retired))problem(node.id,'Choose a published '+group+' reference or include its draft in the publication bundle.');if(node.sprite&&!catalog.sprites?.includes(node.sprite))problem(node.id,'Choose available artwork.');for(const item of [...node.rewards.items,...node.effects.filter(e=>e.item).map(e=>({id:e.item}))])if(!catalog.items?.some(i=>i.id===item.id))problem(node.id,'Choose an existing item: '+item.id);}

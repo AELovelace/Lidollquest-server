@@ -59,8 +59,16 @@ Choose a canonical quest reference, then an operation:
 | `claim` | Referenced quest is ready | Grants its normal rewards once and records the claim |
 | `abandon` | Active referenced instance, if present | Marks it abandoned using normal quest semantics |
 | `branch` | Quest is waiting for a branch choice | Selects the Branch ID if its current conditions pass |
+| `complete_objective` (Complete objective) | Quest accepted; selected stage active | Completes the selected objective and its completion flags; other objectives retain their normal rules |
+| `complete_stage` (Complete stage) | Quest accepted; selected stage active | Completes all objectives in that stage, then follows its next destination or waits for its branch choice |
 
 All operations have `next`. They do not bypass eligibility, inventory capacity, reward caps or captured quest definitions. If you require travel back to an NPC before claiming, make that a task or another interaction in the design.
+
+For either completion operation, choose **Content reference** and **Stage**; Complete objective also needs **Objective**. The block names a specific stage so replay cannot accidentally advance the next one. Already-completed targets in that accepted attempt do nothing; a future stage is rejected. Completion affects the story owner and awards no quest rewards until Claim.
+
+Use **+ Story stage** or **+ Story objective** in this inspector to add narrative tasks without leaving the main story canvas. Enter player instructions, then **Add to quest**. A new stage goes after the selected stage (or the last stage if none is selected), preserving its next destination; use the quest canvas to insert into a branch. These edits remain drafts in the flow's publication bundle. New story stages contain an unfinished Story objective so they do not complete on acceptance.
+
+These are explicit author overrides: completing a selected kill, inventory, timer or other objective satisfies it without performing its usual task. Complete stage satisfies every objective in that stage. Use Complete objective with a **story** objective when normal combat or gathering tasks in the same stage must still be earned. Completion flags and **When objective completes** entries use the normal completion receipts. Player preview walks through quest actions without running the journal; use an isolated in-game test for actual progression.
 
 ## Wait for objective
 

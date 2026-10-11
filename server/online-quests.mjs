@@ -142,7 +142,8 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
  } // Timers and nearby party credit have no player-command save; commit their flag changes in the caller's transaction.
  function evaluate(q,c,s,event=null){
   if(q.state.status!=='active')return;const stage=q.definition.stages.find(v=>v.id===q.state.stage),progress=q.state.progress,grantedTokens=new Set(),completed=[];
-  for(const o of stage.objectives){const key=stage.id+':'+o.id;if(!conditions(s,o.conditions)){if(['state','equipment','collect'].includes(o.type)&&!o.token)progress[key]=0;continue;}let count=progress[key]??0;
+  for(const o of stage.objectives){const key=stage.id+':'+o.id;if(q.state.story_completed_objectives?.[key]){progress[key]=o.count;completed.push(o);continue;} // Explicit story completion remains complete even if inventory or conditions later change.
+   if(!conditions(s,o.conditions)){if(['state','equipment','collect'].includes(o.type)&&!o.token)progress[key]=0;continue;}let count=progress[key]??0;
    if(o.type==='state')count=conditions(s,[o])?o.count:0;
    if(o.type==='equipment'){count=0;const p=s.loadout?.player_info??{};if(o.slot?p['equipped_'+o.slot]===o.target:Object.entries(p).some(([k,v])=>k.startsWith('equipped_')&&v===o.target))count=o.count;}
    if(o.type==='collect'&&!o.token)count=(s.loadout?.inventory??[]).filter(i=>i.item_id===o.target).length;
@@ -153,8 +154,12 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
    if(progress[key]>=o.count)completed.push(o);
   }
   for(const o of completed)completeObjective(q,stage,o,s); // Evaluate every objective against the same pre-effect flags before applying completion actions.
-  const met=o=>(progress[stage.id+':'+o.id]??0)>=o.count;if(stage.mode==='any'?stage.objectives.some(met):stage.objectives.every(met)){if(stage.branches.length)q.state.status='choice';else transition(q,stage.next);}save(q);
+  const met=o=>(progress[stage.id+':'+o.id]??0)>=o.count;if(stage.mode==='any'?stage.objectives.some(met):stage.objectives.every(met))finishStage(q,stage);save(q);
  }
+ function finishStage(q,stage){
+  q.state.completed_stages??={};q.state.completed_stages[stage.id]=true;
+  if(stage.branches.length)q.state.status='choice';else transition(q,stage.next);
+ } // Natural and authored completion share the same branch rules and durable stage receipt.
  function event(c,s,e){if(!db.prepare("SELECT 1 FROM online_quests WHERE character_id=? AND json_extract(state,'$.status')='active' LIMIT 1").get(c.id)&&!(parties.members(c.id).length))return;const p=position(c,s);e={...e,zone:e.zone??p?.zone,quests:e.quests??instances(c).filter(q=>q.state.status==='active').map(q=>q.quest)};for(const q of instances(c)){if(q.state.status!=='active'||(e.stage&&e.stage!==q.state.stage)||(e.quests&&!e.quests.includes(q.quest))||q.created>(e.created??now()))continue;const receipt=q.state.stage+':'+e.id;
    if(e.tokenPlacement){
     const token={content:e.target};
@@ -213,7 +218,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
    if(current.state.status!=='active')fail(current.state.status==='choice'?'Pick a branch in the journal to continue.':'That quest is already ready to turn in.');
    const stage=current.definition.stages.find(v=>v.id===current.state.stage);
    for(const o of stage.objectives){current.state.progress[stage.id+':'+o.id]=o.count;completeObjective(current,stage,o,s);} // Forced stage advancement completes its objectives and their actions; skipping the whole quest does not.
-   if(stage.branches.length)current.state.status='choice';else transition(current,stage.next); // Same exit rule evaluate() applies to a naturally finished stage.
+   finishStage(current,stage); // Same exit rule evaluate() applies to a naturally finished stage.
    save(current);evaluate(current,c,s); // The next stage may already be satisfied by the character's current state.
    return current.definition.name;
   }
@@ -303,12 +308,28 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
  }}
  // Reset online clock checkpoints on boot: time while the service was stopped never counts as connected play.
  for(const row of db.prepare('SELECT * FROM online_quests').all()){const q=unpack(row);if(q.definition.timer.mode==='online'||q.definition.stages.some(s=>s.objectives.some(o=>o.type==='timer'&&o.zone))){q.state.last_tick=now();q.state.timer_zone='';q.state.timer_seen=0;save(q);}}
+ function storyProgress(c,s,n){
+  const q=active(c,n.ref)??instances(c).filter(q=>q.quest===n.ref).at(-1);if(!q||!['active','choice','ready','claimed'].includes(q.state.status))fail('Accept this quest before completing its story objectives.');
+  const stage=q.definition.stages.find(v=>v.id===n.stage),objective=stage?.objectives.find(o=>o.id===n.objective);
+  if(!stage||n.operation==='complete_objective'&&!objective)fail('This accepted quest does not contain the selected story stage or objective.');
+  const key=stage.id+':'+objective?.id;
+  if(q.state.completed_stages?.[stage.id]||n.operation==='complete_objective'&&(q.state.story_completed_objectives?.[key]||q.state.completed_objectives?.[key]&&(q.state.stage!==stage.id||q.state.status!=='active')))return; // Repeated scenes cannot complete a later stage or reapply completion flags, including after claiming.
+  if(q.state.status!=='active'||q.state.stage!==stage.id)fail('The selected quest stage is not active.');
+  q.state.story_completed_objectives??={};
+  for(const o of n.operation==='complete_stage'?stage.objectives:[objective]){
+   q.state.story_completed_objectives[stage.id+':'+o.id]=true;q.state.progress[stage.id+':'+o.id]=o.count;completeObjective(q,stage,o,s);
+  } // A published story explicitly authorizes these objectives, including their completion flags; no items or rewards are granted here.
+  if(n.operation==='complete_stage'){finishStage(q,stage);save(q);}
+  evaluate(q,c,s); // Other kill/collect objectives keep their ordinary rules; stage completion still waits for all/any as authored.
+ }
  function flow(c,s,n,pinned){
   const d=pinned.assets.quests[n.ref];if(!d)fail('This story quest is missing.');
   if(n.operation==='accept'){if(!active(c,n.ref))accept(c,s,n.ref,d.givers[0],d);}
   else if(n.operation==='claim')claim(c,s,n.ref,d.turn_in.npc);
   else if(n.operation==='branch')advance(c,s,n.ref,n.branch);
-  else {const q=active(c,n.ref);if(q){q.state.abandoned_status=q.state.status;q.state.status='abandoned';save(q);}}
+  else if(['complete_objective','complete_stage'].includes(n.operation))storyProgress(c,s,n);
+  else if(n.operation==='abandon'){const q=active(c,n.ref);if(q){q.state.abandoned_status=q.state.status;q.state.status='abandoned';save(q);}}
+  else fail('Unknown story quest operation.',400);
  } // Flow operations retain ordinary prerequisites, progress and reward receipts.
  function flowObjective(c,key){return instances(c).some(q=>q.quest===key&&['ready','claimed'].includes(q.state.status));}
  return {placements,visiblePlacements,act,after,event,flow,flowObjective,snapshot,conditions,gm,gmCatalog,resetFlags,stageMusic,trackedQuest(c,s){const q=c?tracked(c,s):null;return q?publicQuest(q,s):null;}/* The tracked quest's public view, for the minimap guide (quest-guide.mjs). */,detail(c,s,id){const q=instances(c).find(q=>q.id===id||q.quest===id);if(!q)fail('Quest not found.',404);return publicQuest(q,s);},tick(){const full=now()>=nextQuestSweep;if(full)nextQuestSweep=now()+30000; // Offline characters' online timers cannot advance (elapsed stops at seen+30 s), so they only need the 30 s sweep; after() still ticks them on their next action.

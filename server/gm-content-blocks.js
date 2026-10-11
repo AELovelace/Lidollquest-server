@@ -195,13 +195,13 @@ function objectiveProperties(host,o){
  field(host,'Player instructions',o,'text','textarea');
  if(['collect','deliver'].includes(o.type))field(host,'Quest token (instead of inventory item)',o,'token','checkbox').addEventListener('change',()=>{changed();library();properties();});
  const opts=['collect','deliver'].includes(o.type)?o.token?tokenOptions():cat.items:o.type==='kill'?referenceOptions('monsters'):o.type==='talk'?referenceOptions('npcs'):o.type==='equipment'?cat.items:o.type==='interact'?[...referenceOptions('orbs'),...(cat.placements??[]).filter(p=>p.kind==='interact').map(p=>({id:p.content,name:p.name}))]:[];
- if(!['state','timer'].includes(o.type)){
+ if(!['state','timer','story'].includes(o.type)){
   if(opts?.length)contentSelect(host,o.token?'Token target':'Target',o,'target',opts).addEventListener('change',()=>{library();properties();});
   else field(host,'Target ID',o,'target');
   if(o.token){const advanced=el('details',undefined,host);el('summary','Create / rename token target',advanced);field(advanced,'Token target ID',o,'target').addEventListener('change',()=>{library();properties();});}
  }
- contentSelect(host,'Zone restriction',o,'zone',cat.zones);const count=field(host,o.type==='timer'?'Seconds':'Required count',o,'count','number');count.min=1;count.step=1;
- field(host,'Credit',o,'sharing','text',['personal','party']);
+ if(o.type!=='story'){contentSelect(host,'Zone restriction',o,'zone',cat.zones);const count=field(host,o.type==='timer'?'Seconds':'Required count',o,'count','number');count.min=1;count.step=1;field(host,'Credit',o,'sharing','text',['personal','party']);}
+ else el('p','Waits for a Quest operation → Complete objective (or Complete stage) in a story flow. Select this quest, stage and objective there. Completion belongs to the story owner.',host).className='hint';
  if(o.type==='deliver')contentSelect(host,'Delivery NPC',o,'npc',referenceOptions('npcs'));
  if(o.type==='equipment')field(host,'Equipment slot (empty = any)',o,'slot');
  if(o.type==='state'){field(host,'Character field',o,'field','text',cat.records.questCatalog.stateFields);field(host,'Comparison',o,'op','text',['gte','lte','eq']);field(host,'Required value',o,'value','number');}

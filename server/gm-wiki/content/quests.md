@@ -75,8 +75,11 @@ Only active authored `story_...` flags can be selected and published. Engine ach
 | `equipment` | Having the specified item equipped | Item ID and optional slot; this is a current-state check. |
 | `state` | Meeting a numeric character condition | Field, comparison and value, such as health `gte` 10. |
 | `timer` | Enough stage time, or connected time in the selected zone, has elapsed | Count is seconds. Blank zone uses the quest clock; an explicit zone uses accumulated connected presence there. |
+| `story` | A story Quest operation completes this objective or its stage | Select this quest, stage and objective in the story block. No map target or automatic gameplay event is needed. |
 
 Each objective also has a stable ID, descriptive text, count, optional zone, conditions, and sharing mode. Use unique IDs within a stage. Two different items with similar names still have different IDs.
+
+For narrative-heavy quests, use **Quest operation → Accept quest**, then scenes and **Complete objective** blocks, with **Claim rewards** after the quest becomes ready. An `all` stage can contain three Story objectives plus an ordinary kill objective: each scene completes its named story task, while combat supplies the kill credit. **Complete stage** deliberately finishes every objective in its selected stage, so use it only when that whole stage belongs to the scene. The main story inspector can create Story stages/objectives directly; use this quest canvas for gameplay tasks, branching stage layouts and reward settings. Existing accepted attempts keep their captured definitions, so test newly added stages with a fresh attempt.
 
 For placement-backed objectives, enter the exact same content/objective ID on the placement and on the objective target. A `location` placement supports a visit task, `interact` supports an interaction, and `token` supports collection. See [Maps](maps.md).
 

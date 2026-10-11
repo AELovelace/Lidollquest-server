@@ -1,6 +1,6 @@
 // Declarative online content: neither dialogue nor objective conditions can contain executable code.
 import {validateFlagCondition} from './story-flags.mjs';
-export const objectiveTypes=['talk','visit','interact','collect','deliver','kill','equipment','state','timer'];
+export const objectiveTypes=['talk','visit','interact','collect','deliver','kill','equipment','state','timer','story']; // Story objectives wait for an explicit quest operation in a published flow.
 export const questStats=['str','def','dex','int','cha','playerHealthMax'];
 export const stateFields=['shame','wet','tum','health','incontinence','excitement','stamina','childish','forced_inco_turns','had_wet_accident','had_tum_accident'];
 const fail=message=>{throw Object.assign(Error(message),{status:400,code:'quest_content_invalid'});};
