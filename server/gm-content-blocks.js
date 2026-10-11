@@ -282,7 +282,7 @@ function checkContentBlocks(report=true){
   if(n.role==='stage'&&!n.data.objectives?.length)problem(n,'Add an objective to this stage.');
   if(n.role==='objective'){
    if(!Number.isSafeInteger(n.data.count)||n.data.count<1)problem(n,'Use a positive whole-number count.');
-   if(!['state','timer'].includes(n.data.type)&&!n.data.target&&!n.data.zone)problem(n,'Choose the objective target.');
+   if(!['state','timer','story'].includes(n.data.type)&&!n.data.target&&!n.data.zone)problem(n,'Choose the objective target.'); // Story objectives have no target: a flow's Complete objective operation finishes them.
    if(n.data.type==='deliver'&&!n.data.npc)problem(n,'Choose a delivery NPC.');
    for(const id of n.data.on_complete_flags??[])if(!cat.flags.some(f=>f.id===id&&!f.retired&&!f.engineOwned&&id.startsWith('story_')))problem(n,'Choose an active authored completion flag.');
   }

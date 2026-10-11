@@ -12,6 +12,7 @@
 | New asset is absent from a selector | Click Refresh content to load saves from another window. Workshop references include [draft] records; live map placement still lists published content. |
 | “This flow changed” or stale revision | Another edit won. Preserve your text, reload current records, and reapply the change. |
 | Recovered draft is older than the server | Compare before saving. Recovery is local to the tab, not authoritative server history. |
+| Preview says `page_0: Choose an existing entry block.` or “An entry binding in Flow settings points at a block that no longer exists” | An imported draft keeps a hidden entry binding under **Flow settings** (click empty canvas). Its block was deleted. Pick a new **Entry block** for that binding or press **Remove binding**, then preview again. |
 | Map click appears to do nothing | Read the status/error message. Wait for regeneration, reload the map revision, and choose a reachable unoccupied tile. |
 
 ## My story is missing from a quest reference
