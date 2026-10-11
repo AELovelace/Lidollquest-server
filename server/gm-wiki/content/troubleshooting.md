@@ -59,6 +59,8 @@ A dark orb can be waiting for its required earlier orb or a flag condition. A sp
 
 Check read history as well as flags. Clearing a flag does not clear the read receipt. If the orb is bound to a flow, also check that flow's repeat policy, completion history and binding requirements.
 
+**A repeatable orb only replays its story if the story is repeatable too.** The orb's **Repeatable** setting keeps the orb on the map. Whether its bound story plays again is the flow's own **Repeatable** checkbox under **Flow settings**. If the flow is one-time, later touches show the orb's own pages instead. An orb with no pages of its own then says "The orb glows softly. You already know this story." (before 2026-10-10 it did nothing at all). A bound story also waits while the character has another story running, including one parked on an objective; the orb then says its story is waiting. To make the story replay every time, tick Repeatable on the flow and republish.
+
 ## A battle or spawn cannot start
 
 Finish outstanding combat, mandatory scenes, world-turn processing or purchases. Check for a conflicting active story and a compatible client. Make sure there is reachable space near the owner for the story enemy, and verify ordinary party capacity and follower limits.

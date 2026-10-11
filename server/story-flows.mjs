@@ -90,6 +90,7 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
   })??null;
  } // Explicit NPC entry blocks take precedence; completed one-time candidates cannot mask another eligible entry.
  function available(c,s,kind,ref){return !!candidate(c,s,kind,ref);}
+ function bound(c,s,kind,ref){return !!candidate(c,s,kind,ref,true);} // An eligible story exists for this trigger, even if another run is busy right now.
  function npcOverride(c,s,ref){return !!candidate(c,s,'npc',ref,true)?.b.nodeEntry;} // A replacement block also overrides a native or authored greeting reaction.
  function npcActive(c,ref){return active(c)?.state.npcRef===ref;} // A waiting server interaction still owns this NPC's dialogue.
  function npcPending(c,s,ref){return npcActive(c,ref)||!!candidate(c,s,'npc',ref,true);}
@@ -174,5 +175,5 @@ export function createStoryFlows(db,{live,world,now=Date.now,enabled=false,adapt
   if(input.action==='flow_flag_set'){const c=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(input.character_id);if(!c)fail('Character not found.',404);if(c.revision!==input.revision)fail('Character changed. Refresh first.');const s=JSON.parse(c.state);setStoryFlag(s,input.flag,input.value,flags());db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(s),c.id);return inspect(c.id);}
   fail('Unknown flow action.',400);
  }
- return {catalog,list,get,flags,references,gm,testDefinition,start,available,npcOverride,npcPending,npcActive,review,act,exit,resume,settled,snapshot,sceneMusic,active,blocking,objectives,beginTest,enabled,flagsCleared:triggers.flagsCleared};
+ return {catalog,list,get,flags,references,gm,testDefinition,start,available,bound,npcOverride,npcPending,npcActive,review,act,exit,resume,settled,snapshot,sceneMusic,active,blocking,objectives,beginTest,enabled,flagsCleared:triggers.flagsCleared};
 }

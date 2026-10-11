@@ -42,19 +42,20 @@ export function createOrbs(db,{live,now=Date.now,placements,world,event=()=>{}})
   if(!n||Math.abs(n.x-p.x)+Math.abs(n.y-p.y)>1)fail('Stand on or beside the orb.');
   const def=live.published().orbs?.[n.content];if(!def||def.retired)fail('This orb has faded.');
   if(!visible(def,visibility(c)))fail('This orb is not visible yet.'); // Guessing a hidden placement ID cannot bypass its visibility gate.
-  const state=status(def,reads(c));
+  const seen=reads(c),state=status(def,seen),seenBefore=seen.has(def.id); // Read receipts before this read is recorded.
   if(state==='spent')fail('You already know this story.');
   if(state==='dormant')fail('The orb is still dark. Another story comes first.');
   if(!storyFlagsMatch(s,def.story_conditions))fail('This story is not available yet.');
   const flowed=live.flowStart?.(c,s,'orb',def.id); // The same proximity and prerequisite checks protect visual and playable orbs.
   db.prepare('INSERT INTO orb_reads VALUES (?,?,?,?,1) ON CONFLICT(character_id,orb) DO UPDATE SET last=excluded.last,count=count+1').run(c.id,def.id,now(),now());
-  if(!flowed)s.orbScene={id:input.request_id,orb:def.id,at:now()}; // A bound flow presents its own pages instead of opening two readers.
+  const note=def.pages?.length?undefined:live.flowActive?.(c)&&live.flowBound?.(c,s,'orb',def.id)?'The orb flickers. Its story is waiting until you finish or leave your current story.':seenBefore?'The orb glows softly. You already know this story.':'The orb glows softly.'; // A page-less orb whose bound story cannot play would otherwise open an empty scene the client silently skips.
+  if(!flowed)s.orbScene={id:input.request_id,orb:def.id,at:now(),...(note?{note}:{})}; // A bound flow presents its own pages instead of opening two readers.
   event(c,s,{id:'orb:'+input.request_id,type:'interact',target:def.id,zone:p.zone}); // Quests may target an orb's ID with an ordinary interact objective.
  }
  function scene(s){ // The scene waiting to be played, resolved against the published story.
   const pending=s?.orbScene;if(!pending||pending.at<=now()-SCENE_TTL)return null;
   const def=live.published().orbs?.[pending.orb];if(!def)return null;
-  return {id:pending.id,orb:def.id,title:def.title,colour:def.colour,bg:def.bg_color,speed:def.type_speed,pages:def.pages};
+  return {id:pending.id,orb:def.id,title:def.title,colour:def.colour,bg:def.bg_color,speed:def.type_speed,pages:def.pages?.length?def.pages:[{text:pending.note??'The orb glows softly.'}]}; // Never send an empty scene: the client would skip it and the orb would look broken.
  }
  const any=()=>Object.values(live.published().orbs??{}).some(o=>!o.retired); // Snapshots only carry world placements while something is published.
  return {act,decorate,scene,any,reads,setVisibility};
