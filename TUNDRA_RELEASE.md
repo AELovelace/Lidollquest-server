@@ -1,4 +1,4 @@
-# Rose Court / Frostveil Tundra release
+# Rose Court / Frostveil Tundra releasee
 
 Deploy this service and `server/tundra-data.json` before the matching game.
 No database migration, tracker change or credential update is needed. Preserve
