@@ -20,17 +20,17 @@ function fixture(){
  const place=(x,y)=>db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(x,y,c.id);
  place(merchant.x,merchant.y+1);
  const refresh=()=>{c=zones.read('token',c.id).character;return c;};
- const buy=()=>{act('shop_buy',{fixture:merchant.id,offer:merchant.offers[0].id});zones.completePurchase(c.pendingPurchase,true);refresh();return c.loadout.inventory.at(-1);};
+ const buy=()=>{act('shop_buy',{fixture:merchant.id,offer:merchant.offers[0].id});zones.completePurchase(c.pendingPurchase,true);refresh();return {...c.loadout.inventory.at(-1),test_origin:db.prepare("SELECT id FROM quest_item_origins WHERE character_id=? AND status='held' ORDER BY rowid DESC LIMIT 1").get(c.id).id};};
  return {db,zones,act,send,body,buy,refresh,place,merchant,paid,get c(){return c;},nextDay(){time+=86400000;},owner(value){owner=value;}};
 }
 
 test('sales require server-issued rights, ignore forged prices, replay once and leave capped items unsold',()=>{
  const f=fixture();try{
   assert.throws(()=>f.act('shop_sell',{fixture:f.merchant.id,slot:0,item_instance:'fake'}),/tracked online/);
-  const item=f.buy();assert.ok(item.online_item);assert.ok(item.online_sell_price>0);
+  const item=f.buy();assert.ok(item.online_sale_quantity>0);assert.equal(item.online_item,undefined);assert.ok(item.online_sell_price>0);
   const modified=structuredClone(f.c.loadout);modified.inventory.at(-1).value=999999;modified.inventory.at(-1).online_sell_price=999999;
   modified.inventory.push(structuredClone(modified.inventory.at(-1)));f.act('loadout',{loadout:modified});
-  assert.equal(f.c.loadout.inventory.filter(i=>i.online_item).length,1);
+  assert.equal(f.c.loadout.inventory.filter(i=>i.online_item||i.online_sale_quantity>0).length,1);
   assert.equal(f.c.loadout.inventory[1].online_sell_price,item.online_sell_price);
   const command=f.body('shop_sell',{fixture:f.merchant.id,slot:1,item_instance:item.online_item});f.send(command);f.send(command);
   assert.equal(f.paid.length,1);assert.equal(f.paid[0][2],item.online_sell_price);
@@ -96,11 +96,11 @@ test('bank sales pay once from anywhere, respect the daily cap, and reject forge
   const command=f.body('bank_sell',{bank_item:stored.id,item_instance:item.online_item});
   const sale=f.send(command);f.send(command); // The same request ID must never pay twice.
   assert.equal(f.paid.length,1);assert.equal(f.paid[0][2],item.online_sell_price);
-  assert.equal(f.paid[0][3],'sale-'+item.online_item);
+  assert.equal(f.paid[0][3],'sale-'+item.test_origin);
   assert.match(sale.character.hubNotice,/from your bank/);
   assert.equal(f.zones.read('token',f.c.id,{companion:true}).bank.count,0);
   assert.equal(f.db.prepare('SELECT coins FROM quest_reward_days WHERE owner=?').get('alice').coins,item.online_sell_price);
-  assert.equal(f.db.prepare('SELECT status FROM quest_item_origins WHERE id=?').get(item.online_item).status,'sold');
+  assert.equal(f.db.prepare('SELECT status FROM quest_item_origins WHERE id=?').get(item.test_origin).status,'sold');
  }finally{f.db.close();}
 });
 
@@ -116,13 +116,13 @@ test('discounted purchases cannot resell above their paid price; quest and zero-
 test('equipment identity survives equip, identical-item swap, unequip and dress mirroring without minting rights',()=>{
  const f=fixture();try{
   const origins=createItemOrigins(f.db),state=JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(f.c.id).state);
-  const first=origins.mint(f.c.id,{item_id:'test_dress',category:'dress',value:20}),second=origins.mint(f.c.id,{item_id:'test_dress',category:'dress',value:20});
+  const first=origins.mint(f.c.id,{item_id:'test_dress',category:'dress',rarity:'rare',value:20}),second=origins.mint(f.c.id,{item_id:'test_dress',category:'dress',rarity:'rare',value:20});
   state.loadout.inventory=[first,second];f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),f.c.id);f.refresh();
   let next=structuredClone(f.c.loadout);next.inventory.shift();next.player_info.equipped_torso='test_dress';next.player_info.equipped_pants='test_dress';f.act('loadout',{loadout:next});
   assert.equal(f.c.equipmentOrigins.equipped_torso,first.online_item);
-  next=structuredClone(f.c.loadout);next.inventory=[{item_id:'test_dress',category:'dress',value:999}];f.act('loadout',{loadout:next});
+  next=structuredClone(f.c.loadout);next.inventory=[{item_id:'test_dress',category:'dress',rarity:'rare',value:999}];f.act('loadout',{loadout:next});
   assert.equal(f.c.equipmentOrigins.equipped_torso,second.online_item);assert.equal(f.c.loadout.inventory[0].online_item,first.online_item);
-  next=structuredClone(f.c.loadout);next.player_info.equipped_torso='';next.player_info.equipped_pants='';next.inventory.push({item_id:'test_dress',category:'dress'});f.act('loadout',{loadout:next});
+  next=structuredClone(f.c.loadout);next.player_info.equipped_torso='';next.player_info.equipped_pants='';next.inventory.push({item_id:'test_dress',category:'dress',rarity:'rare'});f.act('loadout',{loadout:next});
   assert.deepEqual(new Set(f.c.loadout.inventory.map(i=>i.online_item)),new Set([first.online_item,second.online_item]));assert.equal(f.c.equipmentOrigins,undefined);
   assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM quest_item_origins').get().n,2);
  }finally{f.db.close();}
@@ -142,11 +142,11 @@ test('sale payout retries after a lost wallet response and service restart witho
  await start();try{
   await send(command('create',{name:'Seller'}));let snapshot=await send(command('enter',{zone:'princess-rose-shops',loadout:{player_info:{},inventory:[]}}));
   const merchant=snapshot.zones.find(z=>z.id===snapshot.zone).fixtures[0];service.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(merchant.x,merchant.y+1,c.id);
-  await send(command('shop_buy',{fixture:merchant.id,offer:merchant.offers[0].id}));const item=c.loadout.inventory[0];
+  await send(command('shop_buy',{fixture:merchant.id,offer:merchant.offers[0].id}));const item={...c.loadout.inventory[0],test_origin:service.db.prepare("SELECT id FROM quest_item_origins WHERE character_id=? AND status='held' ORDER BY rowid DESC LIMIT 1").get(c.id).id};
   const sale=command('shop_sell',{fixture:merchant.id,slot:0,item_instance:item.online_item});snapshot=await send(sale);
   assert.equal(c.loadout.inventory.length,0);assert.equal(snapshot.pendingCoins,item.online_sell_price);const paidBalance=balance;
   await stop();lost=false;await start();snapshot=await send(sale);
   assert.equal(snapshot.pendingCoins,0);assert.equal(c.loadout.inventory.length,0);assert.equal(balance,paidBalance);assert.equal(receipts.size,2);
-  assert.equal(service.db.prepare('SELECT status FROM quest_item_origins WHERE id=?').get(item.online_item).status,'sold');
+  assert.equal(service.db.prepare('SELECT status FROM quest_item_origins WHERE id=?').get(item.test_origin).status,'sold');
  }finally{await stop();}
 });

@@ -38,9 +38,10 @@ export function sewerValve(f,fixture,revision){
 } // No collision changes: occupants always retain a way out, even during simultaneous visits.
 
 export function generateSewers(data,edition,depth=1){
- const c=data.config,W=c.width,H=c.height,rnd=seeded(c.route+':'+edition+':sewer-v1'),s=data.structure;
+ const c=data.config,W=c.width,H=c.height,rnd=seeded(c.route+':'+edition+':sewer-v2'),s=data.structure,crossCount=s.cross_links??8;
  if(W!==128||H!==96||s.chamber_count!==18)throw Error('Sewers require a 128 x 96 map with 18 chambers');
- const f={route:c.route,edition,depth,theme:'sewer',width:W,height:H,generatorVersion:1,contentVersion:data.version,geometryVersion:1,mechanismRevision:0,
+ if(!Number.isInteger(crossCount)||crossCount<4||crossCount>8)throw Error('Sewers require 4..8 cross links');
+ const f={route:c.route,edition,depth,theme:'sewer',width:W,height:H,generatorVersion:2,contentVersion:data.version,geometryVersion:1,mechanismRevision:0,
  walls:Array.from({length:H},()=>Array(W).fill(1)),props:Array.from({length:H},()=>Array(W).fill(0)),rooms:[],enemies:[],chests:[],pickups:[],decorations:[],fixtures:[],traps:[],puzzles:[],exits:[],entries:{},safeRooms:[]};
  const open=(x,y)=>{if(x<1||y<1||x>=W-1||y>=H-1)throw Error('Sewer carving escaped its border');f.walls[y][x]=0;};
  const circle=(x,y,r)=>{const cells=[];for(let yy=y-r;yy<=y+r;yy++)for(let xx=x-r;xx<=x+r;xx++)if((xx-x)**2+(yy-y)**2<=r*r){open(xx,yy);cells.push({x:xx,y:yy});}return cells;};
@@ -55,7 +56,15 @@ export function generateSewers(data,edition,depth=1){
   if(a.cy===b.cy){const dir=Math.sign(b.cx-a.cx),off=(i%2?1:-1)*10,mx=a.cx+dir*2;points=[[a.cx,a.cy],[mx,a.cy],[mx,a.cy+off],[b.cx-dir*2,a.cy+off],[b.cx-dir*2,b.cy],[b.cx,b.cy]];bends.push({x:mx,y:a.cy+off,radius:3});}
   else points=[[a.cx,a.cy],[a.cx+(a.cx>64?9:-9),a.cy],[a.cx+(a.cx>64?9:-9),b.cy],[b.cx,b.cy]];
   paths.push(tunnel(points));
- } // A serpentine graph with separate two-tile doglegs preserves the long standing route.
+ } // Winding row passages form the backbone; cross links below turn it into a network.
+ const crossings=[],columns=[[1,2,3,4],[1,2,3,4]];
+ for(const choices of columns)for(let i=choices.length-1;i>0;i--){const j=rnd(i+1);[choices[i],choices[j]]=[choices[j],choices[i]];} // Shuffle each gap independently while guaranteeing links across both gaps.
+ for(let i=0;i<crossCount;i++){
+  const row=i%2,col=columns[row][Math.floor(i/2)],cx=12+col*20;
+  const a=f.rooms.findIndex(r=>r.cx===cx&&r.cy===14+row*32),b=f.rooms.findIndex(r=>r.cx===cx&&r.cy===46+row*32),upper=f.rooms[a],lower=f.rooms[b],lane=cx+8;
+  const cells=tunnel([[cx,upper.cy+3],[lane,upper.cy+3],[lane,lower.cy-3],[cx,lower.cy-3]]);
+  crossings.push({rooms:[a,b],cells}); // Offset shafts meet existing doglegs as crossroads without cutting through low pipes or treasure alcove tips.
+ }
  const low=Array.from({length:H},()=>Array(W).fill('0')),branches=[];
  for(const edge of [2,8,14]){
   const a=f.rooms[edge],b=f.rooms[edge+1],short=tunnel([[a.cx,a.cy],[b.cx,b.cy]]),middle=(a.cx+b.cx)/2;
@@ -74,7 +83,7 @@ export function generateSewers(data,edition,depth=1){
  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++)if(f.walls[y][x]===0&&!protectedCell({x,y})&&!controlled.has(x+','+y))eligible.push({x,y});
  for(let i=eligible.length-1;i>0;i--){const j=rnd(i+1);[eligible[i],eligible[j]]=[eligible[j],eligible[i]];}
  for(const p of eligible.slice(0,Math.ceil(eligible.length*c.sewer.mist_coverage)))base[p.y][p.x]='1';
- f.sewer={low:low.map(r=>r.join('')),branches,baseMist:base.map(r=>r.join('')),step_delay_ms:c.sewer.step_delay_ms,lighting:c.sewer.lighting,lights:[...f.rooms.filter((_,i)=>i%3!==1).map(r=>({x:r.cx,y:r.cy,radius:3+rnd(3)})),...bends.filter((_,i)=>i%2===0).slice(0,6)]};
+ f.sewer={low:low.map(r=>r.join('')),branches,crossings,baseMist:base.map(r=>r.join('')),step_delay_ms:c.sewer.step_delay_ms,lighting:c.sewer.lighting,lights:[...f.rooms.filter((_,i)=>i%3!==1).map(r=>({x:r.cx,y:r.cy,radius:3+rnd(3)})),...bends.filter((_,i)=>i%2===0).slice(0,6)]};
  refreshSewerWater(f);
  const occupied=new Set([...f.fixtures,...f.exits,...Object.values(f.entries)].map(key));
  const take=cells=>{const choices=cells.filter(p=>walkable(f,p.x,p.y)&&!protectedCell(p)&&!occupied.has(key(p)));if(!choices.length)throw Error('No sewer content space');const p=choices[rnd(choices.length)];occupied.add(key(p));return {...p};};

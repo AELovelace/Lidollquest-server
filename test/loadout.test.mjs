@@ -15,7 +15,7 @@ test('importLoadout keeps gold as a pigment colour but still strips currency key
 
 test('legitimate large inventories fit stored character limits without weakening the final bound',()=>{
  const input=base(Array.from({length:99},(_,i)=>({item_id:'gear-'+i,desc:'x'.repeat(2200)})));
- assert.equal(MAX_LOADOUT_BYTES,256*1024);assert.ok(Buffer.byteLength(JSON.stringify(input))>192*1024);
+ assert.equal(MAX_LOADOUT_BYTES,512*1024);assert.ok(Buffer.byteLength(JSON.stringify(input))>192*1024);
  assert.deepEqual(importLoadout(input).inventory,input.inventory);
  const boundary=base([]);boundary.player_info.note='x'.repeat(MAX_LOADOUT_BYTES-Buffer.byteLength(JSON.stringify(boundary))-10); // The note property adds ten JSON bytes.
  assert.equal(Buffer.byteLength(JSON.stringify(boundary)),MAX_LOADOUT_BYTES);assert.doesNotThrow(()=>importLoadout(boundary));

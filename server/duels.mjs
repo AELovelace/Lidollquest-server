@@ -7,7 +7,7 @@
 // winners pick victims in damage order and dress and feed them from either bag.
 import {randomUUID} from 'node:crypto';
 import {combatAction,readyTurn,clearEffects,currentTuning,combatData} from './combat.mjs';
-import {applyRunLoadout,syncRunHealth,addToInventory} from './loadout.mjs';
+import {applyRunLoadout,syncRunHealth,addToInventory,stackTokens} from './loadout.mjs';
 import {applyCombatPatch,actionDelay,encounterTuning} from './dive-encounters.mjs';
 import {rowSwapCostsTurn,rowDamageTaken,weaponProfile} from './scaling.mjs';
 import {WEARABLE_CATEGORIES} from './loot.mjs';
@@ -79,7 +79,7 @@ export function createDuels(db,{now=Date.now,roll,parties=null,adjust=()=>{},sav
  function requireDuel(state,phases){const d=fetch(state.duel);if(!d||d.finished)fail('That duel is over.');if(phases&&!phases.includes(d.phase))fail('The duel is not at that stage.');return d;}
  function refund(d,rows){ // Give every stake back to whoever put it in.
   for(const side of d.sides){
-   for(const entry of [...side.stakes.items,...side.stakes.drinks]){const row=rows.find(v=>v.m.id===entry.by);if(row){if(entry.item.online_item)origins?.release(entry.item.online_item,row.c.id);addToInventory(row.s.loadout.inventory,entry.item);}}
+   for(const entry of [...side.stakes.items,...side.stakes.drinks]){const row=rows.find(v=>v.m.id===entry.by);if(row){for(const token of stackTokens(entry.item))origins?.release(token,row.c.id);addToInventory(row.s.loadout.inventory,entry.item);}}
    side.stakes.items=[];side.stakes.drinks=[];
    for(const [id,amount] of Object.entries(side.coinsBy)){const row=rows.find(v=>v.m.id===id);if(row&&amount>0)adjust(row.c.owner,'coins',amount,randomUUID(),'Duel stake returned');}
    side.coinsBy={};side.stakes.coins=0;
@@ -108,7 +108,7 @@ export function createDuels(db,{now=Date.now,roll,parties=null,adjust=()=>{},sav
    if(item.quest_item||item.loot_locked)fail('Key items cannot be staked.');
    if(kind==='drink'&&!isDrink(item))fail('That is not a drink.');
    if(kind==='item'&&isDrink(item))fail('Pool drinks as drinks, so the loser has to drink them.');
-   bag.splice(i,1);side.stakes[kind==='drink'?'drinks':'items'].push({by:c.id,item});if(item.online_item)origins?.park(item.online_item,c.id); // The resale right waits in escrow with the stake.
+   bag.splice(i,1);side.stakes[kind==='drink'?'drinks':'items'].push({by:c.id,item});for(const token of origins?.attach(c,item)??stackTokens(item))origins?.park(token,c.id); // The resale right waits in escrow with the stake.
    message(d,c.name+(kind==='drink'?' poured ':' put up ')+(item.name??item.item_id)+(num(item.quantity)>1?' x'+item.quantity:'')+(kind==='drink'?' into the pool.':'.'));
   }else fail('Stake coins, an item or a drink.');
   persist(d,rows,c);
@@ -128,7 +128,7 @@ export function createDuels(db,{now=Date.now,roll,parties=null,adjust=()=>{},sav
   const d=requireDuel(state,['staking']),rows=roster(d,c,state),side=d.sides[sideOf(d,c.id)];
   if(side.ready)fail('Your side already said ready.');
   let n=0;
-  for(const key of ['items','drinks']){const keep=[];for(const entry of side.stakes[key]){if(entry.by===c.id){if(entry.item.online_item)origins?.release(entry.item.online_item,c.id);addToInventory(state.loadout.inventory,entry.item);n++;}else keep.push(entry);}side.stakes[key]=keep;}
+  for(const key of ['items','drinks']){const keep=[];for(const entry of side.stakes[key]){if(entry.by===c.id){for(const token of stackTokens(entry.item))origins?.release(token,c.id);addToInventory(state.loadout.inventory,entry.item);n++;}else keep.push(entry);}side.stakes[key]=keep;}
   if(!n)fail('You have no items or drinks in the pool. Coins come back only if the duel is called off.');
   message(d,c.name+' took their items back.');persist(d,rows,c);
  }
@@ -233,8 +233,8 @@ export function createDuels(db,{now=Date.now,roll,parties=null,adjust=()=>{},sav
     for(const w of winners){const amount=share+(rest>0?1:0);if(rest>0)rest--;if(amount>0){adjust(rows.find(v=>v.m.id===w.id).c.owner,'coins',amount,randomUUID(),'Duel winnings');w.coins=amount;}}
     message(d,winners.map(w=>w.name+' takes '+(w.coins??0)+' coins').join(', ')+'.');
    }
-   if(items.length){const top=rows.find(v=>v.m.id===winners[0].id);for(const entry of items){if(entry.item.online_item)origins?.release(entry.item.online_item,top.c.id);addToInventory(top.s.loadout.inventory,entry.item);}message(d,winners[0].name+' claims '+items.map(e=>e.item.name??e.item.item_id).join(', ')+'.');}
-   if(drinks.length){const loserRows=losers.map(l=>rows.find(v=>v.m.id===l.id));drinks.forEach((entry,i)=>{const row=loserRows[i%loserRows.length];if(entry.item.online_item)origins?.release(entry.item.online_item,row.c.id);addToInventory(row.s.loadout.inventory,{...entry.item,forced_drink:true});});message(d,losers.map(l=>l.name).join(' and ')+(losers.length>1?' have':' has')+' to drink everything in the pool.');}
+   if(items.length){const top=rows.find(v=>v.m.id===winners[0].id);for(const entry of items){for(const token of stackTokens(entry.item))origins?.release(token,top.c.id);addToInventory(top.s.loadout.inventory,entry.item);}message(d,winners[0].name+' claims '+items.map(e=>e.item.name??e.item.item_id).join(', ')+'.');}
+   if(drinks.length){const loserRows=losers.map(l=>rows.find(v=>v.m.id===l.id));drinks.forEach((entry,i)=>{const row=loserRows[i%loserRows.length];for(const token of stackTokens(entry.item))origins?.release(token,row.c.id);addToInventory(row.s.loadout.inventory,{...entry.item,forced_drink:true});});message(d,losers.map(l=>l.name).join(' and ')+(losers.length>1?' have':' has')+' to drink everything in the pool.');}
    for(const side of d.sides){side.stakes.items=[];side.stakes.drinks=[];side.stakes.coins=0;side.coinsBy={};}
    if(d.mode==='rp'){d.aftermath={order:winners.map(w=>w.id),losers:losers.map(l=>l.id),picks:{},current:0,sessions:{}};if(winners.length===1&&losers.length===1){d.aftermath.picks[winners[0].id]=losers[0].id;d.aftermath.current=1;openSessions(d);}}
   }
@@ -270,7 +270,7 @@ export function createDuels(db,{now=Date.now,roll,parties=null,adjust=()=>{},sav
   if(item.quest_item)fail('Key items stay where they are.');
   source.splice(i,1);
   const unit={...item,[flag]:true};if(num(item.quantity)>1){unit.quantity=1;const rest={...item,quantity:item.quantity-1};addToInventory(source,rest);} // One unit at a time from a stack.
-  if(unit.online_item&&input.source!=='theirs')origins?.transfer(unit.online_item,c.id,loserRow.c.id); // A winner's own piece changes hands with its right.
+  if(input.source!=='theirs'){const token=origins?.attach(c,unit)?.[0]??unit.online_item;if(token)origins?.transfer(token,c.id,loserRow.c.id);} // A common unit resolves its server-side right before changing owners.
   loserRow.s.loadout.inventory.push(unit);
   message(d,c.name+' '+verb+' '+loserRow.m.name+' '+(item.name??item.item_id)+'.');
   const victimGod=loserRow.s.faith?.god;

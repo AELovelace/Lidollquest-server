@@ -4,6 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
 import {createQuestZones,questZones,questAvatars} from '../server/zones.mjs';
 import {DAILY_COIN_CAP} from '../server/hubs.mjs';
+import {createItemOrigins} from '../server/item-origins.mjs';
 function fixture(){
  const db=new DatabaseSync(':memory:');db.exec('CREATE TABLE wallet(owner TEXT PRIMARY KEY,coins INTEGER NOT NULL);CREATE TABLE awards(id TEXT PRIMARY KEY,owner TEXT,amount INTEGER)');let instant=1000000,owner='alice',token='token-a';
  const zones=createQuestZones(db,{now:()=>instant,roll:()=>0,grant:()=>({owner,id:token,client:'lidollquest'}),wallet:o=>({coins:db.prepare('SELECT coins FROM wallet WHERE owner=?').get(o)?.coins??0}),adjust:(o,asset,n,id)=>{db.prepare('INSERT INTO awards VALUES (?,?,?)').run(id,o,n);db.prepare('INSERT INTO wallet VALUES (?,?) ON CONFLICT(owner) DO UPDATE SET coins=coins+excluded.coins').run(o,n);}});
@@ -11,6 +12,26 @@ function fixture(){
  const act=(action,c,extra)=>{instant+=500;const input=command(action,c,extra);return zones.act(token,input);};
  return {db,zones,act,command,advance:ms=>instant+=ms,as:(name,id=name)=>{owner=name;token=id;}};
 }
+
+test('first read migrates legacy bag, bank and equipment once and publishes the new loadout revision',()=>{
+ const f=fixture();try{
+  const c=f.act('create',null,{name:'Legacy'}).character,origins=createItemOrigins(f.db);
+  const common=origins.mint(c.id,{item_id:'old_food',category:'food',rarity:'common',value:10});
+  const rare=origins.mint(c.id,{item_id:'blue_hat',category:'head',rarity:'rare',value:20});
+  const dress=origins.mint(c.id,{item_id:'old_dress',category:'dress',rarity:'uncommon',value:15});
+  const bank=origins.mint(c.id,{item_id:'old_drink',category:'drink',rarity:'common',value:6});
+  const state=JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(c.id).state);
+  state.loadout={player_info:{equipped_torso:dress.item_id,equipped_pants:dress.item_id},inventory:[common,rare]};state.loadoutRevision=c.revision;state.equipmentOrigins={equipped_torso:dress.online_item};delete state.itemIdentityVersion;
+  f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),c.id);
+  f.db.prepare('INSERT INTO quest_bank VALUES (?,?)').run(c.id,JSON.stringify([{id:'stored',item:bank}]));
+  const read=f.zones.read('token-a',c.id),saved=JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(c.id).state);
+  assert.equal(saved.itemIdentityVersion,1);assert.equal(saved.loadoutRevision,read.character.revision);assert.equal(read.character.revision,c.revision+1);
+  assert.equal(saved.loadout.inventory[0].online_item,undefined);assert.equal(saved.loadout.inventory[0].online_sale_quantity,1);assert.equal(saved.loadout.inventory[1].online_item,rare.online_item);
+  assert.equal(saved.loadout.player_info.equipped_item_data.torso.online_sale_quantity,1);assert.deepEqual(saved.loadout.player_info.equipped_item_data.pants,saved.loadout.player_info.equipped_item_data.torso);
+  const stored=JSON.parse(f.db.prepare('SELECT items FROM quest_bank WHERE character_id=?').get(c.id).items)[0].item;assert.equal(stored.online_item,undefined);assert.equal(stored.online_sale_quantity,1);
+  assert.equal(f.db.prepare("SELECT COUNT(*) n FROM quest_item_origins WHERE status='held'").get().n,4);assert.equal(f.zones.read('token-a',c.id).character.revision,read.character.revision,'repeat reads do not migrate again');
+ }finally{f.db.close();}
+});
 
 test('older campaign revisions cannot restore consumed online inventory after a settled encounter',()=>{
  const f=fixture();try{
@@ -86,7 +107,7 @@ test('campaign loadouts drive arena combat, persist items and never import curre
 test('loadout validation bounds JSON and rejects malformed inventory without changing a character',()=>{
  const f=fixture();try{
   let c=f.act('create',null,{name:'Alice'}).character;c=f.act('enter',c,{zone:questZones[0].id}).character;
-  for(const loadout of [null,{}, {player_info:{},inventory:[null]}, {player_info:{},inventory:Array(513).fill({item_id:'potion'})}, {player_info:{note:'x'.repeat(256*1024)},inventory:[]}])assert.throws(()=>f.act('loadout',c,{loadout}),e=>e.status===400);
+  for(const loadout of [null,{}, {player_info:{},inventory:[null]}, {player_info:{},inventory:Array(513).fill({item_id:'potion'})}, {player_info:{note:'x'.repeat(512*1024)},inventory:[]}])assert.throws(()=>f.act('loadout',c,{loadout}),e=>e.status===400);
   assert.equal(f.zones.read('token-a',c.id).character.revision,c.revision);
  }finally{f.db.close();}
 });

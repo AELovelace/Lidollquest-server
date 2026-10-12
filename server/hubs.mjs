@@ -210,6 +210,7 @@ export function createHubPurchases(db,{now,origins,hooks={}}){ // hooks.duelWage
    }else if(paid)addToInventory(state.loadout.inventory,origins.mint(char.id,item,row.price)); // Resale never exceeds the actual paid price, even with discounted stock tuning; stackables merge into an existing stack.
    if(paid)logBalance('shop_buy',state,{value:row.price,item:item.item_id??item.hub_service??null,currency:item.currency??'coins'});
    delete state.pendingPurchase;if(!item.hub_service&&!item.duel_wager&&!item.trade_escrow&&!item.companion_shop&&!item.guild_purchase&&!item.player_store&&!item.look_unlock&&!item.look_save)state.hubNotice=paid?`Bought ${item.name??item.item_id} for ${row.price} LiDollCoins.${state.littleTaxNote??''}`:'Not enough LiDollCoins. Nothing was purchased.';delete state.littleTaxNote;state.hubNoticeAt=now();
+   origins.reconcile(char,state,JSON.parse(char.state)); // Paid deliveries also save compact common/uncommon identities.
    db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),char.id);
    db.prepare('UPDATE hub_purchases SET status=? WHERE id=?').run(paid?'delivered':'declined',id);db.exec('COMMIT');
   }catch(error){db.exec('ROLLBACK');throw error;}

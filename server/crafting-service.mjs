@@ -71,7 +71,7 @@ export function createCraftingService(db,{now=Date.now,origins,loot,alchemyStore
  function migrate(c,s){
   const legacy=db.prepare('SELECT payload FROM crafting_legacy WHERE character_id=?').get(c.id);if(!legacy||!s.loadout)return;
   const saved=JSON.parse(legacy.payload),counts=new Map();for(const item of saved.loadout?.inventory??[]){if(!Number.isSafeInteger(item.quantity??1)||(item.quantity??1)<1||(item.quantity??1)>512)continue;counts.set(item.item_id,(counts.get(item.item_id)??0)+(item.quantity??1));}
-  const migrateItem=(item,available)=>{const definition=resolveCraftItem(item.item_id);if(!definition||definition.quest_item||definition.bound||definition.soulbound||['quest','quest_item'].includes(definition.category)||!definition.value)return;const have=Math.min(available.get(item.item_id)??0,item.quantity??1),tokens=stackTokens(item),prices=new Map();for(let n=tokens.length;n<have;n++){const copy=origins.mint(c.id,structuredClone(definition));if(copy.online_item){tokens.push(copy.online_item);prices.set(copy.online_item,copy.online_sell_price);}}setStackTokens(item,tokens,prices);available.set(item.item_id,Math.max(0,(available.get(item.item_id)??0)-have));};
+  const migrateItem=(item,available)=>{const definition=resolveCraftItem(item.item_id);if(!definition||definition.quest_item||definition.bound||definition.soulbound||['quest','quest_item'].includes(definition.category)||!definition.value)return;const have=Math.min(available.get(item.item_id)??0,item.quantity??1),tokens=origins.attach(c,item),prices=new Map();for(let n=tokens.length;n<have;n++){const copy=origins.mint(c.id,structuredClone(definition));if(copy.online_item){tokens.push(copy.online_item);prices.set(copy.online_item,copy.online_sell_price);}}setStackTokens(item,tokens,prices);available.set(item.item_id,Math.max(0,(available.get(item.item_id)??0)-have));};
   for(const item of s.loadout.inventory)migrateItem(item,counts);
   if(saved.crafting_legacy_bank){const row=db.prepare('SELECT items FROM quest_bank WHERE character_id=?').get(c.id);if(row){const bank=JSON.parse(row.items),available=new Map();for(const entry of saved.crafting_legacy_bank){const item=entry.item,n=item?.quantity??1;if(item&&Number.isSafeInteger(n)&&n>0&&n<=512)available.set(item.item_id,(available.get(item.item_id)??0)+n);}for(const entry of bank)migrateItem(entry.item,available);db.prepare('UPDATE quest_bank SET items=? WHERE character_id=?').run(JSON.stringify(bank),c.id);}}
   db.prepare('DELETE FROM crafting_legacy WHERE character_id=?').run(c.id);
@@ -80,7 +80,7 @@ export function createCraftingService(db,{now=Date.now,origins,loot,alchemyStore
   if(p)for(const key of ['smithing_level','smithing_xp','tailoring_level','tailoring_xp','cooking_level','cooking_xp','alchemy_level','alchemy_xp','crafting_journal','alchemy_journal','meal_buff']){if(old[key]===undefined)delete p[key];else p[key]=structuredClone(old[key]);}
   preserveCraftingState(s.loadout,next.loadout,{consume:input.action==='use_item'});return next;
  }
- function requireRights(c,inventory,materials){const verified=new Set();for(const [id,n] of Object.entries(materials)){let have=0;const seen=new Set();for(const row of inventory.filter(v=>v.item_id===id))for(const token of stackTokens(row)){if(seen.has(token))continue;const owned=origins.sale(c,row,token);if(owned){seen.add(token);verified.add(token);have++;}}if(have<n)fail('This craft needs verified '+(craftCatalog[id]?.name??id)+'.');}return verified;}
+ function requireRights(c,inventory,materials){const verified=new Set();for(const [id,n] of Object.entries(materials)){let have=0;const seen=new Set();for(const row of inventory.filter(v=>v.item_id===id))for(const token of origins.attach(c,row,seen)){if(seen.has(token))continue;const owned=origins.sale(c,row,token);if(owned){seen.add(token);verified.add(token);have++;}}if(have<n)fail('This craft needs verified '+(craftCatalog[id]?.name??id)+'.');}return verified;}
  function act(c,s,input,p,z,floor){
   const craftingData=settings.read(),craftCatalog=craftingCatalog(craftingData);
   if(!s.loadout||s.run||s.pendingPurchase||s.pendingDefeat)fail('Finish the current activity first.');migrate(c,s);
@@ -100,7 +100,7 @@ export function createCraftingService(db,{now=Date.now,origins,loot,alchemyStore
    if(s.loadout.inventory.length>512)fail('Make room in your inventory.');db.prepare('INSERT INTO crafting_harvests VALUES (?,?,?,?) ON CONFLICT(character_id,zone,node) DO UPDATE SET day=excluded.day').run(c.id,p.zone,node.id,day(now()));s.hubNotice='Gathered '+(node.quantity+bonus)+' '+node.name+'.';s.hubNoticeAt=now();
   }else{
    const item=s.loadout.inventory[input.index],definition=item&&resolveCraftItem(item.item_id);if(!definition?.cooked||!origins.sale(c,item))fail('Choose a verified cooked meal.');
-   const token=stackTokens(item).at(-1);Object.assign(item,definition);consumeFromBag(s.loadout,input.index,item.item_id,{[item.item_id]:definition},{tuning:loot.apply(craftingData.loot).tuning});spend(token);
+   const token=origins.attach(c,item).at(-1);Object.assign(item,definition);consumeFromBag(s.loadout,input.index,item.item_id,{[item.item_id]:definition},{tuning:loot.apply(craftingData.loot).tuning});spend(token);
    if(definition.meal_buff)s.loadout.player_info.meal_buff=structuredClone(definition.meal_buff);
   }
  }

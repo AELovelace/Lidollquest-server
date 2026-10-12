@@ -2,19 +2,22 @@ import {mealMultiplier} from './crafting-combat.mjs';
 import {syncCrawl} from './crawl.mjs';
 import {refreshMana} from './magic-balance.mjs';
 import {blessedDef} from './faith-blessing.mjs'; // Nyx's devout carry extra DEF into every run.
+import {compactItemIdentities,compactIdentity} from './item-identity.mjs';
 
 const fail=message=>{throw Object.assign(Error(message),{status:400,code:'invalid_loadout'});};
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const currencies=new Set(['gold','coins','diamonds','wallet','balance','lidollcoins','lidollcoin']);
 const number=(value,fallback,min=0,max=1000000)=>typeof value==='number'&&Number.isFinite(value)?Math.max(min,Math.min(max,value)):fallback;
-export const MAX_LOADOUT_BYTES=256*1024; // Compact updates leave room for the command envelope within the separate 256 KiB HTTP body cap.
+export const MAX_LOADOUT_BYTES=512*1024; // The 768 KiB gameplay request bound leaves room for the command envelope.
+export const MAX_LOADOUT_NODES=40000; // Full ordinary stacks can exceed 20,000 values even without UUID arrays.
 
 export function importLoadout(input) { // Campaign data is intentionally client-trusted; bounds protect storage and transport, not competitive integrity.
  if(!object(input)||!object(input.player_info)||!Array.isArray(input.inventory)||input.inventory.length>512)fail('Send character stats and at most 512 inventory slots.');
+ try{input=compactItemIdentities(structuredClone(input));}catch(error){if(error instanceof RangeError)fail('Character data is too complex.');throw error;} // Reject deeply nested input cleanly; compact legacy UUID arrays before checking the saved-character budget.
  if(Buffer.byteLength(JSON.stringify(input))>MAX_LOADOUT_BYTES)fail('Character data is too large.');
  let nodes=0;
  function copy(value,depth=0,colours=false){ // colours: this object is an alchemy pigments map, whose keys are colour names (gold, silver...), never currency.
-  if(++nodes>20000||depth>16)fail('Character data is too complex.'); // Keep the existing complexity limits alongside the modest byte-limit increase.
+  if(++nodes>MAX_LOADOUT_NODES||depth>16)fail('Character data is too complex.'); // Retain a bounded traversal and the existing nesting limit.
   if(value===null||typeof value==='boolean'||typeof value==='string')return value;
   if(typeof value==='number'){if(!Number.isFinite(value))fail('Character numbers must be finite.');return value;}
   if(Array.isArray(value))return value.map(v=>copy(v,depth+1));
@@ -54,7 +57,7 @@ export const slotsUsed=inventory=>(inventory??[]).filter(item=>!stackable(item))
 export const stackTokens=item=>Array.isArray(item?.online_items)?item.online_items.filter(t=>typeof t==='string'&&t!==''):(typeof item?.online_item==='string'&&item.online_item!==''?[item.online_item]:[]); // Every resale right a stack carries (one per purchased or looted unit, in order); a single item has at most one. Same as inv_stack_tokens() in scrInventory.gml.
 export function setStackTokens(item,tokens,prices=null){ // Rewrite a stack's rights: the first token is the unit sold next (`online_item`, what the client prices and sells); the rest wait in `online_items`. The sell price is kept only when it is known for that front unit.
  const list=[...new Set(tokens.filter(t=>typeof t==='string'&&t!==''))];
- if(!list.length){delete item.online_items;delete item.online_item;delete item.online_sell_price;return item;}
+ if(!list.length){delete item.online_items;delete item.online_item;if(!(compactIdentity(item)&&item.online_sale_quantity>0))delete item.online_sell_price;return item;}
  item.online_items=list;item.online_item=list[0];
  const price=prices?.get(list[0]);if(Number.isSafeInteger(price)&&price>0)item.online_sell_price=price;else delete item.online_sell_price; // reconcile() prices the new front unit from its origin row.
  return item;
@@ -82,5 +85,6 @@ export function takeFromStack(inventory,match,count=1){ // Consume `count` units
 export function removeUnit(item,token){ // Sell or hand over one unit of a stack; the right `token` leaves with it. Returns the units left (0: the entry is gone or was a single item, so the caller splices it).
  const have=Math.max(1,Math.floor(Number(item.quantity)||1));
  if(!stackable(item)||have<=1)return 0;
+ if(compactIdentity(item)&&item.online_sale_quantity>0)item.online_sale_quantity--; // A completed sale consumes one compact entitlement, including in server-owned bank storage.
  item.quantity=have-1;setStackTokens(item,stackTokens(item).filter(t=>t!==token),stackPrices(item));return item.quantity;
 }

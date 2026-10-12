@@ -15,7 +15,17 @@ test('100 sewer seeds retain circular chambers, standing routes, hazards and det
   for(const p of f.chests.filter(p=>p.id.startsWith('treasure-')))assert.equal([[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy])=>f.walls[p.y+dy]?.[p.x+dx]===0).length,2,'treasure sits at the tip of a two-wide dead end');
   const standing={...f,props:f.props.map((r,y)=>r.map((v,x)=>v||sewerLow(f,x,y)?1:0))},seen=dungeonReachable(standing);
   for(const e of f.exits)assert.ok(seen.has(e.x+','+e.y),'standing exit');
-  assert.ok(pathTo(standing,f.entrance,f.exits[1]).length>=350,'standing journey preserves its winding length');
+  assert.ok(pathTo(standing,f.entrance,f.exits[1]).length<300,'cross links offer a shorter standing journey than the old single tube');
+  assert.equal(f.sewer.crossings.length,8);
+  for(const crossing of f.sewer.crossings){
+   const [a,b]=crossing.rooms.map(i=>f.rooms[i]),midY=(a.cy+b.cy)/2;
+   assert.ok(crossing.cells.every(p=>!sewerLow(f,p.x,p.y)),'cross links never force crawling');
+   const cut={...standing,props:standing.props.map(r=>[...r])};
+   for(const p of crossing.cells)if(p.y===midY)cut.props[p.y][p.x]=1; // Sever both lanes in the shaft so a two-wide corridor cannot masquerade as a loop.
+   const around=dungeonReachable(cut,{x:a.cx+8,y:midY-1});
+   assert.ok(around.has((a.cx+8)+','+(midY+1)),'each shaft has an independent standing route around its cut');
+   for(const r of f.rooms)assert.ok(around.has(r.cx+','+r.cy),'all junctions remain accessible when any cross link is cut');
+  }
   for(const r of f.rooms){assert.ok(seen.has(r.cx+','+r.cy));for(const p of r.cells)assert.ok((p.x-r.cx)**2+(p.y-r.cy)**2<=r.radius**2);}
   const controlled=new Set(f.sewer.branches.flatMap(b=>b.paths.flat().map(p=>p.x+','+p.y)));let eligible=0,mist=0;
   for(let y=0;y<f.height;y++)for(let x=0;x<f.width;x++)if(f.walls[y][x]===0&&!controlled.has(x+','+y)&&!f.safeRooms.some(r=>x>=r.x&&y>=r.y&&x<r.x+r.w&&y<r.y+r.h)){eligible++;mist+=f.mist.rows[y][x]==='1';}
@@ -30,10 +40,13 @@ test('100 sewer seeds retain circular chambers, standing routes, hazards and det
  assert.deepEqual(computeTask('generate',{generator:'sewers',data,edition:'worker'}),generateSewers(data,'worker'));
 });
 test('editor boundary radii and pipe lengths keep a standing path and minimum mist coverage',()=>{
- for(const radius of [3,6])for(const low_length of [6,12])for(let seed=0;seed<10;seed++){
-  const d=structuredClone(data);Object.assign(d.structure,{radius_min:radius,radius_max:radius,low_length});d.config.sewer.mist_coverage=.75;
+ for(const radius of [3,6])for(const low_length of [6,12])for(const cross_links of [4,5,8])for(let seed=0;seed<10;seed++){
+  const d=structuredClone(data);Object.assign(d.structure,{radius_min:radius,radius_max:radius,low_length,cross_links});d.config.sewer.mist_coverage=.75;
   const f=generateSewers(d,'boundary-'+seed),standing={...f,props:f.props.map((r,y)=>r.map((v,x)=>v||sewerLow(f,x,y)?1:0))};
   assert.ok(dungeonReachable(standing).has(f.exits[1].x+','+f.exits[1].y));
+  assert.equal(f.sewer.crossings.length,cross_links);
+  for(const row of [14,46])assert.ok(f.sewer.crossings.filter(c=>f.rooms[c.rooms[0]].cy===row).length>=2,'both row gaps have multiple crossings');
+  for(const p of f.chests.filter(p=>p.id.startsWith('treasure-')))assert.equal([[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy])=>f.walls[p.y+dy]?.[p.x+dx]===0).length,2,'crossings preserve treasure alcoves at editor limits');
   for(const b of f.sewer.branches)for(const y of new Set(b.paths[1].map(p=>p.y))){const cells=b.paths[1].filter(p=>p.y===y&&sewerLow(f,p.x,p.y));assert.ok(cells.length>=6&&cells.length<=12,'each pipe row spans six to twelve cells');}
  }
 });

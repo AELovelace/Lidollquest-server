@@ -4,7 +4,7 @@
 // same durable wallet debit path the shops use, so a lost response can never double-charge, and
 // server-issued resale rights move to the new owner with the item.
 import {randomUUID} from 'node:crypto';
-import {addToInventory,stackable,slotsUsed} from './loadout.mjs';
+import {addToInventory,stackable,slotsUsed,stackTokens} from './loadout.mjs';
 
 export const TRADE_ACTIONS=Object.freeze(['trade_offer','trade_accept','trade_decline','trade_cancel','trade_add','trade_remove','trade_confirm']);
 const PROPOSAL_TTL=10*60000,MAX_COIN_OFFER=1000000,INVENTORY_CAPACITY=99;
@@ -38,7 +38,7 @@ export function createTrades(db,{now=Date.now,adjust=()=>{},saveCharacter,origin
   const rows=roster(t,c,state);for(const {s} of rows)s.trade=t.id;persist(t,rows,c);
  }
  function requireTrade(state,phases){const t=fetch(state.trade);if(!t||t.finished)fail('That trade is over.');if(phases&&!phases.includes(t.phase))fail('The trade is not at that stage.');return t;}
- function refund(t,rows){for(const {side,s,c} of rows){for(const item of side.items){if(item.online_item)origins?.release(item.online_item,c.id);addToInventory(s.loadout.inventory,item);}side.items=[];if(side.coins>0)adjust(c.owner,'coins',side.coins,randomUUID(),'Trade coins returned');side.coins=0;}}
+ function refund(t,rows){for(const {side,s,c} of rows){for(const item of side.items){for(const token of stackTokens(item))origins?.release(token,c.id);addToInventory(s.loadout.inventory,item);}side.items=[];if(side.coins>0)adjust(c.owner,'coins',side.coins,randomUUID(),'Trade coins returned');side.coins=0;}}
  function close(t,rows,text){t.finished=true;t.phase='cancelled';message(t,text);for(const {s} of rows)delete s.trade;}
  function accept(c,state){const t=requireTrade(state,['proposed']);if(t.sides[1].id!==c.id)fail('Only the player who was offered the trade can accept.');const rows=roster(t,c,state);t.phase='open';message(t,c.name+' accepted. Put items or coins on the table, then both confirm.');persist(t,rows,c);}
  function decline(c,state){const t=requireTrade(state,['proposed']);if(t.sides[1].id!==c.id)fail('Only the player who was offered the trade can decline.');const rows=roster(t,c,state);close(t,rows,c.name+' declined the trade.');persist(t,rows,c);}
@@ -58,7 +58,7 @@ export function createTrades(db,{now=Date.now,adjust=()=>{},saveCharacter,origin
    const i=Math.floor(num(input.index,-1)),bag=state.loadout?.inventory??[];if(i<0||i>=bag.length)fail('Choose an item from your bag.');
    const item=bag[i];if(item.quest_item||item.loot_locked)fail('Key items cannot be traded.');
    if(item.forced_wear||item.forced_drink)fail('That item is owed to you by a duel; use it first.');
-   bag.splice(i,1);side.items.push(item);if(item.online_item)origins?.park(item.online_item,c.id);unconfirm(t);message(t,c.name+' put '+label(item)+' on the table.'); // The resale right waits in escrow with the item.
+   bag.splice(i,1);side.items.push(item);for(const token of origins?.attach(c,item)??stackTokens(item))origins?.park(token,c.id);unconfirm(t);message(t,c.name+' put '+label(item)+' on the table.'); // The resale right waits in escrow with the item.
   }else fail('Add coins or an item.');
   persist(t,rows,c);
  }
@@ -76,7 +76,7 @@ export function createTrades(db,{now=Date.now,adjust=()=>{},saveCharacter,origin
  function remove(c,state){
   const t=requireTrade(state,['open']),rows=roster(t,c,state),side=t.sides[mine(t,c.id)];
   if(!side.items.length&&side.coins<=0)fail('You have nothing on the table.');
-  for(const item of side.items){if(item.online_item)origins?.release(item.online_item,c.id);addToInventory(state.loadout.inventory,item);}side.items=[];
+  for(const item of side.items){for(const token of stackTokens(item))origins?.release(token,c.id);addToInventory(state.loadout.inventory,item);}side.items=[];
   if(side.coins>0){adjust(c.owner,'coins',side.coins,randomUUID(),'Trade coins returned');side.coins=0;}
   unconfirm(t);message(t,c.name+' took their offer back.');persist(t,rows,c);
  }
@@ -93,7 +93,7 @@ export function createTrades(db,{now=Date.now,adjust=()=>{},saveCharacter,origin
    if(blocked){unconfirm(t);message(t,blocked);state.hubNotice=blocked;state.hubNoticeAt=now();persist(t,rows,c);return;} // Recorded, not thrown: a throw would roll the reset back and leave stale confirmations standing.
    for(const {side:giver,index:gi,c:from} of rows){
     const receiver=rows[1-gi];
-    for(const item of giver.items){if(item.online_item)origins?.release(item.online_item,receiver.c.id);addToInventory(receiver.s.loadout.inventory,item);} // The escrowed resale right is released to the new owner.
+    for(const item of giver.items){for(const token of stackTokens(item))origins?.release(token,receiver.c.id);addToInventory(receiver.s.loadout.inventory,item);} // The escrowed resale right is released to the new owner.
     if(giver.coins>0)adjust(receiver.c.owner,'coins',giver.coins,randomUUID(),'Trade with '+giver.name);
     receiver.s.hubNotice='Trade complete: '+(giver.items.length?giver.items.map(label).join(', '):'')+(giver.items.length&&giver.coins>0?' and ':'')+(giver.coins>0?giver.coins+' coins':'')+(giver.items.length||giver.coins>0?' from '+giver.name+'.':' nothing from '+giver.name+'.');receiver.s.hubNoticeAt=now();
     giver.items=[];giver.coins=0;

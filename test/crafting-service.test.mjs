@@ -7,6 +7,7 @@ import {craftCatalog,resolveCraftItem,planCraft,craftingData} from '../server/cr
 import {createCraftingStore} from '../server/crafting-store.mjs';
 import {addToInventory,stackTokens} from '../server/loadout.mjs';
 import {weaponEffects,tickMeal,mealMultiplier} from '../server/crafting-combat.mjs';
+import {preserveCraftingState} from '../server/crafting-state.mjs';
 
 function fixture(saved=[]){
  const db=new DatabaseSync(':memory:');db.exec('CREATE TABLE quest_characters(id TEXT PRIMARY KEY,state TEXT NOT NULL);CREATE TABLE quest_bank(character_id TEXT PRIMARY KEY,items TEXT);');
@@ -47,6 +48,21 @@ test('crafting consumes verified units across mixed stacks and preserves untrack
 });
 test('legacy migration captures old goods once and never accepts newly imported stock',()=>{
  const f=fixture([{...craftCatalog.grain,quantity:2,value:999999}]);try{f.s.loadout.inventory.push({...craftCatalog.steel,quantity:5});f.service.migrate(f.c,f.s);const grain=f.s.loadout.inventory[0];assert.equal(stackTokens(grain).length,2);assert.equal(grain.online_sell_price,Math.floor(craftCatalog.grain.value/2));assert.equal(stackTokens(f.s.loadout.inventory[1]).length,0);f.service.migrate(f.c,f.s);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM quest_item_origins').get().n,2);
+ }finally{f.db.close();}
+});
+
+test('compacted ingredients craft and compacted meals preserve their consumption buff',()=>{
+ const f=fixture();try{
+  f.mint('wood');f.mint('steel');f.origins.reconcile(f.c,f.s,structuredClone(f.s));
+  assert.ok(f.s.loadout.inventory.every(i=>!i.online_item&&i.online_sale_quantity===1));
+  f.act({action:'craft_make',discipline:'smithing',station:'forge',fixture:'forge',materials:{wood:1,steel:1}},{x:5,y:4,zone:'town'},{fixtures:[{id:'forge',kind:'forge',x:5,y:5}]});
+  assert.equal(f.db.prepare("SELECT COUNT(*) n FROM quest_item_origins WHERE status='spent'").get().n,2);assert.ok(f.s.loadout.inventory.some(i=>i.crafted));
+  const food=resolveCraftItem('cooked__berry_tart__0');assert.ok(food.meal_buff);
+  f.s.loadout.inventory=[];for(let i=0;i<2;i++)addToInventory(f.s.loadout.inventory,f.origins.mint(f.c.id,structuredClone(food)));
+  f.origins.reconcile(f.c,f.s,structuredClone(f.s));assert.equal(f.s.loadout.inventory[0].online_item,undefined);
+  const before=structuredClone(f.s.loadout),after=structuredClone(before);after.inventory[0].quantity--;preserveCraftingState(before,after,{consume:true});assert.deepEqual(after.player_info.meal_buff,food.meal_buff);
+  f.act({action:'craft_eat',index:0},{zone:'town',x:1,y:1});f.origins.reconcile(f.c,f.s,structuredClone(f.s));
+  assert.equal(f.s.loadout.inventory[0].quantity,1);assert.equal(f.s.loadout.inventory[0].online_sale_quantity,1);assert.deepEqual(f.s.loadout.player_info.meal_buff,food.meal_buff);
  }finally{f.db.close();}
 });
 test('meals consume exactly one resale right and unbuffed food preserves the current meal',()=>{

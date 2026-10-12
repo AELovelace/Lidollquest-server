@@ -30,8 +30,8 @@ export function createPlayerStores(db,{now=Date.now,origins,adjust,zone,unlocks=
  function accessible(c,s,p){if(s.owner===c.owner)fail('Use My Shop to withdraw your own stock.');const z=zone(p.zone),f=z.fixtures?.find(f=>f.id===s.id);if(!s.active||!f||Math.abs(f.x-p.x)+Math.abs(f.y-p.y)>1)fail('Stand beside that shopkeeper.');}
  function take(c,state,index,count){
   const row=state.loadout.inventory[index];if(!row)fail('Choose an inventory item.');const quantity=integer(count,1,512,'Quantity');
-  if((row.quantity??1)<quantity||(!stackable(row)&&quantity!==1))fail('Not enough of that item.');const tokens=stackTokens(row).slice(0,quantity);if(tokens.length!==quantity)fail('Only verified goods can be deposited or sold.');
-  const units=tokens.map(token=>{const origin=origins.sale(c,row,token);if(!origin)fail('That item is no longer available.');const definition=JSON.parse(origin.item);if(definition.quest_item||['quest','quest_item'].includes(definition.category)||!(definition.value>0))fail('That item cannot be traded.');return {...definition,online_item:token,online_sell_price:origin.price};});
+  if((row.quantity??1)<quantity||(!stackable(row)&&quantity!==1))fail('Not enough of that item.');const records=origins.sales(c,row,quantity);if(records.length!==quantity)fail('Only verified goods can be deposited or sold.');
+  const units=records.map(origin=>{const definition=JSON.parse(origin.item);if(definition.quest_item||['quest','quest_item'].includes(definition.category)||!(definition.value>0))fail('That item cannot be traded.');return {...definition,online_item:origin.id,online_sell_price:origin.price};}); // Store escrow retains internal records without exposing common-item UUIDs in a character's bag.
   if((row.quantity??1)===quantity)state.loadout.inventory.splice(index,1);else{row.quantity-=quantity;setStackTokens(row,stackTokens(row).slice(quantity));}
   for(const unit of units)if(!origins.park(unit.online_item,c.id))fail('That item is reserved elsewhere.');return units;
  }
