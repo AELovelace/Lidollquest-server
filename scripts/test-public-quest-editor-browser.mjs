@@ -33,7 +33,7 @@ try{
  const param=key=>page.evaluate(key=>new URL(location.href).searchParams.get(key),key);
 
  phase='open public editor';await page.goto(siteBase+'/');await status('Ready · public quest editor');
- assert.deepEqual(await page.evaluate(()=>['publish','rollback','test','map','openIncludedStories'].map(id=>document.getElementById(id).hidden)),[true,true,true,true,true]);
+ assert.deepEqual(await page.evaluate(()=>['publish','rollback','test','map'].map(id=>document.getElementById(id).hidden)),[true,true,true,true]);
  assert.equal(await page.$$eval('.live-link',links=>links.length),0);assert.ok((await page.$eval('#wikiLink',a=>a.href)).endsWith('/wiki/'));
  assert.deepEqual(await page.$$eval('#newAssets button',b=>b.map(v=>v.textContent)),['+ flag','+ npc','+ quest','+ orb']);
  assert.deepEqual(errors,[]);

@@ -1,6 +1,6 @@
 # Using Story Workshop
 
-The online world now starts with essential services, the retained Coastal Caverns story, the seven hireable companions and Pip. Other old built-in town NPCs, dungeon story NPCs and campaign/weekly quests have been removed from the live world and library. Companion and tutor sheets are available under **Included online stories**; archived edits are recovered only when no newer live sheet exists. Use **+ npc**, **+ quest** and **+ orb** to build your team's content. Existing GM-created content and the rewritten Caverns story remain available; the offline campaign is separate.
+The online world now starts with essential services, the retained Coastal Caverns story, the seven hireable companions and Pip. Other old built-in town NPCs, dungeon story NPCs and campaign/weekly quests have been removed from the live world and library. Companion and tutor sheets open by direct link (`?kind=sheet&id=…`); archived edits are recovered only when no newer live sheet exists. Use **+ npc**, **+ quest** and **+ orb** to build your team's content. Existing GM-created content and the rewritten Caverns story remain available; the offline campaign is separate.
 
 [Wiki home](index.md)
 
@@ -133,12 +133,12 @@ Open **Ask the GM wiki assistant** from Story Workshop or the GM panel for a sep
 
 ## Included online story sheets
 
-Click **Included stories** in the toolbar to reveal the converted catalogue and clear its search while preserving current edits. **Included online stories** opens at the top of the content library by default; open a region to select its sheets. These source sheets are separate from the **Choose a flow** dropdown. If this section is missing entirely, the game server needs the story-sheet update deployed and restarted before reloading the browser.
+The workshop no longer lists the converted catalogue: the **Included stories** toolbar button and the **Included online stories** library section were removed (2026-10-12) so the library shows only your team's content. Built-in sheets still exist on the server. Open one by clicking an imported engine NPC, or by linking straight to `/gm/flow-editor?kind=sheet&id=<sheet id>`.
 
 Included NPC, scene, service and quest sheets carry a permanent **Built-in** marker plus **Needs human re-authoring**. Saving, publishing or restoring a revision does not clear that task. After a human has re-authored the sheet, use **Mark human re-authoring complete** in its inspector; **Mark as needing human re-authoring** reopens it. The Built-in marker remains, and custom-created sheets do not receive it. Search the library for **Needs human re-authoring** to find remaining work. This editorial status persists separately from content drafts and publication, so marking it never activates quests or changes player progress.
 
 
-Open **Included online stories**, choose a region, then an NPC, service or story scene. These are the game's shipped definitions. Select a card and use **Open ?**, **Up one level** and **Sheet overview** to navigate trees, pages, choices, checks and effects. **Add entry** and **Add supported field** expose supported authoring controls. Named page connections are editable; keep stable page IDs and once-only keys. Native service and quest choices remain available when editing source sheets.
+Open a built-in sheet as described above. These are the game's shipped definitions. Select a card and use **Open ?**, **Up one level** and **Sheet overview** to navigate trees, pages, choices, checks and effects. **Add entry** and **Add supported field** expose supported authoring controls. Named page connections are editable; keep stable page IDs and once-only keys. Native service and quest choices remain available when editing source sheets.
 
 Hub residents expose a greeting and optional **topics** with a **topic label**. **online ? Shared NPC choices and service confirmations** holds service wording; retain placeholders such as {price}. Companion voice/example/fallback and tutorial settings have sheets too. Generated replies and service transactions remain runtime behavior.
 

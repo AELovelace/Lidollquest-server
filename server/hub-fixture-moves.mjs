@@ -1,5 +1,5 @@
 // GM fixture moves (Map Editor "Select / move" on hubs): furniture and services such as the vanity mirror, the cauldron
-// and its crafting stations, beds, changers and toilets. They are stored as `fixture` ops in the floor patch layer
+// and its crafting stations, beds, changers, toilets and shopkeepers (move-only, 2026-10-12). They are stored as `fixture` ops in the floor patch layer
 // (floor-patches.mjs) but applied here, after zones.mjs has decorated the room (crafting stations, hubMirrors), because
 // several of these fixtures do not exist yet when the patch layer runs. Each move keeps the fixture's id, so every
 // service check (beside a cauldron, at a mirror) follows it. A move that no longer fits the layout (a monthly district
@@ -29,7 +29,9 @@ export const FURNITURE={
 export const furnitureFixture=(key,id,x,y)=>{const t=FURNITURE[key];return t?{...t.make(),id,x,y}:null;};
 export const furnitureCatalog=()=>Object.entries(FURNITURE).map(([key,t])=>{const f=t.make();return {key,label:t.label,kind:f.kind,sprite:f.sprite??'',style:f.style??'',bed:f.bed??'',span_w:f.span_w??1,span_h:f.span_h??1};}); // For the Map Editor's Place tool (/gm/content).
 
-export const MOVABLE_FIXTURES=new Set(['bed','toilet','changer','cauldron','reagents','forge','sewing_table','kitchen','mirror','altar','bank','dumpster']); // Not shops or NPCs: merchants belong to storefronts and residents to their stories.
+export const MOVABLE_FIXTURES=new Set(['bed','toilet','changer','cauldron','reagents','forge','sewing_table','kitchen','mirror','altar','bank','dumpster']); // Movable AND removable. NPC residents stay with their stories.
+export const MOVE_ONLY_FIXTURES=new Set(['shop']); // Shopkeepers (the eight merchants, Bramble, camp/dungeon keepers) can be moved but never removed or copied. Player stalls are 'player_store' and stay with their owners.
+export const movableKind=kind=>MOVABLE_FIXTURES.has(kind)||MOVE_ONLY_FIXTURES.has(kind); // Any kind the Map Editor may drag to a new tile.
 const SERVICES=new Set([...MOVABLE_FIXTURES,'shop','npc','pad','curse-remover']); // Fixtures a player must be able to stand beside.
 const key=(x,y)=>x+','+y;
 const footprint=f=>{const cells=[];for(let dy=0;dy<(f.span_h??1);dy++)for(let dx=0;dx<(f.span_w??1);dx++)cells.push({x:f.x+dx,y:f.y+dy});return cells;};
@@ -62,12 +64,12 @@ export function applyFixtureMoves(z,ops){ // -> the room with GM fixture moves a
   const work={...z,fixtures:[...(z.fixtures??[])]},moves={},skipped=[];
   for(const op of live){ // In order, so a fixture moved twice ends where the last move put it.
    const i=work.fixtures.findIndex(f=>f.id===op.match.id&&f.kind===op.match.kind);
-   if(i<0||!MOVABLE_FIXTURES.has(work.fixtures[i].kind)){skipped.push({id:op.id,reason:'No '+op.match.kind+' "'+op.match.id+'" in this layout.'});continue;}
+   if(i<0||!movableKind(work.fixtures[i].kind)){skipped.push({id:op.id,reason:'No '+op.match.kind+' "'+op.match.id+'" in this layout.'});continue;}
    const problem=fixtureMoveProblem(work,work.fixtures[i],op.to.x,op.to.y);if(problem){skipped.push({id:op.id,reason:(work.fixtures[i].name||op.match.kind)+': '+problem});continue;}
    work.fixtures[i]={...work.fixtures[i],x:op.to.x,y:op.to.y};moves[op.match.id]={x:op.to.x,y:op.to.y};
   }
   hit={moves,skipped};if(cache.size>200)cache.clear();cache.set(cacheKey,hit);
  }
- const fixtures=(z.fixtures??[]).map(f=>hit.moves[f.id]&&MOVABLE_FIXTURES.has(f.kind)?{...f,...hit.moves[f.id]}:f);
+ const fixtures=(z.fixtures??[]).map(f=>hit.moves[f.id]&&movableKind(f.kind)?{...f,...hit.moves[f.id]}:f); // Shop service checks (nearbyFixture) read this moved room, so buying/selling follows the keeper.
  return {...z,fixtures,...(hit.skipped.length?{patchSkipped:[...(z.patchSkipped??[]),...hit.skipped]}:{})};
 }

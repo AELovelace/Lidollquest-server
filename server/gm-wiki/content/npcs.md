@@ -86,7 +86,7 @@ Place the published NPC on a reachable tile. Approach with an eligible character
 
 ## Editing shipped residents
 
-Use [Included online story sheets](workshop.md#included-online-story-sheets) to change a built-in resident or dungeon NPC while retaining its native service and quest routes. Clicking an imported engine NPC opens its sheet; dragging an engine NPC onto a flow still creates an explicit replacement interaction.
+Use [Included online story sheets](workshop.md#included-online-story-sheets) to change a built-in resident or dungeon NPC while retaining its native service and quest routes. Clicking an imported engine NPC opens its sheet (the catalogue list itself is hidden); dragging an engine NPC onto a flow still creates an explicit replacement interaction.
 
 ## Give a placement a patrol or schedule
 

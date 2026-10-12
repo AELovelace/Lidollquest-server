@@ -7,7 +7,7 @@
 // the GM action transaction (gm.mjs), where act() also re-realizes quest placements and relocates anyone standing in a new wall.
 import {randomUUID} from 'node:crypto';
 import {inExit} from './wilderness-links.mjs';
-import {MOVABLE_FIXTURES,FURNITURE,furnitureFixture} from './hub-fixture-moves.mjs';
+import {MOVABLE_FIXTURES,MOVE_ONLY_FIXTURES,movableKind,FURNITURE,furnitureFixture} from './hub-fixture-moves.mjs';
 
 const fail=(message,status=409,code='world_patch_conflict')=>{throw Object.assign(Error(message),{status,code});};
 const MAX_OPS=256,MAX_CELLS=4096,MAX_BODY=256*1024,MAX_SPAN=8; // Caps keep one zone's patch a few hundred KB at most.
@@ -277,7 +277,8 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
    if(raw.kind==='spawn'){const out={...base};if(raw.entrance)out.entrance={x:Number(raw.entrance.x),y:Number(raw.entrance.y)};if(raw.entries&&typeof raw.entries==='object')out.entries=Object.fromEntries(Object.entries(raw.entries).slice(0,8).map(([z,p])=>[String(z).slice(0,80),{x:Number(p.x),y:Number(p.y)}]));if(!out.entrance&&!out.entries)fail('A spawn change needs an entrance or entries.',400);return out;}
    if(raw.kind==='fixture'){const m=raw.match??{},to=raw.to??{};
     if(raw.op==='add'){const furniture=String(raw.furniture??'');if(!Object.hasOwn(FURNITURE,furniture))fail('Choose furniture to place.',400);return {...base,op:'add',furniture,to:{x:Number(to.x),y:Number(to.y)}};}
-    const id=String(m.id??'').slice(0,80),kind=String(m.kind??'');if(!id||!MOVABLE_FIXTURES.has(kind))fail('Choose furniture or a service to move.',400);
+    const id=String(m.id??'').slice(0,80),kind=String(m.kind??'');if(!id||!movableKind(kind))fail('Choose furniture, a service or a shopkeeper to move.',400);
+    if(raw.op==='remove'&&MOVE_ONLY_FIXTURES.has(kind))fail('Shopkeepers can be moved but not removed.',400); // Merchants keep their service; only their tile changes.
     return raw.op==='remove'?{...base,op:'remove',match:{id,kind}}:{...base,op:'move',match:{id,kind},to:{x:Number(to.x),y:Number(to.y)}};}
    fail('Unknown change kind '+raw.kind+'.',400);
   });

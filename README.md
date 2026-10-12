@@ -889,7 +889,7 @@ switching the live service.
 
 If candidate tests fail with `Choose existing equipment or items` at `registerQuestLibrary`, update to the fix that supplies `questLibraryPack` from `service.mjs`. The content store must not implicitly load weekly quest rewards when callers have no item catalogue (for example, monster artwork tests). The game service still imports all weekly quests as validated draft sheets; this does not enable their live offers. Rerun the normal deployment after updating both service modules. Candidate tests run before the live release is stopped or switched.
 
-If `/gm/flow-editor` has no **Included online stories** catalogue, check that the deployed checkout includes the story-sheet release (`41368a4` or later). The workshop shell is read at service startup; an older running release cannot gain the 401 converted sheets through a browser refresh. The current editor puts the catalogue above the block palette and provides **Included stories** to clear search and reveal it while preserving canvas edits.
+The **Included online stories** catalogue and **Included stories** toolbar button were removed from `/gm/flow-editor` (2026-10-12); converted sheets still load server-side and open from engine NPCs or `/gm/flow-editor?kind=sheet&id=<sheet id>`. Built-in (engine-owned) flags are hidden from the workshop's flag lists and pickers too; a block already using one keeps showing it. The workshop shell is read at service startup, so deploy and restart before reloading the browser.
 
 Update your source checkout (for example, `git pull --ff-only` if you have
 configured a remote), then run this **from that updated checkout**:

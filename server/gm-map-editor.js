@@ -165,7 +165,7 @@ function field(parent,label,key,type='text',options=null){const wrap=el('label',
 function onOptionChange(key){if(key==='kind'||key==='sprite'||key==='scenerySprite'||key==='furniture')renderToolOptions();if(key==='scenerySprite'){const meta=spriteMeta(state.opts.scenerySprite);if(meta){state.opts.spanW=Math.max(1,Math.ceil(meta.width/TILE));state.opts.spanH=Math.max(1,Math.ceil(meta.height/TILE));renderToolOptions();}}schedule();} // Replacing the preview also disconnects retries for the previous sprite.
 function renderToolOptions(){
  const host=$('toolOptions');clear(host);const c=state.content,o=state.opts;if(!c)return;
- if(state.tool==='inspect'){el('p','Click a placement, DM monster, hub furniture or service (beds, vanity, cauldron, crafting stations, changers, toilets…) or scenery to select it; drag it to move it. Ctrl+C / Ctrl+X copy or cut the selection and Ctrl+V pastes it at the tile under the pointer (cut and paste moves it within this map). Placements and monsters change right away; scenery moves and pastes queue on the right until you Apply.',host,'note');renderSelection(host);}
+ if(state.tool==='inspect'){el('p','Click a placement, DM monster, hub furniture, service or shopkeeper (beds, vanity, cauldron, crafting stations, changers, toilets, merchants…) or scenery to select it; drag it to move it. Ctrl+C / Ctrl+X copy or cut the selection and Ctrl+V pastes it at the tile under the pointer (cut and paste moves it within this map). Placements and monsters change right away; scenery moves and pastes queue on the right until you Apply.',host,'note');renderSelection(host);}
  if(state.tool==='place'){
   field(host,'Kind','kind','text',[{id:'monster',name:'Monster'},{id:'npc',name:'NPC'},{id:'interact',name:'Interaction object'},{id:'token',name:'Quest token'},{id:'location',name:'Location objective'},{id:'orb',name:'Story orb'},{id:'trap',name:'Trap (hidden from players)'},{id:'furniture',name:'Furniture / service (hubs)'}]);
   if(o.kind==='furniture'){renderFurnitureOptions(host);return;} // Vanities, kitchens, toilets, beds…: queued patch changes, not managed placements.
@@ -230,7 +230,8 @@ function renderSelection(host){const s=state.selection,c=state.clipboard;
  if(s.type){const row=el('div',undefined,box,'row');for(const [text,cut] of [['Copy (Ctrl+C)',false],['Cut (Ctrl+X)',true]]){if(!cut&&s.type==='fixture'&&!furnitureKey(s.fixture))continue;const b=el('button',text,row);b.type='button';b.onclick=()=>attempt(()=>copySelection(cut));}}
  else if(c){const b=el('button','Paste '+c.label+' here (Ctrl+V)',box);b.type='button';b.onclick=()=>attempt(()=>pasteAt({x:s.x,y:s.y}));}
  if(s.fixture){el('p',s.fixture.kind.replace('_',' ')+' · '+s.w+'×'+s.h+' tiles · drag or cut and paste to move it; changes queue until Apply and must leave the room and every service reachable.',box,'note');
-  if(!autoFixture(s.fixture)){const rm=el('button','Remove (queues a change)',box);rm.type='button';rm.onclick=()=>{queueOp({kind:'fixture',op:'remove',match:{id:s.fixture.id,kind:s.fixture.kind}});state.selection=null;renderToolOptions();};}
+  if(MOVE_ONLY_FIXTURES.has(s.fixture.kind))el('p','Shopkeepers can be moved but not removed. Buying and selling follow them to the new tile.',box,'note'); // Move-only: no Remove button.
+  else if(!autoFixture(s.fixture)){const rm=el('button','Remove (queues a change)',box);rm.type='button';rm.onclick=()=>{queueOp({kind:'fixture',op:'remove',match:{id:s.fixture.id,kind:s.fixture.kind}});state.selection=null;renderToolOptions();};}
   else el('p','The room adds this one automatically, so it can be moved but not removed.',box,'note');}
  if(s.scenery){const d=s.scenery;el('p',(d.solid?'Solid':'Walk-through')+' · '+d.span_w+'×'+d.span_h+' tiles'+(d.toilet?' · toilet':''),box,'note');const rm=el('button','Remove (queues a change)',box);rm.type='button';rm.onclick=()=>{queueOp({kind:'decoration',op:'remove',match:{sprite:d.sprite,x:d.x,y:d.y,...(d.id?{id:d.id}:{})}});state.selection=null;renderToolOptions();};}
  if(s.placement){const p=s.placement,edit={x:p.x,y:p.y,lifetime:p.lifetime};const xs=el('label','X',box),xi=el('input',undefined,xs);xi.type='number';xi.value=p.x;xi.onchange=()=>edit.x=Number(xi.value);const ys=el('label','Y',box),yi=el('input',undefined,ys);yi.type='number';yi.value=p.y;yi.onchange=()=>edit.y=Number(yi.value);const ls=el('label','Lifetime',box),li=el('select',undefined,ls);for(const v of ['persistent','temporary']){const o=el('option',v,li);o.value=v;}li.value=p.lifetime;li.onchange=()=>edit.lifetime=li.value;
@@ -324,7 +325,7 @@ async function useTool(cell,event){
  if(state.tool==='place'){
   if(o.kind==='furniture'){ /* Hub furniture: a pending fixture op (floor-patches.mjs), applied with the rest of the queue. */
    if(!fixturesEditable())throw Error('Furniture can be placed in hubs and their rooms only (this server needs the patch layer).');
-   if(o.remove){const fx=fixtureAt(f,x,y);if(!fx)throw Error('No furniture or service here.');if(autoFixture(fx))throw Error(fx.name+' is added automatically by the room; move it instead.');queueOp({kind:'fixture',op:'remove',match:{id:fx.id,kind:fx.kind}});say('Removal queued. Apply to keep it.');return;}
+   if(o.remove){const fx=fixtureAt(f,x,y);if(!fx)throw Error('No furniture or service here.');if(MOVE_ONLY_FIXTURES.has(fx.kind))throw Error(fx.name+' is a shopkeeper; drag them to move them instead.');if(autoFixture(fx))throw Error(fx.name+' is added automatically by the room; move it instead.');queueOp({kind:'fixture',op:'remove',match:{id:fx.id,kind:fx.kind}});say('Removal queued. Apply to keep it.');return;}
    const t=furnitureByKey(o.furniture);if(!t)throw Error('Choose furniture first.');queueOp({kind:'fixture',op:'add',furniture:t.key,to:{x,y}});say(t.label+' queued at '+x+','+y+'. Apply to place it.');return;
   }
   const foe=m.floor.enemies?.find(e=>e.x===x&&e.y===y),placement=m.placements?.find(p=>p.x===x&&p.y===y);
@@ -360,7 +361,8 @@ async function useTool(cell,event){
 }
 
 // ----- Select / move, copy / cut / paste: placements (world_update_content), DM monsters (world_move) and scenery (grouped patch ops) -----
-const MOVABLE_FIXTURES=new Set(['bed','toilet','changer','cauldron','reagents','forge','sewing_table','kitchen','mirror','altar','bank','dumpster']); // hub-fixture-moves.mjs: shops and NPC residents stay with their storefronts and stories.
+const MOVABLE_FIXTURES=new Set(['bed','toilet','changer','cauldron','reagents','forge','sewing_table','kitchen','mirror','altar','bank','dumpster']); // hub-fixture-moves.mjs: movable and removable. NPC residents stay with their stories.
+const MOVE_ONLY_FIXTURES=new Set(['shop']); // hub-fixture-moves.mjs: shopkeepers can be dragged to a new tile, never removed or copied.
 const furnitureByKey=key=>(state.content?.furniture??[]).find(t=>t.key===key)??null; // /gm/content furniture: hub-fixture-moves.mjs FURNITURE.
 function furnitureKey(fx){ /* The catalog key that rebuilds a fixture, or null (pay toilets, altars, reagent sellers stay unique). */
  const key=fx.kind==='mirror'?'vanity':fx.kind==='toilet'?(fx.style==='outhouse'?'outhouse':fx.style==='paytoilet'?null:'toilet'):fx.kind==='bed'?'bed:'+(fx.bed||fx.id):fx.kind;
@@ -376,7 +378,7 @@ function renderFurnitureOptions(host){
  el('p',fixturesEditable()?'Click a tile to put its top-left corner there. It must stand on open floor inside the outer wall, off doorways, and leave the room and every service reachable. Changes queue on the right until you Apply.':'Furniture can be placed in hubs and their rooms only.',host,'note');
 }
 const fixturesEditable=()=>state.map?.kind==='hub'&&!!state.map.patch; // Fixture moves are patch ops on hubs.
-function fixtureAt(f,x,y){const d=(f.fixtures??[]).find(d=>MOVABLE_FIXTURES.has(d.kind)&&x>=d.x&&x<d.x+(d.span_w??1)&&y>=d.y&&y<d.y+(d.span_h??1));return d?{id:d.id,kind:d.kind,name:d.name||d.kind.replace('_',' '),sprite:d.sprite,style:d.style,bed:d.bed,x:d.x,y:d.y,span_w:d.span_w??1,span_h:d.span_h??1,solid:d.solid!==false}:null;} // The furniture or service covering a tile.
+function fixtureAt(f,x,y){const d=(f.fixtures??[]).find(d=>(MOVABLE_FIXTURES.has(d.kind)||MOVE_ONLY_FIXTURES.has(d.kind))&&x>=d.x&&x<d.x+(d.span_w??1)&&y>=d.y&&y<d.y+(d.span_h??1));return d?{id:d.id,kind:d.kind,name:d.name||d.kind.replace('_',' '),sprite:d.sprite,style:d.style,bed:d.bed,x:d.x,y:d.y,span_w:d.span_w??1,span_h:d.span_h??1,solid:d.solid!==false}:null;} // The furniture or service covering a tile.
 const sceneryEditable=()=>!!state.map?.patch&&!state.map.id.startsWith('dungeon-'); // The Scenery stamp tool's rule: full dungeons keep their generated layout.
 function sceneryAt(f,x,y){ /* The scenery covering a tile (the eraser's rule): dive decorations, or hub scenery and toilet fixtures. */
  const d=(f.decorations??[]).find(d=>x>=d.x&&x<d.x+d.span_w&&y>=d.y&&y<d.y+d.span_h)??(f.fixtures??[]).find(d=>['scenery','toilet'].includes(d.kind)&&x>=d.x&&x<d.x+(d.span_w??1)&&y>=d.y&&y<d.y+(d.span_h??1));

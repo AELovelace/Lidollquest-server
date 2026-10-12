@@ -6,7 +6,7 @@
 
 A story flag is a true-or-false fact about one online character. It survives travel, logout, reconnection, and server restarts. It is not account-wide and is not shared with the character's party.
 
-![The flag library lists authored definitions, references and separate engine-owned achievements.](../assets/tutorial/reference-flag-library.png)
+![The flag library lists authored definitions and their references.](../assets/tutorial/reference-flag-library.png)
 
 ## Define a flag
 
@@ -54,7 +54,7 @@ For different narrative scenes, route a Check flags output to separate Narrative
 
 ## Engine-owned achievements
 
-The library also identifies server-recorded achievements, including recorded boss victories and existing progression flags. They can be checked, but ordinary story blocks cannot set or clear them. Authored flags must use the authored namespace and an active definition.
+Server-recorded achievements (recorded boss victories and existing progression flags) are built-in flags. Since 2026-10-12 the workshop hides them from the Flags library, the flag library dialog and every flag picker, so GMs only see their own `story_…` flags. A block that already checks a built-in flag still shows that one flag so it is not silently lost. Ordinary story blocks never set or clear them. Authored flags must use the authored namespace and an active definition.
 
 Do not invent a writable substitute with the same meaning and assume engine services will recognize it. Use your authored flag for your own story decision, and use the engine flag when checking an actual game achievement.
 

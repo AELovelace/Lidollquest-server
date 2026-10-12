@@ -10,6 +10,7 @@ import {createQuestZones} from '../server/zones.mjs';
 import {createWorldContent} from '../server/world-content.mjs';
 import {createQuestService} from '../server/service.mjs';
 import {combatData} from '../server/combat.mjs';
+import {nearbyFixture} from '../server/hubs.mjs';
 import {hubData} from '../server/hubs.mjs';
 import {walkable} from '../server/dive-generation.mjs';
 import {diveData} from '../server/dive.mjs';
@@ -226,7 +227,7 @@ test('a GM can add a new gate or pad to a legal neighbour, arrivals follow, and 
  }finally{f.close();}
 });
 
-test('hub furniture and services move through fixture ops after decoration: vanity, cauldron and crafting stations keep their ids',()=>{
+test('hub furniture, services and shopkeepers move through fixture ops after decoration: vanity, cauldron, crafting stations and merchants keep their ids',()=>{
  const f=fixture();try{
   const gm=(zone,ops)=>{f.db.exec('BEGIN IMMEDIATE');try{const r=f.patch(zone,ops);f.db.exec('COMMIT');return r;}catch(e){f.db.exec('ROLLBACK');throw e;}}; // gm.mjs wraps every GM action like this, so a refused move leaves nothing stored.
   const hubs=f.zones().world.catalog().filter(z=>z.kind==='hub').map(z=>z.id),find=kind=>hubs.find(id=>f.map(id).floor?.fixtures?.some(x=>x.kind===kind));
@@ -245,7 +246,12 @@ test('hub furniture and services move through fixture ops after decoration: vani
   const home=f.map(inn).floor.fixtures.find(x=>x.id===mirror.id);assert.deepEqual([home.x,home.y],[mirror.x,mirror.y],'removing the stored move puts the vanity back');
   const yard=find('cauldron');if(yard){const forge=f.map(yard).floor.fixtures.find(x=>x.kind==='forge'),{it:pot,to:spot}=tryMove(yard,'cauldron'),after=f.map(yard).floor.fixtures;
    assert.deepEqual([after.find(x=>x.id===pot.id).x,after.find(x=>x.id===pot.id).y],[spot.x,spot.y],'the cauldron moved');if(forge)assert.deepEqual([after.find(x=>x.id===forge.id).x,after.find(x=>x.id===forge.id).y],[forge.x,forge.y],'its crafting stations stay put');}
-  assert.throws(()=>gm(inn,[{kind:'fixture',op:'move',match:{id:'objNPCMerchant',kind:'shop'},to:{x:3,y:3}}]),/furniture or a service/,'shops are not movable');
+  const market=find('shop');assert.ok(market,'some hub has a shopkeeper');{ // Shopkeepers are move-only (2026-10-12): drag yes, remove/copy no.
+   const {it:keeper,to:stall}=tryMove(market,'shop'),moved=f.map(market).floor.fixtures.find(x=>x.id===keeper.id&&x.kind==='shop');
+   assert.deepEqual([moved.x,moved.y],[stall.x,stall.y],'the shopkeeper moved and kept its id');
+   assert.equal(nearbyFixture(f.map(market).floor,{x:stall.x-1,y:stall.y},keeper.id,'shop').id,keeper.id,'buying and selling follow the keeper to the new tile');
+   assert.throws(()=>gm(market,[{kind:'fixture',op:'remove',match:{id:keeper.id,kind:'shop'}}]),/moved but not removed/,'shopkeepers cannot be removed');}
+  assert.throws(()=>gm(inn,[{kind:'fixture',op:'move',match:{id:'resident',kind:'npc'},to:{x:3,y:3}}]),/furniture, a service or a shopkeeper/,'NPC residents are still not movable');
   assert.throws(()=>gm('dive-quarters',[{kind:'fixture',op:'move',match:{id:'cauldron',kind:'cauldron'},to:{x:3,y:3}}]),/hub furniture/,'Dives refuse fixture moves');
  }finally{f.close();}
 });
