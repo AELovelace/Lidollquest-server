@@ -52,13 +52,13 @@ test('atelier roll: priced, fixed before payment, delivered once to the bank as 
   const item=stored[0].item;
   assert.equal(item.item_id,reserved.item.item_id);assert.equal(item.name,reserved.item.name); // Delivered exactly as reserved.
   assert.match(item.item_id,/^gen_/);assert.equal(item.is_diaper,true);assert.equal(item.category,'panties');
-  assert.equal(item.loot.rolled,true);assert.ok(item.online_item);assert.ok(item.online_sell_price>=1&&item.online_sell_price<=3); // Resale never exceeds the price paid.
+  assert.equal(item.loot.rolled,true);assert.ok(['common','uncommon'].includes(item.loot.rarity)?item.online_sale_quantity===1&&!item.online_item:!!item.online_item,'sellable: a sale count below rare, a UUID from rare up');assert.ok(item.online_sell_price>=1&&item.online_sell_price<=3); // Resale never exceeds the price paid.
   assert.equal(after.shops.last.status,'delivered');assert.equal(after.shops.last.bank_item,stored[0].id);
   assert.equal(after.shops.last.item.name,item.name);assert.equal(after.shops.last.item.sell,item.online_sell_price);
   assert.equal(after.shops.bankFree,511);
-  assert.equal(after.shops.last.in_bank,true);assert.equal(after.shops.last.item_instance,item.online_item);
+  assert.equal(after.shops.last.in_bank,true);assert.equal(after.shops.last.item_instance,item.online_item??null,'no stale UUID for a compact (common/uncommon) reveal');
 
-  f.act('bank_sell',{bank_item:stored[0].id,item_instance:item.online_item});
+  f.act('bank_sell',{bank_item:stored[0].id,item_instance:after.shops.last.item_instance}); // Exactly what the reveal's Sell button sends.
   assert.equal(f.companion().bank.count,0);assert.equal(f.companion().shops.last.in_bank,false);
   assert.deepEqual(f.paid.at(-1).slice(1,3),['coins',item.online_sell_price]);
  }finally{f.db.close();}

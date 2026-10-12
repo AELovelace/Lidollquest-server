@@ -60,7 +60,8 @@ test('curse removal validates proximity, slot, funds outcome and bag space, reta
   assert.throws(()=>act('loadout',{loadout:before}),/settling/);
   zones.completePurchase(pending,true);zones.completePurchase(pending,true);refresh();
   assert.equal(c.loadout.player_info.equipped_head,'');assert.equal(c.loadout.player_info.equipped_panties,other.item_id);
-  assert.equal(c.loadout.inventory.length,1);assert.equal(c.loadout.inventory[0].online_item,'test-origin');assert.equal(c.loadout.inventory[0].cursed,true);
+  assert.equal(c.loadout.inventory.length,1);assert.equal(c.loadout.inventory[0].online_sale_quantity,1);assert.equal(c.loadout.inventory[0].online_sell_price,7); // Common gear keeps its right server-side (item-identity.mjs): a sale count and price in the bag, no UUID.
+  assert.equal(db.prepare("SELECT status FROM quest_item_origins WHERE id='test-origin'").get().status,'held');assert.equal(c.loadout.inventory[0].cursed,true);
   assert.equal(c.loadoutRevision,c.revision);
  }finally{db.close();}
 });

@@ -2,6 +2,7 @@ import {createHash} from 'node:crypto';
 import {seeded} from './dive-generation.mjs';
 import {rarityConfig,RARITY_ORDER} from './loot.mjs';
 import {BANK_CAPACITY} from './bank.mjs';
+import {compactIdentity} from './item-identity.mjs'; // Common/uncommon reveals keep no per-unit UUID in the bank.
 
 // Diaper Atelier and Clothes Emporium: paid gacha rolls a player makes from the tracker's
 // LidollQuest companion. Each roll generates a base straight from the live loot bases (a style
@@ -86,7 +87,7 @@ export function createCompanionShops(db,{roller,bank,origins,level}){
    const shop=COMPANION_SHOPS[reservation.companion_shop],diamond=reservation.currency==='diamonds',mode=diamond?'diamond':'coins',currency=diamond?'diamonds':'coins';
    if(!paid){state.shopRoll={id,shop:shop.id,mode,currency,status:'declined',price:cost};state.hubNotice=diamond?'Not enough diamonds. Nothing was rolled.':'Not enough LiDollCoins. Nothing was rolled.';return;}
    const item=origins.mint(char.id,reservation.item,diamond?Infinity:cost),entry=bank.deposit(char,item); // Coin rolls: resale right = min(price paid, half the rolled value). Diamond rolls: half the rolled value, since a diamond has no coin price.
-   state.shopRoll={id,shop:shop.id,mode,currency,status:'delivered',price:cost,bank_item:entry.id,item_instance:item.online_item??null,item:rollView(item,roller())}; // item_instance: the sale right bank_sell expects.
+   state.shopRoll={id,shop:shop.id,mode,currency,status:'delivered',price:cost,bank_item:entry.id,item_instance:compactIdentity(item)?null:(item.online_item??null),item:rollView(item,roller())}; // item_instance: the sale right bank_sell expects; null for common/uncommon, which sell by server-side count (a stale UUID would make Sell fail).
    state.hubNotice=shop.name+': '+state.shopRoll.item.name+' was sent to your bank.';
   },
  };

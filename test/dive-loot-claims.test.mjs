@@ -53,7 +53,7 @@ test('a room chest bundle lands as one ingredient stack with a resale right per 
   if(!chest)return; // this week's floor rolled no bundles at all (rare); the roller test still covers the maths
   const expected=bundleFor(chest);place(chest);const claim=command('dive_claim',{chest:chest.id});send(claim);
   const stacks=c.loadout.inventory.filter(i=>i.item_id===expected.item_id);assert.equal(stacks.length,1);assert.equal(stacks[0].quantity,expected.quantity);
-  assert.equal(stacks[0].online_items.length,expected.quantity,'every unit can be sold');assert.match(c.dive.lootNotice,new RegExp(expected.name));
+  assert.equal(stacks[0].online_items?.length??stacks[0].online_sale_quantity,expected.quantity,'every unit can be sold (a sale count for common/uncommon stacks)');assert.match(c.dive.lootNotice,new RegExp(expected.name));
   send(claim);assert.equal(c.loadout.inventory.filter(i=>i.item_id===expected.item_id)[0].quantity,expected.quantity,'a replayed command cannot duplicate the bundle');
  }finally{db.close();}
 });

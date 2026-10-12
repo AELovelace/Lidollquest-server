@@ -94,7 +94,7 @@ test('both hub entrances share one Tundra; loot, chat, replay and reconnect are 
   const a=f.player('alice','princess-rose'),b=f.player('bob','honeydew-lantern');
   const east=f.snap(b).position;f.as('alice');const west=f.snap(a).position;assert.ok(east.x>west.x);assert.equal(f.snap(a).peers.length,2);
   const chest=f.snap(a).dive.chests[0];f.near(a,chest);const claim=f.command(a,'dive_claim',{chest:chest.id});f.raw(claim);f.raw(claim);
-  assert.equal(f.snap(a).character.loadout.inventory.filter(i=>i.category!=='ingredient').length,1);assert.ok(f.snap(a).character.loadout.inventory[0].online_item);
+  assert.equal(f.snap(a).character.loadout.inventory.filter(i=>i.category!=='ingredient').length,1);const loot=f.snap(a).character.loadout.inventory[0];assert.ok(loot.online_item||loot.online_sale_quantity>=1,'the chest item is sellable (a UUID for rare+, a sale count for common/uncommon)');
   const room=f.floor(a).rooms[2];f.place(a,room);f.act(a,'chat',{text:'Tundra friends'});
   f.as('bob');assert.equal(f.snap(b).dive.claimed,0);assert.equal(f.snap(b).chat.length,0);f.place(b,room);assert.equal(f.snap(b).chat.length,0,'arriving later does not reveal a line you missed');f.as('alice');f.act(a,'chat',{text:'Welcome over'});f.as('bob');assert.equal(f.snap(b).chat[0].text,'Welcome over');f.near(b,chest);f.act(b,'dive_claim',{chest:chest.id});assert.equal(f.snap(b).dive.claimed,1);
   f.restart();assert.equal(f.snap(b).dive.claimed,1);assert.equal(f.snap(b).zone,TUNDRA_ZONE);
