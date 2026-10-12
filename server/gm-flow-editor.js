@@ -128,11 +128,15 @@ function node(type,x=70,y=70,ref=''){return {id:uid(type),type,label:names[type]
 function add(type,x,y,ref){if(contentAsset())return contentAdd(type,x,y,ref);checkpoint();const n=node(type,x,y,ref);flow.nodes.push(n);selected=new Set([n.id]);changed();properties();}
 const alpha=(a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true,sensitivity:'base'}); // Library order: A to Z, ignoring case, with "Room 2" before "Room 10".
 const recordName=r=>r.draft.name??r.draft.title??r.id; // The label a library row shows first.
+function flagGroups(list){ /* [[group name, flags A to Z]], groups A to Z with ungrouped flags last under "Ungrouped". */
+ const groups=new Map();for(const f of list){const g=(f.group??'').trim();if(!groups.has(g))groups.set(g,[]);groups.get(g).push(f);}
+ return [...groups].map(([g,rows])=>[g,rows.sort((a,b)=>alpha(a.name??a.id,b.name??b.id))]).sort(([a],[b])=>!a?1:!b?-1:alpha(a,b)).map(([g,rows])=>[g||'Ungrouped',rows]);
+}
 function library(){const q=$('search').value.toLowerCase();$('palette').replaceChildren();for(const [type,name] of Object.entries(contentAsset()?contentPalette():names).filter(([,v])=>v.toLowerCase().includes(q))){const b=button($('palette'),name,()=>add(type));b.className='library';b.draggable=true;b.ondragstart=e=>e.dataTransfer.setData('application/x-lidoll-flow',JSON.stringify({type}));}
  $('library').replaceChildren();for(const [kind,group] of Object.entries(groups)){if(kind==='sheet')continue;const rows=new Map((cat.records[group]??[]).map(r=>[r.id,r]));for(const a of assets.filter(a=>a.kind===kind))rows.set(a.id,{...rows.get(a.id),id:a.id,revision:a.revision,draft:a.entry});const records=[...rows.values()];const filtered=records.filter(r=>(r.id+' '+(r.draft.name??r.draft.title??'')+authorshipLabel(r)).toLowerCase().includes(q)).sort((a,b)=>alpha(recordName(a),recordName(b))||alpha(a.id,b.id));if(!filtered.length)continue;const d=el('details',undefined,$('library'));d.open=!!q||(showIncluded&&kind==='quest');el('summary',kind+' · '+filtered.length,d);for(const r of filtered){const b=button(d,recordName(r)+authorshipLabel(r)+(r.published?(JSON.stringify(r.draft)!==JSON.stringify(r.published)?' [unpublished changes]':' [published]'):' [draft]'),()=>editAsset(kind,r));b.className='library reference';b.draggable=true;b.ondragstart=e=>{dragged={kind,id:r.id};e.dataTransfer.setData('application/x-lidoll-flow',JSON.stringify({kind,id:r.id}));};}}
  if(!$('newFlag'))button($('newAssets'),'+ flag',()=>editFlag()).id='newFlag'; // Flags use the same create-and-name entry point as NPCs.
- const flags=cat.flags.filter(f=>!f.engineOwned&&(f.id+' '+f.name).toLowerCase().includes(q)).sort((a,b)=>alpha(a.name??a.id,b.name??b.id)); // Built-in engine flags stay hidden; GMs browse their own story flags A to Z.
- if(flags.length){const box=el('details',undefined,$('library'));box.open=!!q;el('summary','Flags · '+flags.length,box);for(const f of flags){const b=button(box,f.name+(f.retired?' [retired]':''),()=>editFlag(f));b.className='library reference';b.title=f.id;}}
+ const flags=cat.flags.filter(f=>!f.engineOwned&&(f.id+' '+f.name+' '+(f.group??'')).toLowerCase().includes(q)); // Built-in engine flags stay hidden; the search also matches group names.
+ if(flags.length){const box=el('details',undefined,$('library'));box.open=!!q;el('summary','Flags · '+flags.length,box);for(const [group,rows] of flagGroups(flags)){const folder=el('details',undefined,box);folder.className='flag-group';folder.open=!!q;el('summary',group+' · '+rows.length,folder);for(const f of rows){const b=button(folder,f.name+(f.retired?' [retired]':''),()=>editFlag(f));b.className='library reference';b.title=f.id;}}} // Group folders, each A to Z.
  pickupLibrary($('library'),q); // Built-in engine NPCs are no longer listed in the library (2026-10-12).
 }
 function point(e){const r=$('stage').getBoundingClientRect(),v=graph().layout;return {x:(e.clientX-r.left-v.x)/v.zoom,y:(e.clientY-r.top-v.y)/v.zoom};}
@@ -228,10 +232,11 @@ function editFlag(record=null,onSaved=null){
  const dialog=el('dialog',undefined,document.body);dialog.className='flag-editor';dialog.setAttribute('aria-label',record?'Flag settings':'New flag');
  const formEl=el('form',undefined,dialog),d=record?copy(record):{id:uid('story'),name:'',description:''};let saving=false;
  el('h2',record?'Flag settings':'New flag',formEl);el('p','Give this memory a name. It starts false for each character until your story sets it.',formEl).className='hint';
- const name=field(formEl,'Name',d,'name'),description=field(formEl,'Description',d,'description','textarea');name.required=true;name.maxLength=100;description.maxLength=1000;name.placeholder='Rescued the scout';description.placeholder='When is this set, and what does it unlock?';
+ const name=field(formEl,'Name',d,'name'),group=field(formEl,'Group (optional)',d,'group'),description=field(formEl,'Description',d,'description','textarea');name.required=true;name.maxLength=100;group.maxLength=60;description.maxLength=1000;name.placeholder='Rescued the scout';group.placeholder='An NPC, quest or story, e.g. Surveyor Maren';description.placeholder='When is this set, and what does it unlock?';
+ const groupList=el('datalist',undefined,formEl);groupList.id='flagGroupNames';group.setAttribute('list',groupList.id);for(const g of [...new Set(cat.flags.map(f=>(f.group??'').trim()).filter(Boolean))].sort(alpha))el('option',undefined,groupList).value=g; // Suggest groups already in use so spellings stay consistent.
  const advanced=el('details',undefined,formEl);el('summary','Advanced · stable ID',advanced);const id=field(advanced,'Stable ID',d,'id');id.required=true;id.pattern='story_[a-z0-9_]{1,74}';id.maxLength=80;id.readOnly=!!record;
  el('p','An ID is generated for you. Keep it once your story uses this flag.',advanced).className='hint';
- for(const input of [name,description,id]){input.onchange=null;input.oninput=()=>input.setCustomValidity('');input.readOnly=!!record?.engineOwned||(input===id&&!!record);} // Definition edits stay separate from flow undo and unsaved content.
+ for(const input of [name,group,description,id]){input.onchange=null;input.oninput=()=>input.setCustomValidity('');input.readOnly=!!record?.engineOwned||(input===id&&!!record);} // Definition edits stay separate from flow undo and unsaved content.
  if(record)el('p','References: '+(cat.flagReferences?.[record.id]?.map(r=>r.kind+':'+r.id).join(', ')||'none'),formEl);
  const status=el('p','',formEl);status.setAttribute('role','status');status.setAttribute('aria-live','polite');
  const controls=el('div',undefined,formEl);controls.className='row';let saveButton;
@@ -240,7 +245,7 @@ function editFlag(record=null,onSaved=null){
  const cancel=button(controls,record?'Close':'Cancel',()=>dialog.close());dialog.addEventListener('close',()=>dialog.remove());dialog.addEventListener('cancel',e=>{if(saving)e.preventDefault();});
  formEl.noValidate=true;formEl.onsubmit=async e=>{
   e.preventDefault();if(saving||record?.engineOwned)return;
-  d.name=name.value.trim();d.description=description.value.trim();d.id=id.value.trim();name.setCustomValidity(d.name?'':'Give this flag a name.');
+  d.name=name.value.trim();d.group=group.value.trim();d.description=description.value.trim();d.id=id.value.trim();if(!d.group)delete d.group; // Empty group = ungrouped.name.setCustomValidity(d.name?'':'Give this flag a name.');
   if(!record&&cat.flags.some(f=>f.id===d.id))id.setCustomValidity('This ID already exists. Choose a different ID.');
   if(!id.checkValidity())advanced.open=true;if(!formEl.reportValidity())return;
   saving=true;saveButton.disabled=true;cancel.disabled=true;status.textContent='Saving flag…';status.className='hint';
@@ -256,9 +261,10 @@ function editFlag(record=null,onSaved=null){
 async function flagLibrary(){
  activeAsset=null;const host=modal();el('h2','Character story flags',host);el('p','Missing values are false. Changes below are audited.',host);
  button(host,'+ New flag',()=>editFlag(null,()=>flagLibrary()));
- const search=el('input',undefined,host);search.placeholder='Filter flags by name or ID';search.setAttribute('aria-label','Filter flag library');const rows=[];
- for(const f of cat.flags.filter(f=>!f.engineOwned)){const box=el('details',undefined,host);rows.push({box,text:(f.id+' '+f.name).toLowerCase()});el('summary',f.name+' · '+f.id+(f.retired?' · retired':''),box);el('p',f.description,box);el('p','References: '+(cat.flagReferences?.[f.id]?.map(r=>r.kind+':'+r.id).join(', ')||'none'),box);button(box,'Edit definition',()=>editFlag(f,()=>flagLibrary()));} // Built-in engine flags are not listed here.
- search.oninput=()=>{for(const row of rows)row.box.hidden=!row.text.includes(search.value.trim().toLowerCase());};
+ const search=el('input',undefined,host);search.placeholder='Filter flags by name, group or ID';search.setAttribute('aria-label','Filter flag library');const rows=[],folders=[];
+ for(const [groupName,list] of flagGroups(cat.flags.filter(f=>!f.engineOwned))){const folder=el('details',undefined,host);folder.className='flag-group';folder.open=true;el('summary',groupName+' · '+list.length,folder);folders.push(folder); // One folder per group, flags A to Z inside.
+ for(const f of list){const box=el('details',undefined,folder);rows.push({box,text:(f.id+' '+f.name+' '+(f.group??'')).toLowerCase()});el('summary',f.name+' · '+f.id+(f.retired?' · retired':''),box);el('p',f.description,box);el('p','References: '+(cat.flagReferences?.[f.id]?.map(r=>r.kind+':'+r.id).join(', ')||'none'),box);button(box,'Edit definition',()=>editFlag(f,()=>flagLibrary()));}} // Built-in engine flags are not listed here.
+ search.oninput=()=>{for(const row of rows)row.box.hidden=!row.text.includes(search.value.trim().toLowerCase());for(const folder of folders)folder.hidden=[...folder.querySelectorAll(':scope > details')].every(d=>d.hidden);}; // Empty groups hide while filtering.
  if(cat.publicEditor)return; // No characters exist in the public editor.
  const target={id:''};field(host,'Inspect character ID',target,'id');button(host,'Inspect current values',async()=>{const r=await action('flow_flag_inspect',{character_id:target.id});const box=el('fieldset',undefined,host);el('legend',r.character.name,box);for(const f of r.definitions.filter(f=>!f.engineOwned)){const b=button(box,f.name+': '+!!r.values[f.id],async()=>{await action('flow_flag_set',{character_id:target.id,revision:r.character.revision,flag:f.id,value:!r.values[f.id]});flagLibrary();});b.title='Set or clear this authored flag';}});
 } // The library stays searchable while definition editing shares the same creation form.

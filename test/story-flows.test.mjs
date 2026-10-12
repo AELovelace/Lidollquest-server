@@ -42,3 +42,12 @@ test('piety preview is isolated and an active run pins the authored threshold ac
  f.flows.start(f.c,f.s,'npc','scout');f.publish(pietyStory({op:'gte',value:90,god}),1);f.restart();f.s.faith={god,piety:60};f.choose();assert.equal(f.flows.snapshot(f.c,f.s).node,'match');
  }finally{f.close();}
 });
+
+test('flag groups are optional, trimmed, editable, listed with the flag and capped at 60 characters',()=>{const f=fixture();try{
+ const saved=f.flows.gm({action:'flow_flag_save',revision:0,entry:{id:'story_maren_met',name:'Met Maren',group:'  Surveyor Maren '}},'gm');assert.equal(saved.group,'Surveyor Maren','the group is trimmed');
+ const loose=f.flows.gm({action:'flow_flag_save',revision:0,entry:{id:'story_loose',name:'Loose flag',group:''}},'gm');assert.equal('group' in loose,false,'an empty group means ungrouped');
+ const listed=f.flows.catalog().flags.find(x=>x.id==='story_maren_met');assert.equal(listed.group,'Surveyor Maren','the catalog carries the group to the flag library');
+ const moved=f.flows.gm({action:'flow_flag_save',revision:saved.revision,entry:{...saved,group:'Caverns quest'}},'gm');assert.equal(moved.group,'Caverns quest','a flag can move to another group');
+ const cleared=f.flows.gm({action:'flow_flag_save',revision:moved.revision,entry:{...moved,group:''}},'gm');assert.equal('group' in cleared,false,'and back to ungrouped');
+ assert.throws(()=>f.flows.gm({action:'flow_flag_save',revision:0,entry:{id:'story_long',name:'Long',group:'x'.repeat(61)}},'gm'),/60 characters/);
+}finally{f.flows.close?.();}});

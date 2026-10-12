@@ -7,7 +7,7 @@ function serializeQuestBundle({flow=null,assets=[],flags=[],source='story-worksh
  return {format:QUEST_BUNDLE.format,version:QUEST_BUNDLE.version,exported:now().toISOString(),source,
   flow:flow?clone(flow):null,
   assets:assets.map(a=>({kind:a.kind,id:a.id,entry:clone(a.entry)})),
-  flags:flags.map(f=>({id:f.id,name:f.name,description:f.description??''}))};
+  flags:flags.map(f=>({id:f.id,name:f.name,description:f.description??'',...(f.group?{group:f.group}:{})}))}; // group: the flag library folder, kept across export/import.
 } // Revisions are deliberately left out: they belong to whichever server or browser store receives the bundle.
 function parseQuestBundle(input){
  const fail=message=>{throw Error(message);};
@@ -38,7 +38,8 @@ function parseQuestBundle(input){
   flags:flags.map(f=>{
    if(!f||typeof f!=='object'||!questBundleId(f.id,/^story_[a-z0-9_]{1,74}$/))fail('Bundled flags need story_ IDs.');
    if(typeof f.name!=='string'||!f.name.trim()||f.name.length>100||typeof (f.description??'')!=='string'||(f.description??'').length>1000)fail('Give flag '+f.id+' a name and a short description.');
-   return {id:f.id,name:f.name.trim(),description:f.description??''};
+   if(typeof (f.group??'')!=='string'||(f.group??'').trim().length>60)fail('Flag '+f.id+' has a group name over 60 characters.');
+   const group=(f.group??'').trim();return {id:f.id,name:f.name.trim(),description:f.description??'',...(group?{group}:{})};
   })};
 }
 function questBundleFileName(bundle){

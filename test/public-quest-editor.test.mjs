@@ -42,6 +42,12 @@ test('offline story quest targets survive draft reload and use the live validati
  entry.nodes[1].stage='missing';assert.ok((await act(api,'flow_validate',{entry,assets})).issues.some(i=>/existing stage/.test(i.message)));
 });
 
+test('flag groups travel inside quest bundles and over-long groups are refused',()=>{
+ const data=bundleApi.serializeQuestBundle({flow:flowOf('story_x'),assets:[],flags:[{id:'story_x',name:'X',group:'Scout quest'},{id:'story_y',name:'Y'}],source:'story-workshop',now:()=>new Date('2026-10-12T00:00:00Z')});
+ same(data.flags,[{id:'story_x',name:'X',description:'',group:'Scout quest'},{id:'story_y',name:'Y',description:''}]);
+ same(bundleApi.parseQuestBundle(JSON.stringify(data)).flags,[{id:'story_x',name:'X',description:'',group:'Scout quest'},{id:'story_y',name:'Y',description:''}]);
+ assert.throws(()=>bundleApi.parseQuestBundle(JSON.stringify({...data,flags:[{id:'story_x',name:'X',group:'g'.repeat(61)}]})),/over 60 characters/);
+});
 test('quest bundles round-trip and malformed files are refused with a reason',()=>{
  const data=bundleApi.serializeQuestBundle({flow:flowOf('story_x'),assets:[{kind:'quest',id:'quest_1',revision:3,entry:quest('quest_1','slime','npc_1')}],flags:[{id:'story_x',name:'X'}],source:'public-quest-editor',now:()=>new Date('2026-10-03T00:00:00Z')});
  assert.equal(data.format,'lidollquest-quest-bundle');assert.equal(data.exported,'2026-10-03T00:00:00.000Z');assert.equal(data.assets[0].revision,undefined);assert.equal(data.flags[0].description,'');

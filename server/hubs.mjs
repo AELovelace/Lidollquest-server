@@ -120,7 +120,7 @@ const fixedHubPortals=(parent,resolved)=>{
 export const inHubGap=(gap,x,y)=>x>=gap.x&&x<gap.x+(gap.w??1)&&y>=gap.y&&y<gap.y+(gap.h??1);
 export const contactPortal=p=>p.style==='gap'||p.style==='door'; // Both transfer on contact: a wall opening, or a village building's doorstep (and the door back out of it).
 export const movedDoor=(z,p,key)=>{const to=z?.portalMoves?.[key];return to?{...p,x:to.x,y:to.y}:p;}; // A door, gate or doorway the GM moved in the Map Editor (floor-patches.mjs keeps z.portalMoves: key -> {x,y}).
-export const roomExit=z=>z.parent&&z.exit?movedDoor(z,z.exit,'exit'):z.exit; // A hub room's way out, wherever the GM put it.
+export const roomExit=z=>z.parent&&z.exit?movedDoor(z,z.exit,'exit'):null; // Only annexes have a return exit; old lobby campaign stairs are no longer a travel destination.
 export function hubDoors(z){ // Every door the Map Editor may move, at its code-defined place (moves stripped), keyed like portalMoves: a room's way out ('exit'), a lobby's gates and doorsteps (their target), and the street doorways of generated buildings (hub-districts addDistrictBuildings).
  const base={...z,portalMoves:null},doors=z.parent?(z.exit&&contactPortal(z.exit)?[{...z.exit,target:z.exit.target??z.parent,key:'exit',name:'Way out'}]:[]):hubPortals(base).filter(contactPortal).map(p=>({...p,key:p.target}));
  return [...doors,...(z.buildings??[]).flatMap((b,n)=>b.doors.map((d,i)=>({key:`building:${n}:${i}`,name:'Building '+(n+1)+' doorway',x:d.x,y:d.y,style:'doorway',building:{x:b.x,y:b.y,w:b.w,h:b.h}})))];
@@ -135,7 +135,6 @@ for(const room of Object.values(arcadiaInteriors))validateCourtyard(room,[]); //
 for(const {room} of storeRooms)validateCourtyard(room,[]);
 validateCourtyard(prospectorCampRoom(hubData.prospector_shop),[]); // Every bunk, Old Gritt's counter gap, the outhouse and the door are reachable in the Prospector's Camp.
 validateCourtyard(farmsteadRoom(),[]); // Every hay bed, the outhouse, the cauldron and the door are reachable in the Farmstead. // Every store keeps its keeper reachable through the counter gap and its door open.
-export const LOBBY_EXIT=Object.freeze({x:1,y:10,style:'stairs'}); // Bottom-left stairs back to the singleplayer campaign. // Only declared wall openings are traversable; all other perimeter cells remain walls.
 export const hubBlocked=(z,x,y)=>z.fixtures?.some(f=>f.solid!==false&&x>=f.x&&y>=f.y&&x<f.x+(f.span_w??1)&&y<f.y+(f.span_h??1))??false;
 import {stackable,slotsUsed,addToInventory} from './loadout.mjs'; // Stack-aware capacity and purchases.
 export const shopperLevel=state=>Math.max(1,Math.floor(Number(state?.loadout?.player_info?.level)||1)); // The level hub stock is rolled at for this character (clamped per hub by shopLevel).
@@ -162,7 +161,7 @@ function rollOffers(zone,shop,day,level,roller){ // The actual daily roll behind
   offers.push({id:`${day}-${slot}`,price,item});
  }return offers;
 } // Stock is deterministic and inexhaustible; the same eight items greet everyone that day, scaled to each shopper.
-export function hubDefinition(z,time,level=1,{offers=true,shared=false}={}){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:roomExit(z)??LOBBY_EXIT,restTickMs:c.rest_tick_ms,portals:[...(z.fullDungeonPortals??[]),...(z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z))],fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:offers?shopOffers(z.id,findShop(f.id),time,level,{copy:!shared}):[]}:f)};} // shared:true lends the read-only remembered shelves (snapshots). offers:false skips rolling every shelf for callers that only need walls, portals, spawns or NPCs (rolling a whole town's stock cost most of a snapshot). // Monthly full-dungeon connectors coexist with every existing hall and wilderness route.
+export function hubDefinition(z,time,level=1,{offers=true,shared=false}={}){return {...z,width:z.width??20,height:z.height??12,spawn:z.spawn??{x:10,y:9},exit:roomExit(z),restTickMs:c.rest_tick_ms,portals:[...(z.fullDungeonPortals??[]),...(z.kind==='dives'?dungeonPortals(z.parent):z.parent?[]:hubPortals(z))],fixtures:(z.fixtures??[]).map(f=>f.kind==='shop'?{...f,offers:offers?shopOffers(z.id,findShop(f.id),time,level,{copy:!shared}):[]}:f)};} // shared:true lends the read-only remembered shelves (snapshots). offers:false skips rolling every shelf for callers that only need walls, portals, spawns or NPCs (rolling a whole town's stock cost most of a snapshot). // Monthly full-dungeon connectors coexist with every existing hall and wilderness route.
 export const besideFixture=(f,p)=>{const dx=p.x<f.x?f.x-p.x:Math.max(0,p.x-(f.x+(f.span_w??1)-1)),dy=p.y<f.y?f.y-p.y:Math.max(0,p.y-(f.y+(f.span_h??1)-1));return dx+dy<=1;}; // Beside any tile of a fixture's footprint (a 2-wide altar, a 1x2 cubicle).
 export function nearbyFixture(z,p,id,kind){const f=z.fixtures?.find(f=>f.id===id&&f.kind===kind);if(!f||!besideFixture(f,p))fail('Stand next to that '+kind+'.');return f;}
 
@@ -255,7 +254,7 @@ export function hubArrival(destination, source) {
  const x=portal.x,y=portal.y+(portal.h??1)-1;
  const offsets=portal.side==='left'?[[1,0]]:portal.side==='right'?[[-1,0]]:portal.side==='top'?[[0,1]]:portal.side==='bottom'?[[0,-1]]:portal===z.exit?[[0,-1],[1,0],[-1,0],[0,1]]:[[0,1],[1,0],[-1,0],[0,-1]];
  for(const [dx,dy] of offsets){const px=x+dx,py=y+dy;
-  if(px>0&&py>0&&px<z.width-1&&py<z.height-1&&!z.walls?.[py]?.[px]&&!hubBlocked(z,px,py)&&![...z.portals,z.exit].some(p=>inHubGap(p,px,py)))return {x:px,y:py};
+  if(px>0&&py>0&&px<z.width-1&&py<z.height-1&&!z.walls?.[py]?.[px]&&!hubBlocked(z,px,py)&&![...z.portals,z.exit].some(p=>p&&inHubGap(p,px,py)))return {x:px,y:py};
  }
  throw Error('No walkable arrival beside '+source+' in '+z.id); // Bad authored topology must not silently teleport a player elsewhere.
 }

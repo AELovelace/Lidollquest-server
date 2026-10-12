@@ -16,9 +16,28 @@ Click **+ flag** beside **+ npc**, or **+ New flag** at the top of **Flag librar
 | --- | --- |
 | Stable ID (optional customization) | `story_scout_rescued` |
 | Name | Rescued the scout |
+| Group (optional) | Scout quest |
 | Description | Set after claiming the scout rescue; unlocks the grateful greeting and epilogue. |
 
 Use lowercase letters, digits and underscores after the prefix. Treat the ID as permanent once content references it. The library's references list helps locate published checks and changes. Change the readable name or description when wording improves; do not rename the underlying ID casually.
+
+### Group flags by NPC, quest or story
+
+Type a **Group** in the flag dialog to file the flag in a folder, for example the NPC it belongs to (`Surveyor Maren`) or its quest (`Scout quest`). Groups you have already used are suggested as you type, so spellings stay consistent. Leave it empty for **Ungrouped**. Change the group at any time with **Edit definition**; it only affects how the library is organised, never how the flag works.
+
+The content library's **Flags** drawer and the **Flag library** window show the groups as a tree:
+
+```
+Scout quest · 2
+|-- Met the scout
+|-- Rescued the scout
+Surveyor Maren · 1
+|-- Maren trusts you
+Ungrouped · 1
+|-- Old test flag
+```
+
+Groups and the flags inside them are A to Z, with Ungrouped last. Searching for a group's name shows that whole group. Groups travel with flags in exported quest bundles. A group name can be up to 60 characters.
 
 A new definition does not create true values on characters. A missing value is false. You do not need to add Clear flag blocks at the start of every story.
 

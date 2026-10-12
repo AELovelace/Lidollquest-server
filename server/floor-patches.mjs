@@ -70,18 +70,19 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
  // ----- Applying and reverting ops on a floor -----
  function grid(f,name){return Array.isArray(f[name])?f[name]:null;}
  function remember(undo,f,x,y){const k=key(x,y);if(undo.cellIndex.has(k))return;undo.cellIndex.add(k);undo.cells.push({x,y,wall:f.walls[y][x],prop:f.props?.[y]?.[x]??null,floor:grid(f,'floors')?.[y]?.[x]??null,wallTile:grid(f,'wallTiles')?.[y]?.[x]??null,decor:grid(f,'decorTiles')?.[y]?.[x]??null,tree:grid(f,'treeTiles')?.[y]?.[x]??null});} // First touch only: the undo log keeps the pre-patch value.
+ function setPaint(f,undo,changes){ // Palette tiles: [{x,y,atlas,tile}] sets a cell's look from any palette; atlas '' returns it to the zone's own ground.
+  if(!changes.length)return;
+  if(!f.paint){f.paint={atlases:[],cells:[]};undo.created.push('paint');} // Created by the patch, so revert() simply deletes it.
+  const painted=new Map();for(let i=0;i+3<f.paint.cells.length;i+=4)painted.set(key(f.paint.cells[i],f.paint.cells[i+1]),[f.paint.cells[i],f.paint.cells[i+1],f.paint.atlases[f.paint.cells[i+2]],f.paint.cells[i+3]]); // Unpack the flat list into one entry per cell.
+  for(const c of changes)if(c.atlas)painted.set(key(c.x,c.y),[c.x,c.y,c.atlas,c.tile]);else painted.delete(key(c.x,c.y));
+  if(painted.size>MAX_PAINT)fail('A zone can hold up to '+MAX_PAINT+' cells painted from other palettes.',400);
+  const rows=[...painted.values()].sort((a,b)=>a[1]-b[1]||a[0]-b[0]),atlases=[...new Set(rows.map(r=>r[2]))]; // Row order so the client draws top to bottom.
+  f.paint={atlases,cells:rows.flatMap(([x,y,atlas,tile])=>[x,y,atlases.indexOf(atlas),tile])}; // Flat [x,y,atlasIndex,tile,…]: small in the snapshot, fast to loop in GML.
+ }
  function applyOp(f,op,kind,undo,touched,rules={}){ // rules.destinations: zones a new crossing may lead to (GM actions); null on ticks, where stored ops were already checked.
-  if(op.kind==='paint'){ // Palette brush: a tile from ANY palette drawn over the cell. Purely visual: walls, props and walking never change.
-   if(!f.paint){f.paint={atlases:[],cells:[]};undo.created.push('paint');} // Created by the patch, so revert() simply deletes it.
-   const painted=new Map();for(let i=0;i+3<f.paint.cells.length;i+=4)painted.set(key(f.paint.cells[i],f.paint.cells[i+1]),[f.paint.cells[i],f.paint.cells[i+1],f.paint.atlases[f.paint.cells[i+2]],f.paint.cells[i+3]]); // Unpack the flat list into one entry per cell.
-   for(const c of op.cells){
-    if(!Number.isInteger(c.x)||!Number.isInteger(c.y)||c.x<0||c.y<0||c.x>=f.width||c.y>=f.height)fail('Cell '+c.x+','+c.y+' is outside the map.',400);
-    if(c.atlas)painted.set(key(c.x,c.y),[c.x,c.y,c.atlas,c.tile]);else painted.delete(key(c.x,c.y)); // No atlas = erase back to the zone's own ground.
-   }
-   if(painted.size>MAX_PAINT)fail('A zone can hold up to '+MAX_PAINT+' palette-painted cells.',400);
-   const rows=[...painted.values()].sort((a,b)=>a[1]-b[1]||a[0]-b[0]),atlases=[...new Set(rows.map(r=>r[2]))]; // Row order so the client draws top to bottom.
-   f.paint={atlases,cells:rows.flatMap(([x,y,atlas,tile])=>[x,y,atlases.indexOf(atlas),tile])}; // Flat [x,y,atlasIndex,tile,…]: small in the snapshot, fast to loop in GML.
-   return;
+  if(op.kind==='paint'){ // Older stored palette ops (looks only); new edits send atlas/tile on ordinary cells ops.
+   for(const c of op.cells)if(!Number.isInteger(c.x)||!Number.isInteger(c.y)||c.x<0||c.y<0||c.x>=f.width||c.y>=f.height)fail('Cell '+c.x+','+c.y+' is outside the map.',400);
+   setPaint(f,undo,op.cells.map(c=>({x:c.x,y:c.y,atlas:c.atlas??'',tile:c.tile??0})));return;
   }
   if(op.kind==='cells'){
    for(const c of op.cells){
@@ -95,6 +96,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
     if(c.tree!==undefined&&grid(f,'treeTiles'))f.treeTiles[c.y][c.x]=Math.max(0,Math.floor(c.tree));
     if(c.wall===1&&f.floors&&c.floor===undefined&&grid(f,'wallTiles')&&!f.wallTiles[c.y][c.x])f.wallTiles[c.y][c.x]=f.district?.style==='nightlife'?11:10; // A new wall in a tiled room gets the room's plain wall tile unless the GM chose one.
    }
+   setPaint(f,undo,op.cells.filter(c=>c.atlas||(c.wall!==undefined&&f.paint)).map(c=>({x:c.x,y:c.y,atlas:c.atlas??'',tile:c.tile??0}))); // A tile from another palette is the cell's look; a plain Wall/Floor stroke puts the zone's own tile back.
    return;
   }
   if(op.kind==='fixture'){
@@ -283,7 +285,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
    if(!raw||typeof raw!=='object')fail('Malformed change.',400);const id=typeof raw.id==='string'&&/^[A-Za-z0-9_-]{4,64}$/.test(raw.id)?raw.id:randomUUID(),note=typeof raw.note==='string'?raw.note.slice(0,120):undefined,editions=Array.isArray(raw.editions)?raw.editions.map(String).slice(0,8):undefined;
    const base={id,kind:raw.kind,...(note?{note}:{}),...(editions?{editions}:{})};
    if(raw.kind==='paint'){if(!Array.isArray(raw.cells)||!raw.cells.length||raw.cells.length>MAX_CELLS)fail('A palette change needs 1 to '+MAX_CELLS+' cells.',400);return {...base,cells:raw.cells.map(c=>{const x=Number(c.x),y=Number(c.y),atlas=String(c.atlas??''),tile=Number(c.tile??0);if(atlas&&!PALETTE.test(atlas))fail('Unknown palette '+atlas+'.',400);if(!Number.isInteger(tile)||tile<0||tile>9999)fail('Choose a tile from the palette.',400);return atlas&&tile>0?{x,y,atlas,tile}:{x,y};})};} // {x,y} alone erases a painted cell.
-   if(raw.kind==='cells'){if(!Array.isArray(raw.cells)||!raw.cells.length||raw.cells.length>MAX_CELLS)fail('A cells change needs 1 to '+MAX_CELLS+' cells.',400);return {...base,cells:raw.cells.map(c=>{const cell={x:Number(c.x),y:Number(c.y)};for(const k of ['wall','prop','floor','wallTile','decor','tree'])if(c[k]!==undefined&&c[k]!==null)cell[k]=Number(c[k]);if(Object.keys(cell).length===2)fail('A cell change must set wall, prop or a tile.',400);return cell;})};}
+   if(raw.kind==='cells'){if(!Array.isArray(raw.cells)||!raw.cells.length||raw.cells.length>MAX_CELLS)fail('A cells change needs 1 to '+MAX_CELLS+' cells.',400);return {...base,cells:raw.cells.map(c=>{const cell={x:Number(c.x),y:Number(c.y)};for(const k of ['wall','prop','floor','wallTile','decor','tree'])if(c[k]!==undefined&&c[k]!==null)cell[k]=Number(c[k]);if(c.atlas){const atlas=String(c.atlas),tile=Number(c.tile);if(!PALETTE.test(atlas))fail('Unknown palette '+atlas+'.',400);if(!Number.isInteger(tile)||tile<1||tile>9999)fail('Choose a tile from the palette.',400);cell.atlas=atlas;cell.tile=tile;}if(Object.keys(cell).length===2)fail('A cell change must set wall, prop or a tile.',400);return cell;})};} // atlas+tile: the look from any palette, painted with the collision.
    if(raw.kind==='decoration'){if(raw.op==='remove'){const m=raw.match??{};return {...base,op:'remove',match:{...(m.id?{id:String(m.id).slice(0,80)}:{}),sprite:String(m.sprite??''),x:Number(m.x),y:Number(m.y)}};}const d=raw.decoration??{};return {...base,op:'add',decoration:{sprite:String(d.sprite??''),x:Number(d.x),y:Number(d.y),span_w:Number(d.span_w??1),span_h:Number(d.span_h??1),solid:d.solid!==false,...(d.toilet?{toilet:true}:{})}};}
    if(raw.kind==='safeRoom'){const r=raw.rect??{};return {...base,op:raw.op==='remove'?'remove':'add',rect:{x:Number(r.x),y:Number(r.y),w:Number(r.w),h:Number(r.h)}};}
    if(raw.kind==='layer'){const layer=String(raw.layer??'');if(!['cover','wash','shore','mist','crater'].includes(layer))fail('Unknown layer '+layer+'.',400);const out={...base,layer};if(layer==='shore'){if(!Array.isArray(raw.rows)||!raw.rows.length||raw.rows.length>512)fail('A shoreline change needs 1 to 512 rows.',400);out.rows=raw.rows.map(r=>({y:Number(r.y),edge:Number(r.edge)}));}else if(layer==='crater'){const c=raw.crater??{};out.crater={x:Number(c.x),y:Number(c.y),r:Number(c.r)};}else{if(!Array.isArray(raw.cells)||!raw.cells.length||raw.cells.length>MAX_CELLS)fail('A layer change needs 1 to '+MAX_CELLS+' cells.',400);out.cells=raw.cells.map(c=>({x:Number(c.x),y:Number(c.y),v:String(c.v??'1').slice(0,1)}));}return out;}

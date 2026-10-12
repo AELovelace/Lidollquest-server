@@ -343,3 +343,20 @@ test('the palette brush paints tiles from any palette over Dive and hub ground w
   f.world('world_patch_clear',hall);assert.equal(f.map(hall).floor.paint,undefined);
  }finally{f.close();}
 });
+
+test('palette tiles act like regular tiles: a Wall from another palette is solid, a Floor is walkable, and a plain stroke restores the zone tile',()=>{
+ const f=fixture();try{
+  const before=f.map(),spot=f.free(before);
+  f.patch('dive-quarters',[{kind:'cells',cells:[{x:spot.x,y:spot.y,wall:1,atlas:'sprTileForest',tile:14}]}]);
+  let floor=f.map().floor;assert.equal(floor.walls[spot.y][spot.x],1,'a Forest wall tile is solid');assert.deepEqual(tileAt(floor,spot.x,spot.y).at(-1),{atlas:'sprTileForest',tile:14},'and wears the Forest tile');
+  f.patch('dive-quarters',[{kind:'cells',cells:[{x:spot.x,y:spot.y,wall:0,prop:0,atlas:'sprTileMansion',tile:3}]}]);
+  floor=f.map().floor;assert.equal(floor.walls[spot.y][spot.x],0,'a Mansion floor tile is walkable');assert.ok(walkable(floor,spot.x,spot.y));assert.deepEqual(tileAt(floor,spot.x,spot.y).at(-1),{atlas:'sprTileMansion',tile:3});
+  f.patch('dive-quarters',[{kind:'cells',cells:[{x:spot.x,y:spot.y,wall:0,prop:0}]}]);
+  floor=f.map().floor;assert.ok(!floor.paint?.cells.length,'a plain Floor stroke puts the zone\'s own tile back');
+  assert.throws(()=>f.patch('dive-quarters',[{kind:'cells',cells:[{x:spot.x,y:spot.y,wall:1,atlas:'sprTownEnvBench',tile:1}]}]),/Unknown palette/);
+  assert.throws(()=>f.patch('dive-quarters',[{kind:'cells',cells:[{x:spot.x,y:spot.y,wall:1,atlas:'sprTileForest',tile:0}]}]),/Choose a tile/);
+  const hall='honeydew-lantern-beds',tile=f.free(f.map(hall),2);f.patch(hall,[{kind:'cells',cells:[{x:tile.x,y:tile.y,wall:0,prop:0,atlas:'sprTileCity',tile:7}]}]);
+  assert.deepEqual(tileAt(f.map(hall).floor,tile.x,tile.y).at(-1),{atlas:'sprTileCity',tile:7},'tiled hub rooms take other palettes on ordinary strokes');
+  f.world('world_patch_clear',hall);assert.equal(f.map(hall).floor.paint,undefined,'Clear patch removes them');
+ }finally{f.close();}
+});

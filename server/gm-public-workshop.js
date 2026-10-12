@@ -76,7 +76,8 @@ function createPublicWorkshopApi({snapshot,rules,storage,now=()=>Date.now()}){
   const d=input.entry;if(!d||!rules.flagId(d.id)||!/^story_[a-z0-9_]{1,74}$/.test(d.id))fail('Authored flag IDs must start with story_.');
   const old=s.flags[d.id]??null;if((old?.revision??0)!==input.revision)fail('This flag changed. Reload it.');
   if(typeof d.name!=='string'||!d.name.trim()||d.name.length>100||typeof (d.description??'')!=='string'||(d.description??'').length>1000)fail('Give the flag a name and short description.');
-  const saved={id:d.id,name:d.name,description:d.description??'',retired:!!d.retired,engineOwned:false,revision:(old?.revision??0)+1};
+  if(typeof (d.group??'')!=='string'||(d.group??'').trim().length>60)fail('Keep the flag group under 60 characters.'); // Same rule as story-flows.mjs flagSave.
+  const group=(d.group??'').trim(),saved={id:d.id,name:d.name,description:d.description??'',...(group?{group}:{}),retired:!!d.retired,engineOwned:false,revision:(old?.revision??0)+1};
   s.flags[d.id]=saved;write(s);return saved;
  }
  function act(input){
