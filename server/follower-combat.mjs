@@ -33,7 +33,7 @@ export function followerAction(row,rows,enemy,z,roll,def){
     if(type==='matron_change'){
      try{if(op.equipped_mouth!=='pacifier')owner.s.loadout=changeEquipment(owner.s.loadout,{action:'defeat_equip',item_id:'pacifier'},{...hubData.equipment,...combatData.defeat_items},hubData.config.inventory_capacity);}catch{/* Cursed gear and full bags retain their normal protections. */}
      loseDignity(owner.s.loadout.player_info,15,currentTuning());
-    }r.log.push(skill.name+' cleans '+owner.a.name+'\'s protection.');return;
+    }(owner.a.run.companionCare??=[]).push(type);r.log.push(skill.name+' cleans '+owner.a.name+'\'s protection.');return; // companionCare: settle() turns it into a companion memory.
    }
    const spell=spells.find(v=>v.type==='cure'&&allies.some(t=>v.stat_effect==='stamina'?t.s.loadout.player_info.stamina<t.s.loadout.player_info.stamina_max*.5:(t.s.loadout.player_info[v.stat_effect]??0)>50));
    if(spell){const target=allies.find(t=>spell.stat_effect==='stamina'?t.s.loadout.player_info.stamina<t.s.loadout.player_info.stamina_max*.5:(t.s.loadout.player_info[spell.stat_effect]??0)>50);cast(spell,target);return;}

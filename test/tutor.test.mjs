@@ -60,7 +60,7 @@ test('talking to Pip greets; asking stores one pending question that npc-rag ans
  assert.equal(w.calls.length,1);
  assert.equal(w.calls[0].url,'http://npc-rag.test:9092/v1/npc/chat');
  assert.equal(w.calls[0].init.headers['X-Api-Key'],'k'.repeat(32));
- assert.deepEqual(w.calls[0].body,{message:'how do I change my diaper?',player_id:asked.character.id,player_name:'Alice',npc_name:'Pip'});
+ assert.deepEqual(w.calls[0].body,{message:'how do I change my diaper?',player_id:asked.character.id,player_name:'Alice',npc_name:'Pip',history:[]}); // Always sent, so npc-rag never falls back to one node's private session memory.
  const view=w.tutor.view(asked.character.id);
  assert.equal(view.status,'answered');assert.equal(view.reply,answer.reply);
  assert.deepEqual(view.sources,[{title:'Needs & recovery',section:'Wearing and changing protection',url:answer.sources[0].url}]);

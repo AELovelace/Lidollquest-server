@@ -30,5 +30,5 @@ test('read-only snapshot workers render uncommitted placement maps and the coord
   const res=await fetch(url+'/zones?character_id='+c.id,{headers});assert.equal(res.status,200);
   assert.equal(maps(),1); // The ordinary client read commits the map on the writable coordinator (zones.mjs warmPlacements).
   assert.ok(!logs.some(parts=>parts[0]==='zone_request_failed'),JSON.stringify(logs));
- }finally{await new Promise(resolve=>service.server.close(resolve));rmSync(directory,{recursive:true,force:true});}
+ }finally{await new Promise(resolve=>service.server.close(resolve));await service.shards.close();rmSync(directory,{recursive:true,force:true});} // Windows keeps SQLite files locked until the read-only workers finish terminating.
 });

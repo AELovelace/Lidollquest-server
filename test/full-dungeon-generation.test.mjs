@@ -5,7 +5,7 @@ import {generateFullDungeon,validateFullDungeon,solveDungeonPuzzle} from '../ser
 import {computeTask} from '../server/compute-tasks.mjs';
 const content=JSON.parse(readFileSync(new URL('../server/full-dungeons-data.json',import.meta.url)));
 
-for(const data of content.routes)test(data.config.route+': 100 connected campaign-sized weekly maps',()=>{
+for(const data of content.routes.filter(d=>d.config.generator!=='sewers'))test(data.config.route+': 100 connected campaign-sized weekly maps',()=>{ // Sewer geometry has its own circle/valve invariants in sewers.test.mjs.
  const stamps=new Set();
  for(let seed=0;seed<100;seed++){
   const f=generateFullDungeon(data,'full-port-'+seed);

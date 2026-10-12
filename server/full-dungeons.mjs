@@ -2,7 +2,7 @@ import {readFileSync} from 'node:fs';
 export const fullDungeonContent=JSON.parse(readFileSync(new URL('./full-dungeons-data.json',import.meta.url),'utf8'));
 export const fullDungeons=fullDungeonContent.routes;
 export const fullDungeonQuestIds=new Set(Object.keys(fullDungeonContent.quests).map(id=>'full-'+id));
-export const fullDungeonLinks=zone=>fullDungeons.flatMap(d=>d.config.endpoints.filter(e=>e.zone===zone).map(e=>({target:d.config.zone_id,name:d.config.name,style:zone==='princess-rose-garden'||zone==='arcadia-foundry'?'stairs':'door',fullDungeon:true})));
+export const fullDungeonLinks=zone=>fullDungeons.flatMap(d=>d.config.endpoints.filter(e=>e.zone===zone).map(e=>({target:d.config.zone_id,name:d.config.name,style:e.style==='manhole'?'manhole':zone==='princess-rose-garden'||zone==='arcadia-foundry'?'stairs':'door',fullDungeon:true})));
 export const fullDungeonHome=(destination,route)=>fullDungeons.some(d=>d.config.zone_id===route&&d.config.endpoints.some(e=>e.zone===destination));
 
 export function addFullDungeonEntrances(f,zone,visitors=[],gated=[]){ // gated: dungeon ids this lobby reaches through its own wall gates (Utopia: hospital west, nursery east), so no entrance building.
@@ -32,6 +32,7 @@ export function addFullDungeonEntrances(f,zone,visitors=[],gated=[]){ // gated: 
     f.fixtures.push(building);const next=flood();
     if(next.size!==reachable.size-9||f.fixtures.some(v=>v.kind!=='scenery'&&![[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>next.has((v.x+dx)+','+(v.y+dy))))){f.fixtures.pop();continue;}
    }
+   if(link.style==='manhole')f.fixtures.push({id:'entrance-'+link.target,kind:'scenery',name:link.name,sprite:'sprSewerManhole',...p,span_w:1,span_h:1,solid:false}); // Street cover does not replace or obstruct existing town content.
    f.fullDungeonPortals.push({...link,...p});placed=true;changed=true;break;
   }
   if(!placed)throw Error('No safe entrance for '+link.name+' in '+zone);

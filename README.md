@@ -1902,7 +1902,17 @@ chat box (now labelled "To Pip") and press Enter. The answer comes from the **np
 (`C:/Scripts/npc-rag`), which classifies the question, looks it up in the public player wiki and has the AI model
 write Pip's reply.
 
-- **Configuration:** `NPC_RAG_URL` overrides `QUEST_FOLLOWER_AGENT_URL`, then defaults to `http://192.168.1.188:9092`.
+- **AI nodes (2026-10-12):** set `NPC_RAG_NODES` to a comma list of npc-rag URLs (for example
+  `http://47.51.162.106:9092,http://192.168.1.188:9092`) and Pip and the companions share one pool
+  (`server/ai-pool.mjs`).
+  - **Routing:** each request goes to the healthy node with the lowest `(in flight + 1) / slots x latency`. A timeout,
+    network error or 5xx fails over to the next node once and benches the failed node for 30 s.
+  - **Health:** `/health` is probed every 30 s on the tutor timer. A node whose model is unreachable counts as down,
+    and the slot count comes from llama.cpp `/props`.
+  - **Model URLs:** `NPC_RAG_NODE_MODELS` (optional, `<llm>|<classifier>` per node) overrides each node's 9090/9091.
+  - **Pip's memory:** Pip sends her last 3 exchanges (30 min) as `history`, so follow-ups work on any node.
+  - **Visibility:** the /gm Tutor tab lists every node with its health, load, latency and last error.
+- **Configuration without NPC_RAG_NODES:** `NPC_RAG_URL` overrides `QUEST_FOLLOWER_AGENT_URL`, then defaults to `http://192.168.1.188:9092`.
   `NPC_RAG_KEY` falls back to `QUEST_FOLLOWER_AGENT_KEY` (npc-rag's `NPC_API_KEY`). An explicitly empty URL hides Pip. Optional: `NPC_RAG_TIMEOUT_MS` (45000) and
   `TUTOR_DAILY_LIMIT` (100 questions per account per UTC day). The AI server's firewall must allow this host on 9092.
 - **Flow:** `tutor_ask` (zones.mjs) checks the player stands beside Pip and stores the question in `quest_tutor` as
@@ -1928,7 +1938,43 @@ Seven globally exclusive companions can be hired for one diamond per real-time h
 
 Any nearby player can address a companion by name or alias in ordinary Area chat, whether unhired or hired by someone else. Hearing uses the same zone, edition and screen bounds as player Area chat. Other channels and emotes do not trigger AI. Pending jobs recheck the speaker's location and companion's hire context before and after the request; each NPC shares one pending slot and a ten-second cooldown across speakers. History is isolated per speaker and hire/idle context. The startup queue upgrade discards old pending jobs rather than exposing the former hirer's context. Validation includes `test/follower-earshot.test.mjs` and compiled two-client browser checks with stubbed AI.
 
-Export server/followers-data.json from the game registry with python/export_online_followers.py. Classifier requests use 192.168.1.188:9091, casual character replies use :9090, and grounded game answers use npc-rag at :9092. Configure QUEST_FOLLOWER_CLASSIFIER_URL, QUEST_FOLLOWER_LLM_URL, QUEST_FOLLOWER_AGENT_URL and optional QUEST_FOLLOWER_AGENT_KEY on the server only. Run node --test test/followers.test.mjs test/followers-http.test.mjs and the full suite. Detailed deployment, editing and browser checks are in the game checkout's ONLINE_FOLLOWERS_GUIDE.md.
+Export server/followers-data.json from the game registry with python/export_online_followers.py. Classifier requests use 192.168.1.188:9091, casual character replies use :9090, and grounded game answers use npc-rag at :9092. Configure QUEST_FOLLOWER_CLASSIFIER_URL, QUEST_FOLLOWER_LLM_URL, QUEST_FOLLOWER_AGENT_URL and optional QUEST_FOLLOWER_AGENT_KEY on the server only. With NPC_RAG_NODES set, all three hops use the shared AI pool instead (see Tutor NPC above): least busy node first, one failover per hop, then the direct persona model, then the authored fallback line. Grounded answers send the companion's own persona and the classifier verdict to npc-rag, so companions never answer in Pip's voice and npc-rag skips a second classification.
+
+**Companion graph (2026-10-12).** Each companion reply is now **one** pool call to npc-rag's `/v1/companion/chat`
+(a LangGraph pipeline; see the npc-rag README).
+- **What the call carries:** the companion's persona and three voice lines, the speaker's recent history, true
+  story flags (`state.fullDungeon.flags`), bond (0 until the bond phase lands) and the lore version.
+- **Lore:** backstories come from `followers-data.json` `online.backstory` (exported from the game's
+  `companions.json`; validated by `python/companion_backstory.py`). `companionLore()` hashes them into a version.
+- **Lore pushes:** a node that answers **409** gets the lore pushed to every node (`pool.broadcast`), then the call
+  is retried once.
+- **Fallbacks:** a node answering **404** (older npc-rag) uses the previous classifier + `/v1/npc/chat` chain. If
+  every node fails, the persona model answers directly, then the authored fallback line.
+- **Drafts:** `QUEST_COMPANION_LORE_DRAFTS=hidden` keeps sections marked `draft:true` off the AI nodes.
+
+Tests: `test/followers.test.mjs` (graph call, 409 lore push, 503 fallback, older-node chain) and
+`test/follower-earshot.test.mjs`.
+
+**Companion memory (2026-10-12).** Long-term memory lives in **`companion-memory.sqlite`** beside the game database
+(`server/companion-memory.mjs`, main process only). The AI nodes keep nothing.
+
+- **Experiences:** `followers.remember(c, kind, data)` queues hire, first visit to a zone, battle win/loss, mid-fight
+  care, revive, accident, change and quest events into `quest_companion_events` inside the command transaction.
+  `followerChat.kick()` drains them after the commit, rendering each with `companion-events.mjs` templates (no AI).
+- **Bond:** 0-100 per companion and character, with an hourly cap. It gates backstory secrets.
+- **Each reply sends:** the speaker's bond, summary, up to 60 candidate memories, `audience` (other players on
+  screen) and, by roll, an embarrassing **slip** candidate and anonymous **gossip** lines.
+- **Slips:** a slip the graph confirms (`slip.memory_id`) costs the speaker Dignity through `loseDignity`, but only
+  when `quest_chat_heard` shows someone else heard that line.
+- **Background jobs** (one at a time): `/v1/companion/impressions` saves "<player> said ..." facts after a reply.
+  `/v1/companion/summarize` folds the oldest minor memories once a pair passes `keep_per_pair`.
+- **GM Companions tab** (`companion-admin.mjs`, `GET /gm/companions?character=`, actions `companion_*`, all
+  audited): tuning, backstory edit/sign-off/delete on top of the exported drafts, and per-character bonds and
+  memories with delete, wipe and set bond.
+- **Cleanup:** an hourly sweep removes deleted characters' memories.
+- **Back up `companion-memory.sqlite` with the game database.**
+
+Tests: `test/companion-memory.test.mjs`, `test/companion-admin.test.mjs`. Run node --test test/followers.test.mjs test/followers-http.test.mjs and the full suite. Detailed deployment, editing and browser checks are in the game checkout's ONLINE_FOLLOWERS_GUIDE.md.
 
 
 ## Online Story Workshop

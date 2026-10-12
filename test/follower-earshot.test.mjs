@@ -5,7 +5,7 @@ import {createQuestService} from '../server/service.mjs';
 
 test('real area chat reaches hired and unhired companions, with local replies and Pip restored',async()=>{
  let time=Date.parse('2026-10-03T12:00:00Z');const ids={},calls=[];
- const service=createQuestService({now:()=>time,log:()=>{},walletClient:{authenticate:async token=>({owner:token,id:token,client:'lidollquest',coins:0,scope:'wallet:read diamonds:write'}),diamonds:async(_,body)=>({request_id:body.request_id})},followerChatOptions:{fetcher:async(url,opts)=>{const body=JSON.parse(opts.body);calls.push(body);return Response.json(String(url).includes(':9091')?{choices:[{message:{content:'GAME'}}]}:{reply:'Hello '+body.player_name+'.'});}}});
+ const service=createQuestService({now:()=>time,log:()=>{},walletClient:{authenticate:async token=>({owner:token,id:token,client:'lidollquest',coins:0,scope:'wallet:read diamonds:write'}),diamonds:async(_,body)=>({request_id:body.request_id})},followerChatOptions:{fetcher:async(url,opts)=>{const body=JSON.parse(opts.body);if(/\/v1\/companion\/(impressions|summarize)$/.test(new URL(url).pathname))return Response.json({facts:[]});calls.push(body);return Response.json(String(url).includes(':9091')?{choices:[{message:{content:'GAME'}}]}:{reply:'Hello '+body.player_name+'.'});}}});
  await new Promise(resolve=>service.server.listen(0,'127.0.0.1',resolve));const base='http://127.0.0.1:'+service.server.address().port;
  const token=who=>who.padEnd(43,'x'),read=async who=>(await fetch(base+'/zones?character_id='+ids[who],{headers:{Authorization:'Bearer '+token(who)}})).json();
  const send=async(who,body)=>{const res=await fetch(base+'/zones/action',{method:'POST',headers:{Authorization:'Bearer '+token(who),'Content-Type':'application/json'},body:JSON.stringify({controller:who,request_id:randomUUID(),...body})});return {status:res.status,data:await res.json()};};
@@ -23,14 +23,14 @@ test('real area chat reaches hired and unhired companions, with local replies an
   const npc=(await read('bob')).followers.entities.find(n=>n.npc==='merchant_mira'&&n.available);assert.ok(npc,'unhired companions return by default');
   place('alice',npc.x,npc.y);place('bob',npc.x,npc.y);place('far',npc.x+16,npc.y+11);
   const say=async(who,text,channel='area')=>{const s=await read(who),result=await command(who,'chat',{text,channel,edition:s.dive.edition});assert.equal(result.status,200,JSON.stringify(result.data));await idle();};
-  await say('bob','Mira, hello before hiring');assert.equal(calls.length,2);assert.equal(service.zones.followers.get(ids.bob),undefined);
-  assert.ok(calls[1].player_id.length<=128,'idle companion context fits npc-rag ChatRequest.player_id');
+  await say('bob','Mira, hello before hiring');assert.equal(calls.length,1,'one companion-graph call per reply');assert.equal(service.zones.followers.get(ids.bob),undefined);
+  assert.equal(calls[0].npc_id,'merchant_mira');assert.match(calls[0].lore_version,/^[0-9a-f]{16}$/,'the companion graph gets the lore version it must hold');
   for(const who of ['alice','bob'])assert.ok((await read(who)).chat.some(m=>m.npc&&m.text==='Hello bob.'),'nearby listeners hear an unhired companion');
   assert.ok(!(await read('far')).chat.some(m=>m.npc),'the reply cannot reach a distant listener');
-  advance();await say('far','Mira, too far away');await say('bob','Mira, global chat','global');await say('bob','/me waves to Mira');assert.equal(calls.length,2,'distance, channel and emotes cannot trigger replies');
+  advance();await say('far','Mira, too far away');await say('bob','Mira, global chat','global');await say('bob','/me waves to Mira');assert.equal(calls.length,1,'distance, channel and emotes cannot trigger replies');
   assert.equal((await command('alice','follower_hire',{npc:'merchant_mira'})).status,200);advance();
-  await say('bob','Mira, hello while Alice hires you');assert.equal(calls.length,4);assert.equal(calls[3].player_name,'bob');assert.deepEqual(calls[3].history,[],'a different companion context starts a fresh conversation');
-  assert.ok(calls[3].player_id.length<=128);assert.notEqual(calls[3].player_id,calls[1].player_id,'hiring changes the agent context as well as local memory');
+  await say('bob','Mira, hello while Alice hires you');assert.equal(calls.length,2);assert.equal(calls[1].player_name,'bob');assert.deepEqual(calls[1].history,[],'a different companion context starts a fresh conversation');
+  assert.equal(calls[1].bond,0);assert.ok(Array.isArray(calls[1].flags));
   assert.ok((await read('alice')).chat.filter(m=>m.npc&&m.text==='Hello bob.').length>=2);
   assert.ok(!(await read('far')).chat.some(m=>m.npc));
  }finally{service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));}

@@ -10,11 +10,11 @@ export function crawlEquipment(loadout){ // Equipped IDs remain separate from th
 }
 
 export function isCrawling(loadout){ // Old imports without a world block remain standing unless exhausted or restrained.
- return loadout?.world?.crawling===true||loadout?.player_info?.stamina<=0||crawlEquipment(loadout)!=='';
+ return loadout?.world?.environment_crawl===true||loadout?.world?.crawling===true||loadout?.player_info?.stamina<=0||crawlEquipment(loadout)!=='';
 }
 
 export function syncCrawl(loadout){ // Persist forced stance so reconnects and the client HUD show the same condition.
- if(isCrawling(loadout))setCrawling(loadout,true);
+ if(loadout?.player_info?.stamina<=0||crawlEquipment(loadout)!=='')setCrawling(loadout,true); // Environmental clearance must never become a voluntary stance.
 }
 
 export function setCrawling(loadout,value){ // Legacy imports need the full world shape before the game can restore a new knockdown.
@@ -22,6 +22,7 @@ export function setCrawling(loadout,value){ // Legacy imports need the full worl
 }
 
 export function standBlockReason(loadout){ // Failed recovery never consumes an action or enemy response.
+ if(loadout?.world?.environment_crawl)return 'The overhead pipes are too low to stand here.';
  const item=crawlEquipment(loadout);
  if(item)return item+' prevents standing. Remove it first.';
  return loadout?.player_info?.stamina<=0?'Too exhausted to stand. Recover stamina first.':'';

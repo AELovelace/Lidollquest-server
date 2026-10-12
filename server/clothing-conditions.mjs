@@ -13,11 +13,11 @@ export function recalculateWetClothing(p,catalog={}){
  for(const key of ['str','def','dex','int','cha'])p[key]=(Number(p[key])||0)-delta;
  p.wet_clothing_penalty=penalty;return penalty;
 } // Apply only the delta, so retries and repeated exposure cannot stack the same penalty.
-export function exposeClothing(p,slots,catalog={}){
- p.clothing_water??={};
+export function exposeClothing(p,slots,catalog={},source='seawater'){
+ p.clothing_water??={};p.clothing_water_source??={};
  for(const slot of slots){if(!clothingSlots.includes(slot)||!p['equipped_'+slot])continue;
   const targets=clothingItem(p,slot,catalog).category==='dress'&&['torso','pants'].includes(slot)?['torso','pants']:[slot];
-  for(const target of targets){if(!p['slot_wet_'+target])p.clothing_water[target]=p['equipped_'+target];p['slot_wet_'+target]=true;} // Never relabel an already ambiguous/soiled garment as pure seawater.
+  for(const target of targets){if(!p['slot_wet_'+target]){p.clothing_water[target]=p['equipped_'+target];p.clothing_water_source[target]=source;}p['slot_wet_'+target]=true;} // Never relabel an already ambiguous/soiled garment as pure seawater.
  }
  recalculateWetClothing(p,catalog);
 }

@@ -25,6 +25,7 @@ export function createFollowers(db,{now=Date.now,enabled=envFlag('QUEST_FOLLOWER
  CREATE TABLE IF NOT EXISTS quest_follower_extensions(id TEXT PRIMARY KEY,rental TEXT NOT NULL,character_id TEXT NOT NULL,owner TEXT NOT NULL,request_id TEXT NOT NULL,status TEXT NOT NULL,created INTEGER NOT NULL,expires INTEGER,payment_uncertain INTEGER NOT NULL DEFAULT 0,payment_receipt TEXT,UNIQUE(character_id,request_id));
  CREATE UNIQUE INDEX IF NOT EXISTS quest_follower_one_extension ON quest_follower_extensions(rental) WHERE status='pending';
  CREATE INDEX IF NOT EXISTS quest_follower_extension_owner ON quest_follower_extensions(owner) WHERE status='pending';`);
+ if(!readOnly)db.exec('CREATE TABLE IF NOT EXISTS quest_companion_events(id INTEGER PRIMARY KEY AUTOINCREMENT,npc TEXT NOT NULL,character_id TEXT NOT NULL,kind TEXT NOT NULL,data TEXT NOT NULL,created INTEGER NOT NULL)'); // Companion memory queue (companion-memory.mjs drains it after each commit).
  const columns=new Set(db.prepare('PRAGMA table_info(quest_follower_hires)').all().map(c=>c.name));
  if(!columns.has('payment_uncertain'))db.exec('ALTER TABLE quest_follower_hires ADD COLUMN payment_uncertain INTEGER NOT NULL DEFAULT 0');
  if(!columns.has('payment_receipt'))db.exec('ALTER TABLE quest_follower_hires ADD COLUMN payment_receipt TEXT'); // Additive receipt metadata also supports servers upgraded from the initial disabled rollout.
@@ -80,6 +81,7 @@ export function createFollowers(db,{now=Date.now,enabled=envFlag('QUEST_FOLLOWER
   const stats=followerStats(catalog[row.npc],progression(row.npc).level);
   db.prepare('UPDATE quest_followers SET hp=?,mp=? WHERE id=?').run(stats.hp,stats.mp,row.npc);
   db.prepare("UPDATE quest_follower_hires SET status='active',expires=?,payment_receipt=? WHERE id=?").run(now()+HIRE_MS,JSON.stringify(receipt??{request_id:'follower-'+id}),id);
+  const hirer=db.prepare('SELECT id,name FROM quest_characters WHERE id=?').get(row.character_id);if(hirer)remember(hirer,'hire',{zone:row.zone}); // Being hired is a (small) shared memory.
  } // A confirmed, idempotent wallet receipt starts the hour and restores the new rental's resources.
  function extend(c,state,input){
   tick();const row=get(c.id);
@@ -98,6 +100,12 @@ export function createFollowers(db,{now=Date.now,enabled=envFlag('QUEST_FOLLOWER
   const character=db.prepare('SELECT state FROM quest_characters WHERE id=?').get(hire.character_id);
   if(character){const state=JSON.parse(character.state);if(!state.run&&!state.pendingDefeat&&!state.lastResult?.defeatScene){state.lastResult={log:[paid?catalog[hire.npc].name+' will stay for another 60 minutes.':'The extension payment was declined. Your existing companion time is unchanged.']};db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),hire.character_id);}}
  } // Apply a confirmed receipt once, preserving remaining time and NPC resources; delayed confirmation still delivers a full extra hour.
+ function remember(c,kind,data={},{present=false}={}){ // Queue a shared experience for the hired companion, inside the caller's transaction. No companion here: nothing.
+  if(readOnly||!c?.id)return false;const row=get(c.id);if(!row||row.status!=='active')return false;
+  if(!present&&data.zone&&row.zone&&data.zone!==row.zone)return false; // The companion must actually be with the player (battles pass present: they were in the fight).
+  db.prepare('INSERT INTO quest_companion_events(npc,character_id,kind,data,created) VALUES (?,?,?,?,?)').run(row.npc,c.id,String(kind),JSON.stringify({...data,player:String(c.name??'').slice(0,32)}),now());
+  return true;
+ } // Rendering, bond and storage happen after the commit in companion-memory.mjs; a rolled-back command leaves nothing behind.
  function dismiss(c){const row=get(c.id);if(!row)fail('You do not have a companion.');if(row.status==='pending'||row.battle||extending(row.id))fail('Finish the payment or battle before dismissing your companion.');db.prepare("UPDATE quest_follower_hires SET status='dismissed' WHERE id=?").run(row.id);}
  function cancelSpeech(row){if(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='quest_follower_chat_jobs'").get())db.prepare("UPDATE quest_follower_chat_jobs SET status='discarded' WHERE rental=? AND status='pending'").run(row.id);} // Cancel travel/disconnect replies even when their HTTP request is already in flight.
  let chatSchemaReady=false;
@@ -113,6 +121,7 @@ export function createFollowers(db,{now=Date.now,enabled=envFlag('QUEST_FOLLOWER
   const x=stepped?before.x:(relocated?after.x:row.x),y=stepped?before.y:(relocated?after.y:row.y);
   if(!same||row.area!==(area??null))cancelSpeech(row); // Travel invalidates even a reply that returns after the player has come back.
   db.prepare('UPDATE quest_follower_hires SET zone=?,x=?,y=?,edition=?,area=? WHERE id=?').run(after.zone,x,y,edition,area??null,row.id);
+  if(row.zone!==after.zone)remember(c,'zone',{zone:after.zone}); // A new place together (companion-memory keeps only the first visit per zone).
  } // Walk one validated tile behind the hirer; portal arrivals move the pair together.
  function view(c,p,geometry,state){
   if(!readOnly)tick();const own=c?get(c.id):null,entities=[]; // Snapshot workers consume the coordinator's committed expiry decisions.
@@ -158,5 +167,5 @@ export function createFollowers(db,{now=Date.now,enabled=envFlag('QUEST_FOLLOWER
   db.prepare('UPDATE quest_follower_hires SET battle=NULL WHERE id=? AND battle=?').run(actor.rental,battle);tick();
  } // The settlement receipt guards persistent NPC XP and HP independently from player rewards.
  function rest(c){const h=get(c.id);if(!h||h.status!=='active'||h.battle)return;const s=followerStats(catalog[h.npc],progression(h.npc).level);db.prepare('UPDATE quest_followers SET hp=MIN(?,hp+?),mp=MIN(?,mp+?) WHERE id=?').run(s.hp,Math.max(1,Math.ceil(s.hp*.1)),s.mp,Math.max(1,Math.ceil(s.mp*.1)),h.npc);}
- return {enabled,catalog,get,occupied,progression,slots,assertSlots,tick,placement,reserve,complete,extend,completeExtension,dismiss,move,view,chatTargets,actors,settle,rest};
+ return {enabled,catalog,get,occupied,progression,slots,assertSlots,tick,placement,reserve,complete,extend,completeExtension,dismiss,move,view,chatTargets,actors,settle,rest,remember};
 }

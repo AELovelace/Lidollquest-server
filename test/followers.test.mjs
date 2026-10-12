@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {createFollowers,followerData,HIRE_MS,followerStats,BATTLE_GRACE_MS} from '../server/followers.mjs';
-import {createFollowerChat,mentionsFollower} from '../server/follower-chat.mjs';
+import {createFollowerChat,mentionsFollower,companionLore,storyFlags} from '../server/follower-chat.mjs';
 import {createDiveEncounters} from '../server/dive-encounters.mjs';
 import {followerAction,guardianTarget} from '../server/follower-combat.mjs';
 import {beginRound,combatData} from '../server/combat.mjs';
@@ -127,15 +127,16 @@ test('slow AI is asynchronous, with two global pipelines and one pending reply p
   release();await wait(chat.idle);chat.kick();await wait(chat.idle);assert.equal(calls,6);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM quest_chat').get().n,2);
  }finally{release?.();chat?.close();f.close();}
 });
-test('AI uses classifier, personal chat and RAG endpoints; nearby name mentions enqueue and retries do not duplicate',async()=>{
+test('older AI nodes (404 on the companion graph) use the classifier, personal chat and RAG chain; mentions enqueue once',async()=>{
  const f=fixture();let chat;try{
   f.followers.complete(f.hire(),true);const calls=[];let game=false; // Exercise immediate speech before the first post-hire presence tick.
-  chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,fetcher:async(url,opts)=>{calls.push({url:String(url),body:JSON.parse(opts.body)});return Response.json(String(url).includes(':9091')?{choices:[{message:{content:game?'GAME':'CHAT'}}]}:String(url).includes(':9092')?{reply:'Use the bank in town.'}:{choices:[{message:{content:'Good to see you!'}}]});}});
+  chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,fetcher:async(url,opts)=>{if(String(url).includes('/v1/companion/'))return new Response('{}',{status:404}); calls.push({url:String(url),body:JSON.parse(opts.body)});return Response.json(String(url).includes(':9091')?{choices:[{message:{content:game?'GAME':'CHAT'}}]}:String(url).includes(':9092')?{reply:'Use the bank in town.'}:{choices:[{message:{content:'Good to see you!'}}]});}});
   assert.equal(mentionsFollower('ASTRA, hello!',followerData.sorceress_arcana),true);assert.equal(mentionsFollower('astral lights',followerData.sorceress_arcana),false);
   chat.enqueue(f.bob,'Astra hello',1,'room');chat.enqueue(f.alice,'hello',2,'room');assert.equal(f.db.prepare('SELECT COUNT(*) n FROM quest_follower_chat_jobs').get().n,0);
   chat.enqueue(f.alice,'Astra hello',3,'room');chat.enqueue(f.alice,'Astra hello',3,'room');f.followers.move(f.alice,JSON.parse(f.alice.state),{zone:'dungeon-castle-dungeon',x:5,y:5},{zone:'dungeon-castle-dungeon',x:5,y:5},'room');chat.kick();await wait(chat.idle);
   assert.equal(calls.length,2);assert.match(calls[0].url,/:9091\/v1\/chat/);assert.match(calls[1].url,/:9090\/v1\/chat/);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM quest_chat').get().n,1);
   game=true;f.advance(11000);chat.enqueue(f.alice,'Astra where is the bank?',4,'room');chat.kick();await wait(chat.idle);assert.match(calls[3].url,/:9092\/v1\/npc\/chat/);assert.equal(calls[3].body.history.length,2);
+  assert.ok(calls[3].body.persona.startsWith(followerData.sorceress_arcana.online.persona),'npc-rag answers in the companion persona, not Pip');assert.equal(calls[3].body.category,'game','the GAME verdict is passed on so npc-rag skips its own classifier');
   assert.equal(f.db.prepare('SELECT text FROM quest_chat ORDER BY seq DESC').get().text,'Use the bank in town.');
   f.followers.dismiss(f.alice);f.active(f.bob);f.advance(11000);f.db.prepare('UPDATE quest_presence SET seen=?').run(f.now());chat.enqueue(f.bob,'Astra, how do I travel?',5,'room');chat.kick();await wait(chat.idle);assert.equal(calls[5].body.history.length,0,'A new hirer never receives another rental conversation');
   f.advance(1800001);f.db.prepare('UPDATE quest_presence SET seen=?').run(f.now());chat.enqueue(f.bob,'Astra, where is town?',6,'room');chat.kick();await wait(chat.idle);assert.equal(calls[7].body.history.length,0,'Thirty minutes of inactivity forgets conversation history');
@@ -144,7 +145,7 @@ test('AI uses classifier, personal chat and RAG endpoints; nearby name mentions 
 
 test('nearby non-hirers can address a hired companion without inheriting another speaker history',async()=>{
  const f=fixture();let chat;try{
-  f.active();const calls=[];chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,fetcher:async(url,opts)=>{calls.push(JSON.parse(opts.body));return Response.json(String(url).includes(':9091')?{choices:[{message:{content:'GAME'}}]}:{reply:'Hello nearby traveller.'});}});
+  f.active();const calls=[];chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,fetcher:async(url,opts)=>{if(String(url).includes('/v1/companion/'))return new Response('{}',{status:404}); calls.push(JSON.parse(opts.body));return Response.json(String(url).includes(':9091')?{choices:[{message:{content:'GAME'}}]}:{reply:'Hello nearby traveller.'});}});
   f.db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,?)').run(f.bob.id,f.bob.owner,'dungeon-castle-dungeon',6,5,f.now());
   chat.enqueue(f.alice,'Astra, remember my question',1,'room');chat.kick();await wait(chat.idle);f.advance(11000);
   chat.enqueue(f.bob,'Astra, where is town?',2,'room');chat.enqueue(f.bob,'Astra, where is town?',2,'room');chat.kick();await wait(chat.idle);
@@ -181,24 +182,59 @@ test('chat schema upgrade discards legacy pending speech and never shares old re
  const f=fixture();let chat;try{
   const rental=f.active();f.db.exec("CREATE TABLE quest_follower_chat_jobs(seq INTEGER PRIMARY KEY,rental TEXT NOT NULL,area TEXT NOT NULL,text TEXT NOT NULL,created INTEGER NOT NULL,status TEXT NOT NULL); CREATE UNIQUE INDEX quest_follower_reply_pending ON quest_follower_chat_jobs(rental) WHERE status='pending'; CREATE TABLE quest_follower_memory(rental TEXT PRIMARY KEY,messages TEXT NOT NULL,updated INTEGER NOT NULL)");
   f.db.prepare('INSERT INTO quest_follower_chat_jobs VALUES (?,?,?,?,?,?)').run(1,rental,'room','old private question',f.now()-11000,'pending');f.db.prepare('INSERT INTO quest_follower_memory VALUES (?,?,?)').run(rental,JSON.stringify([{role:'player',content:'private old history'}]),f.now());
-  const calls=[];chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,fetcher:async(url,opts)=>{calls.push(JSON.parse(opts.body));return Response.json(String(url).includes(':9091')?{choices:[{message:{content:'GAME'}}]}:{reply:'A new conversation.'});}});
+  const calls=[];chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,fetcher:async(url,opts)=>{if(String(url).includes('/v1/companion/'))return new Response('{}',{status:404}); calls.push(JSON.parse(opts.body));return Response.json(String(url).includes(':9091')?{choices:[{message:{content:'GAME'}}]}:{reply:'A new conversation.'});}});
   assert.equal(f.db.prepare('SELECT status FROM quest_follower_chat_jobs WHERE seq=1').get().status,'discarded');chat.enqueue(f.alice,'Astra, hello',2,'room');chat.kick();await wait(chat.idle);assert.deepEqual(calls[1].history,[]);
  }finally{chat?.close();f.close();}
 });
 
-test('a down AI hop falls through to the next one, and each outage is logged once a minute',async()=>{
+test('older AI nodes: a down hop falls through to the next one, and each outage is logged once a minute',async()=>{
  const f=fixture();let chat;try{
   f.active();const down=new Set(),calls=[],logs=[];
   const refused=()=>Object.assign(new TypeError('fetch failed'),{cause:{code:'ECONNREFUSED'}}); // What fetch throws when a port is closed (server-2 stopped, 2026-09-27).
-  chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,log:line=>logs.push(line),fetcher:async url=>{const port=String(url).match(/:(\d+)\//)[1];calls.push(port);if(down.has(port))throw refused();
+  chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,log:line=>logs.push(line),fetcher:async url=>{const port=String(url).match(/:(\d+)\//)[1];calls.push(port);if(down.has(port))throw refused();if(String(url).includes('/v1/companion/'))return new Response('{}',{status:404}); 
    return Response.json(port==='9091'?{choices:[{message:{content:'GAME'}}]}:port==='9092'?{reply:'Ask the grounded wiki.'}:{choices:[{message:{content:'Still here with you!'}}]});}});
   const say=async(text,seq)=>{f.advance(11000);f.db.prepare('UPDATE quest_presence SET seen=?').run(f.now());chat.enqueue(f.alice,text,seq,'room');chat.kick();await wait(chat.idle);return f.db.prepare('SELECT text FROM quest_chat ORDER BY seq DESC').get()?.text;};
   down.add('9091');assert.equal(await say('Astra where is the bank?',1),'Ask the grounded wiki.','classifier down: the agent still answers');
   down.add('9092');assert.equal(await say('Astra where is the inn?',2),'Still here with you!','classifier and agent down: the persona model answers in character');
-  assert.ok(logs.some(l=>/classifier .*:9091.*ECONNREFUSED/.test(l))&&logs.some(l=>/agent .*:9092/.test(l)),'each unreachable hop is named in the server log: '+JSON.stringify(logs));
+  assert.ok(logs.some(l=>/classifier .*:9091.*ECONNREFUSED/.test(l))&&logs.some(l=>/(agent|companion) .*:9092/.test(l)),'each unreachable hop is named in the server log: '+JSON.stringify(logs));
   const before=logs.length;chat.enqueue(f.alice,'Astra hello again',3,'room');f.advance(11000);chat.kick();await wait(chat.idle);
   down.add('9090');assert.match(await say('Astra, anyone home?',4),new RegExp(followerData.sorceress_arcana.online.fallback.slice(0,12)),'everything down: the authored fallback line');
   assert.ok(logs.filter(l=>/classifier/.test(l)).length<=2,'an ongoing outage is not logged on every message');assert.ok(logs.length>before);
+ }finally{chat?.close();f.close();}
+});
+
+test('the companion graph gets one call with persona, voice, flags and lore; a 409 pushes lore to every node and retries',async()=>{
+ const f=fixture();let chat;try{
+  f.active();const state=JSON.parse(f.alice.state);state.fullDungeon={flags:{story_test_seen:true,story_test_off:false},counters:{},once:{}};f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),f.alice.id);
+  const calls=[];let held=null;
+  chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,fetcher:async(url,opts)=>{const path=new URL(url).pathname,body=JSON.parse(opts.body);calls.push({path,body});
+   if(path==='/v1/companion/lore'){held=body.version;return Response.json({ok:true,version:body.version,sections:body.sections.length});}
+   if(path==='/v1/companion/chat')return held===body.lore_version?Response.json({reply:'From the graph, Alice.'}):Response.json({detail:'lore_version mismatch'},{status:409}); // A fresh node holds no lore.
+   return Response.json({choices:[{message:{content:'Should not be asked.'}}]});}});
+  chat.enqueue(f.alice,'Astra, tell me about your coat',1,'room');chat.kick();await wait(chat.idle);
+  assert.deepEqual(calls.map(c=>c.path),['/v1/companion/chat','/v1/companion/lore','/v1/companion/chat'],'409: push the lore everywhere, then retry once; no classifier or persona-model calls');
+  const ask=calls[2].body,def=followerData.sorceress_arcana;
+  assert.equal(ask.npc_id,'sorceress_arcana');assert.equal(ask.persona,def.online.persona);assert.deepEqual(ask.voice,def.dialogue.talk_lines.slice(0,3));
+  assert.deepEqual(ask.flags,['story_test_seen'],'only true flags are sent');assert.equal(ask.bond,0);assert.equal(ask.audience,0);
+  const lore=calls[1].body;assert.equal(lore.version,ask.lore_version);assert.ok(lore.sections.some(s=>s.npc==='sorceress_arcana'&&s.id==='astra-coat'));
+  assert.ok(lore.sections.some(s=>s.reveal_bond>0),'secrets travel with their bond gate');
+  assert.equal(f.db.prepare('SELECT text FROM quest_chat ORDER BY seq DESC').get().text,'From the graph, Alice.');
+  assert.equal(chat.lore().sections,lore.sections.length);
+ }finally{chat?.close();f.close();}
+});
+
+test('companion graph outages fall back to the persona model; draft lore can be held back',async()=>{
+ const f=fixture();let chat;try{
+  f.active();const paths=[],logs=[];
+  chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,log:line=>logs.push(line),fetcher:async url=>{const path=new URL(url).pathname;paths.push(path);
+   return path==='/v1/companion/chat'?Response.json({detail:'model down'},{status:503}):Response.json({choices:[{message:{content:'Still here, Alice.'}}]});}});
+  chat.enqueue(f.alice,'Astra, are you there?',1,'room');chat.kick();await wait(chat.idle);
+  assert.deepEqual(paths,['/v1/companion/chat','/v1/chat/completions']);assert.equal(f.db.prepare('SELECT text FROM quest_chat').get().text,'Still here, Alice.');
+  assert.ok(logs.some(l=>/^follower AI: companion .*\/v1\/companion\/chat failed: AI answered 503/.test(l)),JSON.stringify(logs));
+  const all=companionLore(followerData),reviewed=companionLore(followerData,{drafts:false});
+  assert.ok(all.sections.length>=21&&all.sections.every(s=>s.draft),'the drafts ship live by default');
+  assert.equal(reviewed.sections.length,0);assert.notEqual(all.version,reviewed.version,'the version follows the content');
+  assert.deepEqual(storyFlags({state:'not json'}),[]);assert.deepEqual(storyFlags({state:JSON.stringify({fullDungeon:{flags:{'Bad Flag':true,ok_flag:1}}})}),['ok_flag']);
  }finally{chat?.close();f.close();}
 });
 
@@ -208,7 +244,7 @@ test('late AI replies after a zone change are discarded; failures give bounded a
   f.active();const gate=new Promise(r=>release=r);chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,log:line=>logs.push(line),fetcher:async()=>{await gate;throw Error('offline');}});
   chat.enqueue(f.alice,'Astra hello',1,'room');chat.kick();f.followers.move(f.alice,{},null,{zone:'elsewhere',x:3,y:3},'elsewhere');f.followers.move(f.alice,{},null,{zone:'dungeon-castle-dungeon',x:5,y:5},'room');release();await wait(chat.idle);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM quest_chat').get().n,0);
   f.followers.move(f.alice,{},null,{zone:'dungeon-castle-dungeon',x:5,y:5},'room');f.advance(11000);chat.enqueue(f.alice,'Astra hello',2,'room');chat.kick();await wait(chat.idle);assert.ok(f.db.prepare('SELECT text FROM quest_chat').get().text.length<=240);
-  assert.deepEqual(logs.map(line=>line.match(/^follower AI: (\w+) .* failed: offline \(Error\)$/)?.[1]),['classifier','agent','llm']); // Each simulated hop warns once, even across both queued replies.
+  assert.deepEqual(logs.map(line=>line.match(/^follower AI: (\w+) .* failed: offline \(Error\)$/)?.[1]),['companion','llm']); // Each simulated hop (graph, then persona model) warns once, even across both queued replies.
  }finally{release?.();chat?.close();f.close();}
 });
 
@@ -248,6 +284,8 @@ test('real PvE encounter adds an autonomous actor, supports targeting, and grant
   f.advance(5000);f.db.prepare('UPDATE quest_presence SET seen=?').run(f.now());engine.tick(()=>record);f.advance(6000);f.db.prepare('UPDATE quest_presence SET seen=?').run(f.now());engine.tick(()=>record);
   let e=JSON.parse(f.db.prepare('SELECT state FROM quest_dive_encounters').get().state);assert.ok(e.followers[0].cycle>1);e.enemies[0].data.hp=0;f.db.prepare('UPDATE quest_dive_encounters SET state=?').run(JSON.stringify(e));
   f.advance(6000);const current=JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get('alice').state);engine.act(f.alice,current,{action:'turn_ready',battle:e.id,cycle:e.players[0].cycle,forfeit:false,patch:[]},record);assert.deepEqual(rewards,['alice']);assert.equal(f.followers.get('alice').battle,null);assert.ok(f.followers.progression('sorceress_arcana').xp>0||f.followers.progression('sorceress_arcana').level>1);
+  const won=f.db.prepare("SELECT * FROM quest_companion_events WHERE kind='battle_win'").all();
+  assert.equal(won.length,1,'the companion remembers the win it fought in');assert.equal(won[0].npc,'sorceress_arcana');assert.equal(JSON.parse(won[0].data).enemy,'Test monster');
   save(f.alice,current);const earned=f.followers.progression('sorceress_arcana').xp;
   for(const action of ['flee','submit']){
    const next=engine.start(f.alice,current,record,foe);save(f.alice,current);engine.act(f.alice,current,{action,battle:next.id,cycle:1},record);save(f.alice,current);

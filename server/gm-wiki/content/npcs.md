@@ -93,3 +93,42 @@ Use [Included online story sheets](workshop.md#included-online-story-sheets) to 
 In the Map Editor, choose **NPC routes** and select a managed NPC placement. Routes belong to that placement, not every copy of the shared NPC record. They override random wandering while present; conversations pause movement. **Save routes** commits immediately and restarts the NPC from home. An active player must be in the zone to watch normal walking.
 
 See [NPC routes and pathfinding](npc-routes.md), [Build an NPC patrol](tutorial-npc-patrol.md), and [Daily work hours and timed rounds](tutorial-npc-schedules.md) for illustrated controls, movement demonstrations and complete exercises. This tool does not assign patrols to arbitrary engine residents.
+
+## Companion memory and backstories (Companions tab)
+
+The seven hireable companions (Dame Elowen, Astra, Mira, Rosalind, Sable, Vex and Wick) remember each character they
+travel with. They talk in their own voice, draw on their backstories, and become more open as their bond with that
+character grows. All of this is on the **Companions** tab of the GM panel.
+
+**Backstories.** Each companion has a few short sections, like "Raised at the Iron Chapel". The AI uses a section
+when it fits the conversation.
+- **Reveal bond** keeps a section secret until the character's bond with that companion (0-100) reaches the number.
+  **Reveal flag** also requires a story flag.
+- Sections marked **DRAFT** were written by Lumi and still need a GM read-through. Edit the text if needed, then
+  click **Sign off**. **Add a section** creates a new one, and **Delete** removes a section from the game.
+- Write sections as plain facts about the companion, two or three sentences each.
+- Put names you want the companion to say into the text. The AI refuses names it has never been shown.
+- Changes reach the AI servers with the next reply.
+- Known canon conflicts to settle are listed in the game repo's ONLINE_FOLLOWERS_GUIDE.md. Examples: Rosalind the
+  companion vs. the nursery boss, and Astra "freed from" vs. "never had" the curse.
+
+**Bond and memories.**
+- A character's bond with a companion grows when they share experiences: fights won (+2), quests finished (+5), new
+  places (+1), revives (+3). It grows at most **bond_hourly_cap** per hour.
+- Companions also remember accidents and changes. Those count as embarrassing.
+- After a chat, the AI notes anything personal the player said, saved as "Doll said ...".
+- Past **keep_per_pair** memories, the oldest minor ones are folded into a short relationship summary.
+
+**Slips and gossip.**
+- When other players can hear, a companion may let an embarrassing memory slip (**slip_chance**). If anyone else
+  actually heard the line, the speaker loses **slip_dignity** Dignity. The same memory can't slip again for a day.
+- Companions can also tell anonymous stories about other travellers (**gossip_chance**). They never name anyone
+  and never repeat what a player said.
+
+**Character memories.** Type a character name or id to see:
+- that character's bond with every companion, with a **Set bond** box for testing secrets
+- the relationship summaries
+- every memory, with a **Delete** button on each
+
+**Wipe all companion memories** removes everything for that character. Every change on this tab is recorded in the
+audit log.

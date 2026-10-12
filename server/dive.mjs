@@ -6,6 +6,7 @@ import {addCraftingWildlife,awardWildlife,awardCraftingDungeon} from './crafting
 import {createDiveEncounters} from './dive-encounters.mjs';
 import {awardMonsterCoins} from './monster-rewards.mjs';
 import {generatorName} from './compute-tasks.mjs'; // Maps a generator function to the name the worker pool understands.
+import {sewerStance,sewerStep,sewerDelay} from './sewers.mjs';
 import {addPinkMist,mistAt} from './dive-mist.mjs';
 import {smokeConfig,smokeView,smokeAt} from './pink-smoke.mjs'; // Drifting Pink Smoke clouds on overworlds.
 import {createDiveLootRoller,dietWilderness} from './dive-loot.mjs';
@@ -132,6 +133,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function relocate(c,state,position,scene,downedAt=now()){ // Recovery needs both the completed scene and one real minute since defeat.
   if(state.deferDefeatReturn&&scene){state.pendingDefeat={id:scene.id,position:{...position},readyAt:downedAt+60000,sceneComplete:false};return;}
   state.dive.position={...position};state.dive.safeUntil=now()+10000;
+  sewerStance(getFloor(state.dive.edition)?.floor??{},state,position.x,position.y); // Defeat recovery must release clearance immediately, even without another player command.
   db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(position.x,position.y,c.id);
  }
  function recover(c,state,record){
@@ -153,7 +155,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   const arrival=hubArrival(destinationRoom,returnSource(origin,walkedIn?zoneId:(state.dive?.hubEntryZone??zoneId))); // walkedIn: stand beside the opening you came through, not the first trail you left a hub by (hubEntryZone sticks across overworld travel and sent Honeydew->Woods->Taiga->Utopia to the Workshop door mid-plaza). Otherwise a retired branch returns beside its original Tundra opening; legacy lobby entries stand beside the Dive Hall doorway.
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(origin,arrival.x,arrival.y,now(),c.id);
   if(origin.endsWith('-dives'))state.hubVisit=origin;else delete state.hubVisit; // Reconnect after a warp restores the destination hall rather than the previous hub.
-  state.dive=null;state.diveReturned=origin;state.diveReturnedPosition=arrival;
+  sewerStance({},state,0,0);state.dive=null;state.diveReturned=origin;state.diveReturnedPosition=arrival;
  }
  function finish(c,state,record,outcome){
   const run=state.run;if(!run||run.kind!=='dive')return;
@@ -345,7 +347,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(!record||p?.zone!==zoneId||!owns(state?.dive))return {dive:summary};
   const f=record.floor;
   if(f.industrial)summary.industrial={...f.industrial,phase:personal.industrialPhase??0};
-  return {beaconFloor:f,dive:{...summary,...(config.features?.cavern_breath?{cavernBreath:{...cavernBreath(config.features.cavern_breath,now()),step_delay_ms:config.features.cavern_breath.step_delay_ms??100}}:{}),depth:1,origin:state.dive.origin,explored:personal.explored,...(dungeonRules?{scene:dungeonRules.scene(state),mechanismRevision:f.mechanismRevision,puzzles:f.puzzles}:{}),...(config.features?.rain?{weather:weatherAt(route,config.features.rain,now())}:{}),...(smokeCfg()?.enabled?{smoke:smokeView(route,f,smokeCfg(),now(),record.edition)}:{}),...(config.features?.tide?{tide:{...tideAt(route,config.features.tide,now()),reach:config.features.tide.reach??3,wade_wet:config.features.tide.wade_wet??2}}:{}),...(config.features?.eruption?{eruption:{...eruptionAt(route,config.features.eruption,now()),radius:config.features.eruption.radius??3,startle_wet:config.features.eruption.startle_wet??35}}:{}),...(config.features?.flood?{flood:{...floodAt(route,config.features.flood,now()),wash_wet:config.features.flood.wash_wet??3,startle_wet:config.features.flood.startle_wet??30,soak_slots:config.features.flood.soak_slots??['socks','shoes','pants']}}:{}),...(config.features?.echo?{echo:{...echoReading(state,config.features.echo,config.pursuit_steps,now(),echoItems()),base:config.pursuit_steps}}:{}),...(config.features?.whisper?{whisper:{cooldown_seconds:config.features.whisper.cooldown_seconds??120}}:{}), /* Echo Gulch: the client listens again as you pass a stone only once this has passed. */enemies:f.enemies.filter(e=>!(e.manual&&!e.respawning&&e.dead)&&!gone(e)).map(e=>({...e,definition:undefined,nextStep:undefined,temperament:e.definition?.temperament??'hostile',name:(e.definition??data.enemies[e.type]).name,sprite:(e.definition??data.enemies[e.type]).sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",category,exits:f.exits??[],theme,...(f.caveChannels?{caveChannels:f.caveChannels,caveInlets:f.caveInlets,caveLandmarks:f.caveLandmarks}:{}),...(dungeonRules?{fullDungeonVersion:1,fixtures:f.fixtures.map(v=>v.kind==='shop'?{...v,offers:shopOffers(zoneId,findShop(v.id),now(),shopperLevel(state))}:v),puzzles:f.puzzles,mechanismRevision:f.mechanismRevision}:{}),mist:f.mist,walls:f.walls,props:f.props,geometryVersion:f.geometryVersion??0,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,...(f.lullabyRooms?{lullabyRooms:f.lullabyRooms}:{}),decorations:f.decorations,...(f.cover?{cover:f.cover,exposed:!!f.exposed}:{}),...(f.shore?{shore:f.shore}:{}),...(f.wash?{wash:f.wash}:{}),...(f.crater?{crater:f.crater}:{}),...(f.paint?{paint:f.paint}:{}),...(f.heat?{heat:{...f.heat,thirst_per_step:config.features?.heat?.thirst_per_step??3,sweat_percent:config.features?.heat?.sweat_percent??50}}:{})}}; // paint: GM Palette brush tiles from any palette (floor-patches.mjs), drawn by the client's online_paint_layer_draw. // crater/heat: Emberfall Caldera's lava lake and the overheated ring round it. // shore: the Seafoam Coast's shoreline column per row (sea to its east, tide flats just west of it). // wash: Echo Gulch's dry riverbed rows ('1' floods). // cover/exposed: the Autumnal Plains' tall grass and open fields (plains-features.mjs).
+  return {beaconFloor:f,dive:{...summary,...(config.features?.cavern_breath?{cavernBreath:{...cavernBreath(config.features.cavern_breath,now()),step_delay_ms:config.features.cavern_breath.step_delay_ms??100}}:{}),depth:1,origin:state.dive.origin,explored:personal.explored,...(dungeonRules?{scene:dungeonRules.scene(state),mechanismRevision:f.mechanismRevision,puzzles:f.puzzles}:{}),...(config.features?.rain?{weather:weatherAt(route,config.features.rain,now())}:{}),...(smokeCfg()?.enabled?{smoke:smokeView(route,f,smokeCfg(),now(),record.edition)}:{}),...(config.features?.tide?{tide:{...tideAt(route,config.features.tide,now()),reach:config.features.tide.reach??3,wade_wet:config.features.tide.wade_wet??2}}:{}),...(config.features?.eruption?{eruption:{...eruptionAt(route,config.features.eruption,now()),radius:config.features.eruption.radius??3,startle_wet:config.features.eruption.startle_wet??35}}:{}),...(config.features?.flood?{flood:{...floodAt(route,config.features.flood,now()),wash_wet:config.features.flood.wash_wet??3,startle_wet:config.features.flood.startle_wet??30,soak_slots:config.features.flood.soak_slots??['socks','shoes','pants']}}:{}),...(config.features?.echo?{echo:{...echoReading(state,config.features.echo,config.pursuit_steps,now(),echoItems()),base:config.pursuit_steps}}:{}),...(config.features?.whisper?{whisper:{cooldown_seconds:config.features.whisper.cooldown_seconds??120}}:{}), /* Echo Gulch: the client listens again as you pass a stone only once this has passed. */enemies:f.enemies.filter(e=>!(e.manual&&!e.respawning&&e.dead)&&!gone(e)).map(e=>({...e,definition:undefined,nextStep:undefined,temperament:e.definition?.temperament??'hostile',name:(e.definition??data.enemies[e.type]).name,sprite:(e.definition??data.enemies[e.type]).sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",category,exits:f.exits??[],theme,...(f.sewer?{sewer:f.sewer}:{}),...(f.caveChannels?{caveChannels:f.caveChannels,caveInlets:f.caveInlets,caveLandmarks:f.caveLandmarks}:{}),...(dungeonRules?{fullDungeonVersion:1,fixtures:f.fixtures.map(v=>v.kind==='shop'?{...v,offers:shopOffers(zoneId,findShop(v.id),now(),shopperLevel(state))}:v),puzzles:f.puzzles,mechanismRevision:f.mechanismRevision}:{}),mist:f.mist,walls:f.walls,props:f.props,geometryVersion:f.geometryVersion??0,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,...(f.lullabyRooms?{lullabyRooms:f.lullabyRooms}:{}),decorations:f.decorations,...(f.cover?{cover:f.cover,exposed:!!f.exposed}:{}),...(f.shore?{shore:f.shore}:{}),...(f.wash?{wash:f.wash}:{}),...(f.crater?{crater:f.crater}:{}),...(f.paint?{paint:f.paint}:{}),...(f.heat?{heat:{...f.heat,thirst_per_step:config.features?.heat?.thirst_per_step??3,sweat_percent:config.features?.heat?.sweat_percent??50}}:{})}}; // paint: GM Palette brush tiles from any palette (floor-patches.mjs), drawn by the client's online_paint_layer_draw. // crater/heat: Emberfall Caldera's lava lake and the overheated ring round it. // shore: the Seafoam Coast's shoreline column per row (sea to its east, tide flats just west of it). // wash: Echo Gulch's dry riverbed rows ('1' floods). // cover/exposed: the Autumnal Plains' tall grass and open fields (plains-features.mjs).
  } // Snapshots expose claim status but never another character's inventory or chest rolls.
  function claim(c,state,record,chest,automatic=false){
   if(chest.requires_machine&&!industrialUnlocked(record.floor.fixtures.find(v=>v.id===chest.requires_machine))){if(automatic)return;fail('Use the production cutoff or park the cargo at berth 3 before opening this salvage locker.');}
@@ -369,7 +371,10 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function handles(input,p){return input.action==='dive_enter'&&(input.zone??DIVE_ZONE)===zoneId||input.action==='enter'&&input.zone===zoneId||p?.zone===zoneId;}
  function act(i,c,state,input,p){
   const action=input.action;
+  if(p&&state.loadout)sewerStance(owns(state.dive)?getFloor(state.dive.edition)?.floor??{}:{},state,p.x,p.y); // Restore authoritative clearance after client loadout imports.
+  if(action==='stand'&&state.loadout?.world?.environment_crawl)fail('The overhead pipes are too low to stand here.'); // Explain clearance even when a standing request arrives outside combat.
   if(action==='dive_enter'||action==='enter'){
+   if(config.sewer&&state.sewerVersion!==1)fail('Update the game before entering the sewers.','client_update_required');
    if(config.full_dungeon_version&&(state.fullDungeonVersion!==1||state.questVersion!==1))fail('Update the game to enter full campaign dungeons.','client_update_required');
    if(controls?.draining()&&!state.dive)fail('This Dive is being regenerated.');
    if(state.dive&&input.zone&&input.zone!==zoneId)fail('Leave your current dungeon before changing routes.'); // Re-entry cannot change a live visit's route or imported inventory.
@@ -453,13 +458,13 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
    if(state.run)fail('Finish combat first.');
    const delay=input.walkDelay??movementDelay(state.loadout,currentTuning()),burst=moveBurst(currentTuning()),path=[],timed=[];let at={x:p.x,y:p.y},clock=p.moved,stop=input.walkCut?'special':''; // timed: the same steps with their paced clock, for the peers' walking trail. // Each accepted step uses its own terrain cost.
    for(const direction of input.steps){
-    const d=WALK_DIRECTIONS[direction],x=at.x+d[0],y=at.y+d[1],next=paceStep(clock,now(),delay+cavernDelay(f,at.x,at.y,config,now()),burst);
+    const d=WALK_DIRECTIONS[direction],x=at.x+d[0],y=at.y+d[1],next=paceStep(clock,now(),(f.sewer?sewerDelay(f,state,at.x,at.y,x,y,currentTuning()):delay)+cavernDelay(f,at.x,at.y,config,now()),burst);
     if(next===null){stop='too_fast';break;} // Faster than move_delay_ms on average, even with the burst allowance.
     if(!walkable(f,x,y)){stop='blocked';break;}
     if(f.enemies.some(e=>e.x===x&&e.y===y&&e.respawnAt<=now())||f.exits?.some(e=>inExit(e,x,y))||!(f.exits?.length)&&x===f.entrance.x&&y===f.entrance.y||[...f.chests,...(f.pickups??[])].some(ch=>ch.x===x&&ch.y===y)){stop='special';break;} // Encounters, exits and loot keep the single-step `move` with its own server-ordered needs turn.
     clock=next;at={x,y};path.push({x,y});timed.push({x,y,t:clock});
     db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE character_id=?').run(x,y,clock,c.id);reveal(c,state,f,x,y); // Same writes as one ordinary step, with the paced clock instead of now().
-    cavernStep(f,state,x,y,config,now(),echoItems());
+    cavernStep(f,state,x,y,config,now(),echoItems());sewerStep(f,state,x,y,echoItems());
     dungeonRules?.step(c,state,record,x,y); // Room timers, events and lullaby rooms count every committed step.
     if(state.run||state.dungeonScene||state.pendingDefeat||!owns(state.dive)){stop='event';break;} // A room event or scene ends the batch on the tile where it happened.
    }
@@ -470,14 +475,15 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(action==='move'||action==='dive_engage'){
    if(state.run)fail('Finish combat first.'); // Exploration stays available while stat points are banked.
    if(action==='dive_engage'){const foe=f.enemies.find(e=>e.id===input.encounter);if(!foe||Math.abs(foe.x-p.x)+Math.abs(foe.y-p.y)>1)fail('Approach that enemy first.');start(c,state,record,foe);return;}
-   const paced=paceSingle(p.moved,now(),movementDelay(state.loadout,currentTuning())+cavernDelay(f,p.x,p.y,config,now()),moveBurst(currentTuning()));if(paced===null)fail('Movement is too fast.'); /* The chest/stairs step after a late walk batch finishes that batch's burst instead of bouncing; wet channels add one interval. */ const d={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];if(!d)fail('Choose a direction.');
+   const sewerDirection=WALK_DIRECTIONS[input.direction]??[0,0];
+   const paced=paceSingle(p.moved,now(),sewerDelay(f,state,p.x,p.y,p.x+sewerDirection[0],p.y+sewerDirection[1],currentTuning())+cavernDelay(f,p.x,p.y,config,now()),moveBurst(currentTuning()));if(paced===null)fail('Movement is too fast.'); /* The chest/stairs step after a late walk batch finishes that batch's burst instead of bouncing; wet channels add one interval. */ const d={north:[0,-1],south:[0,1],east:[1,0],west:[-1,0]}[input.direction];if(!d)fail('Choose a direction.');
    const x=p.x+d[0],y=p.y+d[1];if(!walkable(f,x,y))fail('That tile is blocked.');const foe=f.enemies.find(e=>e.x===x&&e.y===y&&e.respawnAt<=now());
    if(foe){start(c,state,record,foe);return;} // Bumping any enemy starts the fight, peaceful animals included (Interact still works too); prey never chase, so walking into one is the deliberate hunt.
    const exit=f.exits?.find(e=>inExit(e,x,y)); // Pads are one tile; overworld wall gaps span two.
    const entranceReturn=!(f.exits?.length)&&x===f.entrance.x&&y===f.entrance.y;
    if(exit||entranceReturn){back(c,state,exit?.zone);return;} // Stepping onto any return portal commits the transfer; spawning/reconnecting on it never triggers a bounce.
    db.prepare('UPDATE quest_presence SET x=?,y=?,moved=?,trail=? WHERE character_id=?').run(x,y,paced,extendTrail(p,[{x,y,t:paced}]),c.id);reveal(c,state,f,x,y); // Claim the paced slot, like a walk step; the step joins the peers' walking trail.
-   cavernStep(f,state,x,y,config,now(),echoItems());
+   cavernStep(f,state,x,y,config,now(),echoItems());sewerStep(f,state,x,y,echoItems());
    dungeonRules?.step(c,state,record,x,y); // Room timers and traps count committed moves only.
    if(input.world_step===true)state.worldTurnDue={id:randomUUID(),mist:mistAt(f,x,y)||!!smokeCfg()?.enabled&&smokeAt(route,f,smokeCfg(),now(),x,y,record.edition),lullaby:!!state.dungeonLullaby}; // Loot commits first; the needs tick resumes from that inventory rather than overwriting the grant.
    const pickup=[...f.chests,...(f.pickups??[])].find(ch=>ch.x===x&&ch.y===y);if(pickup)claim(c,state,record,pickup,true);return; // Walking onto either a room chest or a loose pickup commits the same personal claim as Interact.
@@ -486,12 +492,12 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(action==='loadout'||action==='use_item'){
    if(action==='loadout'&&state.run)fail('Use Items during combat.');
    if(state.run&&!state.run.turnReady)fail('Wait for your turn.');
-   state.loadout=importLoadout(input.loadout);if(state.run){if(now()-state.run.acted<300)fail('Wait for the current turn.');state.run.acted=now();applyRunLoadout(state.run,state.loadout);result=combatAction(state,input,z,roll);}else return;
+   state.loadout=importLoadout(input.loadout);sewerStance(f,state,p.x,p.y);if(state.run){if(now()-state.run.acted<300)fail('Wait for the current turn.');state.run.acted=now();applyRunLoadout(state.run,state.loadout);result=combatAction(state,input,z,roll);}else return;
   }else{
    if(state.run?.kind!=='dive')fail('No active dungeon fight.');
    if(['flee','submit'].includes(action)){finish(c,state,record,action);return;}
    if(action==='turn_ready'){
-    if(typeof input.forfeit!=='boolean'||state.run.turnReady)fail('No unprepared turn.');state.loadout=importLoadout(input.loadout);state.run.acted=now();result=readyTurn(state,input.forfeit,z,roll); // An acknowledged accident/forfeit turn is combat activity, unlike a heartbeat.
+    if(typeof input.forfeit!=='boolean'||state.run.turnReady)fail('No unprepared turn.');state.loadout=importLoadout(input.loadout);sewerStance(f,state,p.x,p.y);state.run.acted=now();result=readyTurn(state,input.forfeit,z,roll); // An acknowledged accident/forfeit turn is combat activity, unlike a heartbeat.
    }else if(['attack','cast','charm','allure','stand'].includes(action)){if(now()-state.run.acted<300)fail('Wait for the current turn.');state.run.acted=now();result=combatAction(state,input,z,roll);}
    else fail('Unknown dungeon action.');
   }
@@ -501,6 +507,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   }
  }
  function arrive(c,state,source){
+  if(config.sewer&&state.sewerVersion!==1)fail('Update the game before entering the sewers.');
   if(config.features?.cavern_breath&&state.cavernVersion!==1)fail('Update your game client before entering Coastal Caverns.'); // Older clients cannot display low-channel warnings.
   if(controls?.draining())fail('This Dive is being regenerated.');
   const record=current(),position=record?.floor.entries?.[source];
@@ -511,8 +518,10 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   state.diveReturned=null;delete state.diveReturnedPosition;
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(zoneId,position.x,position.y,now(),c.id);
   reveal(c,state,record.floor,position.x,position.y); // Revisit this route's own claims and fog; never re-import stale campaign equipment.
+  sewerStance(record.floor,state,position.x,position.y); // Linked travel starts with the destination's clearance.
  }
- function gmPlace(c,state,visit){ // Gamemaster warp into this route's shared weekly floor, building the same visit record a portal or trail would.
+ function gmPlace(c,state,visit){
+  if(config.sewer&&state.sewerVersion!==1)fail('Update the game before entering the sewers.'); // Gamemaster warp into this route's shared weekly floor, building the same visit record a portal or trail would.
   if(controls?.draining())fail('This Dive is being regenerated.');
   const record=(visit.edition&&getFloor(visit.edition))||current(); // Join a player still finishing last week's floor, otherwise the current week.
   if(!config.enabled||!record)fail('This Dive has no floor ready this week.');
@@ -530,7 +539,8 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   state.diveReturned=null;delete state.diveReturnedPosition;delete state.hubVisit; // Same bookkeeping as dive_enter.
   db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(zoneId,position.x,position.y,now(),c.id);
   reveal(c,state,f,position.x,position.y); // Personal fog and claims for this edition are reused, never reset.
+  sewerStance(f,state,position.x,position.y); // A GM may arrive beside somebody inside a low pipe.
  }
  const parentZone=config.parent_zone??config.endpoints?.find(e=>isRouteZoneId(e.zone))?.zone??null; // GM visits may follow a declared wilderness endpoint (Caldera -> Tundra) when no parent override exists; normal Escape still uses config.parent_zone.
- return {theme,beacon:{name,full:!!config.full_dungeon_version,cavern:!!config.features?.cavern_breath},beaconMap(floor){const edition=latest();return edition?{edition,floor:floor??getFloor(edition)?.floor}:null;},category,tick,snapshot,handles,act,chatArea,arrive,gmPlace,storyEncounter,parentZone,controls,floor:()=>current()?.floor??null,prepare:ensure,close(){closed=true;controls?.close();},available:()=>Boolean(config.enabled&&enabledQuery.get(route)),encounterSnapshot:state=>encounters.snapshot(state)};
+ return {clearance(state,p){sewerStance(state.dive?getFloor(state.dive.edition)?.floor??{}:{},state,p.x,p.y);},theme,beacon:{name,full:!!config.full_dungeon_version,cavern:!!config.features?.cavern_breath},beaconMap(floor){const edition=latest();return edition?{edition,floor:floor??getFloor(edition)?.floor}:null;},category,tick,snapshot,handles,act,chatArea,arrive,gmPlace,storyEncounter,parentZone,controls,floor:()=>current()?.floor??null,prepare:ensure,close(){closed=true;controls?.close();},available:()=>Boolean(config.enabled&&enabledQuery.get(route)),encounterSnapshot:state=>encounters.snapshot(state)};
 } // All mutations run inside the zone command transaction; scheduled simulation owns its own transaction.

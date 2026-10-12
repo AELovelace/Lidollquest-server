@@ -139,6 +139,7 @@ tr.sel td{background:#2c1e3d}
   <button type="button" role="tab" id="tab-crafting" aria-controls="panel-crafting" aria-selected="false" tabindex="-1">Crafting</button>
   <button type="button" role="tab" id="tab-alchemy" aria-controls="panel-alchemy" aria-selected="false" tabindex="-1">Alchemy</button>
   <button type="button" role="tab" id="tab-tutor" aria-controls="panel-tutor" aria-selected="false" tabindex="-1">Tutor NPC</button>
+  <button type="button" role="tab" id="tab-companions" aria-controls="panel-companions" aria-selected="false" tabindex="-1">Companions</button>
   <button type="button" role="tab" id="tab-welcome" aria-controls="panel-welcome" aria-selected="false" tabindex="-1">Welcome</button>
   <button type="button" role="tab" id="tab-music" aria-controls="panel-music" aria-selected="false" tabindex="-1">Music</button>
   <button type="button" role="tab" id="tab-guilds" aria-controls="panel-guilds" aria-selected="false" tabindex="-1">Guilds</button>
@@ -566,8 +567,33 @@ tr.sel td{background:#2c1e3d}
     <p id="tutorStatus" role="status"></p>
     <div class="row"><label for="tutorEnabled">Tutor is on</label><input id="tutorEnabled" type="checkbox"><label for="tutorName">Name</label><input id="tutorName" maxlength="24" style="width:160px"></div>
     <div class="row"><label for="tutorGreeting">Greeting</label><input id="tutorGreeting" class="grow" maxlength="300"><button class="go" id="tutorSave">Save tutor</button><button id="tutorLoad">Refresh</button></div>
+    <h2>AI servers</h2>
+    <p class="note">The tutor and the companions share these servers (NPC_RAG_NODES). Each question goes to the healthy server with the fewest questions in flight, weighed by how fast it has been answering. A server that fails sits out for 30 seconds while the others take over.</p>
+    <div id="tutorNodes" class="log"></div>
     <h2>Latest questions</h2>
     <div id="tutorLog" class="log"></div>
+  </section>
+</div>
+<div class="tab-panel" id="panel-companions" role="tabpanel" aria-labelledby="tab-companions" tabindex="0" hidden>
+  <section class="wide">
+    <h2>Companion memory</h2>
+    <p class="note">Hired companions remember what they live through with each character (fights, quests, new places, accidents) and what players tell them about themselves. Each companion also builds a bond (0-100) with each character, which unlocks backstory secrets. Memories are stored in companion-memory.sqlite on this server; the AI servers keep nothing.</p>
+    <p id="compStatus" role="status"></p>
+    <div id="compNodes" class="log"></div>
+    <h2>Tuning</h2>
+    <div id="compSettings"></div>
+    <div class="row"><button class="go" id="compSettingsSave">Save tuning</button><button id="compLoad">Refresh</button></div>
+  </section>
+  <section class="wide">
+    <h2>Backstories</h2>
+    <p class="note">Every player's chats can draw on these sections. A section with a reveal bond stays hidden until that player's bond with the companion reaches it. A reveal flag also requires that story flag. Drafts are used in replies unless lore_drafts is set to hidden in Tuning. Read each draft, edit it if needed, then click Sign off. Edits reach the AI servers with the next reply.</p>
+    <div class="row"><label for="compNpc">Companion</label><select id="compNpc"></select></div>
+    <div id="compLore"></div>
+  </section>
+  <section class="wide">
+    <h2>Character memories</h2>
+    <div class="row"><label for="compFind">Character name or id</label><input id="compFind" class="grow" maxlength="80"><button id="compFindGo">Look up</button></div>
+    <div id="compCharacter"></div>
   </section>
 </div>
 <div class="tab-panel" id="panel-welcome" role="tabpanel" aria-labelledby="tab-welcome" tabindex="0" hidden>
@@ -1091,7 +1117,15 @@ tr.sel td{background:#2c1e3d}
    $("tutorEnabled").checked=!!s.enabled;
    $("tutorStatus").textContent=data.configured
     ?"npc-rag: "+data.service+" · last call: "+(h.at?(h.ok?"OK at ":"FAILED at ")+when(h.at)+" ("+h.detail+")":"none since the server started")+" · "+data.today+" questions today · "+data.pending+" waiting · limit "+data.dailyLimit+" per account per day"
-    :"npc-rag is not configured on this server (set NPC_RAG_URL and NPC_RAG_KEY), so the tutor is hidden.";
+    :"npc-rag is not configured on this server (set NPC_RAG_NODES or NPC_RAG_URL, and NPC_RAG_KEY), so the tutor is hidden.";
+   clear($("tutorNodes"));
+   (data.nodes||[]).forEach(function(n){
+    var line=el("p");
+    line.appendChild(el("strong",null,n.host+" · "+(n.healthy?"healthy":"DOWN for "+Math.ceil(n.downForMs/1000)+" s")));
+    line.appendChild(document.createTextNode(" · "+n.inFlight+" in flight of "+n.slots+" slots · about "+n.latencyMs+" ms per reply"+(n.lastOk?" · last OK "+when(n.lastOk):"")+(n.lastError?" · last error: "+n.lastError:"")));
+    $("tutorNodes").appendChild(line);
+   });
+   if(!(data.nodes||[]).length)$("tutorNodes").appendChild(el("p","note","No AI servers configured."));
    clear($("tutorLog"));
    (data.recent||[]).forEach(function(r){
     var d=r.detail||{},line=el("p");
@@ -1108,6 +1142,91 @@ tr.sel td{background:#2c1e3d}
   var body={action:"tutor_settings",enabled:$("tutorEnabled").checked,name:$("tutorName").value.trim(),greeting:$("tutorGreeting").value.trim()};
   $("tutorSave").disabled=true;
   api("/gm/action",{method:"POST",body:body}).then(function(response){say("ok","Tutor saved: "+(response.result.enabled?"on":"off")+", named "+response.result.name+".");loadTutor();}).catch(function(error){say("err",error.message);}).finally(function(){$("tutorSave").disabled=false;});
+ });
+
+/* COMPANIONS_WIDGET */
+ var compEpoch=0,compData=null; // compData: the /gm/companions payload (settings, bounds, nodes, companions, character).
+ var COMP_HELP={slip_chance:"Chance per reply, while other players can hear, that the companion is given an embarrassing memory it may let slip (0-1).",slip_dignity:"Dignity the speaker loses when a slip is said and someone else hears it (scaled by Shame).",gossip_chance:"Chance per reply that the companion is given anonymous stories about other travellers (0-1).",bond_hourly_cap:"Most bond a character can gain with one companion per clock hour.",keep_per_pair:"Memories kept per companion and character; past this, old minor ones are folded into the summary.",send_cap:"Most memories sent to the AI with each reply.",impression_min_words:"Player lines shorter than this are not checked for things to remember.",lore_drafts:"live: drafts are used in replies; hidden: only signed-off sections are used."};
+ function compSend(body,message){return api("/gm/action",{method:"POST",body:body}).then(function(){say("ok",message);loadCompanions();}).catch(function(error){say("err",error.message);});}
+ function loadCompanions(){
+  var epoch=++compEpoch,session=perfEpoch,q=$("compFind").value.trim();
+  return api("/gm/companions"+(q?"?character="+encodeURIComponent(q):"")).then(function(data){
+   if(epoch!==compEpoch||session!==perfEpoch||!token)return;
+   compData=data;renderCompNodes();renderCompSettings();renderCompNpcs();renderCompLore();renderCompCharacter(q);
+  }).catch(function(error){say("err",error.message);});
+ }
+ function renderCompNodes(){
+  clear($("compNodes"));
+  (compData.nodes||[]).forEach(function(n){var p=el("p");p.appendChild(el("strong",null,n.host+" · "+(n.healthy?"healthy":"DOWN")));p.appendChild(document.createTextNode(" · "+n.inFlight+"/"+n.slots+" busy · ~"+n.latencyMs+" ms"+(n.lastError?" · "+n.lastError:"")));$("compNodes").appendChild(p);});
+  $("compStatus").textContent=(compData.companions||[]).reduce(function(sum,c){return sum+c.drafts;},0)+" draft backstory sections waiting for sign-off.";
+ }
+ function renderCompSettings(){
+  var box=$("compSettings");clear(box);
+  Object.keys(compData.bounds).forEach(function(key){
+   var bound=compData.bounds[key],row=el("div","row"),label=el("label",null,key),input;
+   label.htmlFor="compSet_"+key;row.appendChild(label);
+   if(typeof bound[0]==="string"){input=el("select");bound.forEach(function(v){var o=el("option",null,v);o.value=v;input.appendChild(o);});input.value=compData.settings[key];}
+   else{input=el("input");input.type="number";input.min=bound[0];input.max=bound[1];input.step=bound[1]<=1?"0.01":"1";input.value=compData.settings[key];input.style.width="90px";}
+   input.id="compSet_"+key;input.dataset.key=key;row.appendChild(input);row.appendChild(el("span","note",COMP_HELP[key]||""));box.appendChild(row);
+  });
+ }
+ function renderCompNpcs(){
+  var sel=$("compNpc"),keep=sel.value;clear(sel);
+  (compData.companions||[]).forEach(function(c){var o=el("option",null,c.name+(c.drafts?" ("+c.drafts+" drafts)":""));o.value=c.npc;sel.appendChild(o);});
+  if(keep)sel.value=keep;
+ }
+ function compSectionCard(npc,s,isNew){
+  var card=el("div","row"),id=el("input"),heading=el("input"),text=el("textarea"),bond=el("input"),flag=el("input");
+  card.style.flexWrap="wrap";card.style.borderTop="1px solid #555";card.style.paddingTop="8px";
+  id.value=s.id||"";id.placeholder="section-id";id.readOnly=!isNew;id.style.width="150px";heading.value=s.heading||"";heading.placeholder="Heading";heading.className="grow";heading.maxLength=80;
+  text.value=s.text||"";text.rows=3;text.maxLength=1200;text.style.width="100%";bond.type="number";bond.min=0;bond.max=100;bond.value=(s.reveal&&s.reveal.bond)||0;bond.style.width="70px";
+  flag.value=(s.reveal&&s.reveal.flag)||"";flag.placeholder="story flag (optional)";flag.style.width="170px";
+  card.appendChild(id);card.appendChild(heading);card.appendChild(el("span","note",isNew?"new":(s.draft?"DRAFT · ":"")+s.source));card.appendChild(text);
+  card.appendChild(el("label",null,"Reveal bond"));card.appendChild(bond);card.appendChild(flag);
+  var save=el("button","go",isNew?"Add section":"Save");
+  save.addEventListener("click",function(){compSend({action:"companion_lore_save",npc:npc,section:{id:id.value.trim(),heading:heading.value.trim(),text:text.value.trim(),reveal:{bond:Number(bond.value)||0,flag:flag.value.trim()},draft:isNew?false:!!s.draft}},"Backstory section saved.");});
+  card.appendChild(save);
+  if(!isNew&&s.draft){var sign=el("button",null,"Sign off");sign.addEventListener("click",function(){compSend({action:"companion_lore_signoff",npc:npc,id:s.id},"Signed off: "+s.id+".");});card.appendChild(sign);}
+  if(!isNew){var del=el("button",null,"Delete");del.addEventListener("click",function(){if(window.confirm("Delete backstory section "+s.id+"?"))compSend({action:"companion_lore_delete",npc:npc,id:s.id},"Deleted "+s.id+".");});card.appendChild(del);}
+  return card;
+ }
+ function renderCompLore(){
+  var box=$("compLore"),npc=$("compNpc").value,c=(compData.companions||[]).find(function(x){return x.npc===npc;});clear(box);
+  if(!c){box.appendChild(el("p","note","No online companions."));return;}
+  c.sections.forEach(function(s){box.appendChild(compSectionCard(npc,s,false));});
+  box.appendChild(el("h3",null,"Add a section"));box.appendChild(compSectionCard(npc,{reveal:{bond:0}},true));
+ }
+ function renderCompCharacter(q){
+  var box=$("compCharacter"),ch=compData.character;clear(box);
+  if(!q)return;
+  if(!ch){box.appendChild(el("p","note",(compData.matches||[]).length>1?"Several characters match; use the id: "+compData.matches.map(function(m){return m.name+" ("+m.id+")";}).join(", "):"No character with that name or id."));return;}
+  box.appendChild(el("p",null,ch.name+" ("+ch.id+") · "+ch.memories.length+" memories · "+ch.pending+" waiting to be stored"));
+  (compData.companions||[]).forEach(function(c){
+   var b=(ch.bonds||[]).find(function(x){return x.npc===c.npc;}),row=el("div","row"),input=el("input"),set=el("button",null,"Set bond");
+   input.type="number";input.min=0;input.max=100;input.value=b?b.bond:0;input.style.width="70px";
+   set.addEventListener("click",function(){compSend({action:"companion_bond_set",npc:c.npc,character_id:ch.id,bond:Number(input.value)},c.name+" bond set.");});
+   row.appendChild(el("strong",null,c.name));row.appendChild(input);row.appendChild(set);
+   var sum=(ch.summaries||[]).find(function(x){return x.npc===c.npc;});if(sum)row.appendChild(el("span","note",sum.text));
+   box.appendChild(row);
+  });
+  var log=el("div","log");
+  ch.memories.forEach(function(m){var p=el("p"),del=el("button",null,"Delete");
+   p.appendChild(el("strong",null,when(m.created)+" · "+m.npc+" · "+m.kind+(m.embarrassing?" · embarrassing":"")+" · importance "+m.importance+" "));p.appendChild(document.createTextNode(m.text));
+   del.addEventListener("click",function(){compSend({action:"companion_memory_delete",id:m.id},"Memory deleted.");});
+   p.appendChild(del);log.appendChild(p);});
+  if(!ch.memories.length)log.appendChild(el("p","note","No memories yet."));
+  box.appendChild(log);
+  var wipe=el("button",null,"Wipe all companion memories of "+ch.name);
+  wipe.addEventListener("click",function(){if(window.confirm("Wipe every companion memory, bond and summary of "+ch.name+"? This cannot be undone."))compSend({action:"companion_memory_wipe",character_id:ch.id},"Wiped.");});
+  box.appendChild(wipe);
+ }
+ $("tab-companions").addEventListener("click",loadCompanions);$("compLoad").addEventListener("click",loadCompanions);$("compFindGo").addEventListener("click",loadCompanions);
+ $("compFind").addEventListener("keydown",function(e){if(e.key==="Enter")loadCompanions();});
+ $("compNpc").addEventListener("change",function(){if(compData)renderCompLore();});
+ $("compSettingsSave").addEventListener("click",function(){
+  var values={};Array.prototype.forEach.call(document.querySelectorAll("#compSettings [data-key]"),function(input){var key=input.dataset.key,v=input.tagName==="SELECT"?input.value:Number(input.value);if(v!==compData.settings[key])values[key]=v;});
+  if(!Object.keys(values).length){say("ok","Nothing changed.");return;}
+  compSend({action:"companion_settings",values:values},"Companion tuning saved.");
  });
 
 /* MUSIC_WIDGET */

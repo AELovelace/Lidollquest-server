@@ -5,6 +5,7 @@
 //   3. The answer is written back to the row; view() puts it in the next snapshot as `tutor`, which the client shows.
 import {createHash} from 'node:crypto';
 import {hubPortals,nearbyFixture} from './hubs.mjs';
+import {createAiPool,parseNodes} from './ai-pool.mjs'; // Shared AI node pool: least busy node first, failover when one is down.
 
 export const TUTOR_LOBBIES=Object.freeze(['princess-rose','honeydew-lantern','littlebig-clockwork','utopia-arcanum','arcadia-foundry']); // Every starting hub gets a Pip.
 export const TUTOR_FIXTURE_ID='tutor';
@@ -19,14 +20,17 @@ const VIEW_MS=10*60*1000;        // A reply stays in the snapshot this long afte
 const STALE_MS=3*60*1000;        // A pending row older than this has been retried enough; it fails with a friendly line.
 const RETRY_MS=15*1000;          // Wait before retrying a row whose npc-rag call failed.
 const KEEP_MS=30*86400000;       // Q&A rows are kept 30 days for the GM log, then pruned.
+const HISTORY_MS=30*60*1000;     // Pip remembers the last few exchanges for this long (same as npc-rag's own session window).
+const HISTORY_TURNS=3;           // Exchanges sent as history = 6 messages, npc-rag's SESSION_TURNS.
 const FALLBACK="Hmm, my thoughts are all tangled up right now. Could you ask me again in a little while?";
 
 const fail=(status,message,code='tutor_unavailable')=>{throw Object.assign(Error(message),{status,code});};
 const cleanText=v=>String(v??'').replace(/[\u0000-\u001f\u007f]+/g,' ').replace(/\s+/g,' ').trim(); // One line, no control characters.
 
-export function createTutor(db,{live=null,url=process.env.NPC_RAG_URL??process.env.QUEST_FOLLOWER_AGENT_URL??'http://192.168.1.188:9092',key=process.env.NPC_RAG_KEY||process.env.QUEST_FOLLOWER_AGENT_KEY||'',now=Date.now,fetch=globalThis.fetch,log=console.warn,
+export function createTutor(db,{live=null,pool=null,url=process.env.NPC_RAG_NODES??process.env.NPC_RAG_URL??process.env.QUEST_FOLLOWER_AGENT_URL??'http://192.168.1.188:9092',key=process.env.NPC_RAG_KEY||process.env.QUEST_FOLLOWER_AGENT_KEY||'',now=Date.now,fetch=globalThis.fetch,log=console.warn,
  timeoutMs=Number(process.env.NPC_RAG_TIMEOUT_MS||45000),dailyLimit=Number(process.env.TUTOR_DAILY_LIMIT||100),cooldownMs=4000,concurrency=3}={}){
- const base=String(url).replace(/\/+$/,''); // Empty = not configured: Pip stays hidden whatever the GM switch says.
+ const ai=pool??createAiPool({nodes:parseNodes(url),key,fetcher:fetch,now,log}); // service.mjs passes the shared pool; tests and legacy setups build one from `url` (a comma list works too).
+ const base=ai.configured; // No nodes (an explicitly empty URL) = not configured: Pip stays hidden whatever the GM switch says.
  db.exec(`CREATE TABLE IF NOT EXISTS quest_tutor(id TEXT PRIMARY KEY,owner TEXT NOT NULL,character_id TEXT NOT NULL,player_name TEXT NOT NULL,
   npc_name TEXT NOT NULL,zone TEXT NOT NULL,question TEXT NOT NULL,reply TEXT,sources TEXT,status TEXT NOT NULL,detail TEXT,attempts INTEGER NOT NULL DEFAULT 0,
   next_try INTEGER NOT NULL DEFAULT 0,created INTEGER NOT NULL,answered INTEGER);
@@ -102,11 +106,12 @@ export function createTutor(db,{live=null,url=process.env.NPC_RAG_URL??process.e
  async function answer(row){
   inFlight.add(row.id);
   try{
-   const res=await fetch(base+'/v1/npc/chat',{method:'POST',headers:{'Content-Type':'application/json',...(key?{'X-Api-Key':key}:{})},
-    body:JSON.stringify({message:row.question,player_id:row.character_id,player_name:row.player_name,npc_name:row.npc_name}),signal:AbortSignal.timeout(timeoutMs)});
+   const history=db.prepare("SELECT question,reply FROM quest_tutor WHERE character_id=? AND status='answered' AND created<? AND answered>=? ORDER BY created DESC LIMIT ?").all(row.character_id,row.created,now()-HISTORY_MS,HISTORY_TURNS).reverse()
+    .flatMap(h=>[{role:'player',content:h.question},{role:'npc',content:h.reply}]); // Pip's memory lives here, not in npc-rag, so follow-ups work whichever AI node answers.
+   const res=await ai.request('/v1/npc/chat',{message:row.question,player_id:row.character_id,player_name:row.player_name,npc_name:row.npc_name,history},{timeoutMs}); // Least busy healthy node; one failover on timeout/5xx.
    if(res.status===429){db.prepare('UPDATE quest_tutor SET next_try=? WHERE id=?').run(now()+3000,row.id);return;} // npc-rag is still busy with this player: try again shortly, no attempt used.
    if(!res.ok)throw Object.assign(Error('npc-rag answered '+res.status),{status:res.status});
-   const body=await res.json(),reply=cleanText(body.reply).slice(0,600);
+   const body=res.body??{},reply=cleanText(body.reply).slice(0,600);
    if(!reply)throw Error('npc-rag sent an empty reply');
    const sources=(Array.isArray(body.sources)?body.sources:[]).slice(0,3).map(s=>({title:cleanText(s.title).slice(0,80),section:cleanText(s.section).slice(0,80),url:/^https:\/\//.test(s.url)?String(s.url).slice(0,300):''}));
    const detail=JSON.stringify({category:body.category??'',guard:body.guard??'',fallback:!!body.fallback,ms:body.timings_ms?.total??null});
@@ -142,7 +147,7 @@ export function createTutor(db,{live=null,url=process.env.NPC_RAG_URL??process.e
   const recent=db.prepare(`SELECT t.id,t.owner,t.character_id,t.player_name,t.npc_name,t.zone,t.question,t.reply,t.status,t.detail,t.created,t.answered FROM quest_tutor t ORDER BY t.created DESC LIMIT ?`).all(Math.min(200,Math.max(1,limit)))
    .map(r=>({...r,detail:r.detail?JSON.parse(r.detail):null}));
   const day=now()-(now()%86400000);
-  return {settings:settings(),configured:!!base,service:base?new URL(base).host:'',health:{...health},dailyLimit,
+  return {settings:settings(),configured:!!base,service:ai.hosts().join(', '),nodes:ai.view(),health:{...health},dailyLimit,
    today:db.prepare('SELECT COUNT(*) AS n FROM quest_tutor WHERE created>=?').get(day).n,pending:db.prepare("SELECT COUNT(*) AS n FROM quest_tutor WHERE status='pending'").get().n,recent};
  }
 
@@ -161,5 +166,5 @@ export function createTutor(db,{live=null,url=process.env.NPC_RAG_URL??process.e
 
  function prune(){db.prepare('DELETE FROM quest_tutor WHERE created<?').run(now()-KEEP_MS);}
 
- return {decorate,ask,kick,view,gmView,gmSet,prune,settings,invalidate(){cached=null;},configured:()=>!!base,busy:()=>inFlight.size};
+ return {decorate,ask,kick,view,gmView,gmSet,prune,settings,invalidate(){cached=null;},configured:()=>!!base,busy:()=>inFlight.size,pool:ai};
 }

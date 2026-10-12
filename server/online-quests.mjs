@@ -188,6 +188,7 @@ export function createOnlineQuests(db,{live,now=Date.now,world,origins,adjust,ro
    const mode=q.definition.repeat,due=mode==='daily'?(period(mode,now())+1)*86400000:(period(mode,now())+1)*604800000-3*86400000;
    db.prepare('INSERT INTO online_quest_flag_resets(instance,character_id,due,flags) VALUES (?,?,?,?)').run(q.id,c.id,due,JSON.stringify(q.definition.reset_flags));
   } // Schedule midnight UTC or Monday midnight UTC only after a successful claim; unfinished and abandoned attempts never schedule a reset.
+  parties?.followers?.remember?.(c,'quest',{title:q.definition.name},{present:true}); // A hired companion remembers finishing it together (no-op without one).
  } // The caller's transaction owns the claim, inventory, progression, currency outbox, and command receipt.
  function gm(c,s,op,key){ // Gamemaster test shortcuts. They move quest state only; rewards still come from the normal turn-in.
   const published=live.published().quests[key],current=active(c,key);

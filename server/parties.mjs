@@ -76,13 +76,14 @@ export function createParties(db,{now}) {
   if(!before||!after||before.zone===after.zone)return;
   const roster=members(c.id).filter(other=>!JSON.parse(other.state).pendingDefeat&&(other.id===c.id||presence(other.id)?.zone===before.zone)); // Survivors can travel while a downed member remains at the defeat location.
   if(roster.length<2)return;
-  if(fullDungeons.some(d=>d.config.zone_id===after.zone))for(const other of roster){const s=other.id===c.id?state:JSON.parse(other.state);if(s.fullDungeonVersion!==1||s.questVersion!==1)fail(other.name+' needs to update the game before entering this dungeon.');} // Group travel cannot bypass the capability required for direct entry.
+  if(fullDungeons.some(d=>d.config.zone_id===after.zone))for(const other of roster){const s=other.id===c.id?state:JSON.parse(other.state);if(s.fullDungeonVersion!==1||s.questVersion!==1||(after.zone==='dungeon-littlebig-sewers'&&s.sewerVersion!==1))fail(other.name+' needs to update the game before entering this dungeon.');} // Group travel cannot bypass the capability required for direct entry.
   for(const other of roster){available(other);const pos=other.id===c.id?before:presence(other.id);if(!pos||pos.zone!==before.zone)fail(other.name+' is no longer in the same area.');}
   const ids=roster.map(m=>m.id),occupied=db.prepare('SELECT character_id FROM quest_presence WHERE zone=? AND seen>?').all(after.zone,now()-30000).filter(p=>!ids.includes(p.character_id)).length;
   if(occupied+roster.length>64)fail('The destination has no room for the whole party.');
   for(const other of roster){if(other.id===c.id)continue;const s=JSON.parse(other.state);
    s.dive=state.dive?structuredClone(state.dive):null;s.diveReturned=state.diveReturned??null;s.diveReturnedPosition=state.diveReturnedPosition?structuredClone(state.diveReturnedPosition):null;
    if(!s.dive)s.hubVisit=after.zone;else delete s.hubVisit;
+   if(s.loadout?.world)s.loadout.world.environment_crawl=false; // Every group landing is standing-height; never carry a sewer pipe constraint into town.
    db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(after.zone,after.x,after.y,now(),other.id);
    db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(s),other.id);
   }

@@ -116,6 +116,10 @@ export function createDiveEncounters(db,{origins,adjust,live=null,now,roll,data,
    if(!['flee','abandoned'].includes(a.status)){for(const foe of e.enemies.filter(v=>v.data.hp<=0))awardWildlife(c,s,foe.data,{origins,key:e.id+':'+foe.id});if(bossDown)awardCraftingDungeon(c,s,zone,{origins,key:e.id+':'+c.id});}
    const outcome=a.status==='active'?(win?'win':'abandoned'):a.status;
    const bonus=bossDown?pay(c,s,record,true):0; // Preserve the separate first-clear boss entitlement.
+   if(e.followers?.some(f=>f.hirer===c.id)){const fol=parties?.followers,foe=(a.defeatEnemy??e.enemies[0].data)?.name; // The hired companion fought beside this player: remember how it went.
+    if(outcome==='win')fol?.remember?.(c,'battle_win',{zone,enemy:e.enemies.find(v=>v.id===boss)?.data.name??e.enemies[0].data.name,boss:bossDown},{present:true});
+    else if(['defeat','charm_backfire'].includes(outcome))fol?.remember?.(c,'battle_lost',{zone,enemy:foe},{present:true});
+    if(a.run.companionCare?.length)fol?.remember?.(c,'care',{zone},{present:true});} // Set by follower-combat.mjs when the companion cleaned this player's padding mid-fight.
    const coins=bonus+(outcome==='win'?awardMonsterCoins(db,{character:c,enemies:e.enemies.map(v=>v.data),adjust,now,roll}):0); // Only victorious player participants earn the pack's coin drops; settlement runs once.
    const equipment=applyDefeatEquipment(s,a.run,outcome); // Only this member's actual defeat opponent supplies their outfit, even when their party wins.
    const outfitLog=equipment?.changes.length?a.run.log.slice(-equipment.changes.length):[]; // Read the outfit lines before dignity appends its own.
@@ -145,7 +149,8 @@ export function createDiveEncounters(db,{origins,adjust,live=null,now,roll,data,
   else if(input.action==='revive'){ // Healing Poultice (revive.mjs): spend this turn standing a knocked-out ally back up.
    if(now()<a.readyAt)fail('Your action gauge is still filling.');
    if(!a.prepared)fail('Finish this action cycle’s needs first.');
-   try{reviveDowned(e,row,rows.find(v=>v.a.id===input.target),{now,message,reset});}catch(error){fail(error.message);}
+   const target=rows.find(v=>v.a.id===input.target);try{reviveDowned(e,row,target,{now,message,reset});}catch(error){fail(error.message);}
+   if(target?.c&&!target.a.npc&&e.followers?.some(f=>f.hirer===target.c.id))parties?.followers?.remember?.(target.c,'revived',{zone},{present:true}); // Knocked out and back up with the companion holding the line.
    reset(a,state); // The poultice took this member's turn.
   }
   else {

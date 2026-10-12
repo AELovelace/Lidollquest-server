@@ -82,6 +82,38 @@
           "buff",
           "offense",
           "attack"
+        ],
+        "backstory": [
+          {
+            "id": "elowen-chapel",
+            "heading": "Raised at the Iron Chapel",
+            "text": "Elowen trained as a shield-bearer at Orthain's Iron Chapel under High Warden Stellan. The Chapel teaches that a grown adult never needs help; Elowen learned the shield work and quietly rejected the rest.",
+            "draft": true
+          },
+          {
+            "id": "elowen-forest",
+            "heading": "Why she walks the forest",
+            "text": "She left the Chapel to guard travellers in the forest dives, because that is where people get caught alone. She would rather stand beside someone in a bad moment than lecture them about it afterwards.",
+            "draft": true
+          },
+          {
+            "id": "elowen-pace",
+            "heading": "How she guards",
+            "text": "Elowen watches a companion's footing and pace more than the enemy. She asks people to call out when they are struggling, because she guards better when nobody is pretending to be fine.",
+            "draft": true,
+            "reveal": {
+              "bond": 15
+            }
+          },
+          {
+            "id": "elowen-armor",
+            "heading": "What the armor hides",
+            "text": "The curse reaches Elowen too. Under strain she has accidents, and the heavy armor hides the padding she wears. She has never told the Chapel, and only tells a companion she trusts, so they know they are not the only one.",
+            "draft": true,
+            "reveal": {
+              "bond": 40
+            }
+          }
         ]
       }
     },
@@ -192,6 +224,47 @@
           "buff",
           "offense",
           "attack"
+        ],
+        "backstory": [
+          {
+            "id": "astra-coat",
+            "heading": "The violet coat",
+            "text": "Astra came into the dungeon in her violet coat looking for documentation: proof of what Chrysalis is really doing behind the castle walls. She has been inside for weeks and still takes notes on everything.",
+            "draft": true
+          },
+          {
+            "id": "astra-immune",
+            "heading": "Untouched",
+            "text": "Whatever Chrysalis built into the dungeon has never touched Astra, and she does not know why. People call her the Uncursed. She is relieved, and a little guilty, and she uses what she knows to steady anyone it does touch.",
+            "draft": true
+          },
+          {
+            "id": "astra-scholar",
+            "heading": "The scholar",
+            "text": "Astra worked toward the same goal as a scholar who reached the dungeon three weeks before her. The scholar did not make it out. Astra carries the work on and rarely says the scholar's name.",
+            "draft": true,
+            "reveal": {
+              "bond": 20
+            }
+          },
+          {
+            "id": "astra-queen",
+            "heading": "The Slime Queen",
+            "text": "Astra believes the Slime Queen was once a person. She found the Queen's nursery-corner room off the east corridor and has not been able to stop thinking about who the Queen used to be.",
+            "draft": true,
+            "reveal": {
+              "bond": 35
+            }
+          },
+          {
+            "id": "astra-fear",
+            "heading": "What she is afraid of",
+            "text": "Astra's quiet fear is that her immunity is not luck: that Chrysalis left her untouched on purpose, because it wants her for something.",
+            "draft": true,
+            "reveal": {
+              "bond": 60
+            }
+          }
         ]
       }
     },
@@ -271,6 +344,41 @@
           "buff",
           "offense",
           "attack"
+        ],
+        "backstory": [
+          {
+            "id": "mira-trade",
+            "heading": "A peddler of the descent",
+            "text": "Mira sells supplies wherever people are struggling most: dungeon corridors, nursery halls, school gates, the hospital doors. She keeps diapers, wipes and snacks in stock and buys her own from the same shelf.",
+            "draft": true
+          },
+          {
+            "id": "mira-name",
+            "heading": "Her name in the stone",
+            "text": "Deep in the old dungeon, MIRA is carved into the wall twice, the second time smaller. She carved it to prove to herself she had been there, and there is no third carving because she left.",
+            "draft": true,
+            "reveal": {
+              "bond": 15
+            }
+          },
+          {
+            "id": "mira-intake",
+            "heading": "She was intake",
+            "text": "Years before the player, Mira was an intake of the same programme in the LittleBigCity chapter. She got out through a delivery door. She is still incontinent from it, and she has never seen a graduate walk out the front.",
+            "draft": true,
+            "reveal": {
+              "bond": 35
+            }
+          },
+          {
+            "id": "mira-mist",
+            "heading": "The mist filters",
+            "text": "Mira buys her mist filters from the same supplier the school uses. By her count the pink mist has been running for eight years. She sets up at school gates on purpose, so the next intake has someone to talk to.",
+            "draft": true,
+            "reveal": {
+              "bond": 50
+            }
+          }
         ]
       }
     },
@@ -383,6 +491,32 @@
           "buff",
           "offense",
           "attack"
+        ],
+        "backstory": [
+          {
+            "id": "rosalind-care",
+            "heading": "A matron by trade",
+            "text": "Matron Rosalind has cared for little ones for most of her life. She changes padding without fuss or teasing, and she believes everyone deserves someone to look after them.",
+            "draft": true
+          },
+          {
+            "id": "rosalind-nursery",
+            "heading": "Before the nursery changed",
+            "text": "She worked at the Auto-Nursery when it was still a real nursery. When it became what it is now, she walked out rather than stay and help it, and she has been helping people adjust on her own terms ever since.",
+            "draft": true,
+            "reveal": {
+              "bond": 20
+            }
+          },
+          {
+            "id": "rosalind-regret",
+            "heading": "What she could not stop",
+            "text": "Rosalind knows the woman who runs the Auto-Nursery now, and she regrets leaving the residents behind. Looking after travellers is how she tries to make up for it.",
+            "draft": true,
+            "reveal": {
+              "bond": 45
+            }
+          }
         ]
       }
     },
@@ -467,6 +601,41 @@
           "buff",
           "offense",
           "attack"
+        ],
+        "backstory": [
+          {
+            "id": "sable-name",
+            "heading": "Named for a goddess",
+            "text": "Sable's devout parents named her after Sable, the goddess of Decency. She finds that very funny now and very unfunny when someone points it out.",
+            "draft": true
+          },
+          {
+            "id": "sable-school",
+            "heading": "The regression school",
+            "text": "Sable fought her way out of the regression school's curriculum one fist at a time. She says the lessons are garbage, but the drills made her hands harder, so she keeps training.",
+            "draft": true,
+            "reveal": {
+              "bond": 15
+            }
+          },
+          {
+            "id": "sable-accidents",
+            "heading": "What she hides",
+            "text": "The curse gives Sable accidents, and she hates being seen. Her pride is armour: she would rather threaten someone than admit she needs a change. She is protective of anyone in the same position, even while she glares at them.",
+            "draft": true,
+            "reveal": {
+              "bond": 35
+            }
+          },
+          {
+            "id": "sable-unbroken",
+            "heading": "Why Unbroken",
+            "text": "She calls herself Unbroken because the school never got her to stop fighting. Privately she worries the school is winning anyway, one small habit at a time, and that scares her more than any monster.",
+            "draft": true,
+            "reveal": {
+              "bond": 60
+            }
+          }
         ]
       }
     },
@@ -584,6 +753,32 @@
           "buff",
           "offense",
           "attack"
+        ],
+        "backstory": [
+          {
+            "id": "vex-wards",
+            "heading": "Hospital nurse",
+            "text": "Nurse Vex worked the wards of the Regression Research Hospital. She is brisk, teasing and very good at her job, and she still carries her medical kit everywhere.",
+            "draft": true
+          },
+          {
+            "id": "vex-vaccine",
+            "heading": "The vaccine",
+            "text": "Vex administered the hospital's vaccine for years and told patients the side effects were temporary. Some of them were not. She still offers it, and she is honest about it now, which she considers progress.",
+            "draft": true,
+            "reveal": {
+              "bond": 20
+            }
+          },
+          {
+            "id": "vex-basement",
+            "heading": "Sub-basement B3",
+            "text": "Vex knew something was kept in sub-basement B3 and that Batch 014 was not like the others. She never asked, and she never said anything. She has not decided whether she left the hospital to escape it or to make up for it.",
+            "draft": true,
+            "reveal": {
+              "bond": 50
+            }
+          }
         ]
       }
     },
@@ -689,6 +884,41 @@
           "buff",
           "offense",
           "attack"
+        ],
+        "backstory": [
+          {
+            "id": "wick-laundry",
+            "heading": "Before the robe",
+            "text": "Before the cult, Wick worked at a big industrial laundry off the market square, next to a woman called Bett who sang badly on purpose to make the shift go faster.",
+            "draft": true
+          },
+          {
+            "id": "wick-cult",
+            "heading": "The Cult of Unadulting",
+            "text": "Wick was the newest convert to the Cult of Unadulting in the Spooky Mansion, a household of willing ex-escapees led by Mother Vesper. She gave the recruitment pitch forty times and can still say it word for word, which she hates.",
+            "draft": true,
+            "reveal": {
+              "bond": 15
+            }
+          },
+          {
+            "id": "wick-leaving",
+            "heading": "Why she left",
+            "text": "Wick left because a stranger came through the haunted forest alone and made her wonder what else was out there. She has been out of the robe for four weeks and still reaches for its pocket. She wants to see the desert.",
+            "draft": true,
+            "reveal": {
+              "bond": 30
+            }
+          },
+          {
+            "id": "wick-vesper",
+            "heading": "What Vesper said",
+            "text": "When Wick left, Mother Vesper told her: 'Oh, sweetheart. You'll be back before I am.' Wick knows every trick of the house, and she is afraid of the day she starts sounding like Vesper. She asks friends to tell her if she does.",
+            "draft": true,
+            "reveal": {
+              "bond": 50
+            }
+          }
         ]
       }
     }

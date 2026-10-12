@@ -1,6 +1,7 @@
 // Authoritative campaign interactions. Every caller runs inside the existing zone
 // request transaction; presentation is a receipt, never a request to run GML effects.
 import {randomUUID} from 'node:crypto';
+import {sewerValve} from './sewers.mjs';
 import {industrialControl,industrialStep} from './arcadia-industrial.mjs';
 import {walkable,inside} from './dive-generation.mjs';
 import {dungeonReachable} from './full-dungeon-generation.mjs';
@@ -211,6 +212,8 @@ export function createDungeonRules({db,data,now,roll,origins,adjust,progress,sav
   }
   else if(fix.kind==='bed'){
    if(now()-(personal.fixtures[fix.id]??-Infinity)<1000)fail('Wait for the next rest turn.');personal.fixtures[fix.id]=now();applyDungeonEffects([{type:'heal',amount:2},{type:'stamina_heal',amount:5}],c,s,context(record));present(s,fix.name,'You rest for a moment.');
+  }else if(fix.kind==='sluice'){
+   const text=sewerValve(record.floor,fix,input.mechanism_revision);saveFloor(record);present(s,fix.name,text);
   }else if(fix.kind==='industrial'){
    const visitors=db.prepare('SELECT x,y FROM quest_presence WHERE zone=? AND seen>?').all(data.config.zone_id,now()-30000);
    const text=industrialControl(record.floor,fix,input,[p,...visitors,...record.floor.enemies.filter(e=>!e.dead&&e.respawnAt<=now())]);
