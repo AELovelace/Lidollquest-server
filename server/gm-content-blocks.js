@@ -106,7 +106,7 @@ function tokenOptions(){
 } // Targets come from saved placements and current quest drafts, including edits in this browser tab.
 function pickupLibrary(host,q){
  const box=el('details',undefined,host);box.open=!!q;el('summary','Pickups & quest tokens',box);
- for(const [kind,rows] of [['token',tokenOptions()],['pickup',cat.items??[]]])for(const row of rows.filter(r=>(r.id+' '+(r.name??'')).toLowerCase().includes(q))){
+ for(const [kind,rows] of [['token',tokenOptions()],['pickup',cat.items??[]]])for(const row of rows.filter(r=>(r.id+' '+(r.name??'')).toLowerCase().includes(q)).sort((a,b)=>String(a.name??a.id).localeCompare(String(b.name??b.id),undefined,{numeric:true,sensitivity:'base'}))){ // Tokens, then items, each A to Z.
   const b=button(box,(kind==='token'?'Token: ':'Item: ')+(row.name??row.id),()=>{if(contentAsset()?.kind!=='quest')throw Error('Open a quest and select a stage to add this pickup objective.');contentAdd(kind,undefined,undefined,row.id);});
   b.className='library reference';b.draggable=true;b.ondragstart=e=>e.dataTransfer.setData('application/x-lidoll-flow',JSON.stringify({kind,id:row.id}));
  }

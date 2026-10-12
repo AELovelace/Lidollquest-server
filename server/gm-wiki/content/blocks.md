@@ -15,7 +15,7 @@ Every block has a stable generated ID and an editable label. Presentation text b
 
 Use Entry to make bindings readable. A binding can identify another valid node, but a clearly labeled Entry is easier to maintain. Several narrative pages should be several connected presentation blocks so each continuation is explicit.
 
-Drag an **Engine NPCs** library item to create an NPC interaction block, or choose a placed NPC in its inspector. Every interaction defaults on; switching it off makes this entry run once per character, independently of the flow's Repeatable setting. Server actions suppress default text even during an objective wait or silent completion. Gate the entry itself to restore ordinary chat on a later interaction. Select the block for Preview from this entry or an isolated in-game test.
+To replace an NPC's dialogue, add **NPC interaction** and choose the NPC (built-in residents are listed as `[engine NPC]`) in its inspector. Built-in NPCs no longer have a library drawer of their own (2026-10-12). Every interaction defaults on; switching it off makes this entry run once per character, independently of the flow's Repeatable setting. Server actions suppress default text even during an objective wait or silent completion. Gate the entry itself to restore ordinary chat on a later interaction. Select the block for Preview from this entry or an isolated in-game test.
 
 Text and artwork are presentation. Merely writing “you receive a potion” does not grant an item; connect the appropriate Reward or Character effect.
 

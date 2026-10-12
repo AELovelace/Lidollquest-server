@@ -75,7 +75,7 @@ Cards and controls can receive keyboard focus. Avoid using graph shortcuts while
 
 ## Story settings and bindings
 
-For NPCs, add **NPC interaction** directly to the canvas. Choose an engine resident or placed NPC, set requirements and **Every interaction**, and connect **next** to story actions. The **Engine NPCs** library also supports drag-and-drop entry creation. Explicit NPC blocks take priority over legacy bindings and greeting reactions; among eligible blocks, flow ID order then block order decides. Basic dialogue is suppressed throughout server actions, including objective waits and silent completion. It returns on a later interaction with no active or eligible replacement.
+For NPCs, add **NPC interaction** directly to the canvas. Choose an engine resident or placed NPC, set requirements and **Every interaction**, and connect **next** to story actions. Built-in residents are marked `[engine NPC]` in that dropdown. The content library lists only your team's content, A to Z within each section (pickups show quest tokens first, then items). Explicit NPC blocks take priority over legacy bindings and greeting reactions; among eligible blocks, flow ID order then block order decides. Basic dialogue is suppressed throughout server actions, including objective waits and silent completion. It returns on a later interaction with no active or eligible replacement.
 
 Set a stable flow ID, name, description, and Repeatable setting. Use **Add entry binding** to choose a trigger kind, referenced content, entry block, and optional flag requirements.
 
@@ -133,7 +133,7 @@ Open **Ask the GM wiki assistant** from Story Workshop or the GM panel for a sep
 
 ## Included online story sheets
 
-The workshop no longer lists the converted catalogue: the **Included stories** toolbar button and the **Included online stories** library section were removed (2026-10-12) so the library shows only your team's content. Built-in sheets still exist on the server. Open one by clicking an imported engine NPC, or by linking straight to `/gm/flow-editor?kind=sheet&id=<sheet id>`.
+The workshop no longer lists the converted catalogue: the **Included stories** toolbar button and the **Included online stories** library section were removed (2026-10-12) so the library shows only your team's content. Built-in sheets still exist on the server. Open one by linking straight to `/gm/flow-editor?kind=sheet&id=<sheet id>`.
 
 Included NPC, scene, service and quest sheets carry a permanent **Built-in** marker plus **Needs human re-authoring**. Saving, publishing or restoring a revision does not clear that task. After a human has re-authored the sheet, use **Mark human re-authoring complete** in its inspector; **Mark as needing human re-authoring** reopens it. The Built-in marker remains, and custom-created sheets do not receive it. Search the library for **Needs human re-authoring** to find remaining work. This editorial status persists separately from content drafts and publication, so marking it never activates quests or changes player progress.
 

@@ -6,7 +6,7 @@ An NPC record defines who the character is, how they look, what they say, and wh
 
 ## Replace an engine or placed NPC's dialogue
 
-Add **NPC interaction** on the story canvas, choose its NPC, and connect **next** to your scene. Dragging from **Engine NPCs** creates this entry for an existing resident without creating another placement. A placed NPC entry covers every placement of its shared record; engine entries identify a zone and fixture. Current generated dungeon NPC references may change with layout resets.
+Add **NPC interaction** on the story canvas, choose its NPC, and connect **next** to your scene. Built-in residents are in the same NPC dropdown, marked `[engine NPC]`; choosing one creates the entry without creating another placement. (They are no longer listed in the content library.) A placed NPC entry covers every placement of its shared record; engine entries identify a zone and fixture. Current generated dungeon NPC references may change with layout resets.
 
 Set **Story requirements** on the entry and choose whether it runs on **Every interaction** (default) or once per character. This setting is independent of the main flow's Repeatable setting. NPC interaction blocks override legacy bindings and greeting reactions; eligible entries use flow ID order, then block order. Put specific entries before a catch-all. Preview and isolated tests can start at the selected entry.
 
@@ -86,7 +86,7 @@ Place the published NPC on a reachable tile. Approach with an eligible character
 
 ## Editing shipped residents
 
-Use [Included online story sheets](workshop.md#included-online-story-sheets) to change a built-in resident or dungeon NPC while retaining its native service and quest routes. Clicking an imported engine NPC opens its sheet (the catalogue list itself is hidden); dragging an engine NPC onto a flow still creates an explicit replacement interaction.
+Use [Included online story sheets](workshop.md#included-online-story-sheets) to change a built-in resident or dungeon NPC while retaining its native service and quest routes. Built-in sheets open with a direct link (`/gm/flow-editor?kind=sheet&id=<sheet id>`); the catalogue and the Engine NPCs library drawer are hidden. An NPC interaction block that picks the engine NPC still creates an explicit replacement interaction.
 
 ## Give a placement a patrol or schedule
 
