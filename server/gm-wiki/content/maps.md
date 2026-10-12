@@ -89,7 +89,8 @@ Tools:
 | Select / move | Read a tile; select a placement, DM monster, hub furniture or service, or scenery; drag it to move it; Ctrl+C / Ctrl+X / Ctrl+V copy, cut and paste (see below) | placements and monsters immediately; scenery as a pending change |
 | Place content | The Zones-tab placer: monsters, NPCs, interaction objects, quest tokens, location objectives, story orbs, hidden traps ([Floor traps](traps.md)), uploads, remove mode, orb scatter. On hubs, **Furniture / service** places vanities, cauldrons, kitchens, forges, sewing tables, toilets, outhouses, changers, banks, dumpsters and every bed type | immediately; furniture as a pending change |
 | Terrain brush | Wall, floor, prop and clear-prop brushes (1 to 5 tiles), Shift-drag rectangles; tiled hubs pick atlas cells for floor (left click) and wall (right click) | pending change |
-| Scenery stamp | Any shipped sprite by name, footprint, solid and toilet flags; eraser removes scenery. The list shows the zone's scenery family (LittleBigCity: every `sprCity*` and `sprLBC*` park, street and plaza sprite); type in the search box to reach any other family | pending change |
+| Palette brush | Paint tiles from **any** palette (Forest, Mansion, City, Hospital…) over this zone's ground, mixing as many palettes as you like in one zone. Pick a palette, click a tile in its swatch grid, then click or drag (1 to 5 tiles, Shift-drag rectangles); the Eraser removes palette paint. Purely visual: walls, props and walking never change, so use the Terrain brush for those. Works in hubs, overworlds, Dives and full dungeons | pending change |
+| Scenery stamp | Any shipped sprite by name, footprint, solid and toilet flags; eraser removes scenery. The **Zone** picker chooses which props to list: **This zone** (its own scenery family, the default), **Every zone**, or any single zone (Plains, Honeydew, Coast, Gulch, Caldera, Haunted Woods, Tundra, High Desert, Rose Court, LittleBigCity, Utopia, Arcadia, Mansion, Dungeons, Hospital, Nursery, School, Temples, Shared). Props from any zone can be stamped anywhere; the search box filters within the chosen Zone | pending change |
 | Safe room | Drag a rectangle (Dives and overworlds); Alt-click removes one | pending change |
 | Arrival spawn | Move the default arrival or a neighbour's arrival tile | pending change |
 | Biome layers | Paint tall-grass cover and sheltered spots (Plains, Coast), the Gulch wash, the Coast shoreline per row, Pink Mist tiles, or move the Caldera crater (the heat zone follows) | pending change |
@@ -148,6 +149,15 @@ Every change is validated against the live floor: the outer wall stays solid exc
 
 Applying a change also moves DM monsters and visitors standing on a newly solid tile to the nearest open tile, re-realizes quest placements on the new geometry (active-quest conflicts refuse the change), and bumps the floor's geometry version so connected clients rebuild collision and the minimap. A player mid-battle on an affected tile blocks the change until the fight ends.
 
+## Palette brush: tiles from any palette
+
+Every zone normally draws from its own palette: Honeydew from the Town tiles, the Haunted Woods from the Forest tiles, and so on. The **Palette brush** paints a chosen tile from any palette on top of that ground, for example a Forest grass patch in the middle of LittleBigCity or Mansion floorboards in a Tundra cabin. Painted tiles are stored in the patch layer like every other change, survive regeneration and reboots, and **Clear patch** removes them.
+
+- The brush only changes how a cell looks. A painted wall tile on open floor is still walkable, so paint walls with the Terrain brush first and then dress them with the Palette brush.
+- The hover readout shows `palette: Forest tile 12` on a painted cell.
+- A zone can hold up to 8192 palette-painted cells.
+- Players see new paint on their next snapshot. Game builds from before 2026-10-12 ignore it.
+
 ## Limits in this version
 
 - A gate keeps its size and wall. A new crossing can only lead where the travel rules already allow (linked routes, hubs, existing neighbours); arrivals from the other side use your gate's inside tile, and the other zone's own exits are unchanged.
@@ -162,6 +172,7 @@ Applying a change also moves DM monsters and visitors standing on a newly solid 
 3. Clear patch returns the generated layout at once.
 4. A refused change explains which tile or service it would strand.
 5. Placements still have a walkable tile after terrain changes, and the quest guide still routes to them.
+6. Palette-brush tiles from another zone's palette show in the game exactly where the editor shows them, under scenery and actors, and walking is unchanged.
 
 ## Learn map editing and routes with pictures
 

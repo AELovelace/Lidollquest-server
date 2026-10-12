@@ -144,7 +144,17 @@ function roomLayers(p,floor,x,y){ // A wall takes the palette of the room floor 
  return [{atlas,tile:pool[key%pool.length]}];
 }
 
+const paintIndex=new WeakMap(); // floor.paint -> Map("x,y" -> {atlas,tile}), built once per patch revision.
+function paintedCell(floor,x,y){ // The Map Editor palette brush's tile for this cell (floor-patches.mjs 'paint' ops), or null.
+ const p=floor.paint;if(!p||!Array.isArray(p.cells)||!p.cells.length)return null;
+ let index=paintIndex.get(p);if(!index){index=new Map();for(let i=0;i+3<p.cells.length;i+=4)index.set(p.cells[i]+','+p.cells[i+1],{atlas:p.atlases[p.cells[i+2]],tile:p.cells[i+3]});paintIndex.set(p,index);}
+ return index.get(x+','+y)??null;
+}
 export function tileAt(floor,x,y,ctx){ // -> [{atlas,tile,tint?}|{fill:[r,g,b,a]}] bottom-to-top for one cell; [] when nothing is painted. ctx: {tilesets,tideReach}.
+ const layers=baseTileAt(floor,x,y,ctx),painted=floor&&paintedCell(floor,x,y);
+ return painted?[...layers,painted]:layers; // A palette-painted tile sits on top of the zone's own ground, like the client's online_paint_layer_draw.
+}
+function baseTileAt(floor,x,y,ctx){ // The zone's own painters, before the palette brush layer.
  if(!floor||x<0||y<0||x>=floor.width||y>=floor.height)return [];
  const plan=ctx&&ctx.plan?ctx.plan:paintPlan(floor),tilesets=ctx&&ctx.tilesets?ctx.tilesets:floor.tilesetMap;
  if(plan.mode==='district'){

@@ -15,6 +15,7 @@ import {hubData} from '../server/hubs.mjs';
 import {walkable} from '../server/dive-generation.mjs';
 import {diveData} from '../server/dive.mjs';
 import {createFloorPatches} from '../server/floor-patches.mjs';
+import {tileAt} from '../server/tile-painter.mjs';
 
 function terrainFixture(){ // A deterministic tiled hub reproduces the reported scenery coordinate without monthly generation.
  const db=new DatabaseSync(':memory:'),patches=createFloorPatches(db),size=34,grid=value=>Array.from({length:size},()=>Array(size).fill(value));
@@ -318,5 +319,27 @@ test('hub doors move in the Map Editor: gates slide, doorsteps, room exits and b
   f.world('world_patch_clear','utopia-arcanum');f.world('world_patch_clear','utopia-arcanum-beds');m=f.map('utopia-arcanum');
   assert.equal(m.floor.walls[gate.y][gate.x],0);assert.equal(m.floor.walls[to.y][to.x],1);assert.equal(m.floor.walls[doorway.y][doorway.x],0);assert.equal(m.floor.walls[spot.y][spot.x],1);
   assert.deepEqual(m.floor.doors.map(d=>[d.key,d.x,d.y]),doors.map(d=>[d.key,d.x,d.y]),'every door is back where the code puts it');assert.equal(f.map('utopia-arcanum-beds').floor.exits[0].y,6);
+ }finally{f.close();}
+});
+
+test('the palette brush paints tiles from any palette over Dive and hub ground without touching collision, erases, refuses unknown palettes and reverts',()=>{
+ const f=fixture();try{
+  const before=f.map(),spot=f.free(before),walls=JSON.stringify(before.floor.walls); // A Dive floor has no tile grids of its own: the paint layer is the only way to choose its tiles.
+  const r=f.patch('dive-quarters',[{kind:'paint',cells:[{x:spot.x,y:spot.y,atlas:'sprTileForest',tile:12},{x:spot.x+1,y:spot.y,atlas:'sprTileCity',tile:3},{x:spot.x,y:spot.y+1,atlas:'sprTileForest',tile:5}]}]);
+  assert.deepEqual(r.floor.paint.atlases.sort(),['sprTileCity','sprTileForest'],'two palettes share one zone');assert.equal(r.floor.paint.cells.length,12,'three cells, four numbers each');
+  assert.equal(JSON.stringify(f.map().floor.walls),walls,'painting never changes walls or walking');
+  const top=tileAt(f.map().floor,spot.x,spot.y).at(-1);assert.deepEqual(top,{atlas:'sprTileForest',tile:12},'the painted tile sits on top of the ground in the shared painter');
+  const rows=[];for(let i=0;i<r.floor.paint.cells.length;i+=4)rows.push(r.floor.paint.cells[i+1]);assert.deepEqual(rows,[...rows].sort((a,b)=>a-b),'cells arrive row by row for the client cull');
+  f.patch('dive-quarters',[{kind:'paint',cells:[{x:spot.x,y:spot.y,atlas:'sprTileDesert',tile:7},{x:spot.x+1,y:spot.y}]}]); // Repaint one cell, erase another.
+  const painted=f.map().floor;assert.deepEqual(tileAt(painted,spot.x,spot.y).at(-1),{atlas:'sprTileDesert',tile:7});assert.equal(painted.paint.cells.length,8,'the erased cell is gone');assert.ok(!painted.paint.atlases.includes('sprTileCity'),'unused palettes drop out');
+  assert.throws(()=>f.patch('dive-quarters',[{kind:'paint',cells:[{x:spot.x,y:spot.y,atlas:'sprTownEnvBench',tile:1}]}]),/Unknown palette/,'only sprTile atlases are palettes');
+  assert.throws(()=>f.patch('dive-quarters',[{kind:'paint',cells:[{x:-1,y:0,atlas:'sprTileForest',tile:1}]}]),/outside the map/);
+  const id=f.player('carol');const zone=f.read(id).zones.find(z=>z.id==='dive-quarters');if(zone?.walls?.length)assert.deepEqual(zone.paint,painted.paint,'the paint layer reaches the player snapshot');
+  const hall='honeydew-lantern-beds',tile=f.free(f.map(hall),2);f.patch(hall,[{kind:'paint',cells:[{x:tile.x,y:tile.y,atlas:'sprTileMansion',tile:21}]}]);
+  assert.deepEqual(tileAt(f.map(hall).floor,tile.x,tile.y).at(-1),{atlas:'sprTileMansion',tile:21},'hub rooms take tiles from other palettes too');
+  const court=f.free(f.map('princess-rose'),2);f.patch('princess-rose',[{kind:'paint',cells:[{x:court.x,y:court.y,atlas:'sprTileTundra',tile:4}]}]);
+  const guest=f.player('dave',false),rose=f.read(guest).zones.find(z=>z.id==='princess-rose');assert.deepEqual(rose.paint,{atlases:['sprTileTundra'],cells:[court.x,court.y,0,4]},'a hub visitor gets the paint layer in the room they stand in');
+  f.world('world_patch_clear','dive-quarters');assert.equal(f.map().floor.paint,undefined,'clearing the patch removes the paint layer');
+  f.world('world_patch_clear',hall);assert.equal(f.map(hall).floor.paint,undefined);
  }finally{f.close();}
 });

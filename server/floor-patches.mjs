@@ -11,6 +11,7 @@ import {MOVABLE_FIXTURES,MOVE_ONLY_FIXTURES,movableKind,FURNITURE,furnitureFixtu
 
 const fail=(message,status=409,code='world_patch_conflict')=>{throw Object.assign(Error(message),{status,code});};
 const MAX_OPS=256,MAX_CELLS=4096,MAX_BODY=256*1024,MAX_SPAN=8; // Caps keep one zone's patch a few hundred KB at most.
+const PALETTE=/^sprTile[A-Za-z0-9_]{1,40}$/,MAX_PAINT=8192; // Palette brush: any sprTile* atlas (the client skips names it lacks); up to 8192 painted cells per zone.
 const SPRITE=/^[A-Za-z][A-Za-z0-9_]{0,63}$/; // GameMaker sprite names; the client resolves them with asset_get_index and ignores unknown ones.
 const SERVICE_KINDS=new Set(['shop','bank','dumpster','bed','toilet','changer','cauldron','reagents','altar','npc','mirror','pad','curse-remover','forge','sewing_table','kitchen']); // Hub fixtures players must be able to stand beside.
 const key=(x,y)=>x+','+y;
@@ -70,6 +71,18 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
  function grid(f,name){return Array.isArray(f[name])?f[name]:null;}
  function remember(undo,f,x,y){const k=key(x,y);if(undo.cellIndex.has(k))return;undo.cellIndex.add(k);undo.cells.push({x,y,wall:f.walls[y][x],prop:f.props?.[y]?.[x]??null,floor:grid(f,'floors')?.[y]?.[x]??null,wallTile:grid(f,'wallTiles')?.[y]?.[x]??null,decor:grid(f,'decorTiles')?.[y]?.[x]??null,tree:grid(f,'treeTiles')?.[y]?.[x]??null});} // First touch only: the undo log keeps the pre-patch value.
  function applyOp(f,op,kind,undo,touched,rules={}){ // rules.destinations: zones a new crossing may lead to (GM actions); null on ticks, where stored ops were already checked.
+  if(op.kind==='paint'){ // Palette brush: a tile from ANY palette drawn over the cell. Purely visual: walls, props and walking never change.
+   if(!f.paint){f.paint={atlases:[],cells:[]};undo.created.push('paint');} // Created by the patch, so revert() simply deletes it.
+   const painted=new Map();for(let i=0;i+3<f.paint.cells.length;i+=4)painted.set(key(f.paint.cells[i],f.paint.cells[i+1]),[f.paint.cells[i],f.paint.cells[i+1],f.paint.atlases[f.paint.cells[i+2]],f.paint.cells[i+3]]); // Unpack the flat list into one entry per cell.
+   for(const c of op.cells){
+    if(!Number.isInteger(c.x)||!Number.isInteger(c.y)||c.x<0||c.y<0||c.x>=f.width||c.y>=f.height)fail('Cell '+c.x+','+c.y+' is outside the map.',400);
+    if(c.atlas)painted.set(key(c.x,c.y),[c.x,c.y,c.atlas,c.tile]);else painted.delete(key(c.x,c.y)); // No atlas = erase back to the zone's own ground.
+   }
+   if(painted.size>MAX_PAINT)fail('A zone can hold up to '+MAX_PAINT+' palette-painted cells.',400);
+   const rows=[...painted.values()].sort((a,b)=>a[1]-b[1]||a[0]-b[0]),atlases=[...new Set(rows.map(r=>r[2]))]; // Row order so the client draws top to bottom.
+   f.paint={atlases,cells:rows.flatMap(([x,y,atlas,tile])=>[x,y,atlases.indexOf(atlas),tile])}; // Flat [x,y,atlasIndex,tile,…]: small in the snapshot, fast to loop in GML.
+   return;
+  }
   if(op.kind==='cells'){
    for(const c of op.cells){
     if(!Number.isInteger(c.x)||!Number.isInteger(c.y)||c.x<0||c.y<0||c.x>=f.width||c.y>=f.height)fail('Cell '+c.x+','+c.y+' is outside the map.',400);
@@ -253,7 +266,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
   for(const op of patch.ops){
    if(!editionMatches(op,work))continue;
    const trial=structuredClone(work),trialUndo=structuredClone({...undo,cellIndex:[...undo.cellIndex]}),touched=[];trialUndo.cellIndex=new Set(trialUndo.cellIndex);
-   try{applyOp(trial,op,kind,trialUndo,touched,{destinations,doors});validate(trial,kind,kind==='dive'?extraOpenings:[...extraOpenings,...movedGaps(trial,doors)],touched,op.kind==='cells'?work:null);}
+   try{applyOp(trial,op,kind,trialUndo,touched,{destinations,doors});if(op.kind!=='paint')validate(trial,kind,kind==='dive'?extraOpenings:[...extraOpenings,...movedGaps(trial,doors)],touched,op.kind==='cells'?work:null);}
    catch(error){if(strict)fail((error.message??String(error))+' (change: '+describe(op)+')',error.status??409,error.code??'world_patch_rejected');skipped.push({id:op.id,reason:error.message});continue;}
    Object.assign(work,trial);Object.assign(undo,trialUndo);applied++;
   }
@@ -261,7 +274,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
   const changed=reverted||applied>0;if(changed)work.geometryVersion=(work.geometryVersion??0)+1; // Connected clients rebuild collision and the minimap.
   for(const k of Object.keys(floor))if(!(k in work))delete floor[k];Object.assign(floor,work);return changed;
  }
- const describe=op=>op.kind==='cells'?'paint '+op.cells.length+' cell(s)':op.kind==='decoration'?(op.op==='remove'?'remove ':'stamp ')+(op.decoration?.sprite??op.match?.sprite??'scenery'):op.kind==='safeRoom'?(op.op==='remove'?'remove':'add')+' safe room':op.kind==='spawn'?'move arrival':op.kind==='layer'?'paint '+op.layer:op.kind==='exit'?(op.op==='add'?'add a crossing to '+op.zone:'move the '+(op.exit&&!op.zone?'door '+op.exit:'exit to '+op.zone)):op.kind==='fixture'?(op.op==='add'?'place '+(FURNITURE[op.furniture]?.label??op.furniture):(op.op==='remove'?'remove ':'move ')+op.match.kind+' '+op.match.id):op.kind;
+ const describe=op=>op.kind==='cells'?'paint '+op.cells.length+' cell(s)':op.kind==='paint'?'palette-paint '+op.cells.length+' cell(s)':op.kind==='decoration'?(op.op==='remove'?'remove ':'stamp ')+(op.decoration?.sprite??op.match?.sprite??'scenery'):op.kind==='safeRoom'?(op.op==='remove'?'remove':'add')+' safe room':op.kind==='spawn'?'move arrival':op.kind==='layer'?'paint '+op.layer:op.kind==='exit'?(op.op==='add'?'add a crossing to '+op.zone:'move the '+(op.exit&&!op.zone?'door '+op.exit:'exit to '+op.zone)):op.kind==='fixture'?(op.op==='add'?'place '+(FURNITURE[op.furniture]?.label??op.furniture):(op.op==='remove'?'remove ':'move ')+op.match.kind+' '+op.match.id):op.kind;
  function view(zone,floor){const p=get(zone);return {revision:p.revision,ops:p.ops,history:history(zone),skipped:floor?.patchSkipped??[],updated:p.updated,actor:p.actor};} // What the Map Editor shows in its Patch layer panel.
 
  function normalizeOps(list){ // Validate the shape of incoming ops before they are stored; geometry rules run in apply().
@@ -269,6 +282,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
   return list.map(raw=>{
    if(!raw||typeof raw!=='object')fail('Malformed change.',400);const id=typeof raw.id==='string'&&/^[A-Za-z0-9_-]{4,64}$/.test(raw.id)?raw.id:randomUUID(),note=typeof raw.note==='string'?raw.note.slice(0,120):undefined,editions=Array.isArray(raw.editions)?raw.editions.map(String).slice(0,8):undefined;
    const base={id,kind:raw.kind,...(note?{note}:{}),...(editions?{editions}:{})};
+   if(raw.kind==='paint'){if(!Array.isArray(raw.cells)||!raw.cells.length||raw.cells.length>MAX_CELLS)fail('A palette change needs 1 to '+MAX_CELLS+' cells.',400);return {...base,cells:raw.cells.map(c=>{const x=Number(c.x),y=Number(c.y),atlas=String(c.atlas??''),tile=Number(c.tile??0);if(atlas&&!PALETTE.test(atlas))fail('Unknown palette '+atlas+'.',400);if(!Number.isInteger(tile)||tile<0||tile>9999)fail('Choose a tile from the palette.',400);return atlas&&tile>0?{x,y,atlas,tile}:{x,y};})};} // {x,y} alone erases a painted cell.
    if(raw.kind==='cells'){if(!Array.isArray(raw.cells)||!raw.cells.length||raw.cells.length>MAX_CELLS)fail('A cells change needs 1 to '+MAX_CELLS+' cells.',400);return {...base,cells:raw.cells.map(c=>{const cell={x:Number(c.x),y:Number(c.y)};for(const k of ['wall','prop','floor','wallTile','decor','tree'])if(c[k]!==undefined&&c[k]!==null)cell[k]=Number(c[k]);if(Object.keys(cell).length===2)fail('A cell change must set wall, prop or a tile.',400);return cell;})};}
    if(raw.kind==='decoration'){if(raw.op==='remove'){const m=raw.match??{};return {...base,op:'remove',match:{...(m.id?{id:String(m.id).slice(0,80)}:{}),sprite:String(m.sprite??''),x:Number(m.x),y:Number(m.y)}};}const d=raw.decoration??{};return {...base,op:'add',decoration:{sprite:String(d.sprite??''),x:Number(d.x),y:Number(d.y),span_w:Number(d.span_w??1),span_h:Number(d.span_h??1),solid:d.solid!==false,...(d.toilet?{toilet:true}:{})}};}
    if(raw.kind==='safeRoom'){const r=raw.rect??{};return {...base,op:raw.op==='remove'?'remove':'add',rect:{x:Number(r.x),y:Number(r.y),w:Number(r.w),h:Number(r.h)}};}
