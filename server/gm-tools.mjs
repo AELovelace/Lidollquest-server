@@ -28,8 +28,8 @@ export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new 
  }
 
  function landing(z,x,y){ // Nearest open tile to (x,y) that is not an exit, portal or wall opening, so arrival never triggers another transfer.
-  const def=hubDefinition(z,now(),1,{offers:false}),exit=def.exit,portals=def.portals??[];
-  const unsafe=(tx,ty)=>blocked(z,tx,ty)||(tx===exit.x&&ty===exit.y)||portals.some(p=>p.x===tx&&p.y===ty)||hubGaps(z).some(g=>inHubGap(g,tx,ty));
+  const def=hubDefinition(z,now(),1,{offers:false}),exit=def.exit,portals=def.portals??[]; // exit is null in a court (no campaign stairs since 2026-10-12).
+  const unsafe=(tx,ty)=>blocked(z,tx,ty)||(!!exit&&tx===exit.x&&ty===exit.y)||portals.some(p=>p.x===tx&&p.y===ty)||hubGaps(z).some(g=>inHubGap(g,tx,ty));
   for(let r=0;r<=6;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){ // Grow outward ring by ring, nearest first.
    if(Math.abs(dx)+Math.abs(dy)!==r)continue; // Only this ring's tiles; inner rings were already checked.
    if(!unsafe(x+dx,y+dy))return {x:x+dx,y:y+dy};

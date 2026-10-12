@@ -41,7 +41,7 @@ test('all lobby doors, annex exits and dungeon pads arrive on an adjacent interi
   }
   const hall=hubRooms.find(r=>r.parent===root.id&&r.kind==='dives');
   for(const pad of hubDefinition(hall,0).portals){const arrival=hubArrival(hall,pad.target);assert.equal(Math.abs(arrival.x-pad.x)+Math.min(...Array.from({length:pad.h??1},(_,i)=>Math.abs(arrival.y-pad.y-i))),1);} // Two-tile wall openings arrive beside either tile.
-  assert.deepEqual(lobby.exit,{'princess-rose':{x:2,y:17,style:'stairs'},'honeydew-lantern':{x:2,y:22,style:'stairs'},'littlebig-clockwork':{x:2,y:27,style:'stairs'},'utopia-arcanum':{x:2,y:27,style:'stairs'},'arcadia-foundry':{x:2,y:27,style:'stairs'}}[root.id]); // Campaign stairs: bottom-left of Rose's garden, inside the towns' west entry strips.
+  assert.equal(lobby.exit,null,root.id+' has no campaign stairs: courts are left from the Escape menu, never by an exit tile'); // The retired lobby stairs used to drop players to the title screen (lobby-exits.test.mjs).
   assert.deepEqual(hubArrival(root,root.id+'-dives'),{'honeydew-lantern':{x:25,y:25},'littlebig-clockwork':{x:33,y:29},'utopia-arcanum':{x:26,y:32},'arcadia-foundry':{x:26,y:32},'princess-rose':{x:9,y:1}}[root.id]); // Below the Dive room's doorstep, or inside Rose's top-wall gap.
   if(root.id==='princess-rose')assert.deepEqual(hubArrival(root,root.id+'-shops'),{x:15,y:17});else assert.deepEqual(hubArrival(root,root.id+'-beds'),{'honeydew-lantern':{x:29,y:28},'littlebig-clockwork':{x:28,y:29},'utopia-arcanum':{x:34,y:32},'arcadia-foundry':{x:34,y:32}}[root.id]); // Only Rose keeps a Market Hall; the towns' Inn doorsteps are on their squares.
  }
