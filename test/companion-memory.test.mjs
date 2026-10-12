@@ -118,9 +118,9 @@ test('impression jobs: short lines skipped, three per pair, retried, then stored
   assert.equal(w.memory.db.prepare('SELECT COUNT(*) n FROM impression_jobs').get().n,3,'a chatty player cannot flood the queue');
   let next=w.memory.nextImpression();w.memory.failImpression(next);assert.notEqual(w.memory.nextImpression()?.id,next.id,'a failed job waits a minute');
   w.advance(61000);next=w.memory.nextImpression();
-  w.memory.storeImpressions(next,[{text:'Doll said she loves strawberry milk.',importance:7},{text:'Doll said she is a night owl.'}]);
+  w.memory.storeImpressions(next,[{text:'Doll said she loves strawberry milk.',importance:7},{text:'Doll said she is a night owl.'},{text:'Doll said she wet the bed.',embarrassing:true}]);
   const said=w.memory.view('doll').memories.filter(m=>m.kind==='said');
-  assert.deepEqual(said.map(m=>[m.text,m.importance,m.embarrassing]).sort(),[['Doll said she is a night owl.',1,false],['Doll said she loves strawberry milk.',3,false]]);
+  assert.deepEqual(said.map(m=>[m.text,m.importance,m.embarrassing]).sort(),[['Doll said she is a night owl.',1,false],['Doll said she loves strawberry milk.',3,false],['Doll said she wet the bed.',1,true]]);
   assert.equal(w.memory.db.prepare('SELECT gossip FROM memories WHERE kind=\'said\'').get().gossip,null,'impressions are never gossip');
   w.advance(86400001);assert.equal(w.memory.nextImpression(),null,'day-old jobs are dropped');
  }finally{w.close();}
@@ -136,6 +136,10 @@ test('folding: a pair over the cap folds its oldest small memories into the summ
   memory.applyFold(target,'We have been through a lot, Doll and I.');
   assert.equal(memory.summary('paladin_aegis','doll'),'We have been through a lot, Doll and I.');
   assert.deepEqual(memory.view('doll').memories.map(m=>m.id).sort(),['m0','m5','m6','m7']);assert.equal(memory.foldTarget(),null);
+  const shy=memory.db.prepare("INSERT INTO memories(id,npc,character_id,kind,text,importance,embarrassing,created) VALUES (?,?,?,'accident',?,1,1,?)");
+  for(let i=0;i<3;i++)shy.run('x'+i,'paladin_aegis','doll','Doll had an accident '+i,10+i); // Older than everything left.
+  const fade=memory.foldTarget();assert.ok(fade.ids.includes('x0'));assert.ok(fade.memories.every(t=>!/accident/.test(t)),'embarrassing memories are never sent to the summarizer');
+  memory.applyFold({...fade,memories:[]},null);assert.equal(memory.summary('paladin_aegis','doll'),'We have been through a lot, Doll and I.','a fade-only fold keeps the summary');
   memory.close();
  }finally{w.close();}
 });

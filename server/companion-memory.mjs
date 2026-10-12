@@ -90,21 +90,21 @@ export function createCompanionMemory(mainDb,{file=':memory:',now=Date.now,log=c
   return true;
  }
  function nextImpression(){mem.prepare('DELETE FROM impression_jobs WHERE created<?').run(now()-86400000);return mem.prepare('SELECT * FROM impression_jobs WHERE next_try<=? ORDER BY id LIMIT 1').get(now())??null;} // Day-old jobs are no longer worth an AI call.
- function storeImpressions(job,facts){ // Facts come back as "<player> said ..."; never gossiped, never embarrassing (they were said in public).
+ function storeImpressions(job,facts){ // Facts come back as "<player> said ..."; never gossiped.
   mem.exec('BEGIN IMMEDIATE');try{
-   facts.slice(0,3).forEach((f,n)=>mem.prepare("INSERT OR IGNORE INTO memories(id,npc,character_id,kind,text,gossip,importance,embarrassing,created) VALUES (?,?,?,'said',?,NULL,?,0,?)").run('i'+job.id+'-'+n,job.npc,job.character_id,String(f.text).slice(0,400),Math.max(1,Math.min(3,Number(f.importance)||1)),now()));
+   facts.slice(0,3).forEach((f,n)=>mem.prepare("INSERT OR IGNORE INTO memories(id,npc,character_id,kind,text,gossip,importance,embarrassing,created) VALUES (?,?,?,'said',?,NULL,?,?,?)").run('i'+job.id+'-'+n,job.npc,job.character_id,String(f.text).slice(0,400),Math.max(1,Math.min(3,Number(f.importance)||1)),f.embarrassing?1:0,now())); // npc-rag flags embarrassing ones: private, or a slip.
    mem.prepare('DELETE FROM impression_jobs WHERE id=?').run(job.id);mem.exec('COMMIT');
   }catch(error){mem.exec('ROLLBACK');throw error;}
  }
  function failImpression(job){if(job.attempts>=2)mem.prepare('DELETE FROM impression_jobs WHERE id=?').run(job.id);else mem.prepare('UPDATE impression_jobs SET attempts=attempts+1,next_try=? WHERE id=?').run(now()+60000,job.id);} // Three tries, a minute apart.
  function foldTarget(){ // One pair over keep_per_pair: its oldest small memories (importance <= 2 first) to fold into the summary.
   const keep=t().keep_per_pair,pair=mem.prepare('SELECT npc,character_id,COUNT(*) n FROM memories GROUP BY npc,character_id HAVING n>? ORDER BY n DESC LIMIT 1').get(keep);if(!pair)return null;
-  const rows=mem.prepare('SELECT id,text FROM memories WHERE npc=? AND character_id=? ORDER BY (importance>2),created LIMIT ?').all(pair.npc,pair.character_id,Math.min(120,pair.n-keep+Math.ceil(keep/10))); // Fold 10% extra (20 at the default cap) so this does not run on every new memory.
-  return {npc:pair.npc,characterId:pair.character_id,summary:summary(pair.npc,pair.character_id),ids:rows.map(r=>r.id),memories:rows.map(r=>r.text)};
+  const rows=mem.prepare('SELECT id,text,embarrassing FROM memories WHERE npc=? AND character_id=? ORDER BY (importance>2),created LIMIT ?').all(pair.npc,pair.character_id,Math.min(120,pair.n-keep+Math.ceil(keep/10))); // Fold 10% extra (20 at the default cap) so this does not run on every new memory.
+  return {npc:pair.npc,characterId:pair.character_id,summary:summary(pair.npc,pair.character_id),ids:rows.map(r=>r.id),memories:rows.filter(r=>!r.embarrassing).map(r=>r.text)}; // Summaries are read in public chats: old embarrassing moments simply fade instead of being summarised.
  }
  function applyFold(target,text){
   mem.exec('BEGIN IMMEDIATE');try{
-   mem.prepare('INSERT INTO summaries(npc,character_id,text,updated) VALUES (?,?,?,?) ON CONFLICT(npc,character_id) DO UPDATE SET text=excluded.text,updated=excluded.updated').run(target.npc,target.characterId,String(text).slice(0,1200),now());
+   if(text)mem.prepare('INSERT INTO summaries(npc,character_id,text,updated) VALUES (?,?,?,?) ON CONFLICT(npc,character_id) DO UPDATE SET text=excluded.text,updated=excluded.updated').run(target.npc,target.characterId,String(text).slice(0,1200),now()); // text null: only embarrassing memories were folded, nothing to add.
    for(const id of target.ids)mem.prepare('DELETE FROM memories WHERE id=?').run(id);mem.exec('COMMIT');
   }catch(error){mem.exec('ROLLBACK');throw error;}
  } // The summary replaces what it absorbed in one transaction: nothing is lost if the AI call fails, nothing is kept twice.

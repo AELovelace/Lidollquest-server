@@ -7,13 +7,14 @@ const fail=message=>{throw Object.assign(Error(message),{status:400,code:'invali
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const currencies=new Set(['gold','coins','diamonds','wallet','balance','lidollcoins','lidollcoin']);
 const number=(value,fallback,min=0,max=1000000)=>typeof value==='number'&&Number.isFinite(value)?Math.max(min,Math.min(max,value)):fallback;
+export const MAX_LOADOUT_BYTES=256*1024; // Compact updates leave room for the command envelope within the separate 256 KiB HTTP body cap.
 
 export function importLoadout(input) { // Campaign data is intentionally client-trusted; bounds protect storage and transport, not competitive integrity.
  if(!object(input)||!object(input.player_info)||!Array.isArray(input.inventory)||input.inventory.length>512)fail('Send character stats and at most 512 inventory slots.');
- if(Buffer.byteLength(JSON.stringify(input))>192*1024)fail('Character data is too large.');
+ if(Buffer.byteLength(JSON.stringify(input))>MAX_LOADOUT_BYTES)fail('Character data is too large.');
  let nodes=0;
  function copy(value,depth=0,colours=false){ // colours: this object is an alchemy pigments map, whose keys are colour names (gold, silver...), never currency.
-  if(++nodes>20000||depth>16)fail('Character data is too complex.');
+  if(++nodes>20000||depth>16)fail('Character data is too complex.'); // Keep the existing complexity limits alongside the modest byte-limit increase.
   if(value===null||typeof value==='boolean'||typeof value==='string')return value;
   if(typeof value==='number'){if(!Number.isFinite(value))fail('Character numbers must be finite.');return value;}
   if(Array.isArray(value))return value.map(v=>copy(v,depth+1));

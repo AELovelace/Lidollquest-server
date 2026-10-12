@@ -85,7 +85,7 @@ export function createFollowerChat(db,{followers,now=Date.now,fetcher=fetch,allo
    let res=await ask();
    if(res.status===409){await pushLore();res=await ask();} // That node lacks this lore version (restart or edit): push to every node, retry once.
    if(res.status===404)legacyChain=true; // An AI node still on the older npc-rag: use the classifier + /v1/npc/chat chain below.
-   else if(res.ok){reply=res.body?.reply??null;fromGraph=!!clean(reply);slipped=fromGraph&&!!slip&&res.body?.slip?.memory_id===slip.id;} // The graph confirmed the reply really mentions it.
+   else if(res.ok){reply=res.body?.reply??null;const said=!!clean(reply);fromGraph=said&&res.body?.category!=='game';slipped=said&&!!slip&&res.body?.slip?.memory_id===slip.id;} // fromGraph: impressions skip game questions (live 2026-10-12); slipped: the graph confirmed the reply mentions it.
    else throw Object.assign(Error('AI unavailable ('+res.status+')'),{url:res.url,node:res.node});
   }catch(error){warn('companion',error?.url??'',error);} // Every node failed: the persona model below still answers in character.
   let category='';
@@ -136,6 +136,7 @@ Character voice examples: ${(def.dialogue.talk_lines??[]).slice(0,3).join(' ')}`
   let job=null,fold=null;
   try{job=memoryStore.nextImpression();if(!job&&now()-lastFold>=60000){lastFold=now();fold=memoryStore.foldTarget();}}catch(error){log('companion_reflect_failed',String(error?.message??error).slice(0,200));return;}
   if(!job&&!fold)return;
+  if(fold&&!fold.memories.length){try{memoryStore.applyFold(fold,null);}catch(error){log('companion_reflect_failed',String(error?.message??error).slice(0,200));}return;} // Only embarrassing memories to fold: they fade without an AI call.
   reflecting=true;const opts={timeoutMs:30000,signal:stop.signal};
   const work=job
    ?ai.request('/v1/companion/impressions',{npc_name:job.npc_name,player_name:job.player||'traveller',message:job.message,reply:job.reply},opts).then(res=>{if(closed)return;if(res.ok)memoryStore.storeImpressions(job,Array.isArray(res.body?.facts)?res.body.facts:[]);else memoryStore.failImpression(job);})

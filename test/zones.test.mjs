@@ -86,7 +86,7 @@ test('campaign loadouts drive arena combat, persist items and never import curre
 test('loadout validation bounds JSON and rejects malformed inventory without changing a character',()=>{
  const f=fixture();try{
   let c=f.act('create',null,{name:'Alice'}).character;c=f.act('enter',c,{zone:questZones[0].id}).character;
-  for(const loadout of [null,{}, {player_info:{},inventory:[null]}, {player_info:{},inventory:Array(513).fill({item_id:'potion'})}, {player_info:{note:'x'.repeat(200000)},inventory:[]}])assert.throws(()=>f.act('loadout',c,{loadout}),e=>e.status===400);
+  for(const loadout of [null,{}, {player_info:{},inventory:[null]}, {player_info:{},inventory:Array(513).fill({item_id:'potion'})}, {player_info:{note:'x'.repeat(256*1024)},inventory:[]}])assert.throws(()=>f.act('loadout',c,{loadout}),e=>e.status===400);
   assert.equal(f.zones.read('token-a',c.id).character.revision,c.revision);
  }finally{f.db.close();}
 });
