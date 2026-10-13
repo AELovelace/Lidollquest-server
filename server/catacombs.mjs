@@ -66,6 +66,7 @@ export function generateCatacombs(data,edition){
  const count=Math.ceil(eligible.length*c.catacombs.mist_coverage);for(const p of eligible.slice(0,count))mist[p.y][p.x]='1';
  f.mist={version:1,rows:mist.map(r=>r.join('')),tiles:count};
  f.catacombs={version:1,level,edges,puzzles,reserved,refuges,crypts,haunts,lighting:c.catacombs.lighting};
+ reconcileCatacombCutouts(f,c.catacombs.wall_cutouts);f.geometryVersion=1;f.mechanismRevision=0; // Fresh maps publish their completed geometry once; saved maps increment revisions during reconciliation.
  validateFullDungeon(f);return f;
 } // Pure generation supplies workers, previews and the live service with identical maps.
 
@@ -99,9 +100,40 @@ export function catacombStep(f,s,personal,x,y,now=Date.now()){
 export function reconcileCatacombReservations(f,ready){
  if(!f.catacombs)return false;let changed=false;
  for(const p of f.catacombs.reserved){if(p.active||!ready(p.target,f))continue;
-  if(p.target==='dungeon-mana-tunnels')p.name='Mana Caves ? Utopia'; // Saved reservations keep their cells while receiving the shipped display name.
-  p.active=true;f.exits.push({x:p.x,y:p.y,zone:p.target,name:p.name,style:'stairs'});f.entries[p.target]={...p.arrival};
-  const fix=f.fixtures.find(v=>v.id==='reserved-'+p.target);fix.solid=false;fix.kind='scenery';fix.name=p.name;fix.sprite='sprCatacombDoorOpen';f.props[p.y][p.x]=0;changed=true;
+  if(p.target==='dungeon-mana-tunnels')p.name='Mana Tunnels — Utopia';
+  p.active=true;f.exits.push({x:p.x,y:p.y,zone:p.target,name:p.name,style:p.style??'stairs',...(p.style==='gap'?{side:p.side,w:p.w,h:p.h}:{})});f.entries[p.target]={...p.arrival};
+  const fix=f.fixtures.find(v=>v.id==='reserved-'+p.target);
+  if(p.style==='gap')f.fixtures=f.fixtures.filter(v=>v!==fix); // An active wall cutout uses the shared gap label, without a door or stair sprite.
+  else if(fix){fix.solid=false;fix.kind='scenery';fix.name=p.name;fix.sprite='sprCatacombDoorOpen';}
+  for(let y=p.y;y<p.y+(p.h??1);y++)for(let x=p.x;x<p.x+(p.w??1);x++)f.props[y][x]=0;changed=true;
  }
  if(changed){f.geometryVersion++;f.mechanismRevision++;}return changed;
 } // Future routes activate their reserved cells without regenerating terrain or rewards.
+
+export function reconcileCatacombCutouts(f,cutouts=[]){
+ if(f.catacombs?.level!==1||f.catacombs.entranceVersion>=1||!cutouts.length)return false;
+ for(const {zone,side,room} of cutouts){
+  const r=f.rooms[room],vertical=side!=='top',edge=side==='right'?f.width-1:0,along=vertical?r.cy:r.cx;
+  const gap=vertical?{x:edge,y:along,w:1,h:2}:{x:along,y:edge,w:2,h:1};
+  const arrival=side==='top'?{x:along,y:2}:side==='left'?{x:2,y:along}:{x:f.width-3,y:along};
+  const join=side==='top'?r.y:side==='left'?r.x:r.x+r.w-1;
+  const approach=vertical?{x:Math.min(edge,join),y:along,w:Math.abs(edge-join)+1,h:2}:{x:along,y:0,w:2,h:join+1};
+  const exit=f.exits.find(e=>e.zone===zone),reserved=f.catacombs.reserved.find(p=>p.target===zone),old=exit??reserved;
+  if(!old)continue;
+  const oldPosition={x:old.x,y:old.y},oldEntry=f.entries[zone];
+  f.decorations=f.decorations.filter(d=>!(d.x===oldPosition.x&&d.y===oldPosition.y&&['sprCatacombStairs','sprCatacombStairsUp'].includes(d.sprite))); // Remove only the superseded portal art; keep its old tile walkable for visitors and battles.
+  for(let y=approach.y;y<approach.y+approach.h;y++)for(let x=approach.x;x<approach.x+approach.w;x++){f.walls[y][x]=0;f.props[y][x]=0;}
+  f.safeRooms.push({...approach}); // The new boundary corridor is protected, without making its whole combat gallery safe.
+  if(exit){Object.assign(exit,gap,{style:'gap',side});f.entries[zone]={...arrival};}
+  if(reserved){
+   const fix=f.fixtures.find(v=>v.id==='reserved-'+zone);
+   f.props[oldPosition.y][oldPosition.x]=0;
+   Object.assign(reserved,gap,{style:'gap',side,arrival:{...arrival},name:zone==='dungeon-mana-tunnels'?'Mana Tunnels — Utopia':reserved.name});
+   if(exit){exit.name=reserved.name;f.fixtures=f.fixtures.filter(v=>v!==fix);}
+   else if(fix){Object.assign(fix,{x:gap.x,y:gap.y,span_w:gap.w,span_h:gap.h,name:reserved.name+' — sealed'});for(let y=gap.y;y<gap.y+gap.h;y++)for(let x=gap.x;x<gap.x+gap.w;x++)f.props[y][x]=1;}
+  } // An unavailable future destination stays sealed across the entire opening; geometry alone never registers travel.
+  if(oldEntry&&f.entrance.x===oldEntry.x&&f.entrance.y===oldEntry.y)f.entrance={...arrival};
+  if(f.mist){const rows=f.mist.rows.map(v=>v.split(''));for(let y=0;y<f.height;y++)for(let x=0;x<f.width;x++)if(inside(approach,x,y)||[gap,arrival].some(p=>Math.max(Math.abs(p.x-x),Math.abs(p.y-y))<=3))rows[y][x]='0';f.mist.rows=rows.map(v=>v.join(''));f.mist.tiles=f.mist.rows.reduce((n,v)=>n+[...v].filter(c=>c==='1').length,0);}
+ }
+ f.catacombs.entranceVersion=1;f.geometryVersion=(f.geometryVersion??0)+1;f.mechanismRevision=(f.mechanismRevision??0)+1;return true;
+} // Versioned in-place retouch: leave population, claims, puzzles, old corridors and visitor positions intact.

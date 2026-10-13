@@ -8,6 +8,7 @@ import {hubData} from '../server/hubs.mjs';
 import {combatData} from '../server/combat.mjs';
 import {fullDungeons} from '../server/full-dungeons.mjs';
 import {solveDungeonPuzzle} from '../server/full-dungeon-generation.mjs';
+import {generateCatacombs,reconcileCatacombReservations} from '../server/catacombs.mjs';
 
 function fixture(){
  const db=new DatabaseSync(':memory:'),live=createWorldContent(db,{spells:combatData.spells,equipment:hubData.equipment});let time=Date.parse('2026-09-24T12:00:00Z'),api;const ids={};
@@ -34,6 +35,40 @@ test('Castle -> Dungeon -> Catacombs -> Sewers -> LittleBigCity and reverse; arb
   f.act('a','dive_exit');assert.equal(f.snap().zone,'princess-rose-garden');
   f.place('a',f.map().portals.find(p=>p.target==='dungeon-castle-dungeon'));f.act('a','dive_enter',{zone:'dungeon-castle-dungeon'});crossing(f,CAT);crossing(f,'dungeon-littlebig-sewers');crossing(f,'littlebig-clockwork');
   f.place('a',f.map().portals.find(p=>p.target==='dungeon-littlebig-sewers'));f.act('a','dive_enter',{zone:'dungeon-littlebig-sewers'});crossing(f,CAT);crossing(f,'dungeon-castle-dungeon');crossing(f,'princess-rose-garden');
+ }finally{f.close();}
+});
+
+test('both tiles of each Catacombs wall cutout transfer on walking contact and return safely inside',()=>{
+ const f=fixture();try{
+  entry(f);state(f,'a',s=>s.manaCavesVersion=1);
+  for(const zone of ['dungeon-mana-tunnels','dungeon-littlebig-sewers','dungeon-castle-dungeon'])for(let offset=0;offset<2;offset++){
+   const e=f.map().exits.find(e=>e.zone===zone);assert.equal(e.style,'gap');
+   const dir=e.side==='top'?'north':e.side==='right'?'east':'west';
+   const p=e.side==='top'?{x:e.x+offset,y:1}:{x:e.side==='right'?e.x-1:1,y:e.y+offset};
+   f.place('a',p);const move=f.command('a','move',{direction:dir});f.send('a',move);f.send('a',move);assert.equal(f.snap().zone,zone); // The move receipt cannot transfer twice.
+   crossing(f,CAT);const position=f.snap().position;
+   assert.equal(position.x,e.side==='left'?2:e.side==='right'?77:e.x);assert.equal(position.y,e.side==='top'?2:e.y);
+   assert.ok(position.x!==e.x||position.y!==e.y,'arrival is inside, not standing on the departure trigger');
+  }
+  const before=f.map().exits;f.restart();assert.deepEqual(f.map().exits,before);
+  f.act('a','dive_exit');assert.equal(f.snap().zone,'honeydew-lantern'); // Underground travel still preserves the expedition's surface return.
+ }finally{f.close();}
+});
+test('saved entrance retouch preserves an active battle, visitor position and personal claims through restart',()=>{
+ const f=fixture();try{
+  entry(f);const chest=f.snap().dive.chests.find(c=>!c.requires_memorial);f.place('a',chest);f.act('a','dive_claim',{chest:chest.id});
+  const foe=f.snap().dive.enemies[0],map=f.map(),near=[[1,0],[-1,0],[0,1],[0,-1]].map(([dx,dy])=>({x:foe.x+dx,y:foe.y+dy})).find(p=>map.walls[p.y][p.x]===0&&!map.props[p.y][p.x]);
+  f.place('a',near);f.act('a','dive_engage',{encounter:foe.id});const before=f.snap(),visit=before.character.dive;
+  const row=()=>f.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=?').get(visit.route,visit.edition);
+  const data=structuredClone(fullDungeons.find(d=>d.config.zone_id===CAT));delete data.config.catacombs.wall_cutouts;
+  const legacy=generateCatacombs(data,visit.edition);reconcileCatacombReservations(legacy,t=>t==='dungeon-mana-tunnels');legacy.enemies=JSON.parse(row().content).enemies; // Simulate an already-occupied edition from before the cutout release, retaining its encounter locks.
+  f.db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=?').run(JSON.stringify(legacy),visit.route,visit.edition);
+  const claims=()=>f.db.prepare('SELECT state FROM dive_progress WHERE character_id=? AND route=? AND edition=?').get(f.ids.a,visit.route,visit.edition).state,claimed=claims();
+  f.restart();const after=f.snap(),floor=JSON.parse(row().content);
+  assert.equal(after.character.run.sharedEncounter,before.character.run.sharedEncounter);assert.deepEqual(after.character.dive.position,before.character.dive.position);assert.equal(claims(),claimed);
+  assert.equal(floor.catacombs.entranceVersion,1);assert.equal(floor.enemies.find(e=>e.id===foe.id).engaged,before.character.run.sharedEncounter);
+  assert.deepEqual(floor.chests,legacy.chests);assert.deepEqual(floor.rooms,legacy.rooms);assert.ok(floor.exits.filter(e=>e.style==='gap').length===3);
+  const geometry=floor.geometryVersion;f.restart();f.snap();assert.equal(JSON.parse(row().content).geometryVersion,geometry,'the next restart must not reapply the retouch');
  }finally{f.close();}
 });
 test('three-player atomic travel rejects old clients, preserves individual state, reconnects and returns home',()=>{

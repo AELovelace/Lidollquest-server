@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fullDungeons,addFullDungeonEntrances} from '../server/full-dungeons.mjs';
-import {generateCatacombs,catacombInteract,catacombStep,reconcileCatacombReservations,CATACOMBS} from '../server/catacombs.mjs';
+import {generateCatacombs,catacombInteract,catacombStep,reconcileCatacombReservations,reconcileCatacombCutouts,CATACOMBS} from '../server/catacombs.mjs';
 import {upgradeUndergroundFloor,normalizeUndergroundReturn,undergroundLinked} from '../server/underground-links.mjs';
 import {walkable,inside} from '../server/dive-generation.mjs';
 import {createDiveLootRoller} from '../server/dive-loot.mjs';
@@ -12,7 +12,7 @@ test('100 deterministic editions per floor: loops, independent wings, safe landi
  for(const data of routes)for(let i=0;i<100;i++){
   const f=generateCatacombs(data,'audit-'+i);assert.deepEqual(f,generateCatacombs(data,'audit-'+i));assert.equal(f.width,80);assert.equal(f.height,80);assert.equal(f.rooms.length,14);
   assert.ok(f.catacombs.edges.length-12+1>=4);const reached=flood(f);
-  for(const p of [...f.exits,...Object.values(f.entries)]){assert.ok(reached.has(key(p)));for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++)assert.equal(f.mist.rows[p.y+dy][p.x+dx],'0');}
+  for(const p of [...f.exits,...Object.values(f.entries)]){assert.ok(reached.has(key(p)));for(let y=Math.max(0,p.y-3);y<=Math.min(f.height-1,p.y+3);y++)for(let x=Math.max(0,p.x-3);x<=Math.min(f.width-1,p.x+3);x++)assert.equal(f.mist.rows[y][x],'0');}
   assert.equal(f.chests.filter(c=>!c.requires_memorial&&!c.requires_encounter).length,4);assert.equal(f.pickups.length,6);
   for(const p of [...f.enemies,...f.pickups])assert.ok(reached.has(key(p)));
   for(const p of f.enemies)assert.ok(!f.safeRooms.some(r=>inside(r,p.x,p.y)));
@@ -26,6 +26,30 @@ test('100 deterministic editions per floor: loops, independent wings, safe landi
    for(const symbol of q.order)catacombInteract(f,candles.find(c=>c.symbol===symbol),f.mechanismRevision);
    assert.ok(q.solved);assert.ok(flood(f).has(key(chest)));for(const p of q.doors)assert.ok(walkable(f,p.x,p.y));
   }
+ }
+});
+test('Level I north/east/west cutouts migrate saved editions once without changing content or solved memorials',()=>{
+ const data=structuredClone(routes[0]),cutouts=data.config.catacombs.wall_cutouts;delete data.config.catacombs.wall_cutouts;
+ for(const active of [false,true]){
+  const f=generateCatacombs(data,'saved-cutouts');if(active)reconcileCatacombReservations(f,t=>t==='dungeon-mana-tunnels');
+  const q=f.catacombs.puzzles[0];for(const symbol of q.order)catacombInteract(f,f.fixtures.find(v=>v.puzzle===q.id&&v.symbol===symbol),f.mechanismRevision);
+  f.enemies[0].engaged='ongoing-battle';const before=structuredClone(f),oldMana=before.catacombs.reserved.find(p=>p.target==='dungeon-mana-tunnels');
+  assert.ok(reconcileCatacombCutouts(f,cutouts));const migrated=structuredClone(f);assert.equal(reconcileCatacombCutouts(f,cutouts),false);assert.deepEqual(f,migrated);
+  for(const field of ['rooms','enemies','chests','pickups','puzzles'])assert.deepEqual(f[field],before[field]);assert.deepEqual(f.catacombs.puzzles,before.catacombs.puzzles);
+  assert.equal(f.geometryVersion,before.geometryVersion+1);assert.equal(f.mechanismRevision,before.mechanismRevision+1);
+  for(const zone of ['honeydew-lantern','dungeon-honeydew-catacombs-2'])assert.deepEqual(f.exits.find(e=>e.zone===zone),before.exits.find(e=>e.zone===zone));
+  assert.deepEqual(f.catacombs.reserved.find(p=>p.target==='dungeon-steam-network'),before.catacombs.reserved.find(p=>p.target==='dungeon-steam-network'));
+  assert.ok(walkable(f,oldMana.x,oldMana.y),'the retired doorway remains ordinary floor for existing visitors');
+  for(const zone of ['dungeon-castle-dungeon','dungeon-littlebig-sewers']){const old=before.exits.find(e=>e.zone===zone);assert.ok(!f.decorations.some(d=>d.x===old.x&&d.y===old.y&&d.sprite==='sprCatacombStairs'));}
+  const mana=f.catacombs.reserved.find(p=>p.target==='dungeon-mana-tunnels');assert.equal(mana.y,0);assert.equal(mana.w,2);
+  if(!active){assert.ok(!f.entries[mana.target]);for(let x=mana.x;x<mana.x+mana.w;x++)assert.ok(!walkable(f,x,0));reconcileCatacombReservations(f,t=>t===mana.target);}
+  const reached=flood(f);
+  for(const [zone,side] of [['dungeon-mana-tunnels','top'],['dungeon-littlebig-sewers','right'],['dungeon-castle-dungeon','left']]){
+   const e=f.exits.find(e=>e.zone===zone),arrival=f.entries[zone];assert.equal(e.style,'gap');assert.equal(e.side,side);assert.equal(side==='top'?e.y:e.x,side==='right'?79:0);
+   assert.ok(reached.has(key(arrival)));assert.ok(f.safeRooms.some(r=>inside(r,arrival.x,arrival.y)));
+   for(let y=e.y;y<e.y+e.h;y++)for(let x=e.x;x<e.x+e.w;x++)assert.ok(reached.has(x+','+y));
+  }
+  for(let y=0;y<80;y++)for(let x=0;x<80;x++)if(before.walls[y][x]===0)assert.equal(f.walls[y][x],0,'existing floor is never walled in');
  }
 });
 test('candle mistakes reset only the unfinished sequence; stale interactions and future seals cannot open doors',()=>{

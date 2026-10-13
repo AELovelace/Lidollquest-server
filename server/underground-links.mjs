@@ -1,5 +1,5 @@
 import {fullDungeons} from './full-dungeons.mjs';
-import {CATACOMBS,reconcileCatacombReservations} from './catacombs.mjs';
+import {CATACOMBS,reconcileCatacombReservations,reconcileCatacombCutouts} from './catacombs.mjs';
 
 const route=id=>fullDungeons.find(d=>d.config.zone_id===id);
 const links=d=>[...(d?.config.endpoints??[]),...(d?.config.catacombs?.reserved??[])];
@@ -9,14 +9,14 @@ export function undergroundLinked(a,b){
 } // Only authored reciprocal dungeon connections can transfer a character.
 
 export function upgradeUndergroundFloor(f,ready){
- let changed=false;
+ let changed=reconcileCatacombCutouts(f,route('dungeon-'+f.route)?.config.catacombs?.wall_cutouts);
  if(['castle-dungeon','littlebig-sewers'].includes(f.route)&&ready(CATACOMBS,f)){
   for(const e of f.exits??[])if(e.zone==='arcadia-foundry'){e.zone=CATACOMBS;e.name='Memorial Galleries';changed=true;}
   if(f.entries?.['arcadia-foundry']){f.entries[CATACOMBS]=f.entries['arcadia-foundry'];delete f.entries['arcadia-foundry'];changed=true;}
   if(changed){f.connectionVersion=1;f.geometryVersion=(f.geometryVersion??0)+1;}
  }
  return reconcileCatacombReservations(f,ready)||changed;
-} // Saved exits retain their cells, terrain, encounter identities and personal claims.
+} // Retarget old Arcadia exits in place; Catacombs entranceVersion adds wall approaches without rerolling content or claims.
 
 export function normalizeUndergroundReturn(s){
  const v=s.dive;if(!v||!['castle-dungeon','littlebig-sewers'].includes(v.route))return false;
