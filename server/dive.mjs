@@ -314,7 +314,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  function hearing(p,s){return config.features?.echo?echoReading(s,config.features.echo,config.pursuit_steps,now(),echoItems()).reach:config.pursuit_steps??Infinity;} // Path steps within which a monster notices this player (pursuit_steps everywhere but the Gulch; routes without one, like the Quarters, chase from any distance).
  function pursuitTargets(active,players){ // Share immunity and party-readiness checks between immediate contact and calculated pursuit.
   return players.filter(p=>{const s=JSON.parse(p.state);const ready=(parties?.members(p.character_id)??[]).every(c=>{const v=JSON.parse(c.state);return v.pendingDefeat||v.dive?.route!==route||v.dive?.edition!==active.edition||(!v.run&&!v.dungeonScene&&!v.worldTurnDue&&!v.pendingPurchase&&v.loadout?.player_info.playerHealth>0);});if(ready)p.reach=hearing(p,s); // Parsed state is at hand here, so each player's hearing distance is worked out once per tick.
-   return ready&&(!live?.published().enabled||s.contentVersion===1)&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.dungeonScene&&!s.worldTurnDue&&s.dive.safeUntil<=now()&&!safe(active.floor,p.x,p.y);}); // Storing points cannot grant immunity from roaming enemies or block party encounters.
+   return ready&&(!live?.published().enabled||s.contentVersion===1)&&!s.pendingDefeat&&s.dive?.edition===active.edition&&!s.run&&!s.dungeonScene&&!s.worldTurnDue&&(s.dive.safeUntil??0)<=now()&&!safe(active.floor,p.x,p.y);}); // A missing saved timer grants no immunity; explicit arrival/recovery deadlines and safe rooms still protect the player.
  }
  function roam(active,players,plans=null,tickAt=now()){
   const f=active.floor;

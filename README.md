@@ -1229,6 +1229,8 @@ This is a service-only fix; restart the updated service without resetting maps.
 real compute and snapshot workers. This reproduction does not inspect the live
 server's worker state or establish which guard affected a particular character.
 
+Mana Caves contact regression (2026-10-13): a saved visit without `dive.safeUntil` previously failed the automatic-contact eligibility check indefinitely, although manual engagement still worked. Missing timers now mean no temporary immunity; explicit arrival/recovery deadlines and safe rooms remain protected. `mana-caves-travel.test.mjs` checks every ordinary cave enemy through pursuit, contact and its first attack, including a visit with no timer. `enemy-contact-service.test.mjs` covers Mana Caves contact through HTTP with real compute/snapshot workers. This reproduces a possible cause, not a diagnosis of a production character. Deploy/restart the service to apply; no client rebuild, map reset or save migration is required.
+
 ### Rose-only Quarters entry and client text shadows
 
 `dungeonPortals` offers Quarters only at Rose Court (6,4). Lantern and Clockwork no longer accept new Quarters entries, including legacy direct-lobby requests; their other pads retain their coordinates. Existing Quarters visits reconnect and return to their stored hall normally, preserving editions and progress. Deploy this service before the rebuilt client, whose world labels and Dive status use the HUD shadow color instead of black plates. No database migration or floor reset is needed. `test/rose-hall-access.test.mjs` covers exact rosters, forged entry and legacy visit recovery.

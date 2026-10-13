@@ -8,6 +8,7 @@ import {hubData} from '../server/hubs.mjs';
 import {combatData} from '../server/combat.mjs';
 import {fullDungeons} from '../server/full-dungeons.mjs';
 import {solveDungeonPuzzle} from '../server/full-dungeon-generation.mjs';
+import {inside,pathTo,walkable} from '../server/dive-generation.mjs';
 
 function fixture(){
  const db=new DatabaseSync(':memory:'),live=createWorldContent(db,{spells:combatData.spells,equipment:hubData.equipment});let time=Date.parse('2026-09-24T12:00:00Z'),api;const ids={};
@@ -34,6 +35,25 @@ test('Utopia -> Mana Caves -> Catacombs -> Sewers works both ways and Escape kee
   const p=f.map().portals.find(p=>p.target===MANA);f.place('a',p);f.act('a','dive_enter',{zone:MANA});cross(f,CAT);cross(f,'honeydew-lantern');
   f.place('a',f.map().portals.find(p=>p.target===CAT));f.act('a','dive_enter',{zone:CAT});cross(f,MANA);cross(f,'utopia-arcanum');
   f.place('a',f.map().portals.find(p=>p.target===MANA));f.act('a','dive_enter',{zone:MANA});cross(f,CAT);cross(f,'dungeon-castle-dungeon');cross(f,'princess-rose-garden');
+ }finally{f.close();}
+});
+
+for(const [type,legacy] of [['prism_wisp',false],['geode_crawler',false],['conduit_construct',false],['echo_shade',false],['prism_wisp',true]])test(type+' approaches, automatically starts shared combat, and takes its enemy turn'+(legacy?' without a saved immunity timer':''),()=>{
+ const f=fixture();try{
+  entry(f);const visit=f.snap().character.dive,row=f.db.prepare('SELECT * FROM dive_editions WHERE route=? AND edition=?').get(visit.route,visit.edition),floor=JSON.parse(row.content);
+  const foe=floor.enemies.find(e=>e.roaming&&e.type===type);assert.ok(foe);let path;
+  for(let y=1;y<floor.height-1&&!path;y++)for(let x=1;x<floor.width-1&&!path;x++){
+   if(!walkable(floor,x,y))continue;const candidate=pathTo(floor,foe,{x,y},3);
+   if(candidate?.length===3&&candidate.every(p=>!floor.safeRooms.some(r=>inside(r,p.x,p.y))&&!floor.enemies.some(e=>e.id!==foe.id&&e.x===p.x&&e.y===p.y)))path=candidate;
+  }
+  assert.ok(path);for(const e of floor.enemies)e.nextStep=e.id===foe.id?0:f.snap().serverTime+60000;
+  f.db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=?').run(JSON.stringify(floor),visit.route,visit.edition);
+  f.place('a',path.at(-1));state(f,'a',s=>{if(legacy)delete s.dive.safeUntil;else s.dive.safeUntil=0;}); // Missing legacy timers must mean no protection, just like an expired timer.
+  for(let step=0;step<3;step++){f.advance(1200);f.api.tick();}
+  const run=state(f,'a',()=>{}).run;assert.equal(run?.encounter,foe.id);assert.ok(run.sharedEncounter);
+  const encounter=()=>JSON.parse(f.db.prepare('SELECT state FROM quest_dive_encounters WHERE id=?').get(run.sharedEncounter).state);
+  const before=encounter().enemies.find(e=>e.id===foe.id).readyAt;f.advance(6500);f.api.tick();
+  assert.ok(encounter().enemies.find(e=>e.id===foe.id).readyAt>before,'the contacted enemy must execute its attack and schedule its next turn');
  }finally{f.close();}
 });
 
