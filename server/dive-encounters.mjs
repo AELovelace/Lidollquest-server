@@ -30,7 +30,7 @@ export function enemyActionDelay(dex,roll,tuning=encounterTuning){
 }
 
 export function selectReinforcements(floor,foe,data,roll,time,tuning=encounterTuning){
- const max=(foe.definition??data.enemies[foe.type]).hp,pool=floor.enemies.filter(e=>!e.manual&&!foe.manual&&e.id!==foe.id&&(e.definition??data.enemies[e.type])?.temperament!=='neutral'&&(foe.definition??data.enemies[foe.type])?.temperament!=='neutral'&&!e.engaged&&e.respawnAt<=time&&(e.definition??data.enemies[e.type])?.hp<=max);
+ const max=(foe.definition??data.enemies[foe.type]).hp,pool=floor.enemies.filter(e=>!e.manual&&!foe.manual&&e.id!==foe.id&&!(e.definition??data.enemies[e.type])?.sanctuary&&(e.definition??data.enemies[e.type])?.temperament!=='neutral'&&(foe.definition??data.enemies[foe.type])?.temperament!=='neutral'&&!e.engaged&&e.respawnAt<=time&&(e.definition??data.enemies[e.type])?.hp<=max);
  const chosen=[foe];if(pool.length&&roll(10000)<tuning.second_enemy_chance*10000){
   chosen.push(pool.splice(roll(pool.length),1)[0]);
   if(pool.length&&roll(10000)<tuning.third_enemy_chance*10000)chosen.push(pool.splice(roll(pool.length),1)[0]);
@@ -38,6 +38,7 @@ export function selectReinforcements(floor,foe,data,roll,time,tuning=encounterTu
 } // Draw actual living floor monsters without replacement; their existing IDs carry locks and boss entitlements.
 
 export function selectEncounterEnemies(floor,foe,data,roll,time){
+ if((foe.definition??data.enemies[foe.type]).sanctuary)return [foe]; // Optional sanctuary guardians never join unrelated battles or pull roaming reinforcements.
  const guards={matron_rosalind_boss:'nanny_sentinel',slime_queen_boss:'bottle_slime',school_nurse:'teachers_pet',school_nurse_boss:'teachers_pet'};
  const guard=guards[(foe.definition??data.enemies[foe.type]).enemy_id];
  if(guard&&data.enemies[guard])return [foe,...[1,2].map(index=>({id:foe.id+':escort:'+index,type:guard}))];

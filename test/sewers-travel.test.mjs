@@ -11,7 +11,7 @@ function fixture(){
  const command=(who,action,extra={})=>{const r=snap(who);return {action,controller:who,character_id:ids[who],revision:r.character.revision,request_id:randomUUID(),...(r.character.dive?{edition:r.dive.edition}:{}),...extra};};
  const send=(who,input)=>{time+=700;return api.act(who,input);},act=(who,action,extra)=>send(who,command(who,action,extra));
  const place=(who,p)=>{const s=JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(ids[who]).state);if(s.dive){s.dive.position={x:p.x,y:p.y};s.dive.safeUntil=time+600000;}db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(s),ids[who]);db.prepare('UPDATE quest_presence SET x=?,y=?,seen=?,moved=0 WHERE character_id=?').run(p.x,p.y,time,ids[who]);};
- const create=(who,zone,version=1)=>{ids[who]=api.act(who,{action:'create',name:who,controller:who,request_id:randomUUID()}).character.id;act(who,'enter',{zone,sewer_version:version,full_dungeon_version:1,content_version:1,quest_version:1,combat_version:3,loadout:{player_info:{playerHealth:1000,playerHealthMax:1000,stamina:100,stamina_max:100,str:20,def:20,dex:20,cha:10,level:5,equipped_socks:'knee_socks',equipped_shoes:'boots'},inventory:[],player_spells:[],world:{crawling:false}}});};
+ const create=(who,zone,version=1)=>{ids[who]=api.act(who,{action:'create',name:who,controller:who,request_id:randomUUID()}).character.id;act(who,'enter',{zone,catacombs_version:1,sewer_version:version,full_dungeon_version:1,content_version:1,quest_version:1,combat_version:3,loadout:{player_info:{playerHealth:1000,playerHealthMax:1000,stamina:100,stamina_max:100,str:20,def:20,dex:20,cha:10,level:5,equipped_socks:'knee_socks',equipped_shoes:'boots'},inventory:[],player_spells:[],world:{crawling:false}}});};
  const map=(who='a')=>{const r=snap(who);return r.zones.find(z=>z.id===r.zone);};
  const enter=(who,host)=>{create(who,host);place(who,map(who).portals.find(p=>p.target==='dungeon-littlebig-sewers'));act(who,'dive_enter',{zone:'dungeon-littlebig-sewers'});};
  return {db,snap,command,send,act,place,create,map,enter,ids,advance(ms){time+=ms;api.tick();},restart(){api.close();start();},close(){api.close();db.close();}};
@@ -19,7 +19,7 @@ function fixture(){
 const adjacent=(map,p)=>[[1,0],[-1,0],[0,1],[0,-1]].map(([dx,dy])=>({x:p.x+dx,y:p.y+dy})).find(p=>map.walls[p.y]?.[p.x]===0&&!map.props[p.y]?.[p.x]);
 test('city manholes, shared valve receipts, independent claims and persistence',()=>{
  const f=fixture();try{
-  f.enter('a','littlebig-clockwork');f.enter('b','arcadia-foundry');assert.equal(f.snap().zone,'dungeon-littlebig-sewers');
+  f.enter('a','littlebig-clockwork');f.enter('b','littlebig-clockwork');assert.equal(f.snap().zone,'dungeon-littlebig-sewers');
   const map=f.map(),valve=map.fixtures.find(v=>v.kind==='sluice');f.place('a',adjacent(map,valve));
   const request=f.command('a','dungeon_interact',{fixture:valve.id,mechanism_revision:0});f.send('a',request);f.send('a',request);
   assert.equal(f.map().mechanismRevision,1);assert.equal(f.map('b').mechanismRevision,1);
@@ -28,8 +28,8 @@ test('city manholes, shared valve receipts, independent claims and persistence',
   const chest=f.snap().dive.chests[0];f.place('a',chest);const claim=f.command('a','dive_claim',{chest:chest.id});f.send('a',claim);f.send('a',claim);
   assert.equal(f.snap().dive.chests.find(c=>c.id===chest.id).claimed,true);assert.equal(f.snap('b').dive.chests.find(c=>c.id===chest.id).claimed,false);
   f.restart();assert.equal(f.map().mechanismRevision,1);assert.equal(f.snap().dive.chests.find(c=>c.id===chest.id).claimed,true);
-  const exit=f.map().exits.find(e=>e.zone==='arcadia-foundry');f.place('a',{x:exit.x,y:exit.y+1});assert.equal(f.act('a','move',{direction:'north'}).zone,'arcadia-foundry');
-  assert.equal(f.act('b','dive_exit').zone,'arcadia-foundry');
+  const exit=f.map().exits.find(e=>e.zone==='dungeon-honeydew-catacombs-1');f.place('a',{x:exit.x,y:exit.y+1});assert.equal(f.act('a','move',{direction:'north'}).zone,'dungeon-honeydew-catacombs-1');
+  assert.equal(f.act('b','dive_exit').zone,'littlebig-clockwork');
  }finally{f.close();}
 });
 test('older clients cannot enter the sewer and incoming pipe steps enforce clearance',()=>{

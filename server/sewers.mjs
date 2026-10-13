@@ -72,7 +72,7 @@ export function generateSewers(data,edition,depth=1){
   const index=branches.length;branches.push({state:1,paths:[paths[edge],short],rooms:[edge,edge+1]});
   for(const [end,r] of [a,b].entries())f.fixtures.push({id:'sluice-'+index+'-'+end,kind:'sluice',branch:index,name:'Sluice',sprite:'sprSewerValve',x:r.cx-2,y:r.cy-2,span_w:1,span_h:1,solid:true});
  }
- for(const [i,zone,name] of [[0,'littlebig-clockwork','LittleBigCity'],[17,'arcadia-foundry','Arcadia']]){const r=f.rooms[i];f.exits.push({x:r.cx,y:r.cy,zone,name,style:'stairs'});f.entries[zone]={x:r.cx,y:r.cy+1};f.safeRooms.push({...r});}
+ for(const [i,zone,name] of c.endpoints.map((e,n)=>[n===0?0:17,e.zone,e.name])){const r=f.rooms[i];f.exits.push({x:r.cx,y:r.cy,zone,name,style:'stairs'});f.entries[zone]={x:r.cx,y:r.cy+1};f.safeRooms.push({...r});}
  f.entrance={...f.entries['littlebig-clockwork']};
  for(const i of [5,11]){const r=f.rooms[i];f.safeRooms.push({...r});for(const [kind,dx,sprite,name] of [['bed',-2,'sprBed','Maintenance cot'],['toilet',2,data.service_profiles.toilet.sprite,'Maintenance toilet']])f.fixtures.push({id:kind+'-'+i,kind,bed:'objBedCot',style:'porcelain',name,sprite,x:r.cx+dx,y:r.cy-1,span_w:1,span_h:1,solid:true});}
  for(const fix of f.fixtures)f.props[fix.y][fix.x]=1;

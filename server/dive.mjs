@@ -35,6 +35,8 @@ import {hubArrival,routePortals,routeHome,returnSource,wildernessGates,hubRooms,
 import {routeCategory,isRouteZoneId} from './zone-categories.mjs';
 import {inExit,nearExit} from './wilderness-links.mjs';
 import {createDungeonRules,recordDungeonVictories} from './full-dungeon-rules.mjs';
+import {isCatacombs} from './catacombs.mjs';
+import {normalizeUndergroundReturn} from './underground-links.mjs';
 import {repairFullDungeonContent} from './full-dungeon-generation.mjs';
 import {industrialUnlocked,prepareIndustrialBoss} from './arcadia-industrial.mjs';
 import {findShop,shopOffers,shopperLevel,hubData} from './hubs.mjs';
@@ -71,7 +73,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
  const existsQuery=db.prepare('SELECT 1 FROM dive_editions WHERE route=? AND edition=? AND depth=1');
  const enabledQuery=db.prepare('SELECT 1 FROM dive_editions WHERE route=? AND depth=1 LIMIT 1');
  const newestQuery=db.prepare('SELECT edition FROM dive_editions WHERE route=? ORDER BY starts DESC,updated DESC LIMIT 1'); // Answered from dive_editions_latest alone.
- const getFloor=edition=>{const row=measure('floor.read',()=>floorQuery.get(route,edition??null));if(!row)return null;const floor=measure('floor.decode',()=>JSON.parse(row.content));if(live?.cleanFloor?.(floor))saveFloor({...row,floor});if(live)for(const foe of floor.enemies)foe.definition??=clone(baseline.enemies[foe.type]??data.enemies[foe.type]);floor.managedOccupancy=live?.placementPositions?.(zoneId,row.edition)??[];return {...row,floor};}; // Saved maps lose removed NPCs in place, retaining their edition, treasure claims and encounter state.
+ const getFloor=edition=>{const row=measure('floor.read',()=>floorQuery.get(route,edition??null));if(!row)return null;const floor=measure('floor.decode',()=>JSON.parse(row.content));if(upgradeFloor(floor)|!!live?.cleanFloor?.(floor))saveFloor({...row,floor});if(live)for(const foe of floor.enemies)foe.definition??=clone(baseline.enemies[foe.type]??data.enemies[foe.type]);floor.managedOccupancy=live?.placementPositions?.(zoneId,row.edition)??[];return {...row,floor};}; // Saved maps lose removed NPCs in place, retaining their edition, treasure claims and encounter state.
  const latest=()=>{
   const newest=newestQuery.get(route)?.edition; // Most recently installed floor, whatever week it came from.
   const week=config.static&&newest?newest.slice(0,10):weeklyWindow(now()).edition; // Static routes stay pinned to their newest floor's week instead of the calendar week.
@@ -111,11 +113,11 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   for(let yy=Math.max(0,y-6);yy<=Math.min(f.height-1,y+6);yy++)for(let xx=Math.max(0,x-6);xx<=Math.min(f.width-1,x+6);xx++)if((xx-x)**2+(yy-y)**2<=36&&visible(xx,yy))seen.add(yy*f.width+xx);
   p.explored=[...seen];saveProgress(c,f.edition,p);state.dive.position={x,y};
  } // Match the campaign's six-cell circular reveal and structural-wall line of sight.
- function current(){return getFloor(latest());}
+ function current(){const record=getFloor(latest());return config.catacombs&&!config.static&&record&&!record.edition.startsWith(weeklyWindow(now()).edition)?null:record;} // Do not enter last week's catacombs while a new edition is generating.
  function chatArea(c,p){
   const state=JSON.parse(c.state),visit=state.dive;
   if(!owns(visit)||!existsQuery.get(route,visit.edition??null))return null; // Only asks whether the floor exists: decoding the whole floor for its id cost a full JSON.parse per snapshot, per RP candidate and per chat hearer.
-  return {id:JSON.stringify([zoneId,route,visit.edition,1]),name:name+' floor 1'}; // getFloor() only ever reads depth 1, so the id and name are unchanged.
+  return {id:JSON.stringify([zoneId,route,visit.edition,1]),name:config.catacombs?name:name+' floor 1'}; // getFloor() only ever reads depth 1, so the id and name are unchanged.
  } // One stream per route, edition and floor; who hears a line is decided by distance from the speaker's tile (chatReach in zones.mjs), not by room walls.
  function ensure(){
   if(closed||!config.enabled)return;
@@ -145,6 +147,7 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   return true;
  }
  function back(c,state,destination){
+  normalizeUndergroundReturn(state);if(!destination||!isCatacombs(destination))delete state.graveChill; // An expedition return must always name its original surviving surface entrance.
   if(state.pendingDefeat){state.pendingDefeat.returnToHub=true;return;} // Weekly reset may retire the floor, but never interrupts its unread defeat scene.
   const linked=destination?hubRooms.find(r=>r.routeExit?.route===zoneId&&r.routeExit.via===destination):null; // A route exit that now opens into a safe hub room (the Plains barn pad -> the Farmstead, farmhouse-room.mjs).
   if(linked){const arrival={...linked.spawn};db.prepare('UPDATE quest_presence SET zone=?,x=?,y=?,moved=? WHERE character_id=?').run(linked.id,arrival.x,arrival.y,now(),c.id);state.hubVisit=linked.id;state.dive=null;state.diveReturned=linked.id;state.diveReturnedPosition=arrival;return;} // Stand just inside its door; hubVisit restores the room on reconnect.
@@ -347,9 +350,10 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(!record||p?.zone!==zoneId||!owns(state?.dive))return {dive:summary};
   const f=record.floor;
   if(f.industrial)summary.industrial={...f.industrial,phase:personal.industrialPhase??0};
-  return {beaconFloor:f,dive:{...summary,...(config.features?.cavern_breath?{cavernBreath:{...cavernBreath(config.features.cavern_breath,now()),step_delay_ms:config.features.cavern_breath.step_delay_ms??100}}:{}),depth:1,origin:state.dive.origin,explored:personal.explored,...(dungeonRules?{scene:dungeonRules.scene(state),mechanismRevision:f.mechanismRevision,puzzles:f.puzzles}:{}),...(config.features?.rain?{weather:weatherAt(route,config.features.rain,now())}:{}),...(smokeCfg()?.enabled?{smoke:smokeView(route,f,smokeCfg(),now(),record.edition)}:{}),...(config.features?.tide?{tide:{...tideAt(route,config.features.tide,now()),reach:config.features.tide.reach??3,wade_wet:config.features.tide.wade_wet??2}}:{}),...(config.features?.eruption?{eruption:{...eruptionAt(route,config.features.eruption,now()),radius:config.features.eruption.radius??3,startle_wet:config.features.eruption.startle_wet??35}}:{}),...(config.features?.flood?{flood:{...floodAt(route,config.features.flood,now()),wash_wet:config.features.flood.wash_wet??3,startle_wet:config.features.flood.startle_wet??30,soak_slots:config.features.flood.soak_slots??['socks','shoes','pants']}}:{}),...(config.features?.echo?{echo:{...echoReading(state,config.features.echo,config.pursuit_steps,now(),echoItems()),base:config.pursuit_steps}}:{}),...(config.features?.whisper?{whisper:{cooldown_seconds:config.features.whisper.cooldown_seconds??120}}:{}), /* Echo Gulch: the client listens again as you pass a stone only once this has passed. */enemies:f.enemies.filter(e=>!(e.manual&&!e.respawning&&e.dead)&&!gone(e)).map(e=>({...e,definition:undefined,nextStep:undefined,temperament:e.definition?.temperament??'hostile',name:(e.definition??data.enemies[e.type]).name,sprite:(e.definition??data.enemies[e.type]).sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",category,exits:f.exits??[],theme,...(f.sewer?{sewer:f.sewer}:{}),...(f.caveChannels?{caveChannels:f.caveChannels,caveInlets:f.caveInlets,caveLandmarks:f.caveLandmarks}:{}),...(dungeonRules?{fullDungeonVersion:1,fixtures:f.fixtures.map(v=>v.kind==='shop'?{...v,offers:shopOffers(zoneId,findShop(v.id),now(),shopperLevel(state))}:v),puzzles:f.puzzles,mechanismRevision:f.mechanismRevision}:{}),mist:f.mist,walls:f.walls,props:f.props,geometryVersion:f.geometryVersion??0,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,...(f.lullabyRooms?{lullabyRooms:f.lullabyRooms}:{}),decorations:f.decorations,...(f.cover?{cover:f.cover,exposed:!!f.exposed}:{}),...(f.shore?{shore:f.shore}:{}),...(f.wash?{wash:f.wash}:{}),...(f.crater?{crater:f.crater}:{}),...(f.paint?{paint:f.paint}:{}),...(f.heat?{heat:{...f.heat,thirst_per_step:config.features?.heat?.thirst_per_step??3,sweat_percent:config.features?.heat?.sweat_percent??50}}:{})}}; // paint: GM Palette brush tiles from any palette (floor-patches.mjs), drawn by the client's online_paint_layer_draw. // crater/heat: Emberfall Caldera's lava lake and the overheated ring round it. // shore: the Seafoam Coast's shoreline column per row (sea to its east, tide flats just west of it). // wash: Echo Gulch's dry riverbed rows ('1' floods). // cover/exposed: the Autumnal Plains' tall grass and open fields (plains-features.mjs).
+  return {beaconFloor:f,dive:{...summary,...(config.catacombs?{graveChill:state.graveChill?.steps??0}:{}),...(config.features?.cavern_breath?{cavernBreath:{...cavernBreath(config.features.cavern_breath,now()),step_delay_ms:config.features.cavern_breath.step_delay_ms??100}}:{}),depth:1,origin:state.dive.origin,explored:personal.explored,...(dungeonRules?{scene:dungeonRules.scene(state),mechanismRevision:f.mechanismRevision,puzzles:f.puzzles}:{}),...(config.features?.rain?{weather:weatherAt(route,config.features.rain,now())}:{}),...(smokeCfg()?.enabled?{smoke:smokeView(route,f,smokeCfg(),now(),record.edition)}:{}),...(config.features?.tide?{tide:{...tideAt(route,config.features.tide,now()),reach:config.features.tide.reach??3,wade_wet:config.features.tide.wade_wet??2}}:{}),...(config.features?.eruption?{eruption:{...eruptionAt(route,config.features.eruption,now()),radius:config.features.eruption.radius??3,startle_wet:config.features.eruption.startle_wet??35}}:{}),...(config.features?.flood?{flood:{...floodAt(route,config.features.flood,now()),wash_wet:config.features.flood.wash_wet??3,startle_wet:config.features.flood.startle_wet??30,soak_slots:config.features.flood.soak_slots??['socks','shoes','pants']}}:{}),...(config.features?.echo?{echo:{...echoReading(state,config.features.echo,config.pursuit_steps,now(),echoItems()),base:config.pursuit_steps}}:{}),...(config.features?.whisper?{whisper:{cooldown_seconds:config.features.whisper.cooldown_seconds??120}}:{}), /* Echo Gulch: the client listens again as you pass a stone only once this has passed. */enemies:f.enemies.filter(e=>!(e.manual&&!e.respawning&&e.dead)&&!gone(e)).map(e=>({...e,definition:undefined,nextStep:undefined,temperament:e.definition?.temperament??'hostile',name:(e.definition??data.enemies[e.type]).name,sprite:(e.definition??data.enemies[e.type]).sprite})),chests:f.chests.map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)})),pickups:(f.pickups??[]).map(ch=>({...ch,claimed:personal.claimed.includes(ch.id)}))},definition:{id:zoneId,name,kind:"dungeon",category,exits:f.exits??[],theme,...(f.catacombs?{catacombs:f.catacombs}:{}),...(f.sewer?{sewer:f.sewer}:{}),...(f.caveChannels?{caveChannels:f.caveChannels,caveInlets:f.caveInlets,caveLandmarks:f.caveLandmarks}:{}),...(dungeonRules?{fullDungeonVersion:1,fixtures:f.fixtures.map(v=>v.kind==='shop'?{...v,offers:shopOffers(zoneId,findShop(v.id),now(),shopperLevel(state))}:v),puzzles:f.puzzles,mechanismRevision:f.mechanismRevision}:{}),mist:f.mist,walls:f.walls,props:f.props,geometryVersion:f.geometryVersion??0,dressingVersion:f.dressingVersion??0,width:f.width,height:f.height,rooms:f.rooms,entrance:f.entrance,...(f.lullabyRooms?{lullabyRooms:f.lullabyRooms}:{}),decorations:f.decorations,...(f.cover?{cover:f.cover,exposed:!!f.exposed}:{}),...(f.shore?{shore:f.shore}:{}),...(f.wash?{wash:f.wash}:{}),...(f.crater?{crater:f.crater}:{}),...(f.paint?{paint:f.paint}:{}),...(f.heat?{heat:{...f.heat,thirst_per_step:config.features?.heat?.thirst_per_step??3,sweat_percent:config.features?.heat?.sweat_percent??50}}:{})}}; // paint: GM Palette brush tiles from any palette (floor-patches.mjs), drawn by the client's online_paint_layer_draw. // crater/heat: Emberfall Caldera's lava lake and the overheated ring round it. // shore: the Seafoam Coast's shoreline column per row (sea to its east, tide flats just west of it). // wash: Echo Gulch's dry riverbed rows ('1' floods). // cover/exposed: the Autumnal Plains' tall grass and open fields (plains-features.mjs).
  } // Snapshots expose claim status but never another character's inventory or chest rolls.
  function claim(c,state,record,chest,automatic=false){
+  if(chest.requires_memorial&&!record.floor.catacombs?.puzzles.find(q=>q.id===chest.requires_memorial)?.solved){if(automatic)return;fail('Complete the memorial before claiming its treasure.');}
   if(chest.requires_machine&&!industrialUnlocked(record.floor.fixtures.find(v=>v.id===chest.requires_machine))){if(automatic)return;fail('Use the production cutoff or park the cargo at berth 3 before opening this salvage locker.');}
   if(chest.puzzle&&!record.floor.puzzles.find(p=>p.id===chest.puzzle)?.solved)fail('Push the blocks to open this chest first.');
   const personal=progress(c,record.edition);if(chest.requires_encounter&&!personal.defeated?.includes(chest.requires_encounter)){if(automatic)return;fail('Defeat the guarding boss before claiming this treasure.');}if(personal.claimed.includes(chest.id)){if(automatic)return;fail('You already claimed this treasure this week.');}
@@ -374,9 +378,10 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   if(p&&state.loadout)sewerStance(owns(state.dive)?getFloor(state.dive.edition)?.floor??{}:{},state,p.x,p.y); // Restore authoritative clearance after client loadout imports.
   if(action==='stand'&&state.loadout?.world?.environment_crawl)fail('The overhead pipes are too low to stand here.'); // Explain clearance even when a standing request arrives outside combat.
   if(action==='dive_enter'||action==='enter'){
+   if(config.catacombs&&state.catacombsVersion!==1)fail('Update the game before entering the catacombs.','client_update_required');
    if(config.sewer&&state.sewerVersion!==1)fail('Update the game before entering the sewers.','client_update_required');
    if(config.full_dungeon_version&&(state.fullDungeonVersion!==1||state.questVersion!==1))fail('Update the game to enter full campaign dungeons.','client_update_required');
-   if(controls?.draining()&&!state.dive)fail('This Dive is being regenerated.');
+   if(!state.dive&&(controls?.draining()||(config.full_dungeon_version&&controls?.busy())))fail('This Dive is being regenerated.'); // Existing visitors may reconnect; new arrivals wait for the replacement floor.
    if(state.dive&&input.zone&&input.zone!==zoneId)fail('Leave your current dungeon before changing routes.'); // Re-entry cannot change a live visit's route or imported inventory.
    if(!config.enabled)fail('Dungeon Dive is not enabled.');
    const existing=db.prepare('SELECT * FROM quest_presence WHERE owner=?').get(i.owner);
@@ -507,12 +512,14 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   }
  }
  function arrive(c,state,source){
+  if(config.catacombs&&state.catacombsVersion!==1)fail('Update the game before entering the catacombs.','client_update_required');
   if(config.sewer&&state.sewerVersion!==1)fail('Update the game before entering the sewers.');
   if(config.features?.cavern_breath&&state.cavernVersion!==1)fail('Update your game client before entering Coastal Caverns.'); // Older clients cannot display low-channel warnings.
-  if(controls?.draining())fail('This Dive is being regenerated.');
+  if(controls?.draining()||(config.full_dungeon_version&&controls?.busy()))fail('This Dive is being regenerated.');
   const record=current(),position=record?.floor.entries?.[source];
-  if(!config.enabled||!position)fail('That connecting trail is unavailable.');
+  if(!config.enabled||!position||(config.full_dungeon_version&&!record.floor.exits?.some(e=>e.zone===source)))fail('That connecting trail is unavailable.'); // A reciprocal landing and exit must both be installed.
   if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(zoneId,now()-30000,c.owner).n>=64)fail('The dive is full.');
+  normalizeUndergroundReturn(state);if(!isCatacombs(zoneId))delete state.graveChill;
   const previous=state.dive;
   state.dive={route,zone:zoneId,edition:record.edition,depth:1,origin:source,hubOrigin:previous.hubOrigin??previous.origin,hubEntryZone:previous.hubEntryZone??source,returnZone:previous.returnZone,position:{...position},safeUntil:now()+10*seconds};
   state.diveReturned=null;delete state.diveReturnedPosition;
@@ -521,8 +528,9 @@ export function createDive(db,{now,roll,adjust,origins,data=diveData,generate=ge
   sewerStance(record.floor,state,position.x,position.y); // Linked travel starts with the destination's clearance.
  }
  function gmPlace(c,state,visit){
+  if(config.catacombs&&state.catacombsVersion!==1)fail('Update the game before entering the catacombs.','client_update_required');
   if(config.sewer&&state.sewerVersion!==1)fail('Update the game before entering the sewers.'); // Gamemaster warp into this route's shared weekly floor, building the same visit record a portal or trail would.
-  if(controls?.draining())fail('This Dive is being regenerated.');
+  if(controls?.draining()||(config.full_dungeon_version&&controls?.busy()))fail('This Dive is being regenerated.');
   const record=(visit.edition&&getFloor(visit.edition))||current(); // Join a player still finishing last week's floor, otherwise the current week.
   if(!config.enabled||!record)fail('This Dive has no floor ready this week.');
   if(db.prepare('SELECT COUNT(*) AS n FROM quest_presence WHERE zone=? AND seen>? AND owner<>?').get(zoneId,now()-30000,c.owner).n>=64)fail('The dive is full.');

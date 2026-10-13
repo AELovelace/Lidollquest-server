@@ -50,7 +50,7 @@ export function createMapRenderer({tiles={sprites:{},tilesets:{}},compiled={},av
    if(f.kind==='shop'){if(!drawStanding(canvas,avatarSprite.get(f.id)??f.sprite,f.x,f.y))drawMarker(canvas,f.x,f.y,[190,120,220,255]);continue;}
    if(f.kind==='bank'){drawFit(canvas,'sprItem',f.x,f.y,AQUA);continue;}
    if(f.kind==='dumpster'){drawFit(canvas,'sprCityTrashCan',f.x,f.y)||drawMarker(canvas,f.x,f.y,[120,120,120,255]);continue;}
-   if(typeof f.sprite==='string'&&f.sprite&&(SCENERY_KINDS.has(f.kind)||f.kind==='bed')){const img=image(f.sprite);if(img){blit(canvas,img,f.x*TILE_SIZE,f.y*TILE_SIZE,frameOf(img));continue;}}
+   if(typeof f.sprite==='string'&&f.sprite&&(SCENERY_KINDS.has(f.kind)||f.kind==='bed'||f.kind?.startsWith('catacomb_')||f.kind?.startsWith('catacomb_'))){const img=image(f.sprite);if(img){blit(canvas,img,f.x*TILE_SIZE,f.y*TILE_SIZE,frameOf(img));continue;}}
    if(f.kind==='bed'){fillRect(canvas,f.x*TILE_SIZE+4,f.y*TILE_SIZE+6,TILE_SIZE-8,TILE_SIZE-12,[236,201,223,255]);strokeRect(canvas,f.x*TILE_SIZE+4,f.y*TILE_SIZE+6,TILE_SIZE-8,TILE_SIZE-12,[185,135,170,255]);continue;} // Campaign bed objects have no exported sprite: a pink mattress.
    if(f.kind==='token'){drawFit(canvas,f.sprite||'sprItem',f.x,f.y,YELLOW);continue;}
    if(f.kind!=='scenery')drawMarker(canvas,f.x,f.y,[255,204,102,255]); // Pads, pushables, levers and other full-dungeon fixtures.

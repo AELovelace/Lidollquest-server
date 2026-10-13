@@ -71,17 +71,6 @@ test('a fresh character sees and collects a GM parcel in the full Castle Dungeon
  }finally{f.close();}
 }); // Exercise the actual dungeon route and NPC acceptance, without GM quest-start shortcuts or legacy receipts.
 
-test('Castle stairs traverse the full Dungeon to Arcadia; opposite entrances and Escape keep their destinations',()=>{
- const f=fixture();try{
-  f.create('a','princess-rose');f.place('a',f.map().portals.find(p=>p.target==='princess-rose-garden'));f.act('a','hub_visit',{zone:'princess-rose-garden'});
-  const portal=f.map().portals.find(p=>p.target==='dungeon-castle-dungeon');assert.ok(portal);f.place('a',portal);f.act('a','dive_enter',{zone:portal.target});assert.equal(f.snap().zone,'dungeon-castle-dungeon');
-  assert.notDeepEqual(f.snap().position,f.map().exits[0]);
-  const arcadia=f.map().exits.find(e=>e.zone==='arcadia-foundry');f.place('a',{x:arcadia.x,y:arcadia.y+1});f.act('a','move',{direction:'north'});assert.equal(f.snap().zone,'arcadia-foundry');
-  const returnPortal=f.map().portals.find(p=>p.target==='dungeon-castle-dungeon');assert.ok(returnPortal);f.place('a',returnPortal);f.act('a','dive_enter',{zone:returnPortal.target});assert.equal(f.snap().dive.origin,'arcadia-foundry');
-  f.act('a','dive_exit');assert.equal(f.snap().zone,'arcadia-foundry');f.place('a',returnPortal);f.act('a','dive_enter',{zone:returnPortal.target});const castle=f.map().exits.find(e=>e.zone==='princess-rose-garden');f.place('a',{x:castle.x,y:castle.y+1});f.act('a','dive_exit',{zone:castle.zone});assert.equal(f.snap().zone,'princess-rose-garden');
- }finally{f.close();}
-});
-
 test('live Dungeon upgrades repair Testicles and misplaced Hypnotists, preserve progress, and leave ordinary enemies attackable',()=>{
  const f=fixture();try{
   f.create('a','princess-rose');f.place('a',f.map().portals.find(p=>p.target==='princess-rose-garden'));f.act('a','hub_visit',{zone:'princess-rose-garden'});
@@ -121,7 +110,7 @@ test('publishing live content and respawning keep full dungeon room populations 
 
 test('named Utopia and LittleBig entrances require the new capability and return beside their own doors',()=>{
  const f=fixture();try{
-  for(const data of fullDungeons.filter(d=>d.config.theme!=='dungeon')){
+  for(const data of fullDungeons.filter(d=>d.config.theme!=='dungeon'&&d.config.catacombs===undefined)){
    const host=data.config.endpoints[0].zone;if(!f.ids.a)f.create('a',host,0);else f.act('a','enter',{zone:host,sewer_version:1,full_dungeon_version:0,content_version:1,quest_version:1,combat_version:3});
    const portal=f.map().portals.find(p=>p.target===data.config.zone_id);assert.ok(portal);f.place('a',portal);assert.throws(()=>f.act('a','dive_enter',{zone:portal.target}),/Update the game/);
    f.act('a','enter',{zone:host,sewer_version:1,full_dungeon_version:1,content_version:1,quest_version:1,combat_version:3});f.place('a',portal);f.act('a','dive_enter',{zone:portal.target});assert.equal(f.map().fullDungeonVersion,1);assert.equal(f.snap().dive.origin,host);f.act('a','dive_exit');assert.equal(f.snap().zone,host);

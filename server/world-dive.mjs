@@ -90,5 +90,5 @@ export function createDiveControls(db,{now,data,live,current,getFloor,saveFloor,
   }
   f.enemies=f.enemies.filter(e=>!e.remove);if(changed)saveFloor(record);
  }
- return {view,place,patch,regenerate,cancel,tick,reconcile,draining:()=>activeJob()?.status==='draining',close(){closed=true;}};
+ return {view,place,patch,regenerate,cancel,tick,reconcile,busy:()=>!!activeJob(),draining:()=>activeJob()?.status==='draining',close(){closed=true;}};
 }

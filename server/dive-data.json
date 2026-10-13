@@ -18242,6 +18242,30 @@
         "default": {
           "base": 5,
           "per_floor": 2
+        },
+        "dungeon-honeydew-catacombs-1": {
+          "base": 50,
+          "per_floor": 0
+        },
+        "dungeon-honeydew-catacombs-2": {
+          "base": 60,
+          "per_floor": 0
+        },
+        "dungeon-honeydew-catacombs-3": {
+          "base": 70,
+          "per_floor": 0
+        },
+        "honeydew-catacombs-1": {
+          "base": 50,
+          "per_floor": 0
+        },
+        "honeydew-catacombs-2": {
+          "base": 60,
+          "per_floor": 0
+        },
+        "honeydew-catacombs-3": {
+          "base": 70,
+          "per_floor": 0
         }
       },
       "shop_levels": {

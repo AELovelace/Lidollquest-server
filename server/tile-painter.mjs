@@ -9,7 +9,7 @@
 // Time-based effects are frozen: caldera lava bubble 0, coast at low tide, gulch wash dry, caverns at ebb.
 
 export const TILE_SIZE=32; // Every atlas is a grid of 32px cells; columns = atlas width / 32 (all shipped atlases are 320 wide = 10 columns).
-export const TERRAIN_THEMES=['tundra','taiga','high_desert','autumn_plains','caldera','spa','coast','gulch','camp','farmstead','coastal_caverns','arcadia_factory','arcadia_dockyard']; // Formula painters mirrored exactly.
+export const TERRAIN_THEMES=['tundra','taiga','high_desert','autumn_plains','caldera','spa','coast','gulch','camp','farmstead','coastal_caverns','arcadia_factory','arcadia_dockyard','catacombs']; // Formula painters mirrored exactly.
 export const POOL_THEMES={ // Client irandom pools (scrTilePainter.gml macros) and the atlas each theme uses; block = floor variants chosen per NxN block like the campaign painters.
  dungeon:{atlas:'sprTileDungeon',floor:[1,1,1,1,2,2,3,4,5],wall:[10,10,10,10,11,11,12,13,14],block:1},
  forest:{atlas:'sprTileForest',floor:[1,1,1,1,2,2,3,3,4,5],wall:[10,10,10,10,11,11,12,13,14],block:1},
@@ -48,6 +48,7 @@ export function paintPlan(floor){ // What kind of painting this floor gets and w
  if(theme==='high_desert')atlases.add('sprTileDesert');
  if(theme==='caldera'||theme==='spa')atlases.add('sprTileCaldera');
  if(theme==='coast'||theme==='coastal_caverns'||theme==='arcadia_dockyard')atlases.add('sprTileCoast');
+ if(theme==='catacombs')atlases.add('sprTileCatacombs');
  if(theme==='gulch')atlases.add('sprTileGulch');
  if(theme==='arcadia_factory'||theme==='arcadia_dockyard')atlases.add('sprTileArcadia');
  const dive=!grids&&!floor.camp&&!floor.farmstead&&!hubPool;
@@ -76,6 +77,7 @@ function terrainLayers(floor,theme,x,y,ctx){ // The mirrored formula painters. E
   const row=floor.cover&&floor.cover[y];if(!wall&&typeof row==='string'&&row.charAt(x)==='1')tile=20+((x*5+y*3)%4); // Tall-grass cover (plains-features.mjs).
   return [{atlas:'sprTileAutumnPlains',tile}];
  }
+ if(theme==='catacombs')return [{atlas:'sprTileCatacombs',tile:(x*7+y*11+(floor.catacombs?.level??1))%5+(wall?5:0)}]; // Same five-column atlas as the client.
  if(theme==='caldera'){
   const crater=floor.crater,cx=crater?crater.x:-1000,cy=crater?crater.y:-1000,r=crater?crater.r:0,d=Math.hypot(x-cx,y-cy);let tile;
   if(wall)tile=d<=r+2.2?15+((x*3+y*5)%5):10+((x*5+y*3)%5); // Lava (bubble frame 0) inside the crater, obsidian crags elsewhere.

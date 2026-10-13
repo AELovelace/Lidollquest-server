@@ -235,7 +235,7 @@ export function generateDistrict(definition,window,data=districtData){
  addDistrictBuildings(f,definition); // Walk-in buildings in the leftover mass (Utopia): own seed, after every seeded roll, so the streets, scenery and residents never move.
  if(lobby){addOuthouses(f,definition,data);addChangers(f,definition,data);addPayToilets(f,definition,data);} // On their own seeds after every fixed roll, and before the wanderers, so residents never change where they stand.
  addArcadiaAir(f,definition); // Arcadia: smog over the smokestack yards and the shift whistle's schedule (client online_arcadia_step).
- addFullDungeonEntrances(f,districtZone(definition),[],gateTargets(definition)); // Reserve entrance footprints before placing passable wanderers, keeping fixed geometry independent of resident upgrades.
+ addFullDungeonEntrances(f,districtZone(definition),[],gateTargets(definition),(lobby?.buildings??[]).map(b=>b.door)); // Reserve entrance footprints before placing passable wanderers, keeping fixed geometry independent of resident upgrades.
  addDistrictResidents(f,definition,data); // Add wanderers after scenery so the original four residents and geometry keep their seeded positions.
  return f;
 } // Host-specific geometry replaces the old universal path lattice; ordinary movement and monthly resets remain shared.
@@ -298,7 +298,7 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
   if(prior&&prior.edition!==layoutKey){const old=db.prepare('SELECT content FROM hub_district_editions WHERE zone=? AND edition=?').get(id,prior.edition);try{beforeActivate(id,f);}catch(error){if(old)return JSON.parse(old.content);throw error;}}
   if(!row)db.prepare('INSERT INTO hub_district_editions VALUES (?,?,?)').run(id,layoutKey,JSON.stringify(f));
   else upgrade(id,f,def); // A resident-only update does not replace the layout or send visitors back to the entrance.
-  if(addFullDungeonEntrances(f,id,visitors(id),gateTargets(def)))persist(id,f); // Add doors to a saved month without replacing content or covering a connected visitor.
+  if(addFullDungeonEntrances(f,id,visitors(id),gateTargets(def),(def.lobby?.buildings??[]).map(b=>b.door)))persist(id,f); // Add doors to a saved month without replacing content or covering a connected visitor.
   const current=db.prepare('SELECT edition FROM hub_district_current WHERE zone=?').get(id);
   if(current?.edition!==layoutKey){
    db.prepare('UPDATE quest_presence SET x=?,y=?,moved=? WHERE zone=?').run(f.spawn.x,f.spawn.y,now(),id);

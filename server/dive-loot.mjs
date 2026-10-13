@@ -75,8 +75,8 @@ export function createDiveLootRoller(data,{enchantments=null,table=data.enchantm
   } // Chests and loose treasure share one personal floor allowance; excess panty rolls become existing diapers.
   if(item.atk_min!==undefined){item.atk=item.atk_min+rnd(item.atk_max-item.atk_min+1);if(typeof item.desc==='string')item.desc=item.desc.replace('{atk}',String(item.atk));delete item.atk_min;delete item.atk_max;}
   const roller=lootRoller();
- item=roller.roll(item,key,{level:roller.routeLevel(routeKey,depth,chest.level),luck:chest.luck??'chest'}); // Rarity tier, item level, scaled stats, affixes and the new name (loot.mjs).
- enchanter()(item,key,roller.enchantMods(item)); // Two rarity-scaled ramps decide a curse, a blessing or nothing at all for this copy; the loot tier may double or force a blessing.
+ item=roller.roll(item,key,{level:roller.routeLevel(routeKey,depth,chest.level),luck:chest.luck??'chest',rarity:chest.rarity??null}); // Authored guardian rewards can guarantee a tier while retaining ordinary scaling.
+ if(!chest.no_enchant)enchanter()(item,key,roller.enchantMods(item)); // Named memorial rewards omit enchantments; other drops keep the existing rules.
   return item; // All other loot retains its original seeded selection and stat roll.
  };
  let alchemyCache={revision:null,table:alchemy};
