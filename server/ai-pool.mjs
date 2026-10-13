@@ -56,7 +56,7 @@ export function createAiPool({nodes=[],key='',fetcher=globalThis.fetch,now=Date.
    const url=urlOf(n);
    try{
     const res=await call(n,url,body,{...opts,headers});
-    if(res.status>=500){last=Object.assign(Error('AI answered '+res.status),{status:res.status,url,node:n.host});down(n,last);continue;} // The node is sick: move on.
+    if(res.status>=500||res.status===401||res.status===403){last=Object.assign(Error('AI answered '+res.status+(res.status<500?' (wrong or missing NPC_RAG_KEY on this node?)':'')),{status:res.status,url,node:n.host});down(n,last);continue;} // Sick or misconfigured (prod 2026-10-13: node B rejected the key): move on.
     if(res.ok)up(n,res.ms);
     return {...res,node:n.host,url};
    }catch(error){

@@ -66,3 +66,19 @@ test('district travel, monthly persistence, talks, shared chat and safe live rol
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM hub_district_editions').get().n,districtData.districts.length*2,'prior month editions are retained');
  }finally{db.close();}
 });
+
+test('a district floor is not rewritten on every call when a repair and the patch replay disagree (prod 2026-10-13)',async()=>{
+ const {DatabaseSync:Db}=await import('node:sqlite');const {createHubDistricts:make}=await import('../server/hub-districts.mjs');
+ const db=new Db(':memory:');let writes=0;db.exec('CREATE TABLE quest_presence(owner TEXT PRIMARY KEY,character_id TEXT NOT NULL UNIQUE,zone TEXT NOT NULL,grant_id TEXT NOT NULL,controller TEXT NOT NULL,x INTEGER NOT NULL,y INTEGER NOT NULL,seen INTEGER NOT NULL,moved INTEGER NOT NULL)');
+ const prepare=db.prepare.bind(db); // Nobody present (empty quest_presence): residents stay put; count every floor write.
+ db.prepare=sql=>{const st=prepare(sql);if(/^UPDATE hub_district_editions SET content/.test(sql)){const run=st.run.bind(st);return {run:(...a)=>{writes++;return run(...a);}};}return st;};
+ const patchFloor=(id,f)=>{ // A replay that keeps a fixture whose id is also on the removed list (the flapping shape).
+  if(f.patchRevision==='r1')return false;
+  if(!f.fixtures.some(x=>x.id==='moved-1'))f.fixtures.push({id:'moved-1',kind:'scenery',sprite:'sprBench',x:3,y:3,span_w:1,span_h:1});
+  f.patchRevision='r1';f.patchUndo={fixturesRemoved:[{id:'moved-1',kind:'scenery',x:2,y:2}]};return true;
+ };
+ const districts=make(db,{now:()=>Date.parse('2026-10-13T12:00:00Z'),patchFloor});
+ districts.refresh();districts.refresh();const settled=writes; // Load, then the one-time repair per floor.
+ for(let i=0;i<20;i++){districts.refresh();districts.tick?.();} // Every read and world tick used to rewrite every city.
+ assert.equal(writes-settled,0,`floors rewritten ${writes-settled} times in 20 refreshes + ticks`);
+});

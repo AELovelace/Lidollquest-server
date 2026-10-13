@@ -286,14 +286,24 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
   f.fixtures=f.fixtures.filter(x=>x.kind!=='scenery'||buildings.has(x.id)||!Array.from({length:(x.span_w??1)*(x.span_h??1)},(_,i)=>(x.x+i%(x.span_w??1))+','+(x.y+Math.floor(i/(x.span_w??1)))).some(k=>cells.has(k))); // Loose scenery sitting on the new road is cleared; plaza buildings and people stay.
   return true;
  };
- const upgrade=(id,f,def)=>{
-  const removed=new Set((f.patchUndo?.fixturesRemoved??[]).map(x=>x.id)),before=f.fixtures.length;
-  f.fixtures=f.fixtures.filter(x=>!removed.has(x.id));const repaired=f.fixtures.length!==before;
-  if(repaired)delete f.patchRevision; // Repair originals restored by an older server, then replay the saved edits to recover moved replacements it may also have overwritten.
-  const gate=addEdgeGate(f,def,'north')|addEdgeGate(f,def,'south')|addSideGate(f,def,'west')|addSideGate(f,def,'east')|(def.lobby?addOuthouses(f,def,data)|addChangers(f,def,data)|addPayToilets(f,def,data):false)|addArcadiaAir(f,def)|addCastleTemple(f,def)|addLobbyBuildings(f,def)|addDistrictBuildings(f,def),pot=addCauldron(f,def)||gate,residents=(f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)),cleared=cleanFloor(f),patched=patchFloor(id,f);
-  if(repaired||residents||pot||cleared||patched)persist(id,f); // The map edition, visitors and stored edit revision stay intact.
+ const repairedFloors=new WeakSet(),persistedSig=new Map(); // Floors already repaired since they were loaded; zone -> fingerprint of the last write.
+ const signature=f=>{ // Cheap fingerprint of everything upgrade() and resident moves can change (fixtures, walls, markers); far cheaper than JSON.stringify of a whole town.
+  let s=`${f.patchRevision??''}|${f.district?.residentVersion??''}|${f.buildings?.length??''}|${f.rooms?.length??0}|${f.doorsteps?.length??0}|${JSON.stringify([f.smog??null,f.whistle??null])}|`;
+  for(const x of f.fixtures??[])s+=`${x.id}@${x.x},${x.y};`;for(const row of f.walls??[])s+=row.join('');
+  return s;
  };
- const persist=(id,f)=>db.prepare('UPDATE hub_district_editions SET content=? WHERE zone=? AND edition=?').run(JSON.stringify(f),id,f.district.layoutKey);
+ const upgrade=(id,f,def)=>{
+  let repaired=false;
+  if(!repairedFloors.has(f)){ // Once per loaded floor (prod 2026-10-13: doing this on every call fought the patch replay and rewrote LittleBigCity every tick and read).
+   repairedFloors.add(f);
+   const removed=new Set((f.patchUndo?.fixturesRemoved??[]).map(x=>x.id)),before=f.fixtures.length;
+   f.fixtures=f.fixtures.filter(x=>!removed.has(x.id));repaired=f.fixtures.length!==before;
+   if(repaired)delete f.patchRevision; // Repair originals restored by an older server, then replay the saved edits to recover moved replacements it may also have overwritten.
+  }
+  const gate=addEdgeGate(f,def,'north')|addEdgeGate(f,def,'south')|addSideGate(f,def,'west')|addSideGate(f,def,'east')|(def.lobby?addOuthouses(f,def,data)|addChangers(f,def,data)|addPayToilets(f,def,data):false)|addArcadiaAir(f,def)|addCastleTemple(f,def)|addLobbyBuildings(f,def)|addDistrictBuildings(f,def),pot=addCauldron(f,def)||gate,residents=(f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)),cleared=cleanFloor(f),patched=patchFloor(id,f);
+  if((repaired||residents||pot||cleared||patched)&&persistedSig.get(id)!==signature(f))persist(id,f); // Only a real change is written: a step that undoes another's work every call costs nothing.
+ };
+ const persist=(id,f)=>{db.prepare('UPDATE hub_district_editions SET content=? WHERE zone=? AND edition=?').run(JSON.stringify(f),id,f.district.layoutKey);persistedSig.set(id,signature(f));};
  function ensure(def){
   if(readOnly){const id=districtZone(def);if(cache.has(id))return cache.get(id);const row=db.prepare('SELECT e.content FROM hub_district_editions e JOIN hub_district_current c ON c.zone=e.zone AND c.edition=e.edition WHERE e.zone=?').get(id);if(!row)throw Error('Zone snapshot requested before district preparation');const floor=JSON.parse(row.content);cache.set(id,floor);return floor;} // Readers use the committed active edition; only the coordinator generates, upgrades or activates maps.
   const id=districtZone(def),window=windowFor(id),layoutKey=`${window.edition}:v${data.version}`,cached=cache.get(id);if(cached?.district.layoutKey===layoutKey){upgrade(id,cached,def);return cached;}

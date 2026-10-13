@@ -96,3 +96,12 @@ test('timeouts fail over, oversized replies are refused, and close() aborts in-f
  const pending=hang.pool.request('/x',{},{timeoutMs:60000});hang.pool.close();
  await assert.rejects(pending,/aborted/);await assert.rejects(hang.pool.request('/x',{}),/closed/);
 });
+
+test('a node that rejects the key (401/403) is benched and the other node answers',async()=>{
+ const h=harness(url=>url.startsWith(A)?Response.json({detail:'missing or wrong API key'},{status:401}):Response.json({reply:'b'}));
+ const res=await h.pool.request('/v1/companion/chat',{});assert.equal(res.body.reply,'b');assert.equal(res.status,200);
+ const a=h.pool.view().find(n=>n.host==='47.51.162.106:9092');assert.equal(a.healthy,false);assert.match(a.lastError,/401.*NPC_RAG_KEY/);
+ const forbidden=harness(url=>url.startsWith(A)?new Response('{}',{status:403}):Response.json({reply:'b'}));
+ assert.equal((await forbidden.pool.request('/x',{})).body.reply,'b');
+ const both=harness(()=>Response.json({},{status:401}));await assert.rejects(both.pool.request('/x',{}),/401/,'every node rejecting the key still surfaces as an error');
+});
