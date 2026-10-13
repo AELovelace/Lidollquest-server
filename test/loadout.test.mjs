@@ -31,6 +31,27 @@ test('compact changes retain a large bag, remove expired fields, and splice only
  assert.deepEqual(output.inventory,[...input.inventory.slice(0,2),...input.inventory.slice(3)]);assert.ok(Buffer.byteLength(JSON.stringify(patch))<4000);
 });
 
+test('compact login changes compare JSON values regardless of object property order',()=>{
+ const input=base([{item_id:'boots',dye:{red:1,blue:2}},{item_id:'hat',def:3}]);
+ input.player_info.effects=[{name:'warmth',turns:2,stats:{str:1,def:2}}];
+ input.player_info.expired={name:'old',turns:0};
+ const changes=[
+  {path:['player_info','effects'],before:[{stats:{def:2,str:1},turns:2,name:'warmth'}],after:[]},
+  {path:['player_info','expired'],before:{turns:0,name:'old'},remove:true},
+  {path:['inventory'],index:0,fields:{dye:{before:{blue:2,red:1},after:{red:3,blue:2}}}},
+  {path:['inventory'],index:1,before:[{def:3,item_id:'hat'}],after:[]},
+ ]; // GameMaker reserializes saved structs in its own key order during logon and journal replay.
+ const result=expandLoadoutDelta(input,changes);
+ assert.deepEqual(result.player_info.effects,[]);assert.equal(result.player_info.expired,undefined);
+ assert.deepEqual(result.inventory,[{item_id:'boots',dye:{red:3,blue:2}}]);assert.equal(input.inventory.length,2);
+ const stale=structuredClone(changes);stale[0].before[0].turns=3;
+ assert.throws(()=>expandLoadoutDelta(input,stale),e=>e.code==='loadout_conflict'); // Different values must still reject the entire update.
+ for(const before of [[{name:'warmth',turns:'2',stats:{str:1,def:2}}],[],[{name:'warmth',turns:2,stats:{str:1}}]]){
+  assert.throws(()=>expandLoadoutDelta(input,[{...changes[0],before}]),e=>e.code==='loadout_conflict');
+ }
+ assert.throws(()=>expandLoadoutDelta({player_spells:['heal','haste']},[{path:['player_spells'],before:['haste','heal'],after:[]}]),e=>e.code==='loadout_conflict');
+});
+
 test('item field changes preserve descriptions while adding runtime defaults and removing expired modifiers',()=>{
  const input=base([{item_id:'boots',desc:'x'.repeat(3000),temporary:2}]);
  const output=importLoadout(expandLoadoutDelta(input,[{path:['inventory'],index:0,fields:{quantity:{before:null,after:1},temporary:{before:2,remove:true}}}]));

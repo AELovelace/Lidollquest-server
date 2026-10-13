@@ -1,9 +1,10 @@
 // Expand a small, revision-bound character update against the already committed loadout.
 // This changes transport only: ordinary import, entitlement and inventory validation still run afterward.
+import {isDeepStrictEqual} from 'node:util';
 const roots=new Set(['player_info','inventory','world','childish','player_spells','player_mp','player_mp_max','attack']);
 const forbidden=new Set(['__proto__','prototype','constructor']);
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
-const same=(a,b)=>JSON.stringify(a??null)===JSON.stringify(b??null);
+const same=(a,b)=>isDeepStrictEqual(a??null,b??null); // GameMaker may reorder JSON object keys on logon; values, types and array order must still match the committed character.
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'loadout_conflict'});};
 export const LOADOUT_DELTA_ACTIONS=new Set(['enter','dive_enter','loadout','world_turn','walk','hub_rest','use_item','turn_ready']);
 

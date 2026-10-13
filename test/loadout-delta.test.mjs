@@ -15,6 +15,7 @@ test('a stored large character settles a pending move, walks, reconnects and lea
   act('enter',{zone:'princess-rose',loadout:{player_info:{playerHealth:100,playerHealthMax:100,stamina:100,wet:0},inventory:[],world:{crawling:false}}});
   const state=JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(id).state);
   state.loadout.inventory=Array.from({length:99},(_,i)=>({item_id:'saved-gear-'+i,desc:'x'.repeat(2200)}));
+  state.loadout.player_info.effects=[{source:'memorial',steps:12}]; // A saved nested struct exercises GameMaker's property reordering during login.
   const inventory=structuredClone(state.loadout.inventory);db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),id); // Emulate legitimate server loot growing beyond the old import limit.
   let s=read();assert.equal(s.loadoutDeltaVersion,1);assert.ok(Buffer.byteLength(JSON.stringify(s.character.loadout))>192*1024);assert.ok(Buffer.byteLength(JSON.stringify(s))<1024*1024,'large character snapshots fit the browser gateway');
   const map=s.zones.find(z=>z.id===s.zone);let start;
@@ -27,7 +28,9 @@ test('a stored large character settles a pending move, walks, reconnects and lea
   assert.throws(()=>act('loadout',{loadout_changes:[{path:['player_info','wet'],before:0,after:2}]}),/changed/);
   const stale=command('loadout',{loadout_changes:[]});act('loadout',{loadout_changes:[]});assert.throws(()=>send(stale),/Character changed/);
   s=act('walk',{steps:['east','east'],loadout_changes:[]});assert.equal(s.position.x,start.x+3);assert.deepEqual(s.character.loadout.inventory,inventory);
-  s=act('enter',{zone:'princess-rose',loadout_changes:[]});assert.deepEqual(s.character.loadout.inventory,inventory);
+  const login=command('enter',{zone:'princess-rose',loadout_changes:[{path:['player_info','effects'],before:[{steps:12,source:'memorial'}],after:[]}]});
+  s=send(login);assert.equal(s.zone,'princess-rose');assert.deepEqual(s.character.loadout.inventory,inventory);assert.deepEqual(s.character.loadout.player_info.effects,[]);
+  assert.equal(send(login).character.revision,s.character.revision); // Replaying the accepted login does not apply changes twice.
   assert.equal(act('leave').zone,null);assert.deepEqual(read().character.loadout.inventory,inventory);
  }finally{api.close();db.close();}
 });
