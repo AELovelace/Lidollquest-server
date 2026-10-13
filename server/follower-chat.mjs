@@ -1,5 +1,6 @@
 import {createHash} from 'node:crypto';
 import {createAiPool,parseNodes} from './ai-pool.mjs'; // Shared AI node pool: least busy node first, failover when one is down.
+import {addressees,gatePrompt,gateSaysYes,ADDRESS_DEFAULTS} from './companion-addressing.mjs'; // Who a line is meant for (name, follow-up, hirer, "you").
 import {loseDignity} from './dignity.mjs';
 import {currentTuning} from './combat.mjs';
 
@@ -37,8 +38,11 @@ export function createFollowerChat(db,{followers,now=Date.now,fetcher=fetch,allo
   db.exec(`CREATE TABLE IF NOT EXISTS quest_follower_chat_jobs(seq INTEGER NOT NULL,rental TEXT NOT NULL,area TEXT NOT NULL,text TEXT NOT NULL,created INTEGER NOT NULL,status TEXT NOT NULL,npc TEXT NOT NULL,speaker TEXT NOT NULL,zone TEXT NOT NULL,edition TEXT,PRIMARY KEY(seq,npc));
    CREATE UNIQUE INDEX IF NOT EXISTS quest_follower_reply_pending ON quest_follower_chat_jobs(npc) WHERE status='pending';
    CREATE INDEX IF NOT EXISTS quest_follower_reply_recent ON quest_follower_chat_jobs(npc,created);
-   CREATE TABLE IF NOT EXISTS quest_follower_memory(rental TEXT PRIMARY KEY,messages TEXT NOT NULL,updated INTEGER NOT NULL);`);
-  if(legacy)db.exec("INSERT INTO quest_follower_chat_jobs SELECT j.seq,j.rental,j.area,j.text,j.created,'discarded',h.npc,h.character_id,COALESCE(h.zone,''),h.edition FROM quest_follower_chat_jobs_legacy j JOIN quest_follower_hires h ON h.id=j.rental; DROP TABLE quest_follower_chat_jobs_legacy;");
+   CREATE TABLE IF NOT EXISTS quest_follower_memory(rental TEXT PRIMARY KEY,messages TEXT NOT NULL,updated INTEGER NOT NULL);
+   CREATE TABLE IF NOT EXISTS quest_follower_convo(npc TEXT NOT NULL,speaker TEXT NOT NULL,area TEXT NOT NULL,until INTEGER NOT NULL,PRIMARY KEY(npc,speaker));`); // Open conversations: a companion's reply keeps the speaker's next lines addressed to it.
+  const jobColumns=new Set(db.prepare('PRAGMA table_info(quest_follower_chat_jobs)').all().map(c=>c.name));
+  for(const [name,type] of [['reason',"TEXT NOT NULL DEFAULT 'name'"],['gate','INTEGER NOT NULL DEFAULT 0'],['emote','INTEGER NOT NULL DEFAULT 0']])if(!jobColumns.has(name))db.exec(`ALTER TABLE quest_follower_chat_jobs ADD COLUMN ${name} ${type}`); // Additive: older rows count as named lines.
+  if(legacy)db.exec("INSERT INTO quest_follower_chat_jobs(seq,rental,area,text,created,status,npc,speaker,zone,edition) SELECT j.seq,j.rental,j.area,j.text,j.created,'discarded',h.npc,h.character_id,COALESCE(h.zone,''),h.edition FROM quest_follower_chat_jobs_legacy j JOIN quest_follower_hires h ON h.id=j.rental; DROP TABLE quest_follower_chat_jobs_legacy;");
   db.exec('RELEASE companion_chat_schema');
  }catch(error){db.exec('ROLLBACK TO companion_chat_schema');db.exec('RELEASE companion_chat_schema');throw error;} // Legacy private jobs cannot become public replies; retain their records as discarded.
  let closed=false;const running=new Set(),stop=new AbortController(),warned=new Map(); // warned: endpoint -> last time its failure was logged; stop aborts in-flight AI calls on close()
@@ -52,12 +56,19 @@ export function createFollowerChat(db,{followers,now=Date.now,fetcher=fetch,allo
   const t=now(),k=name+' '+(error?.node??base);if(t-(warned.get(k)??-Infinity)<60000)return;warned.set(k,t);
   const why=error?.cause?.code??error?.cause?.message??error?.name??'';log(`follower AI: ${name} ${base} failed: ${error?.message??error}${why&&why!==error?.message?' ('+why+')':''}`);
  }
- function enqueue(c,text,seq,area){
+ function enqueue(c,text,seq,area,{emote=false}={}){
   if(!allowed(c.owner))return;
-  for(const target of locate(c,area)){
-   if(!mentionsFollower(text,followers.catalog[target.npc]))continue;
-   if(db.prepare("SELECT 1 FROM quest_follower_chat_jobs WHERE npc=? AND (status='pending' OR created>?)").get(target.npc,now()-10000))continue;
-   db.prepare("INSERT OR IGNORE INTO quest_follower_chat_jobs VALUES (?,?,?,?,?,'pending',?,?,?,?)").run(Number(seq),target.rental,area,text,now(),target.npc,c.id,target.zone,target.edition);
+  const targets=locate(c,area);if(!targets.length)return;
+  const knobs={...ADDRESS_DEFAULTS,...SLIP_DEFAULTS,...(slipTuning()??{})},listeners=Math.max(0,Math.floor(Number(audience(c,area))||0));
+  const convo=db.prepare('SELECT npc FROM quest_follower_convo WHERE speaker=? AND area=? AND until>? ORDER BY until DESC').all(c.id,area,now());
+  const picks=addressees({text,targets,catalog:followers.catalog,speaker:c.id,hire:followers.get(c.id)??null,convo,listeners,emote,tuning:knobs});
+  for(const {target,reason,gate} of picks){
+   if(gate&&knobs.address_classifier!=='on'&&reason!=='followup')continue; // Unclear lines need the classifier; a follow-up still counts.
+   const talking=['followup','hirer'].includes(reason)||convo.some(r=>r.npc===target.npc); // This speaker is already in a conversation with them.
+   const cooldown=talking?Number(knobs.followup_cooldown_s??4)*1000:10000; // A real back-and-forth isn't cut off; strangers keep the 10 s gap.
+   if(db.prepare("SELECT 1 FROM quest_follower_chat_jobs WHERE npc=? AND (status='pending' OR created>?)").get(target.npc,now()-cooldown))continue;
+   db.prepare("INSERT OR IGNORE INTO quest_follower_chat_jobs(seq,rental,area,text,created,status,npc,speaker,zone,edition,reason,gate,emote) VALUES (?,?,?,?,?,'pending',?,?,?,?,?,?,?)")
+    .run(Number(seq),target.rental,area,text,now(),target.npc,c.id,target.zone,target.edition,reason,gate&&knobs.address_classifier==='on'?1:0,emote?1:0);
   }
  } // This runs inside the chat transaction; rolled-back or duplicate speech cannot dispatch a request.
  const status=(job,value)=>db.prepare('UPDATE quest_follower_chat_jobs SET status=? WHERE seq=? AND npc=?').run(value,job.seq,job.npc);
@@ -72,8 +83,14 @@ export function createFollowerChat(db,{followers,now=Date.now,fetcher=fetch,allo
   const c=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(job.speaker);
   if(!currentTarget(job,c)||now()-job.created>45000){status(job,'discarded');return;}
   const memory=JSON.stringify([job.rental,c.id]),def=followers.catalog[job.npc],saved=db.prepare('SELECT * FROM quest_follower_memory WHERE rental=?').get(memory),history=saved&&now()-saved.updated<1800000?JSON.parse(saved.messages):[]; // No hirer's or other speaker's conversation is sent to a different player.
+  if(job.gate){ // An unclear line (a follow-up or a hirer's line with others around, or a bare "you"): would answering be natural?
+   let yes=job.reason==='followup'; // The classifier being down keeps a conversation going but drops the other guesses.
+   try{const r=await post('classifier','/v1/chat/completions',{model:'local',messages:[{role:'system',content:gatePrompt(def,{hired:job.reason==='hirer'})},{role:'user',content:job.text}],max_tokens:4,temperature:0,stream:false,chat_template_kwargs:{enable_thinking:false}});yes=gateSaysYes(r.choices?.[0]?.message?.content);}
+   catch(error){warn('classifier',error?.url??'',error);}
+   if(!yes){status(job,'discarded');return;} // Quietly not for them.
+  }
   let reply=null,legacyChain=false,fromGraph=false; // null until some hop answers; the authored fallback is the last resort
-  const body={message:job.text,npc_id:job.npc,npc_name:String(def.name).slice(0,32),player_name:String(c.name??'').slice(0,64),persona:String(def.online.persona??'').slice(0,1500),
+  const body={message:job.emote?`*${String(c.name??'').slice(0,32)} ${job.text}*`:job.text,kind:job.emote?'emote':'chat',npc_id:job.npc,npc_name:String(def.name).slice(0,32),player_name:String(c.name??'').slice(0,64),persona:String(def.online.persona??'').slice(0,1500),
    voice:(def.dialogue.talk_lines??[]).slice(0,3).map(l=>String(l).slice(0,200)),history,bond:Math.max(0,Math.min(100,memoryStore?.bondOf(job.npc,c.id)??0)),flags:storyFlags(c),lore_version:lore.version,audience:0,
    memories:memoryStore?.candidates(job.npc,c.id,job.text)??[],summary:(memoryStore?.summary(job.npc,c.id)??'').slice(0,1200)}; // This speaker's own memories with this companion only; the AI node ranks them and keeps nothing.
   const knobs={...SLIP_DEFAULTS,...(slipTuning()??{})},listeners=Math.max(0,Math.min(500,Math.floor(Number(audience(c,job.area))||0)));
@@ -115,7 +132,10 @@ Character voice examples: ${(def.dialogue.talk_lines??[]).slice(0,3).join(' ')}`
   db.exec('BEGIN IMMEDIATE');try{
    const seq=db.prepare('INSERT INTO quest_chat(zone,owner,character_id,name,text,created,emote,x,y) VALUES (?,?,?,?,?,?,0,?,?)').run(job.area,c.owner,'follower:'+job.npc,def.name,reply,now(),current.x,current.y).lastInsertRowid;
    db.prepare('DELETE FROM quest_chat WHERE zone=? AND seq NOT IN (SELECT seq FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 100)').run(job.area,job.area);
-   stamp(job.npc,current.zone);if(slipped)slipped=chargeSlip(c,def,seq,knobs);db.prepare('INSERT INTO quest_follower_memory VALUES (?,?,?) ON CONFLICT(rental) DO UPDATE SET messages=excluded.messages,updated=excluded.updated').run(memory,JSON.stringify([...history,{role:'player',content:job.text},{role:'npc',content:reply}].slice(-6)),now());
+   stamp(job.npc,current.zone);if(slipped)slipped=chargeSlip(c,def,seq,knobs);
+   db.prepare('INSERT INTO quest_follower_convo(npc,speaker,area,until) VALUES (?,?,?,?) ON CONFLICT(npc,speaker) DO UPDATE SET area=excluded.area,until=excluded.until')
+    .run(job.npc,c.id,job.area,now()+Number({...ADDRESS_DEFAULTS,...knobs}.followup_window_s)*1000); // The speaker's next lines stay addressed to this companion for a while.
+   db.prepare('INSERT INTO quest_follower_memory VALUES (?,?,?) ON CONFLICT(rental) DO UPDATE SET messages=excluded.messages,updated=excluded.updated').run(memory,JSON.stringify([...history,{role:'player',content:job.text},{role:'npc',content:reply}].slice(-6)),now());
    status(job,'done');db.exec('COMMIT');
   }catch(error){db.exec('ROLLBACK');throw error;}
   if(slipped)try{memoryStore.markSlip(slip.id);}catch{} // Not again for a day, whoever is listening.
@@ -146,7 +166,7 @@ Character voice examples: ${(def.dialogue.talk_lines??[]).slice(0,3).join(' ')}`
  }
  function kick(){
   if(closed)return;try{memoryStore?.drain();}catch(error){log('companion_memory_drain_failed',String(error?.message??error).slice(0,200));} // Committed experiences become memories before the next reply is built.
-  reflect();db.prepare("DELETE FROM quest_follower_chat_jobs WHERE status!='pending' AND created<?").run(now()-86400000);db.prepare('DELETE FROM quest_follower_memory WHERE updated<?').run(now()-1800000);
+  reflect();db.prepare('DELETE FROM quest_follower_convo WHERE until<?').run(now());db.prepare("DELETE FROM quest_follower_chat_jobs WHERE status!='pending' AND created<?").run(now()-86400000);db.prepare('DELETE FROM quest_follower_memory WHERE updated<?').run(now()-1800000);
   for(const job of db.prepare("SELECT * FROM quest_follower_chat_jobs WHERE status='pending' ORDER BY seq LIMIT 16").all()){
    const key=job.seq+':'+job.npc;if(running.size>=slots)break;if(running.has(key))continue;running.add(key);
    void answer(job).catch(()=>{if(!closed)status(job,'failed');}).finally(()=>running.delete(key));

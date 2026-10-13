@@ -1974,7 +1974,21 @@ Tests: `test/followers.test.mjs` (graph call, 409 lore push, 503 fallback, older
 - **Cleanup:** an hourly sweep removes deleted characters' memories.
 - **Back up `companion-memory.sqlite` with the game database.**
 
-Tests: `test/companion-memory.test.mjs`, `test/companion-admin.test.mjs`. Run node --test test/followers.test.mjs test/followers-http.test.mjs and the full suite. Detailed deployment, editing and browser checks are in the game checkout's ONLINE_FOLLOWERS_GUIDE.md.
+Tests: `test/companion-memory.test.mjs`, `test/companion-admin.test.mjs`.
+
+**Talking naturally (2026-10-13, phase A).** `server/companion-addressing.mjs` decides who an Area line or emote is for.
+- **Reasons, in order:**
+  - the name, a one-letter typo of a 5+ letter name, or a GM nickname (`online.nicknames`)
+  - an open conversation (`quest_follower_convo`, 3 minutes after each reply, anywhere within earshot)
+  - the hirer's own companion
+  - "you" or a question to the only companion nearby
+- **Unclear lines** (others on screen) ask the classifier "would answering be natural?" before a full reply.
+- **Crowds** (`busy_threshold` others on screen) need the name, except for the speaker's own conversation.
+- **Emotes** that name a companion are sent as `kind: emote`.
+- **GM tuning** is on the Companions tab (`followup_window_s`, `followup_cooldown_s`, `busy_threshold`,
+  `hirer_default`, `fuzzy_names`, `emote_replies`, `address_classifier`).
+- **Migration fix:** the legacy chat-job upgrade now names its columns.
+- **Tests:** `test/companion-addressing.test.mjs`. Run node --test test/followers.test.mjs test/followers-http.test.mjs and the full suite. Detailed deployment, editing and browser checks are in the game checkout's ONLINE_FOLLOWERS_GUIDE.md.
 
 
 ## Online Story Workshop

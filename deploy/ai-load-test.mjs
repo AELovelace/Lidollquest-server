@@ -9,6 +9,7 @@
 //
 //   node deploy/ai-load-test.mjs --key-file C:/Scripts/npc-rag/.env
 //   node deploy/ai-load-test.mjs --nodes http://47.51.162.106:9092 --levels 1,2,4 --seconds 20
+//   node deploy/ai-load-test.mjs --key-file .env --models "http://47.51.162.106:9091|http://47.51.162.106:9094,|"   (per-node model ports)
 //
 // It loads LIVE servers: Pip and the companions slow down while it runs. Nothing is written to any game database;
 // the only server-side change is a companion lore push (the same lore the game server pushes).
@@ -17,7 +18,7 @@ import {createAiPool,parseNodes} from '../server/ai-pool.mjs';
 import {companionLore} from '../server/follower-chat.mjs';
 
 const arg=(name,fallback)=>{const i=process.argv.indexOf('--'+name);return i>0?process.argv[i+1]:fallback;};
-const nodes=parseNodes(arg('nodes',process.env.NPC_RAG_NODES??'http://47.51.162.106:9092,http://192.168.1.188:9092'));
+const nodes=parseNodes(arg('nodes',process.env.NPC_RAG_NODES??'http://47.51.162.106:9092,http://192.168.1.188:9092'),arg('models',process.env.NPC_RAG_NODE_MODELS??'')); // --models "<llm>|<classifier>,..." like NPC_RAG_NODE_MODELS.
 const keyFile=arg('key-file',null);
 const key=process.env.NPC_RAG_KEY||(keyFile?(readFileSync(keyFile,'utf8').match(/^NPC_API_KEY=(.*)$/m)?.[1]??'').trim().replace(/^["']|["']$/g,''):''); // Never printed.
 const levels=arg('levels','1,2,4,8,16,24').split(',').map(Number).filter(n=>n>0);

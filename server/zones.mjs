@@ -385,7 +385,7 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
   if(echo)return null;
   if(db.prepare('SELECT COUNT(*) AS n FROM quest_chat WHERE owner=? AND created>?').get(i.owner,now()-10000).n>=5)fail(429,'Wait a moment before sending another message.'); // One account quota spans every channel and zone.
   const row=db.prepare('INSERT INTO quest_chat(zone,owner,character_id,name,text,created,emote,x,y) VALUES (?,?,?,?,?,?,?,?,?)').run(area,i.owner,c.id,c.name,text,now(),emote,tile?.x??null,tile?.y??null);
-  if(follower)followerChat.enqueue(c,text,row.lastInsertRowid,area); // Any plain area speaker may address a nearby companion, hired or waiting at home.
+  if(follower)followerChat.enqueue(c,text,row.lastInsertRowid,area,{emote:!!emote}); // Any area speaker may address a nearby companion, hired or waiting at home; emotes ("/me hugs Elowen") get a reaction.
   db.prepare('DELETE FROM quest_chat WHERE zone=? AND seq NOT IN (SELECT seq FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 100)').run(area,area);
   return row.lastInsertRowid;
  }
@@ -675,7 +675,7 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
     const guildRow=input.channel==='guild'?guilds.membership(c.id):null;if(input.channel==='guild'&&guildRow?.status!=='active')fail(409,'Join a guild to use guild chat.'); /* Guild speech is scoped by the guild id and follows members everywhere, like party chat. */
     const area=input.channel==='global'?'global:ooc':input.channel==='party'?'party:'+partyId:input.channel==='guild'?'guild:'+guildRow.guild_id:isDungeon(p.zone)?dive.chatArea(c,p)?.id:p.zone;
     if(!area)fail(409,'Re-enter the area before chatting.');
-    speak(i,c,{text,area,emote,tile:['global','party','guild'].includes(input.channel)?null:{x:p.x,y:p.y},follower:!emote&&(!input.channel||input.channel==='area')}); // Only area speech has a tile; global, party and guild streams reach every member wherever they stand.
+    speak(i,c,{text,area,emote,tile:['global','party','guild'].includes(input.channel)?null:{x:p.x,y:p.y},follower:!input.channel||input.channel==='area'}); // Only area speech has a tile; global, party and guild streams reach every member wherever they stand.
     db.prepare('UPDATE quest_presence SET seen=? WHERE owner=?').run(now(),i.owner);
    }else if(input.action==='fast_travel'){p=presence(i,c,input.controller);fastTravel.travel(c,state,p,input.zone);}
    else if(CRAFT_ACTIONS.includes(input.action)){p=presence(i,c,input.controller);crafting.act(c,state,input,p,isDungeon(p.zone)?null:zone(p.zone),isDungeon(p.zone)?engine(p.zone).floor():null);}

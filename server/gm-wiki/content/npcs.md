@@ -125,6 +125,18 @@ when it fits the conversation.
 - Companions can also tell anonymous stories about other travellers (**gossip_chance**). They never name anyone
   and never repeat what a player said.
 
+**Talking without the name.**
+- **Follow-ups:** once a companion answers a player, that player's lines count as talking to them for
+  **followup_window_s** (180 s), anywhere within earshot.
+- **The hirer:** a player's own hired companion listens to them without the name (**hirer_default**).
+- **Classifier check:** when other players are around, a classifier first decides whether answering would be natural
+  (**address_classifier**).
+- **Crowds:** with **busy_threshold** other players on screen, players must use the name again (except in their own
+  ongoing conversation).
+- **Typos and nicknames:** one-letter typos of longer names, and the Companion tab's **nicknames**, count as the name
+  (**fuzzy_names**).
+- **Emotes** like `/me hugs Elowen` get a reaction (**emote_replies**).
+
 **Character memories.** Type a character name or id to see:
 - that character's bond with every companion, with a **Set bond** box for testing secrets
 - the relationship summaries

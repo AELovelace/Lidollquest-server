@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {createFollowers,followerData,HIRE_MS,followerStats,BATTLE_GRACE_MS} from '../server/followers.mjs';
 import {createFollowerChat,mentionsFollower,companionLore,storyFlags} from '../server/follower-chat.mjs';
+const NAME_ONLY={hirer_default:'off',fuzzy_names:'off',emote_replies:'off',followup_window_s:0}; // The original name-only rules (COMPANION_LIFELIKE_PLAN.md phase A adds follow-ups, hirer lines, typos and emotes; companion-addressing.test.mjs).
 import {createDiveEncounters} from '../server/dive-encounters.mjs';
 import {followerAction,guardianTarget} from '../server/follower-combat.mjs';
 import {beginRound,combatData} from '../server/combat.mjs';
@@ -130,7 +131,7 @@ test('slow AI is asynchronous, with two global pipelines and one pending reply p
 test('older AI nodes (404 on the companion graph) use the classifier, personal chat and RAG chain; mentions enqueue once',async()=>{
  const f=fixture();let chat;try{
   f.followers.complete(f.hire(),true);const calls=[];let game=false; // Exercise immediate speech before the first post-hire presence tick.
-  chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,fetcher:async(url,opts)=>{if(String(url).includes('/v1/companion/'))return new Response('{}',{status:404}); calls.push({url:String(url),body:JSON.parse(opts.body)});return Response.json(String(url).includes(':9091')?{choices:[{message:{content:game?'GAME':'CHAT'}}]}:String(url).includes(':9092')?{reply:'Use the bank in town.'}:{choices:[{message:{content:'Good to see you!'}}]});}});
+  chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,slipTuning:()=>NAME_ONLY,fetcher:async(url,opts)=>{if(String(url).includes('/v1/companion/'))return new Response('{}',{status:404}); calls.push({url:String(url),body:JSON.parse(opts.body)});return Response.json(String(url).includes(':9091')?{choices:[{message:{content:game?'GAME':'CHAT'}}]}:String(url).includes(':9092')?{reply:'Use the bank in town.'}:{choices:[{message:{content:'Good to see you!'}}]});}});
   assert.equal(mentionsFollower('ASTRA, hello!',followerData.sorceress_arcana),true);assert.equal(mentionsFollower('astral lights',followerData.sorceress_arcana),false);
   chat.enqueue(f.bob,'Astra hello',1,'room');chat.enqueue(f.alice,'hello',2,'room');assert.equal(f.db.prepare('SELECT COUNT(*) n FROM quest_follower_chat_jobs').get().n,0);
   chat.enqueue(f.alice,'Astra hello',3,'room');chat.enqueue(f.alice,'Astra hello',3,'room');f.followers.move(f.alice,JSON.parse(f.alice.state),{zone:'dungeon-castle-dungeon',x:5,y:5},{zone:'dungeon-castle-dungeon',x:5,y:5},'room');chat.kick();await wait(chat.idle);
@@ -145,7 +146,7 @@ test('older AI nodes (404 on the companion graph) use the classifier, personal c
 
 test('nearby non-hirers can address a hired companion without inheriting another speaker history',async()=>{
  const f=fixture();let chat;try{
-  f.active();const calls=[];chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,fetcher:async(url,opts)=>{if(String(url).includes('/v1/companion/'))return new Response('{}',{status:404}); calls.push(JSON.parse(opts.body));return Response.json(String(url).includes(':9091')?{choices:[{message:{content:'GAME'}}]}:{reply:'Hello nearby traveller.'});}});
+  f.active();const calls=[];chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,slipTuning:()=>NAME_ONLY,fetcher:async(url,opts)=>{if(String(url).includes('/v1/companion/'))return new Response('{}',{status:404}); calls.push(JSON.parse(opts.body));return Response.json(String(url).includes(':9091')?{choices:[{message:{content:'GAME'}}]}:{reply:'Hello nearby traveller.'});}});
   f.db.prepare('INSERT INTO quest_presence VALUES (?,?,?,?,?,?)').run(f.bob.id,f.bob.owner,'dungeon-castle-dungeon',6,5,f.now());
   chat.enqueue(f.alice,'Astra, remember my question',1,'room');chat.kick();await wait(chat.idle);f.advance(11000);
   chat.enqueue(f.bob,'Astra, where is town?',2,'room');chat.enqueue(f.bob,'Astra, where is town?',2,'room');chat.kick();await wait(chat.idle);
@@ -182,7 +183,7 @@ test('chat schema upgrade discards legacy pending speech and never shares old re
  const f=fixture();let chat;try{
   const rental=f.active();f.db.exec("CREATE TABLE quest_follower_chat_jobs(seq INTEGER PRIMARY KEY,rental TEXT NOT NULL,area TEXT NOT NULL,text TEXT NOT NULL,created INTEGER NOT NULL,status TEXT NOT NULL); CREATE UNIQUE INDEX quest_follower_reply_pending ON quest_follower_chat_jobs(rental) WHERE status='pending'; CREATE TABLE quest_follower_memory(rental TEXT PRIMARY KEY,messages TEXT NOT NULL,updated INTEGER NOT NULL)");
   f.db.prepare('INSERT INTO quest_follower_chat_jobs VALUES (?,?,?,?,?,?)').run(1,rental,'room','old private question',f.now()-11000,'pending');f.db.prepare('INSERT INTO quest_follower_memory VALUES (?,?,?)').run(rental,JSON.stringify([{role:'player',content:'private old history'}]),f.now());
-  const calls=[];chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,fetcher:async(url,opts)=>{if(String(url).includes('/v1/companion/'))return new Response('{}',{status:404}); calls.push(JSON.parse(opts.body));return Response.json(String(url).includes(':9091')?{choices:[{message:{content:'GAME'}}]}:{reply:'A new conversation.'});}});
+  const calls=[];chat=createFollowerChat(f.db,{followers:f.followers,now:f.now,slipTuning:()=>NAME_ONLY,fetcher:async(url,opts)=>{if(String(url).includes('/v1/companion/'))return new Response('{}',{status:404}); calls.push(JSON.parse(opts.body));return Response.json(String(url).includes(':9091')?{choices:[{message:{content:'GAME'}}]}:{reply:'A new conversation.'});}});
   assert.equal(f.db.prepare('SELECT status FROM quest_follower_chat_jobs WHERE seq=1').get().status,'discarded');chat.enqueue(f.alice,'Astra, hello',2,'room');chat.kick();await wait(chat.idle);assert.deepEqual(calls[1].history,[]);
  }finally{chat?.close();f.close();}
 });
