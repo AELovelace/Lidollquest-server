@@ -1,6 +1,9 @@
 import {createHash} from 'node:crypto';
 import {createAiPool,parseNodes} from './ai-pool.mjs'; // Shared AI node pool: least busy node first, failover when one is down.
-import {addressees,gatePrompt,gateSaysYes,ADDRESS_DEFAULTS} from './companion-addressing.mjs'; // Who a line is meant for (name, follow-up, hirer, "you").
+import {addressees,gatePrompt,gateSaysYes,ADDRESS_DEFAULTS} from './companion-addressing.mjs';
+import {situationFacts,safeZone} from './companion-situation.mjs';
+import {planReaction,fillTemplate,REACTION_DEFAULTS,IDLE_DEFAULTS} from './companion-reactions.mjs'; // Phase C: speaking up when something happens.
+import {zoneName} from './companion-events.mjs'; // Phase B: place, time, health, needs (private ones only when alone). // Who a line is meant for (name, follow-up, hirer, "you").
 import {loseDignity} from './dignity.mjs';
 import {currentTuning} from './combat.mjs';
 
@@ -95,6 +98,9 @@ export function createFollowerChat(db,{followers,now=Date.now,fetcher=fetch,allo
    memories:memoryStore?.candidates(job.npc,c.id,job.text)??[],summary:(memoryStore?.summary(job.npc,c.id)??'').slice(0,1200)}; // This speaker's own memories with this companion only; the AI node ranks them and keeps nothing.
   const knobs={...SLIP_DEFAULTS,...(slipTuning()??{})},listeners=Math.max(0,Math.min(500,Math.floor(Number(audience(c,job.area))||0)));
   const slip=listeners>0&&memoryStore&&roll()<knobs.slip_chance?memoryStore.slipCandidate(job.npc,c.id):null; // The game server rolls; the AI node only says it.
+  if((knobs.situation_enabled??'on')==='on'){let state={};try{state=JSON.parse(c.state??'{}');}catch{}
+   const facts=situationFacts({name:String(c.name??'').slice(0,32),state,zone:job.zone,now:now(),hire:followers.occupied(job.npc)??null,speakerId:c.id,recent:memoryStore?.recent(job.npc,c.id)??null});
+   body.situation=facts.filter(f=>!f.private||listeners===0).map(f=>f.text).slice(0,10);} // Embarrassing facts only reach the prompt when nobody else can hear.
   Object.assign(body,{audience:listeners,gossip:memoryStore&&roll()<knobs.gossip_chance?memoryStore.gossipLines(job.npc,c.id,5):[],...(slip?{slip}:{})});
   let slipped=false;
   try{ // 1) The companion graph on the least busy AI node: classify, wiki, backstory, memories, guarded reply.
@@ -150,6 +156,122 @@ Character voice examples: ${(def.dialogue.talk_lines??[]).slice(0,3).join(' ')}`
   state.loadoutRevision=row.revision+1;db.prepare('UPDATE quest_characters SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),c.id); // The game re-pulls the loadout with the new Dignity.
   return true;
  }
+ // ── Phase C: reactions (companions speaking up when something happens) ──
+ const lastSpoke=new Map(),reacting=new Set(); // npc -> when they last spoke on their own; npcs with an AI reaction on the way.
+ let budget={tokens:null,at:0}; // Optional AI lines (reactions, later musings and banter) share one per-minute budget.
+ function spendBudget(knobs){
+  const cap=Math.max(0,Number(knobs.ai_calls_per_minute)||0),t=now();
+  if(budget.tokens===null)budget={tokens:cap,at:t};
+  budget.tokens=Math.min(cap,budget.tokens+cap*(t-budget.at)/60000);budget.at=t; // Refills continuously, up to one minute's worth.
+  if(budget.tokens<1)return false;budget.tokens-=1;return true;
+ }
+ function postLine({npc,c,hire,text,slip=null,knobs={}}){ // One companion line in Area chat at the companion's tile, heard like any reply; returns whether a slip cost Dignity.
+  const def=followers.catalog[npc];let charged=false;
+  db.exec('BEGIN IMMEDIATE');try{
+   const seq=db.prepare('INSERT INTO quest_chat(zone,owner,character_id,name,text,created,emote,x,y) VALUES (?,?,?,?,?,?,0,?,?)').run(hire.area,c.owner,'follower:'+npc,def.name,text,now(),hire.x,hire.y).lastInsertRowid;
+   db.prepare('DELETE FROM quest_chat WHERE zone=? AND seq NOT IN (SELECT seq FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 100)').run(hire.area,hire.area);
+   stamp(npc,hire.zone);
+   if(slip)charged=chargeSlip(c,def,seq,knobs);
+   db.exec('COMMIT');
+  }catch(error){db.exec('ROLLBACK');throw error;}
+  lastSpoke.set(npc,now());
+  if(charged)try{memoryStore?.markSlip(slip.id);}catch{}
+  return charged;
+ }
+ function react(ev){ // A newly stored experience (companion-memory drain): should the hired companion say something?
+  const knobs={...ADDRESS_DEFAULTS,...REACTION_DEFAULTS,...SLIP_DEFAULTS,...(slipTuning()??{})};
+  if(closed||knobs.reactions_enabled!=='on'||reacting.has(ev.npc))return;
+  const hire=followers.occupied(ev.npc);
+  if(!hire||hire.status!=='active'||hire.character_id!==ev.character_id||!hire.area)return; // Only the hirer's own experiences, while the hire lasts.
+  if(ev.kind!=='hire'&&now()-(lastSpoke.get(ev.npc)??-Infinity)<Number(knobs.reaction_cooldown_s)*1000)return; // Not chattering; a greeting always goes.
+  const c=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(ev.character_id);if(!c||!allowed(c.owner))return;
+  const p=db.prepare('SELECT zone,seen FROM quest_presence WHERE character_id=?').get(c.id);if(!p||p.seen<=now()-30000||p.zone!==hire.zone)return; // The hirer is here and online.
+  let state={};try{state=JSON.parse(c.state??'{}');}catch{}
+  if(state.run)return; // Never in the middle of a fight; battle reactions come after the settlement.
+  const listeners=Math.max(0,Math.floor(Number(audience(c,hire.area))||0));
+  const plan=planReaction(ev.kind,ev.data,{roll,knobs,listeners});if(!plan)return;
+  const def=followers.catalog[ev.npc],vars={player:c.name,enemy:ev.data?.enemy,zone:zoneName(ev.data?.zone??hire.zone),quest:ev.data?.title};
+  const template=plan.line?fillTemplate(def,plan.line,vars,roll):'';
+  if(plan.mode==='template'||!spendBudget(knobs)){if(template)postLine({npc:ev.npc,c,hire,text:template,knobs});return;} // No budget: a written line (a slip just doesn't happen).
+  reacting.add(ev.npc);lastSpoke.set(ev.npc,now()); // Reserve the cooldown while the AI line is on the way.
+  const slip=plan.mode==='slip'?{id:ev.id,text:ev.text,importance:3,age_days:0,embarrassing:true}:null;
+  const body={message:ev.text,kind:'reaction',about:ev.text,npc_id:ev.npc,npc_name:String(def.name).slice(0,32),player_name:String(c.name??'').slice(0,64),persona:String(def.online.persona??'').slice(0,1500),
+   voice:(def.dialogue.talk_lines??[]).slice(0,3).map(l=>String(l).slice(0,200)),bond:Math.max(0,Math.min(100,memoryStore?.bondOf(ev.npc,c.id)??0)),flags:storyFlags(c),lore_version:lore.version,audience:listeners,...(slip?{slip}:{})};
+  const ask=()=>ai.request('/v1/companion/chat',body,{timeoutMs:20000,signal:stop.signal});
+  void ask().then(async res=>{if(res.status===409){await pushLore();res=await ask();}return res;}).then(res=>{
+   if(closed)return;
+   const reply=res.ok?clean(res.body?.reply):'';
+   const now2=followers.occupied(ev.npc);if(!now2||now2.id!==hire.id||now2.zone!==hire.zone)return; // They moved on while the line was being written.
+   if(plan.mode==='slip'){if(reply&&res.body?.slip?.memory_id===slip.id)postLine({npc:ev.npc,c,hire:now2,text:reply,slip,knobs});return;} // Only a confirmed slip is said.
+   const text=reply||template;if(text)postLine({npc:ev.npc,c,hire:now2,text,knobs}); // The AI fell over: the written line still goes.
+  }).catch(error=>{if(!closed){warn('reaction',error?.url??'',error);if(template&&plan.mode!=='slip')try{postLine({npc:ev.npc,c,hire,text:template,knobs});}catch{}}}).finally(()=>reacting.delete(ev.npc));
+ }
+ // ── Phase D: idle life (musings while waiting around somewhere safe, banter between two hired companions) ──
+ const stillSince=new Map(),nextMusing=new Map(),nextBanter=new Map(); // hirer -> {zone,x,y,since}; npc -> earliest musing; "a|b" -> earliest banter.
+ let lastIdleCheck=-Infinity,idleBusy=false;
+ const pause=(knobs,lo,hi)=>{const a=Number(knobs[lo])*1000,b=Math.max(a,Number(knobs[hi])*1000);return a+roll()*(b-a);}; // 5-7 minutes, fresh each time.
+ function companionBody(npc,c,extra){ // The shared parts of an unprompted companion line.
+  const def=followers.catalog[npc];
+  return {npc_id:npc,npc_name:String(def.name).slice(0,32),player_name:String(c?.name??'').slice(0,64),persona:String(def.online.persona??'').slice(0,1500),
+   voice:(def.dialogue.talk_lines??[]).slice(0,3).map(l=>String(l).slice(0,200)),flags:c?storyFlags(c):[],lore_version:lore.version,...extra};
+ }
+ async function askGraph(body){ // One /v1/companion/chat call with the 409 lore re-push; returns the cleaned reply or ''.
+  const ask=()=>ai.request('/v1/companion/chat',body,{timeoutMs:20000,signal:stop.signal});
+  let res=await ask();if(res.status===409){await pushLore();res=await ask();}
+  return res.ok?clean(res.body?.reply):'';
+ }
+ function stillHere(hire){const now2=followers.occupied(hire.npc);return now2&&now2.id===hire.id&&now2.zone===hire.zone&&now2.status==='active'?now2:null;} // Nobody left while the line was written.
+ async function muse(hire,c,knobs){
+  let state={};try{state=JSON.parse(c.state??'{}');}catch{}
+  const listeners=Math.max(0,Math.floor(Number(audience(c,hire.area))||0));
+  const situation=situationFacts({name:String(c.name??'').slice(0,32),state,zone:hire.zone,now:now(),hire,speakerId:c.id,recent:memoryStore?.recent(hire.npc,c.id)??null})
+   .filter(f=>!f.private||listeners===0).map(f=>f.text).slice(0,10); // Embarrassing facts only when nobody else can hear.
+  const text=await askGraph(companionBody(hire.npc,c,{message:'waiting around',kind:'musing',audience:listeners,situation,bond:Math.max(0,Math.min(100,memoryStore?.bondOf(hire.npc,c.id)??0)),
+   memories:(memoryStore?.candidates(hire.npc,c.id,'')??[]).filter(m=>!m.embarrassing||listeners===0),summary:(memoryStore?.summary(hire.npc,c.id)??'').slice(0,1200)}));
+  const here=stillHere(hire);if(!closed&&text&&here)postLine({npc:hire.npc,c,hire:here,text,knobs});
+ }
+ async function banter(a,b,knobs){ // Two lines at most: A speaks to B, B answers. Public lore only; no player memories, gossip or slips.
+  const ca=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(a.character_id),cb=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(b.character_id);if(!ca||!cb)return;
+  const da=followers.catalog[a.npc],db2=followers.catalog[b.npc],around=situationFacts({name:'',state:{},zone:a.zone,now:now()}).slice(0,1).map(f=>f.text); // Just the place and time: a topic, nothing about players.
+  const first=await askGraph(companionBody(a.npc,null,{message:'banter',kind:'banter',situation:around,partner:{name:String(db2.name).slice(0,32),persona:String(db2.online.persona??'').slice(0,600),line:''}}));
+  const hereA=stillHere(a);if(closed||!first||!hereA)return;postLine({npc:a.npc,c:ca,hire:hereA,text:first,knobs});
+  const second=await askGraph(companionBody(b.npc,null,{message:'banter',kind:'banter',situation:around,partner:{name:String(da.name).slice(0,32),persona:String(da.online.persona??'').slice(0,600),line:first.slice(0,300)}}));
+  const hereB=stillHere(b);if(!closed&&second&&hereB)postLine({npc:b.npc,c:cb,hire:hereB,text:second,knobs});
+ }
+ function idleLife(){ // Checked from kick() at most every 5 s; starts at most one idle line at a time.
+  const t=now();if(closed||idleBusy||t-lastIdleCheck<5000)return;lastIdleCheck=t;
+  const knobs={...ADDRESS_DEFAULTS,...REACTION_DEFAULTS,...IDLE_DEFAULTS,...SLIP_DEFAULTS,...(slipTuning()??{})};
+  const hires=db.prepare("SELECT * FROM quest_follower_hires WHERE status='active' AND area IS NOT NULL").all();
+  const ready=hires.filter(h=>{ // The hirer is online beside their companion and not fighting.
+   const p=db.prepare('SELECT zone,x,y,seen FROM quest_presence WHERE character_id=?').get(h.character_id);
+   if(!p||p.seen<=t-30000||p.zone!==h.zone){stillSince.delete(h.character_id);return false;}
+   const was=stillSince.get(h.character_id);if(!was||was.zone!==p.zone||was.x!==p.x||was.y!==p.y)stillSince.set(h.character_id,{zone:p.zone,x:p.x,y:p.y,since:t}); // Moving resets the idle clock.
+   const c=db.prepare('SELECT state FROM quest_characters WHERE id=?').get(h.character_id);let state={};try{state=JSON.parse(c?.state??'{}');}catch{}
+   return !state.run&&!reacting.has(h.npc);
+  });
+  if(knobs.musings_enabled==='on')for(const hire of ready){
+   const still=stillSince.get(hire.character_id);if(!safeZone(hire.zone)||!still||t-still.since<Number(knobs.musing_after_s)*1000)continue;
+   if(!nextMusing.has(hire.npc))nextMusing.set(hire.npc,Math.max(lastSpoke.get(hire.npc)??-Infinity,still.since)+pause(knobs,'musing_cooldown_min_s','musing_cooldown_max_s'));
+   if(t<nextMusing.get(hire.npc)||t-(lastSpoke.get(hire.npc)??-Infinity)<Number(knobs.musing_cooldown_min_s)*1000)continue;
+   nextMusing.set(hire.npc,t+pause(knobs,'musing_cooldown_min_s','musing_cooldown_max_s')); // Next chance in 5-7 minutes, whatever happens now.
+   if(roll()>=Number(knobs.musing_chance)||!spendBudget(knobs))continue;
+   const c=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(hire.character_id);if(!c||!allowed(c.owner))continue;
+   idleBusy=true;reacting.add(hire.npc);
+   void muse(hire,c,knobs).catch(error=>{if(!closed)warn('musing',error?.url??'',error);}).finally(()=>{idleBusy=false;reacting.delete(hire.npc);});
+   return;
+  }
+  if(knobs.banter_enabled==='on')for(let i=0;i<ready.length;i++)for(let j=i+1;j<ready.length;j++){
+   const [a,b]=[ready[i],ready[j]].sort((x,y)=>x.npc<y.npc?-1:1);
+   if(a.area!==b.area||a.zone!==b.zone||Math.abs(a.x-b.x)>15||Math.abs(a.y-b.y)>10)continue; // Within earshot of each other.
+   const key=a.npc+'|'+b.npc;if(!nextBanter.has(key))nextBanter.set(key,t+pause(knobs,'banter_cooldown_min_s','banter_cooldown_max_s'));
+   if(t<nextBanter.get(key))continue;
+   nextBanter.set(key,t+pause(knobs,'banter_cooldown_min_s','banter_cooldown_max_s'));
+   if(roll()>=Number(knobs.banter_chance)||!spendBudget(knobs)||!spendBudget(knobs))continue; // Two lines: two budget tokens.
+   idleBusy=true;reacting.add(a.npc);reacting.add(b.npc);
+   void banter(a,b,knobs).catch(error=>{if(!closed)warn('banter',error?.url??'',error);}).finally(()=>{idleBusy=false;reacting.delete(a.npc);reacting.delete(b.npc);});
+   return;
+  }
+ }
  let reflecting=false,lastFold=-Infinity;
  function reflect(){ // One background AI job at a time: impressions first, then folding old memories into the summary (checked once a minute).
   if(closed||reflecting||!memoryStore)return;
@@ -165,8 +287,8 @@ Character voice examples: ${(def.dialogue.talk_lines??[]).slice(0,3).join(' ')}`
   void work.catch(error=>{if(closed)return;warn(job?'impressions':'summarize',error?.url??'',error);if(job)try{memoryStore.failImpression(job);}catch{}}).finally(()=>{reflecting=false;});
  }
  function kick(){
-  if(closed)return;try{memoryStore?.drain();}catch(error){log('companion_memory_drain_failed',String(error?.message??error).slice(0,200));} // Committed experiences become memories before the next reply is built.
-  reflect();db.prepare('DELETE FROM quest_follower_convo WHERE until<?').run(now());db.prepare("DELETE FROM quest_follower_chat_jobs WHERE status!='pending' AND created<?").run(now()-86400000);db.prepare('DELETE FROM quest_follower_memory WHERE updated<?').run(now()-1800000);
+  if(closed)return;try{memoryStore?.drain(200,react);}catch(error){log('companion_memory_drain_failed',String(error?.message??error).slice(0,200));} // Committed experiences become memories before the next reply is built.
+  reflect();idleLife();db.prepare('DELETE FROM quest_follower_convo WHERE until<?').run(now());db.prepare("DELETE FROM quest_follower_chat_jobs WHERE status!='pending' AND created<?").run(now()-86400000);db.prepare('DELETE FROM quest_follower_memory WHERE updated<?').run(now()-1800000);
   for(const job of db.prepare("SELECT * FROM quest_follower_chat_jobs WHERE status='pending' ORDER BY seq LIMIT 16").all()){
    const key=job.seq+':'+job.npc;if(running.size>=slots)break;if(running.has(key))continue;running.add(key);
    void answer(job).catch(()=>{if(!closed)status(job,'failed');}).finally(()=>running.delete(key));

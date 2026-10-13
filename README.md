@@ -1988,7 +1988,47 @@ Tests: `test/companion-memory.test.mjs`, `test/companion-admin.test.mjs`.
 - **GM tuning** is on the Companions tab (`followup_window_s`, `followup_cooldown_s`, `busy_threshold`,
   `hirer_default`, `fuzzy_names`, `emote_replies`, `address_classifier`).
 - **Migration fix:** the legacy chat-job upgrade now names its columns.
-- **Tests:** `test/companion-addressing.test.mjs`. Run node --test test/followers.test.mjs test/followers-http.test.mjs and the full suite. Detailed deployment, editing and browser checks are in the game checkout's ONLINE_FOLLOWERS_GUIDE.md.
+- **Tests:** `test/companion-addressing.test.mjs`.
+
+**Situation facts (phase B).** `server/companion-situation.mjs` turns the speaker's state into up to 10 word facts per
+reply (`situation` on `/v1/companion/chat`). There are no numbers in them.
+- **Public:** place (hub, overworld or dungeon by zone id), Pacific time of day, whether this speaker hired the
+  companion and whether the contract ends soon, HP, hunger and thirst, and the latest shared memory from the last
+  5 minutes (`memory.recent()`).
+- **Private:** toilet urges (`wet`/`tum` ≥ 45), wet or messy padding, accident clothes, smell, and embarrassing
+  recent memories. These are sent only when `audience` is 0.
+- **GM switch:** `situation_enabled`.
+- **Tests:** `test/companion-situation.test.mjs`.
+
+**Reactions (phase C).** After `companion-memory.drain()` stores a new experience, `react()` in `follower-chat.mjs` may
+have the hired companion speak up, as `server/companion-reactions.mjs` decides:
+- **hire:** always, a written line.
+- **boss win:** always. An AI line at `reaction_ai_chance`, otherwise written.
+- **ordinary win, first visit to a zone:** at `reaction_chance`.
+- **loss, revive:** a written line.
+- **quest:** an AI line or a written one.
+- **accident, change, care:** a comfort line when nobody else can hear. In public, only a slip at `slip_chance`,
+  posted only if the graph confirms it, with Dignity through `chargeSlip()`.
+
+Limits and sources:
+- **Limits:** `reaction_cooldown_s` per companion; never mid-fight, offline or away from the companion. Optional AI
+  lines share `ai_calls_per_minute`; without budget the written line is used.
+- **Lines:** `online.reactions` in companions.json (Lumi's drafts, `reactions_draft: true`), then
+  `GENERIC_REACTIONS`.
+- **Tests:** `test/companion-reactions.test.mjs`.
+
+**Idle life (phase D).** `idleLife()` in `follower-chat.mjs` runs from `kick()` every 5 s or more and starts at most one
+idle line at a time.
+- **Musings:** the hirer has stood still for `musing_after_s` in a town (`safeZone()`), isn't fighting, and the
+  companion hasn't spoken for 5-7 minutes (`musing_cooldown_min_s`-`max_s`, random each time). A
+  `musing_chance` roll then gives `kind: 'musing'`, with situation facts and memories (privacy rules as for
+  replies).
+- **Banter:** two active hires in the same area within earshot. Per pair, every 5-7 minutes, at `banter_chance`.
+  It's two `kind: 'banter'` lines (A, then B answering A), with only the place and time as context: no player
+  memories, slips or gossip.
+- **Budget:** both use the `ai_calls_per_minute` budget (banter needs 2).
+- **GM switches:** `musings_enabled`, `banter_enabled`.
+- **Tests:** `test/companion-idle.test.mjs`. Run node --test test/followers.test.mjs test/followers-http.test.mjs and the full suite. Detailed deployment, editing and browser checks are in the game checkout's ONLINE_FOLLOWERS_GUIDE.md.
 
 
 ## Online Story Workshop

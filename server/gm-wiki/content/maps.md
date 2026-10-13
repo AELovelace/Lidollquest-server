@@ -162,6 +162,7 @@ Every zone normally draws from its own palette: Honeydew from the Town tiles, th
 
 ## Limits in this version
 
+- A zone keeps up to 256 stored patch operations. An edit exceeding the limit is refused; older edits are never silently removed. Review obsolete entries individually instead of clearing the whole patch.
 - A gate keeps its size and wall. A new crossing can only lead where the travel rules already allow (linked routes, hubs, existing neighbours); arrivals from the other side use your gate's inside tile, and the other zone's own exits are unchanged.
 - Hub visitors see a GM reshape on their next snapshot (the room rebuilds in place with a log line); older clients built before 2026-10-03 repaint on re-entry.
 - Supported gates and warp pads use Exits & pads (Doors & gates in hubs); doors are not draggable route waypoints.
@@ -185,3 +186,7 @@ Read [NPC routes and pathfinding](npc-routes.md) for the exact controls, waypoin
 ![Schematic map showing a dashed approach from home and a numbered patrol that bends through a wall opening.](../assets/tutorial/npc-route-map.svg "Route waypoints choose destinations; pathfinding supplies the four-direction steps between them.")
 
 Terrain previews and route previews are separate drafts. Apply required terrain changes first, inspect the result, then use Save routes. The route preview can draw through a pending opening that the live server has not received yet. Neither terrain Undo nor Clear patch restores a route draft.
+
+## Auto-placed buildings and saved edits
+
+Moving or deleting a church or civic facade overrides its automatic placement. Hub refreshes and restarts must not put the original back. The server repairs copies restored by the older upgrade code using the retained patch, including rebuilding a moved replacement that code erased. Deleted altars, generated vanities and crafting stations stay removed as well. No regeneration is needed for this repair; **Clear patch** intentionally restores the generated features.

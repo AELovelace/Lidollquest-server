@@ -136,6 +136,21 @@ when it fits the conversation.
 - **Typos and nicknames:** one-letter typos of longer names, and the Companion tab's **nicknames**, count as the name
   (**fuzzy_names**).
 - **Emotes** like `/me hugs Elowen` get a reaction (**emote_replies**).
+- **Reactions:** hired companions speak up on their own (**reactions_enabled**).
+  - **When:** they greet on hire, and comment on boss wins, quests, revives and losses. Ordinary wins and new places
+    get a comment at **reaction_chance**.
+  - **Where the lines come from:** AI lines for big moments at **reaction_ai_chance**, and at most once per
+    **reaction_cooldown_s**. The written lines are in each companion's `online.reactions` (Lumi's drafts, editable in
+    the desktop editor's Companion tab).
+  - **Accidents:** they get comfort only when nobody else can hear. In public they can only come out as a slip.
+  - **AI budget:** optional AI lines share **ai_calls_per_minute**.
+- **Musings:** a hired companion whose hirer stands still in a town for **musing_after_s** may say something on their
+  own, about every 5-7 minutes (**musings_enabled**, **musing_chance**, **musing_cooldown_min_s**/**max_s**).
+- **Banter:** two hired companions near each other occasionally trade two lines about themselves or the place, never
+  about players (**banter_enabled**, **banter_chance**).
+- **Situation:** companions notice the place, the time of day, and a player's health, hunger and thirst
+  (**situation_enabled**). They mention needing the toilet, wet or messy padding, or smell only when nobody else can
+  hear.
 
 **Character memories.** Type a character name or id to see:
 - that character's bond with every companion, with a **Set bond** box for testing secrets

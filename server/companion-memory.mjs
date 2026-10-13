@@ -41,9 +41,9 @@ export function createCompanionMemory(mainDb,{file=':memory:',now=Date.now,log=c
   return bond;
  }
 
- function drain(limit=200){ // Move committed events from the game database into memories; returns how many were stored.
+ function drain(limit=200,onStored=null){ // Move committed events from the game database into memories; returns how many were stored.
   const rows=mainDb.prepare('SELECT * FROM quest_companion_events ORDER BY id LIMIT ?').all(limit);if(!rows.length)return 0;
-  let stored=0;mem.exec('BEGIN IMMEDIATE');
+  let stored=0;const fresh=[];mem.exec('BEGIN IMMEDIATE'); // fresh: newly stored experiences, handed to onStored (phase C reactions) after both commits.
   try{
    for(const row of rows){
     let data={};try{data=JSON.parse(row.data);}catch{}
@@ -51,11 +51,12 @@ export function createCompanionMemory(mainDb,{file=':memory:',now=Date.now,log=c
     if(row.kind==='zone'&&mem.prepare("SELECT 1 FROM memories WHERE npc=? AND character_id=? AND kind='zone' AND zone=?").get(row.npc,row.character_id,data.zone??''))continue; // Only the first visit together is memorable.
     const ins=mem.prepare('INSERT OR IGNORE INTO memories(id,npc,character_id,kind,text,gossip,importance,embarrassing,zone,created) VALUES (?,?,?,?,?,?,?,?,?,?)')
      .run('e'+row.id,row.npc,row.character_id,row.kind,r.text,r.gossip,r.importance,r.embarrassing?1:0,data.zone??null,row.created);
-    if(ins.changes){stored++;addBond(row.npc,row.character_id,r.bond);}
+    if(ins.changes){stored++;addBond(row.npc,row.character_id,r.bond);fresh.push({id:'e'+row.id,npc:row.npc,character_id:row.character_id,kind:row.kind,data,text:r.text,embarrassing:r.embarrassing});}
    }
    mem.exec('COMMIT');
   }catch(error){mem.exec('ROLLBACK');log('companion_memory_drain_failed',String(error?.message??error).slice(0,200));return 0;}
   mainDb.prepare('DELETE FROM quest_companion_events WHERE id<=?').run(rows.at(-1).id); // Only after the memories are safely committed.
+  if(onStored)for(const ev of fresh){try{onStored(ev);}catch(error){log('companion_reaction_failed',String(error?.message??error).slice(0,200));}} // A reaction problem never loses a memory.
   return stored;
  }
 
@@ -120,5 +121,6 @@ export function createCompanionMemory(mainDb,{file=':memory:',now=Date.now,log=c
    if(seen.has(m.gossip))continue;seen.add(m.gossip);out.push({id:m.id,text:m.gossip});if(out.length>=limit)break;
   }return out;
  }
- return {drain,bondOf,addBond,candidates,summary,forget,view,orphans,queueImpression,nextImpression,storeImpressions,failImpression,foldTarget,applyFold,slipCandidate,markSlip,gossipLines,db:mem,close:()=>mem.close()};
+ const recent=(npc,characterId,withinMs=300000)=>mem.prepare('SELECT text,embarrassing FROM memories WHERE npc=? AND character_id=? AND created>? ORDER BY created DESC LIMIT 1').get(npc,characterId,now()-withinMs)??null; // "Just now: ..." for the situation facts.
+ return {drain,bondOf,addBond,candidates,summary,forget,view,orphans,recent,queueImpression,nextImpression,storeImpressions,failImpression,foldTarget,applyFold,slipCandidate,markSlip,gossipLines,db:mem,close:()=>mem.close()};
 }

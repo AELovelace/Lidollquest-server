@@ -72,11 +72,11 @@ export function generateSewers(data,edition,depth=1){
   const index=branches.length;branches.push({state:1,paths:[paths[edge],short],rooms:[edge,edge+1]});
   for(const [end,r] of [a,b].entries())f.fixtures.push({id:'sluice-'+index+'-'+end,kind:'sluice',branch:index,name:'Sluice',sprite:'sprSewerValve',x:r.cx-2,y:r.cy-2,span_w:1,span_h:1,solid:true});
  }
- for(const [i,zone,name] of c.endpoints.map((e,n)=>[n===0?0:17,e.zone,e.name])){const r=f.rooms[i];f.exits.push({x:r.cx,y:r.cy,zone,name,style:'stairs'});f.entries[zone]={x:r.cx,y:r.cy+1};f.safeRooms.push({...r});}
- f.entrance={...f.entries['littlebig-clockwork']};
- for(const i of [5,11]){const r=f.rooms[i];f.safeRooms.push({...r});for(const [kind,dx,sprite,name] of [['bed',-2,'sprBed','Maintenance cot'],['toilet',2,data.service_profiles.toilet.sprite,'Maintenance toilet']])f.fixtures.push({id:kind+'-'+i,kind,bed:'objBedCot',style:'porcelain',name,sprite,x:r.cx+dx,y:r.cy-1,span_w:1,span_h:1,solid:true});}
+ for(const [i,zone,name] of c.endpoints.map((e,n)=>[n===0?6:11,e.zone,e.name])){const r=f.rooms[i];f.exits.push({x:r.cx,y:r.cy,zone,name,style:'stairs'});f.entries[zone]={x:r.cx,y:r.cy+1};f.safeRooms.push({...r});}
+ f.entrance={...f.entries['littlebig-clockwork']}; // The middle row runs right to left: the city manhole sits middle right, the catacomb stairs middle left.
+ for(const i of [0,17]){const r=f.rooms[i];f.safeRooms.push({...r});for(const [kind,dx,sprite,name] of [['bed',-2,'sprBed','Maintenance cot'],['toilet',2,data.service_profiles.toilet.sprite,'Maintenance toilet']])f.fixtures.push({id:kind+'-'+i,kind,bed:'objBedCot',style:'porcelain',name,sprite,x:r.cx+dx,y:r.cy-1,span_w:1,span_h:1,solid:true});}
  for(const fix of f.fixtures)f.props[fix.y][fix.x]=1;
- const rooms=f.rooms.filter((r,i)=>![0,5,11,17].includes(i)),deadEnds=[];
+ const rooms=f.rooms.filter((r,i)=>![0,6,11,17].includes(i)),deadEnds=[];
  for(let i=0;i<5;i++){const r=rooms[i*2],dy=r.cy<45?1:-1,dx=r.cy===46?2:-2;deadEnds.push(tunnel([[r.cx+dx,r.cy],[r.cx+dx,r.cy+dy*(r.radius+4)]]));} // On the reversed middle row, branch off the opposite side of the standing passage to preserve real cul-de-sacs.
  const protectedCell=p=>f.safeRooms.some(r=>inside(r,p.x,p.y)),controlled=new Set(branches.flatMap(b=>b.paths.flat().map(key)));
  const base=Array.from({length:H},()=>Array(W).fill('0')),eligible=[];

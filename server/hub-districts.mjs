@@ -78,7 +78,7 @@ export function addArcadiaAir(f,def){ // Copy a district's smog and whistle tuni
  return JSON.stringify([f.smog,f.whistle])!==before;
 }
 export function addCastleTemple(f,def){ // Sable's Veiled Sanctum: a fixed room below the Castle's entry strip (def.temple {x,y,w,h,door:{x}}), its doorway running up to the strip. Seed-free, so saved months gain it in place.
- const tp=def.temple,god=tp?templeGod(def.hub):null;if(!tp||!god||f.fixtures.some(x=>x.kind==='altar'))return false;
+ const tp=def.temple,god=tp?templeGod(def.hub):null;if(!tp||!god||f.rooms.some(r=>r.kind==='temple')||f.fixtures.some(x=>x.kind==='altar')||(f.patchUndo?.fixturesRemoved??[]).some(x=>x.kind==='altar'))return false; // An installed temple stays installed when the GM removes its altar; never recarve the room over their edits.
  const cy=Math.floor(f.height/2),east=entryStrip(f.width,f.height),tile=def.style==='castle'?1:6,cells=[];
  for(let y=tp.y;y<tp.y+tp.h;y++)for(let x=tp.x;x<tp.x+tp.w;x++)cells.push({x,y});
  for(let y=east.y+east.h;y<tp.y;y++)cells.push({x:tp.door.x,y}); // The doorway north to the protected entry area.
@@ -94,7 +94,7 @@ export const gateTargets=def=>Object.values(def?.lobby?.gates??{}).filter(t=>typ
 export function addLobbyBuildings(f,def){ // Plaza buildings added to hub-district-data after a month was saved (the gods' temples: Orin's Unbound Hearth, Nyx, Sula, Orthain) gain their facade in place. Their doors already worked (lobbyPortals reads the data), only the solid sprite was missing.
  let added=false;
  for(const b of def.lobby?.buildings??[]){
-  if(f.fixtures.some(x=>x.id===b.id))continue; // Already standing in this month.
+  if(f.fixtures.some(x=>x.id===b.id)||(f.patchUndo?.fixturesRemoved??[]).some(x=>x.id===b.id))continue; // A moved facade leaves a removal record for its original identity, just like a deletion.
   const facade={id:b.id,kind:'scenery',name:'',sprite:b.sprite,x:b.x,y:b.y,span_w:b.span_w,span_h:b.span_h,solid:true};
   const cells=[...footprint(facade),...(b.door?[{x:b.door.x,y:b.door.y}]:[])],inside=new Set(cells.map(c=>c.x+','+c.y)); // The facade and its doorstep.
   f.fixtures=f.fixtures.filter(x=>!footprint(x).some(c=>inside.has(c.x+','+c.y))); // Scenery, an outhouse or a resident standing where the building goes steps aside (same as addCastleTemple).
@@ -266,7 +266,7 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
   let added=false;
   for(const [kind,make] of [['cauldron',dormitoryCauldron],['reagents',dormitoryReagents],['toilet',dormitoryToilet]]){
    const fixture=make(def.dormitory);
-   if(f.fixtures.some(x=>x.id===fixture.id&&x.x===fixture.x&&x.y===fixture.y))continue; // already there
+   if(f.fixtures.some(x=>x.id===fixture.id))continue; // Existing identities count wherever they stand; never add a duplicate at the old coordinate.
    if((f.patchUndo?.fixturesRemoved??[]).some(x=>x.id===fixture.id))continue;            // a GM removed it in the Map Editor (floor-patches.mjs): respect that instead of putting it back
    if(districtBlocked(f,fixture.x,fixture.y))continue;                                    // a resident is standing there: try again next load
    f.fixtures.push(fixture);added=true;
@@ -286,7 +286,13 @@ export function createHubDistricts(db,{now=Date.now,data=districtData,beforeActi
   f.fixtures=f.fixtures.filter(x=>x.kind!=='scenery'||buildings.has(x.id)||!Array.from({length:(x.span_w??1)*(x.span_h??1)},(_,i)=>(x.x+i%(x.span_w??1))+','+(x.y+Math.floor(i/(x.span_w??1)))).some(k=>cells.has(k))); // Loose scenery sitting on the new road is cleared; plaza buildings and people stay.
   return true;
  };
- const upgrade=(id,f,def)=>{const gate=addEdgeGate(f,def,'north')|addEdgeGate(f,def,'south')|addSideGate(f,def,'west')|addSideGate(f,def,'east')|(def.lobby?addOuthouses(f,def,data)|addChangers(f,def,data)|addPayToilets(f,def,data):false)|addArcadiaAir(f,def)|addCastleTemple(f,def)|addLobbyBuildings(f,def)|addDistrictBuildings(f,def),pot=addCauldron(f,def)||gate,residents=(f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)),cleared=cleanFloor(f),patched=patchFloor(id,f);if(residents||pot||cleared||patched)persist(id,f);};
+ const upgrade=(id,f,def)=>{
+  const removed=new Set((f.patchUndo?.fixturesRemoved??[]).map(x=>x.id)),before=f.fixtures.length;
+  f.fixtures=f.fixtures.filter(x=>!removed.has(x.id));const repaired=f.fixtures.length!==before;
+  if(repaired)delete f.patchRevision; // Repair originals restored by an older server, then replay the saved edits to recover moved replacements it may also have overwritten.
+  const gate=addEdgeGate(f,def,'north')|addEdgeGate(f,def,'south')|addSideGate(f,def,'west')|addSideGate(f,def,'east')|(def.lobby?addOuthouses(f,def,data)|addChangers(f,def,data)|addPayToilets(f,def,data):false)|addArcadiaAir(f,def)|addCastleTemple(f,def)|addLobbyBuildings(f,def)|addDistrictBuildings(f,def),pot=addCauldron(f,def)||gate,residents=(f.district.residentVersion??0)<(data.resident_version??0)&&addDistrictResidents(f,def,data,visitors(id)),cleared=cleanFloor(f),patched=patchFloor(id,f);
+  if(repaired||residents||pot||cleared||patched)persist(id,f); // The map edition, visitors and stored edit revision stay intact.
+ };
  const persist=(id,f)=>db.prepare('UPDATE hub_district_editions SET content=? WHERE zone=? AND edition=?').run(JSON.stringify(f),id,f.district.layoutKey);
  function ensure(def){
   if(readOnly){const id=districtZone(def);if(cache.has(id))return cache.get(id);const row=db.prepare('SELECT e.content FROM hub_district_editions e JOIN hub_district_current c ON c.zone=e.zone AND c.edition=e.edition WHERE e.zone=?').get(id);if(!row)throw Error('Zone snapshot requested before district preparation');const floor=JSON.parse(row.content);cache.set(id,floor);return floor;} // Readers use the committed active edition; only the coordinator generates, upgrades or activates maps.

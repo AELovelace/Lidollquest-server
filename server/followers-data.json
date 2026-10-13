@@ -114,7 +114,42 @@
               "bond": 40
             }
           }
-        ]
+        ],
+        "reactions": {
+          "hire": [
+            "Then I swear my shield to you, {player}.",
+            "Stay behind me when it gets rough. Let's go."
+          ],
+          "battle_win": [
+            "Clean work, {player}. I held, you struck.",
+            "Shield's still standing. So are you. Good."
+          ],
+          "boss_win": [
+            "{enemy} has fallen. You fought well, {player}.",
+            "That was {enemy}. I'll remember standing beside you for this one."
+          ],
+          "battle_lost": [
+            "We'll regroup. I should have held the line better.",
+            "Breathe, {player}. Losing a fight is not losing the road."
+          ],
+          "revived": [
+            "Up you get. I've got your back, {player}.",
+            "Don't scare me like that. Stay behind my shield."
+          ],
+          "quest": [
+            "\"{quest}\" is done. The Chapel never taught me how good that feels.",
+            "Another one finished, {player}. I'm proud to walk with you."
+          ],
+          "zone": [
+            "{zone}. Stay close, and watch your footing.",
+            "New ground. I'll take point in {zone}."
+          ],
+          "comfort": [
+            "It happens to everyone, {player}. Let's get you changed, I'll keep watch.",
+            "No one saw. I'm right here. Let's take care of it."
+          ]
+        },
+        "reactions_draft": true
       }
     },
     "sorceress_arcana": {
@@ -265,7 +300,42 @@
               "bond": 60
             }
           }
-        ]
+        ],
+        "reactions": {
+          "hire": [
+            "Fine, I'll come along. Try to keep up, {player}.",
+            "My notes could use a field trip. Lead on."
+          ],
+          "battle_win": [
+            "Tidy. I'm writing that one down.",
+            "That went better than my last hypothesis."
+          ],
+          "boss_win": [
+            "{enemy}, documented and defeated. Not bad, {player}.",
+            "I'd love to know what Chrysalis was thinking with {enemy}."
+          ],
+          "battle_lost": [
+            "Well. That's data too. Let's not repeat it.",
+            "Get up slowly, {player}. I'll cover you."
+          ],
+          "revived": [
+            "Welcome back. Don't make a habit of it.",
+            "You scared me. I don't scare easily."
+          ],
+          "quest": [
+            "\"{quest}\": done. Another page for the archive.",
+            "Look at us, finishing things. \"{quest}\" is closed."
+          ],
+          "zone": [
+            "{zone}. I've read about it. None of it was reassuring.",
+            "Interesting. {zone} hums with something. Stay sharp."
+          ],
+          "comfort": [
+            "Curses are curses, {player}. Nothing to be ashamed of. Let me help.",
+            "Hold still. I've reset worse than this."
+          ]
+        },
+        "reactions_draft": true
       }
     },
     "merchant_mira": {
@@ -379,7 +449,42 @@
               "bond": 50
             }
           }
-        ]
+        ],
+        "reactions": {
+          "hire": [
+            "Oh! You want me along? Okay. Okay! I've got supplies.",
+            "I-I'll come. Just don't walk too fast, {player}."
+          ],
+          "battle_win": [
+            "We won? We won! Eheh. I wasn't scared.",
+            "Phew. Good job, {player}! I kept the snacks safe."
+          ],
+          "boss_win": [
+            "We beat {enemy}?! I'm telling everyone. Well, my customers.",
+            "{enemy} is gone! My legs are still shaking, but we did it!"
+          ],
+          "battle_lost": [
+            "Ow, ow. That was bad. Are you okay? I've got bandages somewhere...",
+            "Let's just... sit for a second. I've got snacks."
+          ],
+          "revived": [
+            "You're up! Don't do that again, my heart can't take it.",
+            "Oh thank goodness. Here, lean on me."
+          ],
+          "quest": [
+            "\"{quest}\" is done! That's worth a discount, I think.",
+            "We finished \"{quest}\"! I'm writing that in my ledger."
+          ],
+          "zone": [
+            "{zone}? I've sold here before. Mostly ran away, but still.",
+            "Ooh, {zone}. Stay close, okay? Closer."
+          ],
+          "comfort": [
+            "Hey, hey, it's okay. I always carry spares. Here.",
+            "Happens to me too. Let's get you sorted, no one has to know."
+          ]
+        },
+        "reactions_draft": true
       }
     },
     "matron_haven": {
@@ -517,7 +622,42 @@
               "bond": 45
             }
           }
-        ]
+        ],
+        "reactions": {
+          "hire": [
+            "Come along then, little one. Matron's here.",
+            "Let's get you where you're going, {player}, dear."
+          ],
+          "battle_win": [
+            "Well done, sweetie. Now let's check you over.",
+            "There we are. Brave thing, aren't you."
+          ],
+          "boss_win": [
+            "{enemy}, beaten! Matron is very proud of you, {player}.",
+            "Look at you, taking down {enemy}. You deserve a treat."
+          ],
+          "battle_lost": [
+            "Shh, it's alright. Come here and let me look at you.",
+            "That's enough fighting for now, dear. Rest a moment."
+          ],
+          "revived": [
+            "There's my brave one. Easy now.",
+            "Up we get. Matron has you."
+          ],
+          "quest": [
+            "\"{quest}\" all done? Good job, sweetie.",
+            "You finished \"{quest}\". I knew you would, dear."
+          ],
+          "zone": [
+            "{zone}. Stay where I can see you, little one.",
+            "Mind your step in {zone}, dear."
+          ],
+          "comfort": [
+            "Oh, sweetie, don't fret. Matron's changed more diapers than she can count. Come here.",
+            "There, there. Accidents happen. Let's get you fresh and clean."
+          ]
+        },
+        "reactions_draft": true
       }
     },
     "brawler_kai": {
@@ -636,7 +776,42 @@
               "bond": 60
             }
           }
-        ]
+        ],
+        "reactions": {
+          "hire": [
+            "Fine. I'll come. Don't slow me down.",
+            "You want backup? You got it. Let's move."
+          ],
+          "battle_win": [
+            "Ha! Too easy.",
+            "That's how you hit things, {player}."
+          ],
+          "boss_win": [
+            "{enemy} went down. Told you my fists were enough.",
+            "We flattened {enemy}! ...Don't tell anyone I was excited."
+          ],
+          "battle_lost": [
+            "Tch. Get up. We hit back harder next time.",
+            "That one doesn't count. Rematch later."
+          ],
+          "revived": [
+            "On your feet. I'm not carrying you.",
+            "...Glad you're okay. Don't make it weird."
+          ],
+          "quest": [
+            "\"{quest}\": done. Next.",
+            "Finished \"{quest}\". Not bad, {player}."
+          ],
+          "zone": [
+            "{zone}, huh. Anything here wants a fight, it gets one.",
+            "Stay close in {zone}. I mean it."
+          ],
+          "comfort": [
+            "Hey. Look at me. It happens. Everyone here gets it. Let's fix it.",
+            "I won't say a word. Ever. Go get changed, I'll guard the door."
+          ]
+        },
+        "reactions_draft": true
       }
     },
     "nurse_vex": {
@@ -779,7 +954,42 @@
               "bond": 50
             }
           }
-        ]
+        ],
+        "reactions": {
+          "hire": [
+            "A new patient! Lovely. Follow me, {player}.",
+            "Nurse Vex, at your service. Mostly."
+          ],
+          "battle_win": [
+            "Vitals still good? Good. Next.",
+            "Lovely. I hardly had to patch anything."
+          ],
+          "boss_win": [
+            "{enemy} is down and you're still breathing. Excellent outcome, {player}.",
+            "I'll put {enemy} in my report. Under 'treated'."
+          ],
+          "battle_lost": [
+            "Hold still. This only stings a little. Mostly.",
+            "Patient down. Patient getting back up. Good."
+          ],
+          "revived": [
+            "Welcome back to the land of the living. Don't do that on my shift.",
+            "There we go. Pulse steady. You're welcome."
+          ],
+          "quest": [
+            "\"{quest}\" complete. I'd prescribe a nap.",
+            "Another one finished. I'm almost impressed, {player}."
+          ],
+          "zone": [
+            "{zone}. Ugh, think of the germs.",
+            "New place, new hazards. Stay near your nurse in {zone}."
+          ],
+          "comfort": [
+            "Oh, I've seen far worse. Let's get you changed, quick and quiet.",
+            "Clinical procedure: a fresh diaper and no fuss. Hold still, {player}."
+          ]
+        },
+        "reactions_draft": true
       }
     },
     "defector_wick": {
@@ -919,7 +1129,42 @@
               "bond": 50
             }
           }
-        ]
+        ],
+        "reactions": {
+          "hire": [
+            "Okay. I'd like to see where you're going.",
+            "I'll come. It's nice to choose where I walk."
+          ],
+          "battle_win": [
+            "We did that. Both of us.",
+            "Still standing. I keep being surprised by that."
+          ],
+          "boss_win": [
+            "{enemy}. I never thought I'd see the end of something like that.",
+            "We beat {enemy}. Vesper would never believe it."
+          ],
+          "battle_lost": [
+            "It's okay. Losing isn't going back.",
+            "Take a breath, {player}. We're still out here."
+          ],
+          "revived": [
+            "You're back. Good. Don't leave me out here alone.",
+            "There you are. Stay with me."
+          ],
+          "quest": [
+            "\"{quest}\" is done. That feels like ours.",
+            "We finished \"{quest}\". I'm keeping that one."
+          ],
+          "zone": [
+            "{zone}. Further than the mansion steps. Further than I thought I'd get.",
+            "I've never been to {zone}. Have you?"
+          ],
+          "comfort": [
+            "Hey. The house used that against people. I won't. Let's get you sorted.",
+            "Nobody's watching. It's okay, {player}. I've got you."
+          ]
+        },
+        "reactions_draft": true
       }
     }
   }

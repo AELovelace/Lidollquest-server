@@ -4,6 +4,7 @@
 import {SLIP_DEFAULTS} from './follower-chat.mjs';
 import {MEMORY_DEFAULTS} from './companion-memory.mjs';
 import {ADDRESS_DEFAULTS} from './companion-addressing.mjs';
+import {REACTION_DEFAULTS,IDLE_DEFAULTS} from './companion-reactions.mjs';
 
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{status,code:'companion_admin_invalid'});};
 const clean=v=>String(v??'').replace(/[\u0000-\u001f\u007f]+/g,' ').replace(/\s+/g,' ').trim();
@@ -13,6 +14,10 @@ export const COMPANION_SETTING_BOUNDS=Object.freeze({ // [min,max] for numbers; 
  lore_drafts:['live','hidden'],
  followup_window_s:[0,900], followup_cooldown_s:[1,60], busy_threshold:[1,50],
  hirer_default:['on','off'], fuzzy_names:['on','off'], emote_replies:['on','off'], address_classifier:['on','off'],
+ situation_enabled:['on','off'],
+ reactions_enabled:['on','off'], reaction_chance:[0,1], reaction_ai_chance:[0,1], reaction_cooldown_s:[10,3600], ai_calls_per_minute:[0,600],
+ musings_enabled:['on','off'], musing_after_s:[30,3600], musing_cooldown_min_s:[60,7200], musing_cooldown_max_s:[60,7200], musing_chance:[0,1],
+ banter_enabled:['on','off'], banter_chance:[0,1], banter_cooldown_min_s:[60,7200], banter_cooldown_max_s:[60,7200],
 });
 const ID_RE=/^[a-z0-9][a-z0-9_-]{0,63}$/,FLAG_RE=/^[a-z][a-z0-9_:.-]{0,63}$/; // Same rules as python/companion_backstory.py.
 
@@ -20,7 +25,7 @@ export function createCompanionAdmin(db,{memory,followers,now=Date.now,pool=()=>
  db.exec(`CREATE TABLE IF NOT EXISTS quest_companion_settings(key TEXT PRIMARY KEY,value TEXT NOT NULL,updated INTEGER NOT NULL,actor TEXT NOT NULL DEFAULT '');
   CREATE TABLE IF NOT EXISTS quest_companion_lore(npc TEXT NOT NULL,id TEXT NOT NULL,heading TEXT NOT NULL DEFAULT '',text TEXT NOT NULL DEFAULT '',reveal_bond INTEGER NOT NULL DEFAULT 0,
    reveal_flag TEXT NOT NULL DEFAULT '',draft INTEGER NOT NULL DEFAULT 0,deleted INTEGER NOT NULL DEFAULT 0,updated INTEGER NOT NULL,actor TEXT NOT NULL DEFAULT '',PRIMARY KEY(npc,id));`);
- const defaults={...SLIP_DEFAULTS,...MEMORY_DEFAULTS,...ADDRESS_DEFAULTS,lore_drafts:loreDrafts==='hidden'?'hidden':'live'};
+ const defaults={...SLIP_DEFAULTS,...MEMORY_DEFAULTS,...ADDRESS_DEFAULTS,...REACTION_DEFAULTS,...IDLE_DEFAULTS,situation_enabled:'on',lore_drafts:loreDrafts==='hidden'?'hidden':'live'};
  let cached=null;
  function settings(){ // Every knob, GM values over the shipped defaults.
   if(cached)return cached;const out={...defaults};

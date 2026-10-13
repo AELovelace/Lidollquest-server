@@ -302,7 +302,10 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
  function act(input,{zone,floor,kind,openings,doors=[],actor,commit,destinations=null}){ // GM actions from gm.mjs (inside BEGIN IMMEDIATE). commit(floor): the caller saves the floor, re-realizes placements and relocates occupants; a throw rolls everything back.
   const current=get(zone);if(Number(input.patch_revision)!==current.revision)fail('The patch layer changed. Refresh before editing.');
   let ops;
-  if(input.action==='world_patch_apply')ops=[...current.ops,...normalizeOps(input.ops)].slice(-MAX_OPS);
+  if(input.action==='world_patch_apply'){
+   ops=[...current.ops,...normalizeOps(input.ops)];
+   if(ops.length>MAX_OPS)fail('This map has reached its '+MAX_OPS+'-change limit. Remove obsolete patch entries before adding more; all existing edits have been kept.',400); // Never silently drop old moves or deletions to make room for a new brush stroke.
+  }
   else if(input.action==='world_patch_remove'){ops=current.ops.filter(op=>op.id!==input.op);if(ops.length===current.ops.length)fail('That change is no longer stored.');}
   else if(input.action==='world_patch_rollback'){const row=db.prepare('SELECT body FROM world_floor_patch_history WHERE zone=? AND revision=?').get(zone,Number(input.target_revision));if(!row)fail('That patch revision does not exist.');ops=JSON.parse(row.body).ops??[];}
   else if(input.action==='world_patch_clear')ops=[];

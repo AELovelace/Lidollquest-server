@@ -56,7 +56,10 @@ export function fixtureMoveProblem(z,fixture,x,y){ // null when the fixture may 
 
 const cache=new Map(); // room layout + ops -> {moves, skipped}: the flood fills run once per layout, not per snapshot.
 export function applyFixtureMoves(z,ops){ // -> the room with GM fixture moves applied; skipped moves join z.patchSkipped for the Map Editor.
- const live=(ops??[]).filter(op=>op.kind==='fixture'&&(op.op??'move')==='move'&&(!Array.isArray(op.editions)||op.editions.includes(z.edition)||op.editions.includes(z.district?.layoutKey)));
+ const active=(ops??[]).filter(op=>op.kind==='fixture'&&(!Array.isArray(op.editions)||op.editions.includes(z.edition)||op.editions.includes(z.district?.layoutKey)));
+ const removed=new Set(active.filter(op=>op.op==='remove'&&MOVABLE_FIXTURES.has(op.match.kind)).map(op=>op.match.kind+':'+op.match.id));
+ if(removed.size)z={...z,fixtures:(z.fixtures??[]).filter(f=>!removed.has(f.kind+':'+f.id))}; // Vanities and crafting stations are generated after the terrain patch; their explicit removals must run here too.
+ const live=active.filter(op=>(op.op??'move')==='move'&&!removed.has(op.match.kind+':'+op.match.id)); // A later deletion supersedes earlier moves of that same fixture.
  if(!live.length)return z;
  const cacheKey=z.id+':'+(z.district?.layoutKey??'')+':'+JSON.stringify(live.map(op=>[op.id,op.match.id,op.to.x,op.to.y]))+':'+JSON.stringify((z.fixtures??[]).map(f=>[f.id,f.kind,f.x,f.y]));
  let hit=cache.get(cacheKey);

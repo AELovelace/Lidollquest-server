@@ -274,6 +274,57 @@ test('a GM-removed district toilet stays removed, later Applies still work, and 
  }finally{f.close();}
 });
 
+test('church and civic facade edits survive upgrades, restart and recovery of already resurrected originals',()=>{
+ const f=fixture();try{
+  const removed=[];
+  for(const zone of ['honeydew-lantern','littlebig-clockwork','utopia-arcanum','arcadia-foundry']){
+   const temple=f.map(zone).floor.fixtures.find(x=>x.id==='temple');assert.ok(temple);removed.push({zone,fixture:temple});
+   const ops=[{kind:'decoration',op:'remove',match:{id:temple.id,sprite:temple.sprite,x:temple.x,y:temple.y}}];
+   if(zone==='honeydew-lantern')ops.push({id:'relocated-temple',kind:'decoration',op:'add',decoration:{sprite:temple.sprite,x:temple.x+1,y:temple.y,span_w:temple.span_w,span_h:temple.span_h,solid:true}}); // Moving scenery is a removal plus a replacement with its own patch identity.
+   f.patch(zone,ops);assert.ok(!f.map(zone).floor.fixtures.some(x=>x.id==='temple'),'the original facade must stay removed in '+zone);
+  }
+  const zone='honeydew-lantern',hall=f.map(zone).floor.fixtures.find(x=>x.id==='community-hall');removed.push({zone,fixture:hall});
+  f.patch(zone,[{kind:'decoration',op:'remove',match:{id:hall.id,sprite:hall.sprite,x:hall.x,y:hall.y}}]);
+  const before=f.map(zone).floor,revision=f.map(zone).patch.revision;
+  for(const {zone,fixture:building} of removed){
+   const row=f.db.prepare('SELECT e.edition,e.content FROM hub_district_editions e JOIN hub_district_current c ON c.zone=e.zone AND c.edition=e.edition WHERE e.zone=?').get(zone),saved=JSON.parse(row.content);
+   saved.fixtures.push({...building});
+   if(zone==='honeydew-lantern'&&building.id==='temple')saved.fixtures=saved.fixtures.filter(x=>x.id!=='patch-relocated-temple'); // The faulty upgrade also erased the overlapping replacement; replay must recover it.
+   f.db.prepare('UPDATE hub_district_editions SET content=? WHERE zone=? AND edition=?').run(JSON.stringify(saved),zone,row.edition); // A previous server already restored it; the saved GM deletion must win on startup.
+  }
+  f.restart();f.tick();
+  for(const {zone,fixture:building} of removed)assert.ok(!f.map(zone).floor.fixtures.some(x=>x.id===building.id),zone+' must repair a resurrected '+building.id);
+  const after=f.map(zone).floor;assert.deepEqual(after.walls,before.walls);assert.equal(f.map(zone).patch.revision,revision);
+  assert.deepEqual(after.fixtures.find(x=>x.id==='patch-relocated-temple'),before.fixtures.find(x=>x.id==='patch-relocated-temple'));
+  f.advance(32*86400000);f.tick();
+  for(const {zone,fixture:building} of removed)assert.ok(!f.map(zone).floor.fixtures.some(x=>x.id===building.id),'monthly regeneration still applies the saved deletion in '+zone);
+  assert.ok(f.map(zone).floor.fixtures.some(x=>x.id==='patch-relocated-temple'),'the moved facade carries into the new month');
+  f.world('world_patch_clear',zone);assert.equal(f.map(zone).floor.fixtures.filter(x=>x.id==='temple').length,1);assert.equal(f.map(zone).floor.fixtures.filter(x=>x.id==='community-hall').length,1);
+ }finally{f.close();}
+});
+
+test('removed castle altar and generated vanity/crafting furniture stay removed after decoration and restart',()=>{
+ const f=fixture();try{
+  const zone='princess-rose-garden',floor=f.map(zone).floor,targets=floor.fixtures.filter(x=>['altar','mirror','forge','kitchen','sewing_table'].includes(x.kind));
+  assert.equal(targets.length,5);
+  f.patch(zone,targets.map(x=>({kind:'fixture',op:'remove',match:{id:x.id,kind:x.kind}})));
+  f.tick();f.restart();
+  for(const target of targets)assert.ok(!f.map(zone).floor.fixtures.some(x=>x.id===target.id),'do not recreate '+target.kind);
+  assert.deepEqual(f.map(zone).floor.walls,floor.walls,'deleting the altar must not rebuild or recarve its temple');
+  f.world('world_patch_clear',zone);
+  for(const target of targets)assert.equal(f.map(zone).floor.fixtures.filter(x=>x.id===target.id).length,1);
+ }finally{f.close();}
+});
+
+test('a full map patch refuses another edit instead of silently discarding earlier deletions',()=>{
+ const f=terrainFixture();try{
+  const ops=Array.from({length:256},(_,i)=>({id:'kept-'+i,kind:'cells',cells:[{x:3,y:3,floor:2}]}));
+  f.db.prepare('INSERT INTO world_floor_patches VALUES (?,?,?,?,?)').run('test-hub',1,JSON.stringify({ops}),0,'test');
+  assert.throws(()=>f.paint([{x:4,y:3,floor:3}]),/limit|256/i);
+  assert.deepEqual(f.patches.get('test-hub').ops,ops);assert.equal(f.patches.revision('test-hub'),1);
+ }finally{f.db.close();}
+});
+
 test('GMs place hub furniture from the catalog: real service fixtures that refuse walls and Dives and can be removed again',()=>{
  const f=fixture();try{
   const gm=(zone,ops)=>{f.db.exec('BEGIN IMMEDIATE');try{const r=f.patch(zone,ops);f.db.exec('COMMIT');return r;}catch(e){f.db.exec('ROLLBACK');throw e;}}; // As gm.mjs runs every GM action.
