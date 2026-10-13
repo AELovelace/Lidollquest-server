@@ -47,7 +47,7 @@ export function dungeonReachable(f,start=f.entrance){
 export function validateFullDungeon(f){
  const opened={...f,props:f.props.map(r=>[...r]),walls:f.walls.map(r=>[...r])};
  for(const puzzle of f.puzzles)for(const b of puzzle.blocks)opened.props[b.y][b.x]=0; // A puzzle's guarded chest is reachable after pushing; fixed walls still count.
- for(const q of f.catacombs?.puzzles??[])for(const p of q.doors){opened.props[p.y][p.x]=0;opened.walls[p.y][p.x]=0;} // Memorial crypts are validated in their attainable open state.
+ for(const q of [...(f.catacombs?.puzzles??[]),...(f.manaCaves?.puzzles??[])])for(const p of q.doors){opened.props[p.y][p.x]=0;opened.walls[p.y][p.x]=0;} // Memorial crypts are validated in their attainable open state.
  const seen=dungeonReachable(opened),ids=new Set();
  for(const p of [...f.exits,...Object.values(f.entries),...f.enemies,...f.chests,...f.pickups]){
   if(!seen.has(key(p)))throw Error(`Unreachable full dungeon content: ${p.id??key(p)}`);

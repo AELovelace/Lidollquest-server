@@ -99,6 +99,7 @@ export function catacombStep(f,s,personal,x,y,now=Date.now()){
 export function reconcileCatacombReservations(f,ready){
  if(!f.catacombs)return false;let changed=false;
  for(const p of f.catacombs.reserved){if(p.active||!ready(p.target,f))continue;
+  if(p.target==='dungeon-mana-tunnels')p.name='Mana Caves ? Utopia'; // Saved reservations keep their cells while receiving the shipped display name.
   p.active=true;f.exits.push({x:p.x,y:p.y,zone:p.target,name:p.name,style:'stairs'});f.entries[p.target]={...p.arrival};
   const fix=f.fixtures.find(v=>v.id==='reserved-'+p.target);fix.solid=false;fix.kind='scenery';fix.name=p.name;fix.sprite='sprCatacombDoorOpen';f.props[p.y][p.x]=0;changed=true;
  }

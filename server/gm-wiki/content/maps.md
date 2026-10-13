@@ -190,3 +190,7 @@ Terrain previews and route previews are separate drafts. Apply required terrain 
 ## Auto-placed buildings and saved edits
 
 Moving or deleting a church or civic facade overrides its automatic placement. Hub refreshes and restarts must not put the original back. The server repairs copies restored by the older upgrade code using the retained patch, including rebuilding a moved replacement that code erased. Deleted altars, generated vanities and crafting stations stay removed as well. No regeneration is needed for this repair; **Clear patch** intentionally restores the generated features.
+
+## Mana Caves
+
+Utopia connects to the northwest of Mana Caves (`dungeon-mana-tunnels`); Catacombs I connects to its southeast. The weekly 80?80 map has six open loops, three optional resonance shortcuts, a protected northern cot/changer refuge and an optional guardian. The saved Catacombs entrance activates in place only when the reciprocal floor is ready. Steam Network remains sealed. GM placement requires a client advertising `mana_caves_version: 1`. Terrain and fixture previews use the shipped crystal artwork; surface facade deletions and moves remain saved edits.

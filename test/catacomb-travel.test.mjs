@@ -52,12 +52,12 @@ test('shared candles serialize simultaneous revisions and duplicate receipts; pe
  const f=fixture();try{
   entry(f);entry(f,'b');const map=f.map(),q=map.catacombs.puzzles[0],mist=map.mist;
   const light=(who,symbol,revision)=>{const candle=f.map().fixtures.find(c=>c.puzzle===q.id&&c.symbol===symbol);f.place(who,{x:candle.x,y:candle.y+1});return f.command(who,'dungeon_interact',{fixture:candle.id,mechanism_revision:revision});};
-  const a=light('a',q.order[0],0),b=light('b',q.order[0],0);f.send('a',a);f.send('a',a);assert.equal(f.map().mechanismRevision,1);assert.throws(()=>f.send('b',b),/changed/);closeScene(f,'a');
+  const revision=map.mechanismRevision,a=light('a',q.order[0],revision),b=light('b',q.order[0],revision);f.send('a',a);f.send('a',a);assert.equal(f.map().mechanismRevision,revision+1);assert.throws(()=>f.send('b',b),/changed/);closeScene(f,'a');
   for(const symbol of q.order.slice(1)){f.send('a',light('a',symbol,f.map().mechanismRevision));closeScene(f,'a');}
   assert.ok(f.map('b').catacombs.puzzles[0].solved);
   for(const who of ['a','b']){const chest=f.snap(who).dive.chests.find(c=>c.requires_memorial===q.id);f.place(who,chest);const receipt=f.command(who,'dive_claim',{chest:chest.id});f.send(who,receipt);f.send(who,receipt);assert.equal(f.snap(who).dive.claimed,1);}
   f.restart();assert.ok(f.map().catacombs.puzzles[0].solved);assert.deepEqual(f.map().mist,mist);
-  const reserved=f.map().catacombs.reserved[0];f.place('a',{x:reserved.x,y:reserved.y+1});assert.throws(()=>f.act('a','dive_exit',{zone:reserved.target}),/exit/);assert.throws(()=>f.act('a','dive_enter',{zone:reserved.target}),/Unknown|unavailable|zone|changing routes/i);
+  const reserved=f.map().catacombs.reserved.find(p=>p.target==='dungeon-steam-network');f.place('a',{x:reserved.x,y:reserved.y+1});assert.throws(()=>f.act('a','dive_exit',{zone:reserved.target}),/exit/);assert.throws(()=>f.act('a','dive_enter',{zone:reserved.target}),/Unknown|unavailable|zone|changing routes/i);
  }finally{f.close();}
 });
 test('authoritative duplicate movement causes one haunting; refuge clears chill; guardian reward requires participation',()=>{

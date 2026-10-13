@@ -19,12 +19,12 @@ test('Utopia reaches the Hospital and the Auto-Nursery through its side walls: n
  const def=districtData.districts.find(d=>d.hub==='utopia-arcanum'),gated=gateTargets(def);
  assert.deepEqual(gated,['dungeon-regression-hospital','dungeon-auto-nursery']);
  const f=generateDistrict(def,{edition:'gates-1',ends:0}),cy=Math.floor(f.height/2);
- assert.deepEqual(f.fullDungeonPortals??[],[]);assert.ok(!f.fixtures.some(x=>x.id.startsWith('entrance-dungeon-')),'no entrance buildings'); // The paths replace the buildings.
+ assert.deepEqual(f.fullDungeonPortals.map(p=>p.target),['dungeon-mana-tunnels']);assert.ok(!f.fixtures.some(x=>gated.some(t=>x.id==='entrance-'+t)),'no side-gate entrance buildings'); // The paths replace the buildings.
  for(const y of [cy-1,cy]){assert.equal(f.walls[y][0],0,'west gate open');assert.equal(f.walls[y][f.width-1],0,'east gate open');}
  const seen=reachableDistrict(f);assert.ok(seen.has('1,'+cy)&&seen.has((f.width-2)+','+cy),'both paths join the town');
  const old=structuredClone(f);addFullDungeonEntrances(old,'utopia-arcanum',[]); // A month saved before the gates had both buildings...
- assert.equal(old.fullDungeonPortals.length,2);assert.ok(old.fixtures.some(x=>x.id==='entrance-dungeon-auto-nursery'));
+ assert.equal(old.fullDungeonPortals.length,3);assert.ok(old.fixtures.some(x=>x.id==='entrance-dungeon-auto-nursery'));
  assert.equal(addFullDungeonEntrances(old,'utopia-arcanum',[],gated),true); // ...and loses them on upgrade.
- assert.deepEqual(old.fullDungeonPortals,[]);assert.ok(!old.fixtures.some(x=>x.id.startsWith('entrance-dungeon-')));
+ assert.deepEqual(old.fullDungeonPortals.map(p=>p.target),['dungeon-mana-tunnels']);assert.ok(!old.fixtures.some(x=>gated.some(t=>x.id==='entrance-'+t)));
  assert.equal(addFullDungeonEntrances(old,'utopia-arcanum',[],gated),false);
 });

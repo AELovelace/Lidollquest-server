@@ -137,6 +137,7 @@ test('live dressing upgrade preserves walls, claims, inventory, fights and playe
   const visit=fighting.character.dive,key=[visit.route,visit.edition,1]; // Target the occupied route, weekly edition and floor, never whichever row SQLite returns first.
   const readFloor=()=>JSON.parse(f.db.prepare('SELECT content FROM dive_editions WHERE route=? AND edition=? AND depth=?').get(...key).content);
   const otherFloors=()=>f.db.prepare('SELECT route,edition,depth,content FROM dive_editions WHERE NOT (route=? AND edition=? AND depth=?) ORDER BY route,edition,depth').all(...key);
+  f.restart();f.tick(); // Finish reciprocal entrance activation before measuring an unrelated dressing upgrade.
   const untouched=otherFloors(),floor=readFloor();assert.ok(untouched.length>0,'other routes must exist to exercise upgrade isolation');
   delete floor.dressingVersion;delete floor.pickups;delete floor.props;floor.decorations=[];
   const update=f.db.prepare('UPDATE dive_editions SET content=? WHERE route=? AND edition=? AND depth=?').run(JSON.stringify(floor),...key);
@@ -147,7 +148,7 @@ test('live dressing upgrade preserves walls, claims, inventory, fights and playe
   assert.ok(walkable(upgraded,s.position.x,s.position.y));assert.ok(s.dive.pickupsTotal>0);assert.equal(s.dive.enemies.find(e=>e.id==='iris').engaged,a);
   f.restart();f.tick();assert.deepEqual(readFloor(),upgraded);
   assert.deepEqual(logs.filter(([event])=>event.endsWith('_failed')),[],'all routes must survive the upgrade and both restarts without caught failures');
-  assert.deepEqual(otherFloors(),untouched,'upgrading one floor must preserve every other saved map byte for byte');
+  for(const [i,row] of otherFloors().entries())assert.ok(row.content===untouched[i].content,'upgrading one floor changed unrelated map '+row.route); // Identify the affected route without dumping megabytes of geometry on failure.
  }finally{f.close();}
 });
 test('both lobbies share a floor; personal chest claims survive replay, inventory limits and reconnects',()=>{

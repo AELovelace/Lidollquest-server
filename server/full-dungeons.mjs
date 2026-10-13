@@ -24,7 +24,7 @@ export function addFullDungeonEntrances(f,zone,visitors=[],gated=[],protectedTil
  const occupied=(x,y)=>visitors.some(p=>p.x===x&&p.y===y)||f.fixtures.some(p=>x>=p.x&&y>=p.y&&x<p.x+(p.span_w??1)&&y<p.y+(p.span_h??1)); // Additive upgrades cannot build over a visitor, passable resident, or objective fixture.
  const flood=()=>{const q=[f.spawn],seen=new Set();for(let i=0;i<q.length;i++){const p=q[i],k=p.x+','+p.y;if(seen.has(k)||blocked(p.x,p.y))continue;seen.add(k);for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]])q.push({x:p.x+dx,y:p.y+dy});}return seen;};
  for(const link of links){
-  if(f.fullDungeonPortals.some(p=>p.target===link.target))continue;
+  if(f.fullDungeonPortals.some(p=>p.target===link.target)||(f.patchUndo?.fixturesRemoved??[]).some(p=>p.id==='entrance-'+link.target))continue; // Explicit GM removals or moves must never regenerate a facade.
   const reachable=flood(),candidates=[...reachable].map(k=>{const [x,y]=k.split(',').map(Number);return {x,y};}).sort((a,b)=>Math.abs(a.x-f.spawn.x)+Math.abs(a.y-f.spawn.y)-Math.abs(b.x-f.spawn.x)-Math.abs(b.y-f.spawn.y)||a.y-b.y||a.x-b.x);
   let placed=false;
   for(const p of candidates){
@@ -37,6 +37,7 @@ export function addFullDungeonEntrances(f,zone,visitors=[],gated=[],protectedTil
     if(cells.some(v=>!reachable.has(v.x+','+v.y)||occupied(v.x,v.y)))continue;
     const building={id:'entrance-'+link.target,kind:'scenery',name:link.name,x:p.x-1,y:p.y-3,span_w:3,span_h:3,solid:true,sprite:zone==='utopia-arcanum'?(link.target==='dungeon-auto-nursery'?'sprUtopiaNapPods':'sprUtopiaTower'):'sprCityFacadeApartment'};
     f.fixtures.push(building);const next=flood();
+    if(link.target==='dungeon-mana-tunnels')building.sprite='sprManaStation'; // Dedicated survey facade shares the validated three-tile footprint.
     if(link.style==='mausoleum')building.sprite='sprCatacombMausoleum'; // Same validated footprint, with dedicated catacomb artwork.
     if(next.size!==reachable.size-9||f.fixtures.some(v=>v.kind!=='scenery'&&![[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>next.has((v.x+dx)+','+(v.y+dy))))){f.fixtures.pop();continue;}
    }

@@ -16,7 +16,7 @@ function fixture(){
  const command=(who,action,extra={})=>{const s=snap(who);return {action,controller:who,character_id:ids[who],revision:s.character.revision,request_id:randomUUID(),...(s.character.dive?{edition:s.dive.edition}:{}),...extra};};
  const send=(who,input)=>{time+=350;return api.act(who,input);},act=(who,action,extra)=>send(who,command(who,action,extra));
  const place=(who,p)=>{const s=JSON.parse(db.prepare('SELECT state FROM quest_characters WHERE id=?').get(ids[who]).state);if(s.dive){s.dive.position={x:p.x,y:p.y};s.dive.safeUntil=time+600000;}db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(s),ids[who]);db.prepare('UPDATE quest_presence SET x=?,y=?,seen=?,moved=0 WHERE character_id=?').run(p.x,p.y,time,ids[who]);};
- const create=(who,zone,version=1)=>{ids[who]=api.act(who,{action:'create',name:who==='a'?'Alice':'Bob',controller:who,request_id:randomUUID()}).character.id;act(who,'enter',{zone,sewer_version:1,full_dungeon_version:version,content_version:1,quest_version:1,combat_version:3,loadout:{player_info:{class_id:'warrior',playerHealth:1000,playerHealthMax:1000,stamina:100,stamina_max:100,str:100,def:100,dex:100,cha:10,level:50,xp:0},inventory:[],player_spells:[]}});};
+ const create=(who,zone,version=1)=>{ids[who]=api.act(who,{action:'create',name:who==='a'?'Alice':'Bob',controller:who,request_id:randomUUID()}).character.id;act(who,'enter',{zone,sewer_version:1,mana_caves_version:1,full_dungeon_version:version,content_version:1,quest_version:1,combat_version:3,loadout:{player_info:{class_id:'warrior',playerHealth:1000,playerHealthMax:1000,stamina:100,stamina_max:100,str:100,def:100,dex:100,cha:10,level:50,xp:0},inventory:[],player_spells:[]}});};
  const map=(who='a')=>{const s=snap(who);return s.zones.find(z=>z.id===s.zone);};
  return {db,live,ids,snap,act,send,command,place,create,map,get api(){return api;},advance(ms){time+=ms;},restart(){api.close();start();},close(){api.close();db.close();}};
 }
@@ -111,9 +111,9 @@ test('publishing live content and respawning keep full dungeon room populations 
 test('named Utopia and LittleBig entrances require the new capability and return beside their own doors',()=>{
  const f=fixture();try{
   for(const data of fullDungeons.filter(d=>d.config.theme!=='dungeon'&&d.config.catacombs===undefined)){
-   const host=data.config.endpoints[0].zone;if(!f.ids.a)f.create('a',host,0);else f.act('a','enter',{zone:host,sewer_version:1,full_dungeon_version:0,content_version:1,quest_version:1,combat_version:3});
+   const host=data.config.endpoints[0].zone;if(!f.ids.a)f.create('a',host,0);else f.act('a','enter',{zone:host,sewer_version:1,mana_caves_version:1,full_dungeon_version:0,content_version:1,quest_version:1,combat_version:3});
    const portal=f.map().portals.find(p=>p.target===data.config.zone_id);assert.ok(portal);f.place('a',portal);assert.throws(()=>f.act('a','dive_enter',{zone:portal.target}),/Update the game/);
-   f.act('a','enter',{zone:host,sewer_version:1,full_dungeon_version:1,content_version:1,quest_version:1,combat_version:3});f.place('a',portal);f.act('a','dive_enter',{zone:portal.target});assert.equal(f.map().fullDungeonVersion,1);assert.equal(f.snap().dive.origin,host);f.act('a','dive_exit');assert.equal(f.snap().zone,host);
+   f.act('a','enter',{zone:host,sewer_version:1,mana_caves_version:1,full_dungeon_version:1,content_version:1,quest_version:1,combat_version:3});f.place('a',portal);f.act('a','dive_enter',{zone:portal.target});assert.equal(f.map().fullDungeonVersion,1);assert.equal(f.snap().dive.origin,host);f.act('a','dive_exit');assert.equal(f.snap().zone,host);
    const p=f.snap().position;assert.ok(Math.abs(p.x-portal.x)+Math.abs(p.y-portal.y)>=1); // Arrival never lands on the trigger tile.
   }
  }finally{f.close();}
@@ -138,7 +138,7 @@ test('party entry checks every client capability and transfers the whole group t
  const f=fixture();try{
   f.create('a','utopia-arcanum');f.create('b','utopia-arcanum',0);f.act('a','party_invite',{member:f.ids.b});const invitation=f.db.prepare('SELECT id FROM quest_party_invites').get().id;f.act('b','party_accept',{invitation});
   const p=f.map().portals.find(p=>p.target==='dungeon-auto-nursery');f.place('a',p);assert.throws(()=>f.act('a','dive_enter',{zone:p.target}),/needs to update/);assert.equal(f.snap().zone,'utopia-arcanum');assert.equal(f.snap('b').zone,'utopia-arcanum');
-  f.act('b','enter',{zone:'utopia-arcanum',sewer_version:1,full_dungeon_version:1,content_version:1,quest_version:1,combat_version:3});f.act('a','dive_enter',{zone:p.target});assert.equal(f.snap('b').zone,p.target);assert.equal(f.snap('b').dive.origin,'utopia-arcanum');f.act('a','dive_exit');assert.equal(f.snap('b').zone,'utopia-arcanum');
+  f.act('b','enter',{zone:'utopia-arcanum',sewer_version:1,mana_caves_version:1,full_dungeon_version:1,content_version:1,quest_version:1,combat_version:3});f.act('a','dive_enter',{zone:p.target});assert.equal(f.snap('b').zone,p.target);assert.equal(f.snap('b').dive.origin,'utopia-arcanum');f.act('a','dive_exit');assert.equal(f.snap('b').zone,'utopia-arcanum');
  }finally{f.close();}
 });
 
@@ -147,7 +147,7 @@ test('weekly expiry and monthly refresh retain old claims and character flags wh
   f.create('a','utopia-arcanum');const portal=f.map().portals.find(p=>p.target==='dungeon-auto-nursery');f.place('a',portal);f.act('a','dive_enter',{zone:portal.target});
   const old=f.snap().dive.edition,state=JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(f.ids.a).state);state.fullDungeon={flags:{test_visit:true},counters:{visits:1},once:{test_gift:true}};f.db.prepare('UPDATE quest_characters SET state=? WHERE id=?').run(JSON.stringify(state),f.ids.a);
   f.db.exec('UPDATE hub_district_controls SET locked=0,pinned=NULL'); // Hub maps are static by default; unlock them so the monthly refresh below still happens.
-  f.act('a','dive_exit');f.advance(10*86400000);f.restart();f.act('a','enter',{zone:'utopia-arcanum',sewer_version:1,full_dungeon_version:1,content_version:1,quest_version:1,combat_version:3});
+  f.act('a','dive_exit');f.advance(10*86400000);f.restart();f.act('a','enter',{zone:'utopia-arcanum',sewer_version:1,mana_caves_version:1,full_dungeon_version:1,content_version:1,quest_version:1,combat_version:3});
   assert.equal(f.map().district.edition,'2026-10');const next=f.map().portals.find(p=>p.target===portal.target);assert.ok(next);f.place('a',next);f.act('a','dive_enter',{zone:next.target});assert.notEqual(f.snap().dive.edition,old);
   assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM dive_progress WHERE character_id=? AND route=? AND edition=?').get(f.ids.a,'auto-nursery',old).n,1);
   assert.equal(JSON.parse(f.db.prepare('SELECT state FROM quest_characters WHERE id=?').get(f.ids.a).state).fullDungeon.once.test_gift,true);

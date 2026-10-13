@@ -7,6 +7,7 @@ import {walkable,inside} from './dive-generation.mjs';
 import {dungeonReachable} from './full-dungeon-generation.mjs';
 import {changeEquipment} from './companion-equipment.mjs';
 import {removeCursedGear} from './curse-removal.mjs';
+import {manaInteract,manaStep} from './mana-caves.mjs';
 import {catacombInteract,catacombStep} from './catacombs.mjs';
 import {addToInventory,slotsUsed,stackable,importLoadout} from './loadout.mjs';
 import {awardExperience,currentTuning} from './combat.mjs';
@@ -165,6 +166,7 @@ export function createDungeonRules({db,data,now,roll,origins,adjust,progress,sav
  }
  function step(c,s,record,x,y){
   let personal=progress(c,record.edition);personal.events??={room:-1,left:0,count:0,once:[],last:''};const tracker=personal.events,f=record.floor;
+  manaStep(f,s,personal,x,y,now()); // Resonance pulses share the same committed movement receipt.
   catacombStep(f,s,personal,x,y,now()); // Apply personal pressure once per committed movement, alongside ordinary mist.
   const industrialDamage=industrialStep(f,personal,{x,y});
   if(industrialDamage){s.loadout.player_info.playerHealth=Math.max(1,s.loadout.player_info.playerHealth-industrialDamage);s.dive.lootNotice='Active production line: '+industrialDamage+' damage.';s.dive.lootNoticeAt=now();}
@@ -214,6 +216,8 @@ export function createDungeonRules({db,data,now,roll,origins,adjust,progress,sav
   }
   else if(fix.kind==='bed'){
    if(now()-(personal.fixtures[fix.id]??-Infinity)<1000)fail('Wait for the next rest turn.');personal.fixtures[fix.id]=now();applyDungeonEffects([{type:'heal',amount:2},{type:'stamina_heal',amount:5}],c,s,context(record));present(s,fix.name,'You rest for a moment.');
+  }else if(fix.kind.startsWith('mana_')){
+   const text=manaInteract(record.floor,fix,input.mechanism_revision);saveFloor(record);present(s,fix.name,text);
   }else if(fix.kind.startsWith('catacomb_')){
    const text=catacombInteract(record.floor,fix,input.mechanism_revision);saveFloor(record);present(s,fix.name,text);
   }else if(fix.kind==='sluice'){

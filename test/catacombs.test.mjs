@@ -55,7 +55,7 @@ test('migration changes only obsolete exit identities and return metadata; futur
   assert.deepEqual(f.walls,before.walls);assert.deepEqual(f.chests,before.chests);assert.deepEqual(f.enemies,before.enemies);assert.deepEqual(f.entries[CATACOMBS],before.entries['arcadia-foundry']);assert.equal(f.exits[0].x,3);
   const s={dive:{route,zone:'dungeon-'+route,returnZone:'arcadia-foundry',origin:'arcadia-foundry',position:{x:14,y:18}},run:{id:'battle'}};normalizeUndergroundReturn(s);assert.deepEqual(s.dive.position,{x:14,y:18});assert.equal(s.run.id,'battle');assert.equal(s.dive.returnZone,route==='castle-dungeon'?'princess-rose-garden':'littlebig-clockwork');
  }
- assert.ok(undergroundLinked(CATACOMBS,'dungeon-castle-dungeon'));assert.ok(!undergroundLinked(CATACOMBS,'dungeon-mana-tunnels'));assert.ok(!undergroundLinked(CATACOMBS,'arcadia-foundry'));
+ assert.ok(undergroundLinked(CATACOMBS,'dungeon-castle-dungeon'));assert.ok(undergroundLinked(CATACOMBS,'dungeon-mana-tunnels'));assert.ok(!undergroundLinked(CATACOMBS,'dungeon-steam-network'));assert.ok(!undergroundLinked(CATACOMBS,'arcadia-foundry'));
 });
 test('guardian locket consistently uses rare accessory scaling without an equipment curse',()=>{
  const data=routes[2],f=generateCatacombs(data,'reward'),chest=f.chests.find(c=>c.id==='keeper-relic'),roll=createDiveLootRoller(data);

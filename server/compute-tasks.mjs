@@ -1,4 +1,5 @@
 import {generateSewers} from './sewers.mjs';
+import {generateManaCaves} from './mana-caves.mjs';
 import {generateCatacombs} from './catacombs.mjs';
 import {generateCaverns} from './caverns-generation.mjs';
 import {generateFloor,pathTo} from './dive-generation.mjs';
@@ -9,7 +10,7 @@ import {generateFarmstead} from './farmstead-generation.mjs';
 import {generateSpa} from './spa-generation.mjs';
 import {generateCastleDungeon,generateAutoNursery,generateRegressionSchool,generateRegressionHospital} from './full-dungeon-generation.mjs';
 import {generateFullDungeon} from './full-dungeon-generation.mjs';
-export const GENERATORS=Object.freeze({catacombs:generateCatacombs,sewers:generateSewers,arcadia_industrial:generateFullDungeon,caverns:generateCaverns,rooms:generateFloor,desert:generateDesert,forest:generateForest,mansion:generateMansion,farmstead:generateFarmstead,spa:generateSpa,castle_dungeon:generateCastleDungeon,auto_nursery:generateAutoNursery,regression_school:generateRegressionSchool,regression_hospital:generateRegressionHospital}); // Workers receive generator names and exported content, never mutable game state.
+export const GENERATORS=Object.freeze({mana_caves:generateManaCaves,catacombs:generateCatacombs,sewers:generateSewers,arcadia_industrial:generateFullDungeon,caverns:generateCaverns,rooms:generateFloor,desert:generateDesert,forest:generateForest,mansion:generateMansion,farmstead:generateFarmstead,spa:generateSpa,castle_dungeon:generateCastleDungeon,auto_nursery:generateAutoNursery,regression_school:generateRegressionSchool,regression_hospital:generateRegressionHospital}); // Workers receive generator names and exported content, never mutable game state.
 export const generatorName=generate=>Object.keys(GENERATORS).find(name=>GENERATORS[name]===generate)??null; // null: a custom generator that must run on the main thread.
 
 export function floorKey(zoneId,edition,f){

@@ -18266,6 +18266,14 @@
         "honeydew-catacombs-3": {
           "base": 70,
           "per_floor": 0
+        },
+        "mana-tunnels": {
+          "base": 55,
+          "per_floor": 0
+        },
+        "dungeon-mana-tunnels": {
+          "base": 55,
+          "per_floor": 0
         }
       },
       "shop_levels": {
