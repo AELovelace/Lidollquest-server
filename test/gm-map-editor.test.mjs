@@ -4,6 +4,31 @@ import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {createQuestService} from '../server/service.mjs';
 
+test('surface dungeon entrances drag and cut as one connection without mutating the base preview or copying a portal',async()=>{
+ const source=readFileSync(new URL('../server/gm-map-editor.js',import.meta.url),'utf8');
+ for(const building of [true,false]){
+  const target=building?'dungeon-mana-tunnels':'dungeon-littlebig-sewers',portal={target,key:target,name:'Test entrance',fullDungeon:true,entranceFixture:'entrance-'+target,x:8,y:10};
+  const art={id:portal.entranceFixture,kind:'scenery',sprite:building?'sprManaStation':'sprSewerManhole',x:building?7:8,y:building?7:10,span_w:building?3:1,span_h:building?3:1,solid:building};
+  const floor={walls:Array.from({length:30},()=>Array(30).fill(0)),fixtures:[art],doors:[portal],portals:[{...portal}],fullDungeonPortals:[{...portal}]},original=structuredClone(floor);
+  const state={map:{id:building?'utopia-arcanum':'littlebigcity',kind:'hub',patch:{},floor},pending:[],plan:{supports:{decorations:false}}};
+  const context={state,structuredClone,MOVABLE_FIXTURES:new Set(),MOVE_ONLY_FIXTURES:new Set(),renderToolOptions:()=>{},schedule:()=>{},say:()=>{},queueOp:op=>state.pending.push(op)};
+  runInNewContext(source.slice(source.indexOf('function effectiveFloor('),source.indexOf('async function loadContent('))+'\n'+source.slice(source.indexOf('const fixturesEditable='),source.indexOf('function drawGhost(')),context); // Exercise the actual handlers without DOM or network setup.
+  context.select(art.x,art.y);assert.equal(state.selection.type,'entrance');assert.equal(context.objectAt(portal.x,portal.y).type,'entrance');
+  assert.throws(()=>context.copySelection(false),/not copied/);
+  await context.moveObject(state.selection,{x:15,y:16});
+  const dx=15-art.x,dy=16-art.y,copy=value=>JSON.parse(JSON.stringify(value));
+  assert.deepEqual(copy(state.pending),[{kind:'exit',op:'move',exit:target,to:{x:portal.x+dx,y:portal.y+dy}}],'one move preserves the facade-to-doorstep offset');
+  const preview=context.effectiveFloor();assert.deepEqual([preview.fixtures[0].x,preview.fixtures[0].y],[15,16]);
+  for(const p of [preview.doors[0],preview.portals[0],preview.fullDungeonPortals[0]])assert.deepEqual([p.x,p.y],[portal.x+dx,portal.y+dy]);
+  assert.deepEqual(floor,original,'unsaved previews leave all original objects untouched');
+  context.copySelection(true);const clip=state.clipboard;await context.pasteAt({x:18,y:19});assert.equal(state.clipboard,null,'a moved entrance never becomes a reusable copy');
+  assert.equal(context.effectiveFloor().fixtures[0].x,18);assert.equal(state.pending.length,2);
+  state.clipboard={...clip,zone:'another-hub'};await assert.rejects(context.pasteAt({x:20,y:20}),/own hub/);
+  state.clipboard={...clip,cut:false};await assert.rejects(context.pasteAt({x:20,y:20}),/cannot be copied/);assert.equal(state.pending.length,2);
+  state.pending=[];assert.deepEqual(context.effectiveFloor(),original,'discarding edits restores both art and travel preview');
+ }
+});
+
 test('changing the object sprite rebuilds the preview with the new selection',()=>{
  const source=readFileSync(new URL('../server/gm-map-editor.js',import.meta.url),'utf8');
  const functions=source.slice(source.indexOf('function field('),source.indexOf('function renderToolOptions('));

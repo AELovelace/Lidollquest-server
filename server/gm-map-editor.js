@@ -60,7 +60,8 @@ function previewOp(f,op){ // Client-side mirror of floor-patches.mjs apply(): go
 
 function previewHubDoor(f,op){ // Hubs: a gate slides along its wall, a building doorway moves round its walls, a doorstep just moves.
  const d=f.doors.find(x=>x.key===op.exit),w=d.w??1,h=d.h??1,set=(x,y,v)=>{if(f.walls[y]?.[x]!==undefined)f.walls[y][x]=v;};let to={x:op.to.x,y:op.to.y};
- if(d.style==='gap'){const vertical=d.side==='left'||d.side==='right',inward={left:[1,0],right:[-1,0],top:[0,1],bottom:[0,-1]}[d.side]??[0,0];to={x:vertical?d.x:to.x,y:vertical?to.y:d.y};for(let dy=0;dy<h;dy++)for(let dx=0;dx<w;dx++)set(d.x+dx,d.y+dy,1);for(let dy=0;dy<h;dy++)for(let dx=0;dx<w;dx++){set(to.x+dx,to.y+dy,0);set(to.x+dx+inward[0],to.y+dy+inward[1],0);}}
+ if(d.fullDungeon){const dx=to.x-d.x,dy=to.y-d.y;f.fixtures=f.fixtures.map(p=>p.id===d.entranceFixture?{...p,x:p.x+dx,y:p.y+dy}:p);f.fullDungeonPortals=(f.fullDungeonPortals??[]).map(p=>p.target===d.key?{...p,...to}:p);} // Replace objects so previews never change the saved snapshot; keep facade and portal together.
+ else if(d.style==='gap'){const vertical=d.side==='left'||d.side==='right',inward={left:[1,0],right:[-1,0],top:[0,1],bottom:[0,-1]}[d.side]??[0,0];to={x:vertical?d.x:to.x,y:vertical?to.y:d.y};for(let dy=0;dy<h;dy++)for(let dx=0;dx<w;dx++)set(d.x+dx,d.y+dy,1);for(let dy=0;dy<h;dy++)for(let dx=0;dx<w;dx++){set(to.x+dx,to.y+dy,0);set(to.x+dx+inward[0],to.y+dy+inward[1],0);}}
  else if(d.style==='doorway'){set(d.x,d.y,1);set(to.x,to.y,0);}
  for(const p of f.portals??[])if(p.target===d.key)Object.assign(p,to);if(d.key==='exit'&&f.exit)Object.assign(f.exit,to);Object.assign(d,to);
 }
@@ -218,7 +219,7 @@ function renderToolOptions(){
  if(state.tool==='exits'&&!state.plan?.supports.decorations){ // Hubs: move a gate, a doorstep, a room's way out or a building doorway.
   const doors=(state.map?.floor?.doors??[]).map(d=>({id:d.key,name:(d.name??d.target??d.key)+' · '+(d.style==='gap'?'gate in the '+d.side+' wall':d.style==='doorway'?'building doorway':'doorstep')+' · '+d.x+','+d.y}));if(!doors.length){el('p','This map has no movable doors.',host,'note');return;}
   if(!doors.some(d=>d.id===o.doorKey))o.doorKey=doors[0].id;field(host,'Door','doorKey','text',doors).onchange=e=>{o.doorKey=e.target.value;schedule();};
-  el('p','Click where the door should go. A gate or wall opening slides along its own wall and carves inward to the map; a doorstep moves to any reachable floor tile; a building doorway moves to another outer wall tile of the same building (not a corner), with a room behind it and street in front. Arrivals follow the door.',host,'note');return;
+  el('p','Click where the door should go. A gate or wall opening slides along its own wall and carves inward to the map; a doorstep moves to any reachable floor tile; a building doorway moves to another outer wall tile of the same building (not a corner), with a room behind it and street in front. Dungeon entrance artwork moves with its entry tile. Arrivals follow the door.',host,'note');return;
  }
  if(state.tool==='exits'){
   field(host,'Mode','exitMode','text',[{id:'move',name:'Move an existing exit'},{id:'add',name:'Add a new crossing'}]).onchange=e=>{o.exitMode=e.target.value;renderToolOptions();};
@@ -268,8 +269,9 @@ function renderPaletteSwatches(host){ // Every cell of the chosen palette: left 
 function renderSelection(host){const s=state.selection,c=state.clipboard;
  if(c)el('p','Clipboard: '+c.label+(c.cut?' · cut (paste moves it, Esc cancels)':'')+(c.zone!==state.map?.id?' · from '+c.zone:''),host,'note');
  if(!s)return;const box=el('fieldset',undefined,host);el('legend',s.label,box);
- if(s.type){const row=el('div',undefined,box,'row');for(const [text,cut] of [['Copy (Ctrl+C)',false],['Cut (Ctrl+X)',true]]){if(!cut&&s.type==='fixture'&&!furnitureKey(s.fixture))continue;const b=el('button',text,row);b.type='button';b.onclick=()=>attempt(()=>copySelection(cut));}}
+ if(s.type){const row=el('div',undefined,box,'row');for(const [text,cut] of [['Copy (Ctrl+C)',false],['Cut (Ctrl+X)',true]]){if(!cut&&(s.type==='entrance'||s.type==='fixture'&&!furnitureKey(s.fixture)))continue;const b=el('button',text,row);b.type='button';b.onclick=()=>attempt(()=>copySelection(cut));}}
  else if(c){const b=el('button','Paste '+c.label+' here (Ctrl+V)',box);b.type='button';b.onclick=()=>attempt(()=>pasteAt({x:s.x,y:s.y}));}
+ if(s.entrance)el('p','Dungeon entrance: drag or cut and paste within this hub, then Apply. Artwork, travel and return location move together. Entrances cannot be copied to another map.',box,'note');
  if(s.fixture){el('p',s.fixture.kind.replace('_',' ')+' · '+s.w+'×'+s.h+' tiles · drag or cut and paste to move it; changes queue until Apply and must leave the room and every service reachable.',box,'note');
   if(MOVE_ONLY_FIXTURES.has(s.fixture.kind))el('p','Shopkeepers can be moved but not removed. Buying and selling follow them to the new tile.',box,'note'); // Move-only: no Remove button.
   else if(!autoFixture(s.fixture)){const rm=el('button','Remove (queues a change)',box);rm.type='button';rm.onclick=()=>{queueOp({kind:'fixture',op:'remove',match:{id:s.fixture.id,kind:s.fixture.kind}});state.selection=null;renderToolOptions();};}
@@ -426,28 +428,32 @@ function sceneryAt(f,x,y){ /* The scenery covering a tile (the eraser's rule): d
  const d=(f.decorations??[]).find(d=>x>=d.x&&x<d.x+d.span_w&&y>=d.y&&y<d.y+d.span_h)??(f.fixtures??[]).find(d=>['scenery','toilet'].includes(d.kind)&&x>=d.x&&x<d.x+(d.span_w??1)&&y>=d.y&&y<d.y+(d.span_h??1));
  return d?{sprite:d.sprite,x:d.x,y:d.y,span_w:d.span_w??1,span_h:d.span_h??1,solid:d.solid!==false,...(d.toilet||d.kind==='toilet'?{toilet:true}:{}),...(d.id?{id:d.id}:{})}:null;
 }
-function objectAt(x,y){ /* What Select picks on a tile, top first: a managed placement, a DM monster, then scenery. */
+function entranceObject(f,d){const art=f.fixtures?.find(p=>p.id===d.entranceFixture);return {type:'entrance',x:art?.x??d.x,y:art?.y??d.y,w:art?.span_w??1,h:art?.span_h??1,label:d.name??d.key,entrance:d,sprite:art?.sprite};} // The facade is the drag anchor; its doorstep offset stays intact.
+function objectAt(x,y){ /* Select managed content first, then a coupled dungeon entrance, furniture or scenery. */
  const m=state.map,f=effectiveFloor();if(!m||!f)return null;
  const p=m.placements?.find(p=>p.x===x&&p.y===y);if(p)return {type:'placement',x,y,w:1,h:1,label:p.kind+' '+p.name,placement:p};
  const foe=m.floor.enemies?.find(e=>e.x===x&&e.y===y&&!e.dead&&e.manual);if(foe)return {type:'monster',x,y,w:1,h:1,label:'DM monster '+(foe.definition?.name??foe.type),monster:foe};
+ if(fixturesEditable())for(const d of f.doors??[])if(d.fullDungeon){const o=entranceObject(f,d);if(x===d.x&&y===d.y||x>=o.x&&x<o.x+o.w&&y>=o.y&&y<o.y+o.h)return o;} // Clicking either the artwork or entry tile selects the same connection.
  const fx=fixturesEditable()?fixtureAt(f,x,y):null;if(fx)return {type:'fixture',x:fx.x,y:fx.y,w:fx.span_w,h:fx.span_h,label:fx.name,fixture:fx};
  const d=sceneryEditable()?sceneryAt(f,x,y):null;return d?{type:'scenery',x:d.x,y:d.y,w:d.span_w,h:d.span_h,label:'scenery '+d.sprite,scenery:d}:null;
 }
 function select(x,y){state.selection=objectAt(x,y)??{x,y,label:'Tile '+x+','+y};renderToolOptions();schedule();}
 function clipOf(o,cutting=true){ /* A self-contained copy of a selected object: enough to paste it anywhere, plus the ids a cut needs to find it again. */
  const p=o.placement,foe=o.monster;
+ if(o.type==='entrance')return {type:o.type,label:o.label,w:o.w,h:o.h,data:{key:o.entrance.key,sprite:o.sprite,x:o.x,y:o.y}}; // Keep the stable destination so repeated moves find the current entrance.
  if(o.type==='fixture'&&!cutting){const key=furnitureKey(o.fixture);if(key)return {type:'furniture',label:o.label,w:o.w,h:o.h,data:{key,sprite:o.fixture.sprite,kind:o.fixture.kind,x:o.x,y:o.y}};} // A copy pastes as new furniture of the same kind.
  const data=o.type==='fixture'?{...o.fixture}:o.type==='placement'?{id:p.id,kind:p.kind,content:p.content,name:p.name,sprite:p.sprite,lifetime:p.lifetime,routes:structuredClone(p.routes??[]),home:{...(p.home??{x:p.x,y:p.y})},x:o.x,y:o.y}:o.type==='monster'?{id:foe.id,type:foe.type,aggressive:!!foe.roaming,respawning:!!foe.respawning,sprite:foe.definition?.sprite??foe.sprite,x:o.x,y:o.y}:{...o.scenery};
  return {type:o.type,label:o.label,w:o.w??1,h:o.h??1,data};
 }
 function copySelection(cut){
  const s=state.selection;if(!s?.type)throw Error('Select a placement, DM monster or scenery first.');
- if(!cut&&s.type==='fixture'&&!furnitureKey(s.fixture))throw Error(s.label+' can be moved (drag it, or cut and paste), but not copied.');
+ if(!cut&&(s.type==='entrance'||s.type==='fixture'&&!furnitureKey(s.fixture)))throw Error(s.label+' can be moved (drag it, or cut and paste), but not copied.');
  state.clipboard={...clipOf(s,cut),zone:state.map.id,cut};renderToolOptions();schedule();
  say((cut?'Cut ':'Copied ')+s.label+'. Point at a tile and press Ctrl+V to '+(cut?'move it there (Esc cancels the cut).':'paste a copy.'));
 }
 function findSource(c){ /* The live object a cut refers to, or null once it is gone. */
  const m=state.map,d=c.data;if(!m?.floor||c.zone!==m.id)return null;
+ if(c.type==='entrance'){const f=effectiveFloor(),door=f.doors?.find(p=>p.fullDungeon&&p.key===d.key);return door?entranceObject(f,door):null;}
  if(c.type==='placement'){const p=m.placements?.find(p=>p.id===d.id);return p?{type:'placement',x:p.x,y:p.y,w:1,h:1,label:c.label,placement:p}:null;}
  if(c.type==='fixture'){const fx=(effectiveFloor().fixtures??[]).find(p=>p.id===d.id&&p.kind===d.kind);return fx?{type:'fixture',x:fx.x,y:fx.y,w:fx.span_w??1,h:fx.span_h??1,label:c.label,fixture:{...d,x:fx.x,y:fx.y}}:null;}
  if(c.type==='monster'){const foe=m.floor.enemies?.find(e=>e.id===d.id&&!e.dead);return foe?{type:'monster',x:foe.x,y:foe.y,w:1,h:1,label:c.label,monster:foe}:null;}
@@ -458,13 +464,15 @@ async function moveObject(o,to){ /* Drag and cut/paste within one map. Placement
  const m=state.map;if(to.x===o.x&&to.y===o.y)return;
  if(o.type==='placement'){const p=o.placement;await action('world_update_content',{zone:m.id,edition:m.edition,revision:m.revision,placement:p.id,x:to.x,y:to.y,lifetime:p.lifetime});await loadZone({keepPending:true});say('Moved '+o.label+' to '+to.x+','+to.y+'.'+(p.routes?.length?' Its route waypoints stay where they are.':''));}
  else if(o.type==='monster'){await action('world_move',{zone:m.id,edition:m.edition,revision:m.revision,monster:o.monster.id,x:to.x,y:to.y});await loadZone({keepPending:true});say('Moved '+o.label+' to '+to.x+','+to.y+'.');}
+ else if(o.type==='entrance'){if(!fixturesEditable())throw Error('Dungeon entrances can only move within their hub.');queueOp({kind:'exit',op:'move',exit:o.entrance.key,to:{x:to.x+o.entrance.x-o.x,y:to.y+o.entrance.y-o.y}});say('Entrance move queued. Apply to move the artwork and travel together.');} // Translate from the dragged facade corner to its walkable entry tile.
  else if(o.type==='fixture'){if(!fixturesEditable())throw Error('Furniture on this map cannot be moved.');queueOp({kind:'fixture',op:'move',match:{id:o.fixture.id,kind:o.fixture.kind},to:{x:to.x,y:to.y}});say('Move queued. Apply to keep it.');}
  else{if(!sceneryEditable())throw Error('Scenery on this map cannot be moved.');const d=o.scenery,group=crypto.randomUUID();queueOp({kind:'decoration',op:'remove',note:'move',group,match:{sprite:d.sprite,x:d.x,y:d.y,...(d.id?{id:d.id}:{})}});queueOp({kind:'decoration',op:'add',note:'move',group,decoration:{...stampOf(d),x:to.x,y:to.y}});say('Move queued. Apply to keep it.');}
  select(to.x,to.y);
 }
 async function pasteAt(to){ /* Paste the clipboard with its top-left on a tile: a cut moves its original (same map only); a copy places a new one. */
  const c=state.clipboard,m=state.map;if(!c)throw Error('Copy (Ctrl+C) or cut (Ctrl+X) something first.');if(!m?.floor)throw Error('This map is not ready yet.');
- if(c.cut&&c.zone===m.id){const source=findSource(c);if(!source){state.clipboard=null;renderToolOptions();throw Error('The cut '+c.label+' is no longer there, so nothing moved.');}await moveObject(source,to);state.clipboard={...c,cut:false,data:{...c.data,x:to.x,y:to.y}};renderToolOptions();return;} // After the move the clipboard holds a copy, like any editor.
+ if(c.type==='entrance'&&(!c.cut||c.zone!==m.id))throw Error('Dungeon entrances can be moved within their own hub, but cannot be copied or pasted into another map.');
+ if(c.cut&&c.zone===m.id){const source=findSource(c);if(!source){state.clipboard=null;renderToolOptions();throw Error('The cut '+c.label+' is no longer there, so nothing moved.');}await moveObject(source,to);state.clipboard=c.type==='entrance'?null:{...c,cut:false,data:{...c.data,x:to.x,y:to.y}};renderToolOptions();return;} // A unique entrance consumes its cut; other objects leave a reusable copy.
  if(c.type==='fixture'||c.type==='furniture'){ /* New furniture of the same kind; a cut from another map leaves its original there. */
   const key=c.type==='furniture'?c.data.key:furnitureKey(c.data);if(!key)throw Error(c.label+' can be moved within its own map but not copied.');if(!fixturesEditable())throw Error('Furniture can be placed in hubs and their rooms only.');
   if(c.cut)state.clipboard={...c,cut:false};queueOp({kind:'fixture',op:'add',furniture:key,to:{x:to.x,y:to.y}});say('Paste queued. Apply to place it.'+(c.cut?' The original stays in '+c.zone+'.':''));select(to.x,to.y);return;
@@ -484,7 +492,7 @@ async function pasteAt(to){ /* Paste the clipboard with its top-left on a tile: 
 }
 function drawGhost(ctx,c,x,y){ /* A see-through copy of an object with its top-left at x,y, for drags. */
  const d=c.data;ctx.globalAlpha=.6;
- if(c.type==='scenery'){const img=art(d.sprite);if(img){const fw=img.width/Number(img.dataset.frames||1);if(state.plan?.supports.decorations)ctx.drawImage(img,0,0,fw,img.height,x*TILE+TILE/2-Number(img.dataset.xorigin||0),y*TILE+TILE/2-Number(img.dataset.yorigin||0),fw,img.height);else ctx.drawImage(img,0,0,fw,img.height,x*TILE,y*TILE,fw,img.height);}}
+ if(c.type==='scenery'||c.type==='entrance'){const img=art(d.sprite);if(img){const fw=img.width/Number(img.dataset.frames||1);if(state.plan?.supports.decorations)ctx.drawImage(img,0,0,fw,img.height,x*TILE+TILE/2-Number(img.dataset.xorigin||0),y*TILE+TILE/2-Number(img.dataset.yorigin||0),fw,img.height);else ctx.drawImage(img,0,0,fw,img.height,x*TILE,y*TILE,fw,img.height);}}
  else if(c.type==='fixture'||c.type==='furniture'){const img=art(d.sprite);if(img){const fw=img.width/Number(img.dataset.frames||1);ctx.drawImage(img,0,0,fw,img.height,x*TILE,y*TILE,fw,img.height);}else if(d.kind==='bed'){ctx.fillStyle='#ecc9df';ctx.fillRect(x*TILE+4,y*TILE+6,TILE-8,TILE-12);}else marker(ctx,x,y,'#ffcc66');}
  else if(c.type==='monster')fit32(ctx,d.sprite,x,y)||marker(ctx,x,y,'#ae243d');
  else if(d.kind==='orb'){ctx.fillStyle=orbColour(d.content);ctx.beginPath();ctx.arc(x*TILE+16,y*TILE+16,10,0,Math.PI*2);ctx.fill();}

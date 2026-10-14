@@ -16,6 +16,7 @@ import {walkable} from '../server/dive-generation.mjs';
 import {diveData} from '../server/dive.mjs';
 import {createFloorPatches} from '../server/floor-patches.mjs';
 import {tileAt} from '../server/tile-painter.mjs';
+import {fixtureMoveProblem} from '../server/hub-fixture-moves.mjs';
 
 function terrainFixture(){ // A deterministic tiled hub reproduces the reported scenery coordinate without monthly generation.
  const db=new DatabaseSync(':memory:'),patches=createFloorPatches(db),size=34,grid=value=>Array.from({length:size},()=>Array(size).fill(value));
@@ -78,6 +79,65 @@ function fixture(){ // The live world with content, like world-controls.test.mjs
  return {db,live,zones:()=>zones,read,act,player,state,position,map,free,world,patch,publish,advance:ms=>time+=ms,tick:()=>{time+=1001;zones.tick();},restart(){zones.close();zones=createQuestZones(db,options);zones.tick();},close(){zones.close();db.close();}};
 }
 const wallOp=(x,y,wall=1)=>({kind:'cells',cells:[{x,y,wall}]});
+
+test('Mana Caves and Sewers surface entrances move artwork, contact travel and returns together, persist, and undo',()=>{
+ const f=fixture();try{
+  const id=f.player('alice',false);
+  for(const [hub,target] of [['utopia-arcanum','dungeon-mana-tunnels'],['littlebig-clockwork','dungeon-littlebig-sewers']]){
+   const before=f.map(hub),door=before.floor.doors.find(d=>d.key===target),art=before.floor.fixtures.find(p=>p.id==='entrance-'+target);
+   assert.ok(door?.fullDungeon&&art,'the surface entrance is listed as a movable door');
+   let to=null;
+   for(let y=5;y<before.floor.height-3&&!to;y++)for(let x=3;x<before.floor.width-3;x++){
+    if(Math.abs(x-door.x)+Math.abs(y-door.y)<8)continue;
+    const ax=art.x+x-door.x,ay=art.y+y-door.y,others=before.floor.doors.filter(d=>d.key!==target);
+    if(fixtureMoveProblem({...before.floor,portals:others,exits:[]},art,ax,ay))continue;
+    if(before.floor.fixtures.some(p=>p!==art&&ax<p.x+(p.span_w??1)&&ax+(art.span_w??1)>p.x&&ay<p.y+(p.span_h??1)&&ay+(art.span_h??1)>p.y))continue;
+    if(!walkable(before.floor,x,y)||!walkable(before.floor,x,y+1))continue;
+    to={x,y};break;
+   }
+   assert.ok(to,'a safe new entrance position exists');
+   f.patch(hub,[{kind:'exit',op:'move',exit:target,to}]);
+   let m=f.map(hub),moved=m.floor.fixtures.find(p=>p.id===art.id);
+   const coords=p=>({x:p.x,y:p.y});
+   assert.deepEqual(coords(m.floor.doors.find(d=>d.key===target)),to);assert.deepEqual(coords(m.floor.portals.find(p=>p.target===target)),to);
+   assert.deepEqual(coords(moved),{x:art.x+to.x-door.x,y:art.y+to.y-door.y});assert.equal(moved.solid,art.solid);assert.equal(moved.sprite,art.sprite);
+   assert.deepEqual(m.floor.walls,before.floor.walls);assert.deepEqual(m.floor.floors,before.floor.floors);
+   assert.deepEqual(m.floor.fixtures.filter(p=>p.id!==art.id),before.floor.fixtures.filter(p=>p.id!==art.id),'unrelated buildings and services stay put');
+   const revision=m.patch.revision;
+   const otherDoor=before.floor.doors.find(d=>d.key!==target);
+   for(const bad of [{x:0,y:0},coords(otherDoor)])assert.throws(()=>f.patch(hub,[{kind:'exit',op:'move',exit:target,to:bad}]),/floor|wall|arrival|doorway/);
+   assert.equal(f.map(hub).patch.revision,revision,'invalid positions roll back');
+   f.tick();f.restart();m=f.map(hub);assert.equal(m.patch.skipped.length,0);assert.deepEqual(coords(m.floor.portals.find(p=>p.target===target)),to);
+   assert.equal(m.floor.fixtures.filter(p=>p.id===art.id).length,1,'reconciliation does not resurrect the old artwork');
+   f.act(id,'enter',{zone:hub,combat_version:3,content_version:1,quest_version:1,full_dungeon_version:1,mana_caves_version:1,sewer_version:1,catacombs_version:1});
+   f.position(id,to.x,to.y+1);let s=f.act(id,'move',{direction:'north'});assert.equal(s.zone,target,'contact with the moved entrance starts the dungeon');
+   s=f.act(id,'dive_exit');assert.equal(s.zone,hub);assert.ok(Math.abs(s.position.x-to.x)+Math.abs(s.position.y-to.y)<=1,'Escape returns beside the relocated entrance');
+   f.position(id,to.x,to.y);s=f.act(id,'dive_enter',{zone:target});assert.equal(s.zone,target,'interaction entry uses the same destination');
+   const exit=f.map(target).floor.exits.find(e=>e.zone===hub);f.position(id,exit.x,exit.y);s=f.act(id,'dive_exit',{zone:hub});assert.equal(s.zone,hub);assert.ok(Math.abs(s.position.x-to.x)+Math.abs(s.position.y-to.y)<=1,'the physical surface exit also follows the move');
+   f.world('world_patch_clear',hub);m=f.map(hub);assert.deepEqual(coords(m.floor.portals.find(p=>p.target===target)),coords(door));assert.deepEqual(m.floor.fixtures.find(p=>p.id===art.id),art);
+  }
+ }finally{f.close();}
+});
+
+test('surface entrance patch replay and rollback preserve repeated moves and explicitly deleted artwork',()=>{
+ const f=terrainFixture(),target='dungeon-mana-tunnels';try{
+  const portal={target,name:'Mana Caves',fullDungeon:true,style:'door',x:5,y:7},art={id:'entrance-'+target,kind:'scenery',sprite:'sprManaStation',x:4,y:4,span_w:3,span_h:3,solid:true};
+  f.floor.fullDungeonPortals=[{...portal}];f.floor.portals=[{...portal}];f.floor.fixtures.push(art);
+  const original=structuredClone(f.floor),options=floor=>({kind:'hub',doors:floor.fullDungeonPortals.map(p=>({...p,key:p.target}))});
+  const act=(action,extra={})=>f.patches.act({action,patch_revision:f.patches.revision('test-hub'),...extra},{zone:'test-hub',floor:f.floor,...options(f.floor),actor:'test',commit:()=>{}});
+  const move=to=>({kind:'exit',op:'move',exit:target,to}),coords=p=>({x:p.x,y:p.y});
+  act('world_patch_apply',{ops:[move({x:15,y:18}),move({x:18,y:22})]});
+  let replay=structuredClone(original);f.patches.apply('test-hub',replay,options(replay));assert.equal(replay.patchSkipped,undefined);assert.deepEqual(replay.fullDungeonPortals,f.floor.fullDungeonPortals);assert.deepEqual(replay.fixtures,f.floor.fixtures);
+  const moved=f.floor.fixtures.find(p=>p.id===art.id);
+  act('world_patch_apply',{ops:[{kind:'decoration',op:'remove',match:{id:art.id,sprite:art.sprite,x:moved.x,y:moved.y}},move({x:20,y:24})]});
+  assert.ok(!f.floor.fixtures.some(p=>p.id===art.id),'moving a bare travel tile never restores deleted artwork');
+  replay=structuredClone(original);f.patches.apply('test-hub',replay,options(replay));assert.equal(replay.patchSkipped,undefined);assert.deepEqual(replay.fixtures,f.floor.fixtures);
+  act('world_patch_rollback',{target_revision:1});assert.deepEqual(coords(f.floor.fixtures.find(p=>p.id===art.id)),{x:17,y:19});assert.deepEqual(coords(f.floor.fullDungeonPortals[0]),{x:18,y:22});
+  act('world_patch_clear');assert.deepEqual(f.floor.fixtures,original.fixtures);assert.deepEqual(f.floor.fullDungeonPortals,original.fullDungeonPortals);assert.deepEqual(f.floor.portals,original.portals);
+  const revision=f.patches.revision('test-hub');assert.throws(()=>act('world_patch_apply',{ops:[move({x:15,y:18}),move({x:0,y:0})]}),/floor/);
+  assert.equal(f.patches.revision('test-hub'),revision);assert.deepEqual(f.floor.fixtures,original.fixtures);assert.deepEqual(f.floor.fullDungeonPortals,original.fullDungeonPortals,'a bad second move rolls back the entire batch');
+ }finally{f.db.close();}
+});
 
 test('a cells op walls a Dive tile in place, stamps the revision, bumps geometryVersion and is idempotent on later ticks',()=>{
  const f=fixture();try{

@@ -7,7 +7,7 @@
 // the GM action transaction (gm.mjs), where act() also re-realizes quest placements and relocates anyone standing in a new wall.
 import {randomUUID} from 'node:crypto';
 import {inExit} from './wilderness-links.mjs';
-import {MOVABLE_FIXTURES,MOVE_ONLY_FIXTURES,movableKind,FURNITURE,furnitureFixture} from './hub-fixture-moves.mjs';
+import {MOVABLE_FIXTURES,MOVE_ONLY_FIXTURES,movableKind,FURNITURE,furnitureFixture,fixtureMoveProblem} from './hub-fixture-moves.mjs';
 
 const fail=(message,status=409,code='world_patch_conflict')=>{throw Object.assign(Error(message),{status,code});};
 const MAX_OPS=256,MAX_CELLS=4096,MAX_BODY=256*1024,MAX_SPAN=8; // Caps keep one zone's patch a few hundred KB at most.
@@ -213,9 +213,11 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
  }
  const movedGaps=(f,doors)=>doors.filter(d=>d.style==='gap'&&f.portalMoves?.[d.key]).map(d=>({...d,...f.portalMoves[d.key]})); // Wall openings a GM moved: the outer-wall check must allow them.
  function moveHubDoor(f,op,undo,touched,doors){ // Hubs: slide a gate or a room's way out along its own wall, move a doorstep to another floor tile, or move a building's street doorway round that building's walls. The new place is kept in f.portalMoves, which hubs.mjs applies wherever doors are read; the terrain changes go in the undo log like any painted cell.
-  const base=doors.find(d=>d.key===(op.exit||op.zone))??doors.find(d=>!op.exit&&d.target===op.zone),k=base?.key??(op.exit||op.zone); // By key, or by where it leads (a room's way out leads to its parent).if(!base)fail('This map has no door '+k+' to move.',400);
+  const base=doors.find(d=>d.key===(op.exit||op.zone))??doors.find(d=>!op.exit&&d.target===op.zone),k=base?.key??(op.exit||op.zone); // By key, or by where it leads (a room's way out leads to its parent).
+  if(!base)fail('This map has no door '+k+' to move.',400);
   const to=op.to;if(!Number.isInteger(to?.x)||!Number.isInteger(to?.y))fail('Choose a tile for the door.',400);
-  const at=d=>({...d,...(f.portalMoves?.[d.key]??{})}),cur=at(base),others=doors.filter(d=>d.key!==k).map(at),w=base.w??1,h=base.h??1;
+  if(base.fullDungeon&&(f.fullDungeonPortals??[]).some(p=>p.target===k)){moveDungeonEntrance(f,k,to,undo,touched,doors);return;} // Keep generated artwork, contact travel and return coordinates together.
+  const at=d=>({...d,...(d.fullDungeon?f.fullDungeonPortals?.find(p=>p.target===d.key):f.portalMoves?.[d.key])}),cur=at(base),others=doors.filter(d=>d.key!==k).map(at),w=base.w??1,h=base.h??1; // Earlier entrance moves in this batch already changed their travel coordinates.
   undo.portalMoves??={};if(!(k in undo.portalMoves))undo.portalMoves[k]=f.portalMoves?.[k]?{...f.portalMoves[k]}:null;
   const seal=(x,y,along)=>{remember(undo,f,x,y);f.walls[y][x]=1;if(grid(f,'wallTiles')&&!f.wallTiles[y][x]){const n=along.map(([dx,dy])=>({x:x+dx,y:y+dy})).find(c=>f.walls[c.y]?.[c.x]&&f.wallTiles[c.y]?.[c.x]);if(n)f.wallTiles[y][x]=f.wallTiles[n.y][n.x];}touched.push({x,y});}; // A closed opening borrows the wall art beside it.
   const pave=cells=>{if(!grid(f,'floors'))return;for(let pass=0;pass<12;pass++){let left=false;for(const c of cells){if(f.walls[c.y][c.x]||f.floors[c.y][c.x])continue;const n=[[0,-1],[-1,0],[1,0],[0,1]].map(([dx,dy])=>({x:c.x+dx,y:c.y+dy})).find(p=>!f.walls[p.y]?.[p.x]&&f.floors[p.y]?.[p.x]);if(n)f.floors[c.y][c.x]=f.floors[n.y][n.x];else left=true;}if(!left)break;}}; // New openings take the floor art next to them.
@@ -249,6 +251,23 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
   }
   f.portalMoves={...(f.portalMoves??{}),[k]:place};
  }
+ function moveDungeonEntrance(f,target,to,undo,touched,doors){
+  const portal=f.fullDungeonPortals.find(p=>p.target===target),fixture=f.fixtures.find(p=>p.id==='entrance-'+target),dx=to.x-portal.x,dy=to.y-portal.y;
+  if(!dx&&!dy)return;
+  const others=doors.filter(d=>d.key!==target).map(d=>f.fullDungeonPortals.find(p=>p.target===d.key)??{...d,...f.portalMoves?.[d.key]}),lifted={...f,fixtures:f.fixtures.filter(p=>p!==fixture)};
+  if(to.x<1||to.y<1||to.x>f.width-2||to.y>f.height-2||!walkable(lifted,to.x,to.y)||others.some(d=>inExit(d,to.x,to.y)))fail('Put the dungeon entrance on reachable open floor away from other doors.');
+  if(!flood(lifted,[f.spawn]).has(key(to.x,to.y)))fail('The dungeon entrance cannot be reached from the arrival tile.');
+  if(fixture){
+   const x=fixture.x+dx,y=fixture.y+dy,problem=fixtureMoveProblem({...f,portals:others,exits:[]},fixture,x,y);
+   if(problem)fail((fixture.name??'Dungeon entrance')+': '+problem);
+   const cells=footprint({...fixture,x,y});if(cells.some(c=>lifted.fixtures.some(p=>footprint(p).some(q=>q.x===c.x&&q.y===c.y))))fail('The entrance artwork would overlap another map object.');
+  } // Lifting only this facade permits overlapping moves of itself while preserving every other building, service and corridor.
+  (undo.dungeonEntrances??=[]).push({target,x:portal.x,y:portal.y,fixture:fixture?{id:fixture.id,x:fixture.x,y:fixture.y}:null});
+  Object.assign(portal,to);for(const p of f.portals??[])if(p.target===target)Object.assign(p,to);
+  if(fixture){fixture.x+=dx;fixture.y+=dy;}
+  if(!walkable(f,to.x,to.y)||!flood(f,[f.spawn]).has(key(to.x,to.y)))fail('The moved entrance must stay reachable beside its artwork.');
+  touched.push({...to});
+ } // Persist the move in the ordinary reversible patch log; entrance generation sees the same stable target and never adds a replacement.
  function revert(f,kind){ // Undo the previous application using the floor's own log, so a new revision starts from the generated layout.
   const undo=f.patchUndo;if(!undo)return false;
   for(const c of undo.cells){if(!(c.y in f.walls))continue;f.walls[c.y][c.x]=c.wall;if(c.prop!==null&&f.props?.[c.y])f.props[c.y][c.x]=c.prop;if(c.floor!==null&&grid(f,'floors'))f.floors[c.y][c.x]=c.floor;if(c.wallTile!==null&&grid(f,'wallTiles'))f.wallTiles[c.y][c.x]=c.wallTile;if(c.decor!==null&&grid(f,'decorTiles'))f.decorTiles[c.y][c.x]=c.decor;if(c.tree!==null&&grid(f,'treeTiles'))f.treeTiles[c.y][c.x]=c.tree;}
@@ -258,6 +277,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
   for(const name of undo.created??[])delete f[name];if(undo.shore)for(const [y,edge] of Object.entries(undo.shore))f.shore[y]=edge;if(undo.mistTiles!==undefined&&undo.mistTiles!==null&&f.mist)f.mist.tiles=undo.mistTiles;if(undo.crater){f.crater={...undo.crater.crater};if(undo.crater.heat)f.heat={...undo.crater.heat};}
   if(kind==='dive'){const added=new Set(undo.decorationsAdded);f.decorations=(f.decorations??[]).filter(d=>!added.has(d.id));f.decorations.push(...undo.decorationsRemoved);const addedRooms=new Set(undo.safeRoomsAdded.map(r=>key(r.x,r.y)+'|'+r.w+'x'+r.h));f.safeRooms=(f.safeRooms??[]).filter(r=>!addedRooms.has(key(r.x,r.y)+'|'+r.w+'x'+r.h));f.safeRooms.push(...undo.safeRoomsRemoved);if(undo.entrance)f.entrance={...undo.entrance};for(const [zone,p] of Object.entries(undo.entries??{}))if(f.entries)f.entries[zone]={...p};}
   else {const added=new Set(undo.fixturesAdded);f.fixtures=(f.fixtures??[]).filter(d=>!added.has(d.id));f.fixtures.push(...undo.fixturesRemoved.filter(r=>!f.fixtures.some(d=>d.id===r.id))); /* A fixture an upgrade step already put back (hub-districts addCauldron) is not restored twice: two toilets on one tile made the stored remove fail forever. */if(undo.spawn)f.spawn={...undo.spawn};}
+  for(const e of [...(undo.dungeonEntrances??[])].reverse()){for(const p of [...(f.fullDungeonPortals??[]),...(f.portals??[])])if(p.target===e.target)Object.assign(p,{x:e.x,y:e.y});const fixture=e.fixture&&f.fixtures?.find(p=>p.id===e.fixture.id);if(fixture)Object.assign(fixture,{x:e.fixture.x,y:e.fixture.y});} // Reverse multiple moves in order, after removed fixtures have been restored.
   for(const [k,v] of Object.entries(undo.portalMoves??{})){if(v)(f.portalMoves??={})[k]={...v};else if(f.portalMoves)delete f.portalMoves[k];}if(f.portalMoves&&!Object.keys(f.portalMoves).length)delete f.portalMoves; // Hub doors return to their code-defined places.
   delete f.patchUndo;delete f.patchRevision;delete f.patchSkipped;return true;
  }
