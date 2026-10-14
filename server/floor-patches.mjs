@@ -50,7 +50,7 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
   for(const p of f.fixtures??[])if(!String(p.id??'').startsWith('patch-'))for(const c of footprint(p))add(c,p.kind==='scenery'?'generated scenery':'the '+p.kind+(p.name?' '+p.name:''));
   return tiles;
  }
- function validate(f,kind,extraOpenings,touched,terrainBefore=null){ // Cell painting checks newly added terrain blockers; existing fixtures must not block repainting their floor.
+ function validate(f,kind,extraOpenings,touched,terrainBefore=null){ // Painting and removals check only new terrain blockers; surviving overlaps must not prevent deleting an object.
   const open=openings(f,kind,extraOpenings),guard=protectedTiles(f,kind);
   for(const t of touched){
    const border=t.x===0||t.y===0||t.x===f.width-1||t.y===f.height-1;
@@ -111,7 +111,8 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
   }
   if(op.kind==='decoration'){
    if(op.op==='remove'){
-    const m=op.match??{};const hit=kind==='dive'?(f.decorations??[]).find(d=>(m.id&&d.id===m.id)||(d.sprite===m.sprite&&d.x===m.x&&d.y===m.y)):(f.fixtures??[]).find(d=>['scenery','toilet'].includes(d.kind)&&((m.id&&d.id===m.id)||(d.sprite===m.sprite&&d.x===m.x&&d.y===m.y)));
+    const m=op.match??{},matches=d=>m.id?d.id===m.id:d.sprite===m.sprite&&d.x===m.x&&d.y===m.y; // An explicit ID selects only that object; coordinates remain the fallback for older ID-less edits.
+    const hit=kind==='dive'?(f.decorations??[]).find(matches):(f.fixtures??[]).find(d=>['scenery','toilet'].includes(d.kind)&&matches(d));
     if(!hit)return; // Already gone (another edition, or removed by an earlier op): nothing to do.
     if(kind==='dive'){f.decorations=f.decorations.filter(d=>d!==hit);if(hit.solid)for(const c of footprint(hit)){remember(undo,f,c.x,c.y);if(f.props?.[c.y])f.props[c.y][c.x]=0;touched.push(c);}undo.decorationsRemoved.push(hit);}
     else {f.fixtures=f.fixtures.filter(d=>d!==hit);undo.fixturesRemoved.push(hit);for(const c of footprint(hit))touched.push(c);}
@@ -288,7 +289,8 @@ export function createFloorPatches(db,{now=Date.now,readOnly=false}={}){
   for(const op of patch.ops){
    if(!editionMatches(op,work))continue;
    const trial=structuredClone(work),trialUndo=structuredClone({...undo,cellIndex:[...undo.cellIndex]}),touched=[];trialUndo.cellIndex=new Set(trialUndo.cellIndex);
-   try{applyOp(trial,op,kind,trialUndo,touched,{destinations,doors});if(op.kind!=='paint')validate(trial,kind,kind==='dive'?extraOpenings:[...extraOpenings,...movedGaps(trial,doors)],touched,op.kind==='cells'?work:null);}
+   const removing=(op.kind==='decoration'||op.kind==='fixture')&&op.op==='remove'; // Removal can leave existing scenery or walls under the old footprint; it does not add collision there.
+   try{applyOp(trial,op,kind,trialUndo,touched,{destinations,doors});if(op.kind!=='paint')validate(trial,kind,kind==='dive'?extraOpenings:[...extraOpenings,...movedGaps(trial,doors)],touched,op.kind==='cells'||removing?work:null);}
    catch(error){if(strict)fail((error.message??String(error))+' (change: '+describe(op)+')',error.status??409,error.code??'world_patch_rejected');skipped.push({id:op.id,reason:error.message});continue;}
    Object.assign(work,trial);Object.assign(undo,trialUndo);applied++;
   }

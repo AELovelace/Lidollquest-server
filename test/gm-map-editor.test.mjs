@@ -4,6 +4,20 @@ import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {createQuestService} from '../server/service.mjs';
 
+test('scenery removal previews select one overlapping object and preserve the original snapshot',()=>{
+ const source=readFileSync(new URL('../server/gm-map-editor.js',import.meta.url),'utf8');
+ for(const kind of ['hub','dive']){
+  const layer=kind==='hub'?'fixtures':'decorations',first={id:'first',kind:'scenery',sprite:'sprUtopiaTower',x:27,y:34,span_w:3,span_h:3,solid:true},second={...first,id:'second'};
+  const floor={walls:Array.from({length:40},()=>Array(40).fill(0)),props:Array.from({length:40},()=>Array(40).fill(0)),[layer]:[first,second]},original=structuredClone(floor);
+  const state={map:{kind,floor},pending:[]},context={state};runInNewContext(source.slice(source.indexOf('function effectiveFloor('),source.indexOf('async function loadContent(')),context);
+  const remove={kind:'decoration',op:'remove',match:{id:second.id,sprite:second.sprite,x:27,y:34}};state.pending.push(remove,remove);
+  assert.deepEqual(Array.from(context.effectiveFloor()[layer],p=>p.id),['first'],'repeated ID removal leaves the other identical sprite in place');
+  state.pending=[{...remove,match:{sprite:first.sprite,x:27,y:34}}];assert.deepEqual(Array.from(context.effectiveFloor()[layer],p=>p.id),['second'],'legacy coordinate removal removes one object, like the server');
+  state.pending=[{...remove,match:{id:second.id,sprite:second.sprite,x:1,y:1}}];assert.deepEqual(Array.from(context.effectiveFloor()[layer],p=>p.id),['first'],'a stable ID wins over old coordinates');
+  assert.deepEqual(floor,original,'the preview never mutates the saved floor');
+ }
+});
+
 test('surface dungeon entrances drag and cut as one connection without mutating the base preview or copying a portal',async()=>{
  const source=readFileSync(new URL('../server/gm-map-editor.js',import.meta.url),'utf8');
  for(const building of [true,false]){

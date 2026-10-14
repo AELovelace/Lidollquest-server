@@ -18,8 +18,8 @@ import {createFloorPatches} from '../server/floor-patches.mjs';
 import {tileAt} from '../server/tile-painter.mjs';
 import {fixtureMoveProblem} from '../server/hub-fixture-moves.mjs';
 
-function terrainFixture(){ // A deterministic tiled hub reproduces the reported scenery coordinate without monthly generation.
- const db=new DatabaseSync(':memory:'),patches=createFloorPatches(db),size=34,grid=value=>Array.from({length:size},()=>Array(size).fill(value));
+function terrainFixture(size=34){ // A deterministic tiled hub reproduces reported scenery coordinates without monthly generation.
+ const db=new DatabaseSync(':memory:'),patches=createFloorPatches(db),grid=value=>Array.from({length:size},()=>Array(size).fill(value));
  const floor={width:size,height:size,walls:grid(0),props:grid(0),floors:grid(1),wallTiles:grid(0),spawn:{x:1,y:1},fixtures:[{id:'generated-tree',kind:'scenery',x:28,y:31,span_w:2,span_h:1,solid:true},{id:'generated-bed',kind:'bed',x:8,y:9,solid:true}]};
  for(let i=0;i<size;i++)floor.walls[0][i]=floor.walls[size-1][i]=floor.walls[i][0]=floor.walls[i][size-1]=1;
  const act=(action,extra={})=>patches.act({action,patch_revision:patches.revision('test-hub'),...extra},{zone:'test-hub',floor,kind:'hub',actor:'test',commit:()=>{}}); // Use the real save and rollback path.
@@ -37,6 +37,33 @@ test('724 floor brush cells save beneath generated scenery and services, replay,
   const replay=structuredClone(original);f.patches.apply('test-hub',replay,{kind:'hub'});
   assert.equal(replay.patchSkipped,undefined);assert.equal(replay.floors[31][28],3,'stored paint survives regeneration');
   f.clear();assert.deepEqual(f.floor.floors,original.floors);assert.deepEqual(f.floor.fixtures,original.fixtures);
+ }finally{f.db.close();}
+});
+
+test('removing a tower overlapping generated scenery at 27,34 preserves its neighbour and supports move, replay and undo',()=>{
+ const f=terrainFixture(40);try{
+  const neighbour={id:'utopia-neighbour',kind:'scenery',sprite:'sprUtopiaTower',x:27,y:34,span_w:3,span_h:3,solid:true},tower={...neighbour,id:'utopia-tower'};
+  f.floor.fixtures.push(neighbour,tower);f.floor.walls[35][28]=1;f.floor.props[35][29]=1; // Legacy overlaps may include both another facade and existing terrain collision.
+  const original=structuredClone(f.floor),sorted=rows=>[...rows].sort((a,b)=>a.id.localeCompare(b.id));
+  const act=(action,extra={})=>f.patches.act({action,patch_revision:f.patches.revision('test-hub'),...extra},{zone:'test-hub',floor:f.floor,kind:'hub',actor:'test',commit:()=>{}});
+  const remove={kind:'decoration',op:'remove',match:{id:tower.id,sprite:tower.sprite,x:tower.x,y:tower.y}};
+  act('world_patch_apply',{ops:[remove]});assert.ok(!f.floor.fixtures.some(p=>p.id===tower.id));assert.deepEqual(f.floor.fixtures.find(p=>p.id===neighbour.id),neighbour);
+  assert.equal(f.patches.walkable(f.floor,27,34),false,'the remaining facade still blocks movement');assert.deepEqual(f.floor.walls,original.walls);assert.deepEqual(f.floor.props,original.props);
+  act('world_patch_apply',{ops:[remove,{kind:'decoration',op:'add',decoration:{sprite:tower.sprite,x:15,y:15,span_w:3,span_h:3,solid:true}}]}); // A repeated removal is harmless; the add half of a scenery drag can now finish.
+  assert.deepEqual(f.floor.fixtures.find(p=>p.id===neighbour.id),neighbour,'an explicit missing ID must not delete a lookalike');assert.equal(f.floor.fixtures.filter(p=>p.sprite===tower.sprite).length,2);
+  const replay=structuredClone(original);f.patches.apply('test-hub',replay,{kind:'hub'});assert.equal(replay.patchSkipped,undefined);assert.deepEqual(replay.fixtures,f.floor.fixtures);
+  const before=structuredClone(f.floor),revision=f.patches.revision('test-hub');
+  assert.throws(()=>act('world_patch_apply',{ops:[{kind:'decoration',op:'add',decoration:{sprite:'sprTree',x:27,y:34,solid:true}}]}),/That would cover generated scenery at 27,34/);
+  assert.equal(f.patches.revision('test-hub'),revision);assert.deepEqual(f.floor,before,'adding a new blocker still rolls back');
+  act('world_patch_clear');assert.deepEqual(sorted(f.floor.fixtures),sorted(original.fixtures));assert.deepEqual(f.floor.walls,original.walls);assert.deepEqual(f.floor.props,original.props);
+ }finally{f.db.close();}
+});
+
+test('removing overlapping hub furniture does not treat the remaining scenery as newly placed collision',()=>{
+ const f=terrainFixture();try{
+  const bed=f.floor.fixtures.find(p=>p.kind==='bed'),neighbour={id:'bed-backdrop',kind:'scenery',sprite:'sprUtopiaTower',x:bed.x,y:bed.y,solid:true};f.floor.fixtures.push(neighbour);
+  f.patches.act({action:'world_patch_apply',patch_revision:0,ops:[{kind:'fixture',op:'remove',match:{id:bed.id,kind:bed.kind}}]},{zone:'test-hub',floor:f.floor,kind:'hub',actor:'test',commit:()=>{}});
+  assert.ok(!f.floor.fixtures.some(p=>p.id===bed.id));assert.deepEqual(f.floor.fixtures.find(p=>p.id===neighbour.id),neighbour);f.clear();assert.deepEqual(f.floor.fixtures.find(p=>p.id===bed.id),bed);
  }finally{f.db.close();}
 });
 
