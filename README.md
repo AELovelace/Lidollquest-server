@@ -1,5 +1,101 @@
 # LiDollQuest server
 
+Participation B preparation (2026-10-14): `QUEST_PARTICIPATION_BACKEND=decider` switches
+the existing companion speaking gate to authenticated `POST /v1/participation/decide`
+on RAG's existing 9092 port. Default/rollback is `qwen`; restart the game server after
+changing it. Deploy/pull the prepared code first. Both RAG hosts must enable
+`PARTICIPATION_ENABLED=true` after `decider-chat-0-1.gguf` and its support ZIP are hosted.
+Their health must show healthy participation workers and the schema-first sociable policy.
+The new context contains current speaker/message, active companion exchange, nearby
+companion names and optional catalog `online.participation.role`/`interests`. It does not
+yet collect all nearby player speech. Candidate filters and direct-name bypasses remain
+unchanged for B; broadening unsolicited participation is a separate behavior change.
+Decider errors preserve existing follow-up fallback and are logged as `participation`;
+they never silently invoke Qwen. Disable participation on RAG only after rolling back the
+game gate to Qwen if you want to recover the additional model VRAM.
+
+After both RAG hosts are ready, the same simulated mix can run with the new gate independently
+of the live game-server setting:
+
+```powershell
+node deploy/ai-load-test.mjs --key-file C:/Scripts/npc-rag/.env --nodes http://47.51.162.106:9092,http://192.168.1.188:9092 --models "http://47.51.162.106:9090|http://47.51.162.106:9091,http://192.168.1.188:9090|http://192.168.1.188:9091" --gate-backend decider --levels 1,2,4,8,16,24 --seconds 40 --output artifacts/decider-chat-0-1-simulated-b.json
+```
+
+The harness preflights participation on both nodes and records `gate_backend`. Its default
+remains Qwen. Compare with `artifacts/decider01-all-vulkan-simulated-players-20261014.json`
+as historical A; the mix remains 60% companion / 25% Pip / 15% gate. Gates are independent
+load requests, not filters on the simulated dialogue requests. Random workload, caches,
+cloud overflow and timing vary, so this is an operational before/after, not a controlled
+same-prompt model-quality comparison. The old 100-chat burst is Pip-only and cannot measure
+the new gate. No B load run has been performed yet.
+
+Recovered two-host Vulkan test (2026-10-14): both Titan classifiers on `192.168.1.188`
+now work, retaining 95% held-out / 100% mixed routing accuracy. All four GPU workers across
+both hosts remained healthy with zero native failures after testing. The pooled 100-chat
+burst generated 100 replies with zero HTTP errors or availability fallbacks: median/p95
+8.669/31.101 s (AMD median 5.870 s; Titan 19.212 s). Titan phase medians were 1.358 s
+classification and 17.691 s generation. The five-second burst median target remains unmet.
+The pooled sustained simulation completed 678 requests, including 545 generated replies,
+with zero HTTP errors or availability fallbacks. Generated-reply medians at concurrency
+1/2/4/8/16/24 were 1.380/1.391/1.990/3.606/4.948/1.702 s; p95 values were
+3.629/4.133/3.896/7.770/12.019/15.090 s. This uses repeated prompts, warm caches, cloud
+overflow, no think time, and a 60-second attempt timeout with up to two attempts. These
+results do not establish production SLA or a controlled cold-cache A/B improvement.
+Artifacts: `artifacts/decider01-all-vulkan-pooled-chat-20261014.json`,
+`artifacts/decider01-all-vulkan-simulated-players-20261014.json` and its adjacent
+`-health-after.json`. The earlier CUDA failure below is historical.
+
+Multi-GPU classifier test (2026-10-14): preflight showed two healthy workers on each RAG host.
+The Vulkan node passed 95% held-out / 100% mixed routing accuracy with both workers active.
+Both CUDA workers exited on their first inference; its remaining wiki/social routing scored
+85/96 overall. The 100-chat burst still generated 100 replies with zero HTTP errors, but
+45 CUDA-node requests used wiki classification fallback. Combined median/p95: 9.943/31.209 s;
+Vulkan node median 6.885 s, degraded CUDA node 18.497 s. This is not a valid two-server GPU
+performance comparison. The sustained test was withheld pending CUDA error logs and recovery.
+See `artifacts/decider01-multigpu-preflight-20261014.json`,
+`artifacts/decider01-multigpu-pooled-chat-20261014.json`, and npc-rag's
+`runs/live-decider01-multigpu-accuracy-20261014.json`.
+
+GPU-configured Decider follow-up (2026-10-14): both live nodes reported `gpu_layers=-1`
+and retained 95% held-out / 100% mixed routing accuracy. The same sustained harness completed
+624 requests with zero HTTP errors or availability fallbacks: 512 generated replies, 17
+no-relevant-notes responses, two unsupported-term rejections and 93 gate calls. Generated-reply
+medians at 1/2/4/8/16/24 concurrency were **1.60/1.45/2.15/3.44/5.57/1.81 s**;
+p95 was **2.31/3.61/4.03/6.41/12.03/13.65 s**. Both nodes recovered healthy/idle with zero
+classifier failures. Random prompts, warm caches and enabled local/cloud overflow prevent a
+controlled attribution to GPU offload; health reports requested offload, not measured GPU use.
+The separate 100-chat burst generated 100/100 replies but its median worsened from 9.12 to
+9.86 s while p95 improved from 26.27 to 20.55 s. The five-second median remains inconsistent.
+Artifacts: `artifacts/decider01-gpu-simulated-players-20261014.json`, its adjacent
+`-health-after.json`, and `artifacts/decider01-gpu-pooled-chat-20261014.json`.
+
+AI player simulation: `node deploy/ai-load-test.mjs --key-file C:/Scripts/npc-rag/.env` runs sustained
+closed-loop requests across the configured RAG nodes, with 60% companion replies, 25% Pip questions
+and 15% companion YES/NO gates by default. It ramps through 1/2/4/8/16/24 concurrent requests for
+40 seconds per stage, without thinking time, and pushes this checkout's companion lore to RAG.
+The gate still needs a chat-completion model (currently Qwen on 9091); the GAME/CHAT Decider inside
+9092 is a separate task. `--models` overrides the direct model endpoints; `--levels`, `--seconds`
+and `--mix` choose the workload. Optional `--output artifacts/name.json` saves every completed
+stage, individual timings, gate answers, guard outcomes and generated-dialogue statistics. The
+script separates HTTP success from generated replies and gives each Pip request a unique synthetic
+player ID. Its 60-second per-attempt deadline and up to two attempts differ from the live companion
+call's 20-second per-attempt deadline. Repeated prompts, progressively warm caches and synthetic
+memory make this a diagnostic capacity test, not a unique-player count or production latency SLA.
+
+The October 14 Decider 0.1 run completed all six stages: 572 HTTP-successful requests (362 companion,
+122 Pip, 88 gate), zero HTTP errors and zero `llm_unavailable` fallbacks. Of 484 dialogue requests,
+456 generated guard-passed replies, 24 returned no-relevant-notes responses and four were rejected
+for unsupported terms; 42 generated replies needed a guard retry. Generated-dialogue medians at
+1/2/4/8/16/24 concurrency were **2.84/2.64/2.83/4.07/6.24/3.09 s**, with p95
+**4.53/3.85/4.51/7.65/12.64/13.86 s**. The non-monotonic median does not establish a reliable
+maximum capacity: later stages reuse cached classifications, mix random prompts and permit local/cloud
+overflow without per-response provider attribution. Both nodes recovered healthy/idle with zero
+native classifier failures. Measurements are in `artifacts/decider01-simulated-players-20261014.json`
+and the adjacent `-health-after.json`. The JSON recomputes conventional medians/nearest-rank p95
+from unchanged request rows; initial console output used upper-middle/floor-based percentiles.
+
+AI overflow (2026-10-14): the existing npc-rag service on each AI host can route prepared RAG prompts to GPT-6 Luna when its local generation slots are occupied. Configure OPENAI_API_KEY, OPENAI_MODEL=gpt-6-luna, OPENAI_LOCAL_CAPACITY=4 and OPENAI_CONCURRENCY=4 in each RAG host's existing .env and restart that RAG process. Keep NPC_RAG_NODES and the existing 9092 URLs unchanged. The game-server pool continues balancing the same nodes; each RAG node manages its own overflow capacity. No additional listener or OpenAI credential is needed on the game server. See the npc-rag README for limits, health telemetry and testing.
+
 Overlapping scenery removal (2026-10-13): removing a facade no longer mistakes surviving scenery or terrain at its old footprint for a newly added obstruction. Explicit object IDs take precedence over sprite/coordinate matches; repeated removal cannot consume a lookalike. The editor preview follows the same single-object rule. Run `node --test test/floor-patches.test.mjs test/gm-map-editor.test.mjs test/hub-districts.test.mjs`. Release the service and refresh the Map Editor; saved maps need no regeneration.
 
 Surface dungeon entrance movement (2026-10-13): the GM Map Editor can drag or cut/paste Utopia's Mana Caves station and LittleBigCity's sewer manhole within their hub. Doors & gates also lists generated full-dungeon connections. A reversible `exit` patch moves the persisted portal and existing artwork together, preserving travel, return positions and restart reconciliation without regeneration. Run `node --test test/floor-patches.test.mjs test/gm-map-editor.test.mjs test/hub-controls.test.mjs test/hub-districts.test.mjs test/mana-caves-travel.test.mjs test/full-dungeon-travel.test.mjs`. Release the service and reload the Map Editor; this fix needs no game-client rebuild. Deployment remains separate.

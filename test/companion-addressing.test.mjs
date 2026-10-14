@@ -84,3 +84,25 @@ test('through the chat queue: a reply opens a 3-minute conversation; unclear lin
   assert.ok(w.db.prepare('SELECT until FROM quest_follower_convo WHERE npc=? AND speaker=?').get('paladin_aegis','doll').until>w.now(),'the conversation stays open after each reply');
  }finally{chat.close();w.db.close();}
 });
+
+test('Decider switch gates the same candidates through 9092 and preserves availability behavior',async()=>{
+ const w=world(),calls=[],warnings=[];let answer='quiet';
+ const chat=createFollowerChat(w.db,{followers:w.followers,now:w.now,audience:()=>2,gateBackend:'decider',roll:()=>1,log:(...args)=>warnings.push(args),
+  locate:(c,area)=>w.followers.chatTargets(c,{area,geometry:w.geometry}),fetcher:async(url,opts)=>{
+   const path=new URL(url).pathname,body=JSON.parse(opts.body);calls.push({path,body});
+   if(path==='/v1/participation/decide')return answer==='broken'?Response.json({error:'busy'},{status:503}):Response.json({decision:answer,join:answer==='join',join_probability:answer==='join'?.8:.2,policy:'participation-sociable-v1-schema_first',model:'lidoll/decider-chat-0-1'});
+   assert.notEqual(path,'/v1/chat/completions','Decider B must never silently ask Qwen');
+   return Response.json({reply:'Of course, Doll.'});
+  }});
+ const say=async(text,seq)=>{chat.enqueue(w.doll,text,seq,'room');chat.kick();for(let i=0;i<100&&!chat.idle();i++)await new Promise(r=>setTimeout(r,5));};
+ const replies=()=>w.db.prepare("SELECT COUNT(*) n FROM quest_chat WHERE character_id LIKE 'follower:%'").get().n;
+ try{
+  await say('Elowen, hello!',1);assert.equal(replies(),1,'named lines still bypass the gate');
+  w.advance(5000);await say('what about you?',2);assert.equal(replies(),1,'QUIET stops generation');
+  const gate=calls.find(c=>c.path==='/v1/participation/decide').body;
+  assert.equal(gate.conversation_with_candidate,true);assert.equal(gate.speaker_hired_candidate,true);assert.equal(gate.recent_turns.length,2);
+  w.advance(5000);answer='join';await say('would you tell me?',3);assert.equal(replies(),2);
+  w.advance(5000);answer='broken';await say('are you still there?',4);assert.equal(replies(),3,'existing follow-up fallback keeps the conversation alive');
+  assert.ok(warnings.some(args=>String(args).includes('participation')),'failure is visible');
+ }finally{chat.close();w.db.close();}
+});

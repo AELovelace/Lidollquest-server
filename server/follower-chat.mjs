@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {participationContext,participationSaysJoin} from './participation-gate.mjs';
 import {createAiPool,parseNodes} from './ai-pool.mjs'; // Shared AI node pool: least busy node first, failover when one is down.
 import {addressees,gatePrompt,gateSaysYes,ADDRESS_DEFAULTS} from './companion-addressing.mjs';
 import {situationFacts,safeZone} from './companion-situation.mjs';
@@ -31,7 +32,8 @@ export function storyFlags(c){ // True story flags on the character (state.fullD
  try{const flags=JSON.parse(c?.state??'{}')?.fullDungeon?.flags??{};return Object.keys(flags).filter(k=>flags[k]&&FLAG_ID.test(k)).slice(0,200);}catch{return [];}
 }
 
-export function createFollowerChat(db,{followers,now=Date.now,fetcher=fetch,allowed=()=>true,stamp=()=>{},locate=(c,area)=>followers.chatTargets(c,{area}),pool=null,agentUrl=process.env.QUEST_FOLLOWER_AGENT_URL||'http://192.168.1.188:9092',classifierUrl=process.env.QUEST_FOLLOWER_CLASSIFIER_URL||'http://192.168.1.188:9091',llmUrl=process.env.QUEST_FOLLOWER_LLM_URL||'http://192.168.1.188:9090',apiKey=process.env.QUEST_FOLLOWER_AGENT_KEY||'',concurrency=null,log=console.warn,loreDrafts=process.env.QUEST_COMPANION_LORE_DRAFTS||'live',memoryStore=null,audience=()=>0,roll=Math.random,slipTuning=()=>SLIP_DEFAULTS,loreCatalog=null}={}){ // loreCatalog: companion-admin.mjs lore() (GM edits over the export) // memoryStore: companion-memory.mjs (main process only); audience: other players on screen with the speaker
+export function createFollowerChat(db,{followers,now=Date.now,fetcher=fetch,allowed=()=>true,stamp=()=>{},locate=(c,area)=>followers.chatTargets(c,{area}),pool=null,agentUrl=process.env.QUEST_FOLLOWER_AGENT_URL||'http://192.168.1.188:9092',gateBackend=process.env.QUEST_PARTICIPATION_BACKEND||'qwen',classifierUrl=process.env.QUEST_FOLLOWER_CLASSIFIER_URL||'http://192.168.1.188:9091',llmUrl=process.env.QUEST_FOLLOWER_LLM_URL||'http://192.168.1.188:9090',apiKey=process.env.QUEST_FOLLOWER_AGENT_KEY||'',concurrency=null,log=console.warn,loreDrafts=process.env.QUEST_COMPANION_LORE_DRAFTS||'live',memoryStore=null,audience=()=>0,roll=Math.random,slipTuning=()=>SLIP_DEFAULTS,loreCatalog=null}={}){ // loreCatalog: companion-admin.mjs lore() (GM edits over the export) // memoryStore: companion-memory.mjs (main process only); audience: other players on screen with the speaker
+ if(!['qwen','decider'].includes(gateBackend))throw Error('QUEST_PARTICIPATION_BACKEND must be qwen or decider');
  const legacy1=parseNodes(agentUrl);if(legacy1.length===1)Object.assign(legacy1[0],{llm:String(llmUrl).replace(/\/+$/,''),classifier:String(classifierUrl).replace(/\/+$/,'')}); // One legacy node keeps its separately configured model URLs.
  const ai=pool??createAiPool({nodes:legacy1,key:apiKey,fetcher,now,log}),ownPool=!pool; // service.mjs passes the shared pool (NPC_RAG_NODES); tests and legacy setups build their own.
  const slots=concurrency??2*Math.max(1,ai.hosts().length); // Two companion replies per AI node at once.
@@ -88,8 +90,17 @@ export function createFollowerChat(db,{followers,now=Date.now,fetcher=fetch,allo
   const memory=JSON.stringify([job.rental,c.id]),def=followers.catalog[job.npc],saved=db.prepare('SELECT * FROM quest_follower_memory WHERE rental=?').get(memory),history=saved&&now()-saved.updated<1800000?JSON.parse(saved.messages):[]; // No hirer's or other speaker's conversation is sent to a different player.
   if(job.gate){ // An unclear line (a follow-up or a hirer's line with others around, or a bare "you"): would answering be natural?
    let yes=job.reason==='followup'; // The classifier being down keeps a conversation going but drops the other guesses.
-   try{const r=await post('classifier','/v1/chat/completions',{model:'local',messages:[{role:'system',content:gatePrompt(def,{hired:job.reason==='hirer'})},{role:'user',content:job.text}],max_tokens:4,temperature:0,stream:false,chat_template_kwargs:{enable_thinking:false}});yes=gateSaysYes(r.choices?.[0]?.message?.content);}
-   catch(error){warn('classifier',error?.url??'',error);}
+   try{
+    if(gateBackend==='decider'){
+     const active=!!db.prepare('SELECT 1 FROM quest_follower_convo WHERE npc=? AND speaker=? AND area=? AND until>?').get(job.npc,c.id,job.area,now());
+     const hire=followers.get(c.id),context=participationContext(def,{message:job.text,playerName:c.name,kind:job.emote?'emote':'chat',
+      history:active?history:[],conversation:active,hired:hire?.npc===job.npc&&hire?.id===job.rental,
+      nearbyNames:locate(c,job.area).map(t=>followers.catalog[t.npc]?.name).filter(Boolean)});
+     yes=participationSaysJoin(await post('agent','/v1/participation/decide',context));
+    }else{
+     const r=await post('classifier','/v1/chat/completions',{model:'local',messages:[{role:'system',content:gatePrompt(def,{hired:job.reason==='hirer'})},{role:'user',content:job.text}],max_tokens:4,temperature:0,stream:false,chat_template_kwargs:{enable_thinking:false}});yes=gateSaysYes(r.choices?.[0]?.message?.content);
+    }
+   }catch(error){warn(gateBackend==='decider'?'participation':'classifier',error?.url??'',error);} // Preserve existing follow-up fallback; never hide B failures by calling Qwen.
    if(!yes){status(job,'discarded');return;} // Quietly not for them.
   }
   let reply=null,legacyChain=false,fromGraph=false; // null until some hop answers; the authored fallback is the last resort
