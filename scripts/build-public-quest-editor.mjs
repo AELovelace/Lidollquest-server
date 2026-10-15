@@ -57,14 +57,20 @@ export function renderRuntime(snapshot){
  return 'window.LIDOLL_PUBLIC_CATALOG='+JSON.stringify(snapshot).replace(/</g,'\\u003c')+';\n'+renderRules()+'\n'+read('gm-public-workshop.js');
 }
 
+export function stripLiveLinks(html){
+ return html.replace(/<a\b[^>]*>[\s\S]*?<\/a\s*>/gi,link=>{
+  const classes=link.slice(0,link.indexOf('>')+1).match(/\bclass\s*=\s*(["'])(.*?)\1/i)?.[2]??'';
+  return classes.split(/\s+/).includes('live-link')?'':link;
+ }); // Strip marked links from the authored template regardless of how many staff tools the live workshop offers.
+}
+
 export function renderPage(snapshot,{title='LiDollQuest Quest Editor',wikiHref='wiki/'}={}){
  let html=read('gm-flow-editor.html');
  const swap=(from,to)=>{if(html.split(from).length!==2)throw Error('Public editor build expects exactly one '+from.slice(0,60));html=html.replace(from,()=>to);};
  swap('<meta name="robots" content="noindex,nofollow">','<meta name="description" content="Try your hand at LiDollQuest quest creation: build quests, NPC conversations and story flows in your browser, then export a bundle for the gamemasters.">');
  swap('<title>LiDollQuest Story Workshop</title>','<title>'+title+'</title>');
  swap('<h1>Story Workshop</h1>','<h1>'+title+'</h1>');
- const links=html.match(/<a class="live-link"[^>]*>[^<]*<\/a>/g)??[];if(links.length!==2)throw Error('Public editor build expects two live-only links.');
- for(const link of links)html=html.replace(link,()=>'');
+ html=stripLiveLinks(html); // New live-only navigation must not break the public build or escape into its offline page.
  swap('href="/gm/wiki/"','href="'+wikiHref+'"');
  const editor=read('gm-flow-editor.js').replace('/* CONTENT_BLOCKS */',()=>read('gm-content-blocks.js')+'\n'+read('gm-story-sheets.js')+'\n'+read('gm-sprite-lab.js')),runtime=renderRuntime(snapshot),bundle=read('gm-quest-bundle.js');
  for(const [label,source] of [['editor',editor],['runtime',runtime],['bundle',bundle]])if(/<\/script/i.test(source))throw Error('Inline '+label+' script would close its tag early.');

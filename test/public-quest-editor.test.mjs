@@ -4,7 +4,7 @@ import {readFileSync,existsSync,mkdtempSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import vm from 'node:vm';
-import {snapshotCatalog,renderRuntime,renderPage,buildPublicQuestEditor} from '../scripts/build-public-quest-editor.mjs';
+import {snapshotCatalog,renderRuntime,renderPage,buildPublicQuestEditor,stripLiveLinks} from '../scripts/build-public-quest-editor.mjs';
 import {validateQuestContent} from '../server/quest-content.mjs';
 import {validateFlow} from '../server/flow-content.mjs';
 import {validateLook} from '../server/sprite-looks.mjs';
@@ -15,6 +15,14 @@ const bundleApi=vm.runInNewContext(bundleScript+';({serializeQuestBundle,parseQu
 const same=(actual,expected,message)=>assert.deepEqual(JSON.parse(JSON.stringify(actual)),JSON.parse(JSON.stringify(expected)),message); // Sandbox values come from another vm realm, so compare their JSON rather than prototypes.
 let snapshot;
 test.before(async()=>{snapshot=await snapshotCatalog();});
+
+test('public navigation removes any number of live links and preserves other links',()=>{
+ const wiki='<a id="wikiLink" href="/gm/wiki/">GM wiki</a>',other='<a class="not-live-link" href="guide/">Guide</a>';
+ const staff=['<a class="live-link" href="/gm/help">Assistant</a>',
+  '<a href="/gm/routine-editor" class="toolbar live-link"><span>Routines</span></a>',
+  "<a class='live-link toolbar' href='/gm'>Sign in</a>",'<a class="live-link" href="/gm/future">Future tool</a>'];
+ for(let count=0;count<=staff.length;count++)assert.equal(stripLiveLinks(wiki+staff.slice(0,count).join('')+other),wiki+other);
+}); // Cover the added Routines link and future navigation without coupling the build to an exact link count.
 
 function sandbox(){
  const store=new Map(),storage={getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)};
@@ -169,6 +177,7 @@ test('the build writes a self-contained page and a wiki that links back to it',(
  const page=readFileSync(join(outDir,'index.html'),'utf8');
  assert.ok(page.includes('<title>LiDollQuest Quest Editor</title>')&&page.includes('window.LIDOLL_PUBLIC_CATALOG=')&&page.includes('function createPublicWorkshopApi')&&page.includes('function parseQuestBundle')&&page.includes('function contentGraph'));
  assert.ok(!page.includes('class="live-link"')&&!page.includes('noindex')&&!page.includes('href="/gm/wiki/"')&&page.includes('href="wiki/"'));
+ for(const href of ['/gm/help','/gm/routine-editor','/gm'])assert.ok(!page.includes('href="'+href+'"'),'public page excludes '+href);
  assert.ok(page.includes('id="exportBundle"')&&page.includes('id="importBundle"')&&page.includes('class="live-only"'));
  assert.ok(result.files.includes('wiki/index.html')&&result.files.includes('wiki/content/first-quest.md')&&result.files.includes('wiki/vendor/marked.min.js'));
  for(const name of result.files)assert.ok(existsSync(join(outDir,name)),name);
@@ -184,5 +193,6 @@ test('the live workshop page ships the bundle format and the import/export contr
   const page=await (await fetch('http://127.0.0.1:'+service.server.address().port+'/gm/flow-editor')).text();
   assert.ok(page.includes('function parseQuestBundle')&&page.includes('id="importBundle"')&&page.includes('id="exportBundle"')&&page.includes('window.LIDOLL_STATIC_API??liveApi'));
   assert.ok(!page.includes('LIDOLL_PUBLIC_CATALOG'));
+  assert.ok(page.includes('href="/gm/routine-editor"'),'the live workshop retains its Routines navigation');
  }finally{service.server.closeAllConnections();await new Promise(done=>service.server.close(done));}
 });

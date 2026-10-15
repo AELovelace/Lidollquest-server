@@ -2281,6 +2281,11 @@ world at build time, so no live content, accounts or placements are included, an
 Publishing, rollback, map placement, isolated tests, artwork uploads and monster tuning are hidden; the player
 preview runs the same simulation walk as the server.
 
+Live-only navigation is marked with the `live-link` CSS class and removed from the public build regardless of
+link count, including the GM assistant, Routines & Daylight and sign-in links. Mark new staff navigation the
+same way; the public wiki link is retained. Check both source and packaged builds with
+`node --test test/public-quest-editor.test.mjs test/release-package.test.mjs` after changing workshop navigation.
+
 NPC Settings includes the same Sprite Lab designer, shipped layer catalogue and embedded PNG sheets as the GM panel. Looks are previewed entirely locally, validated on save, and retained by bundle export/import. Rebuild after layer/catalogue changes; the build refuses missing sheets. NPC **Default facing** is optional `facing: 0..3` (down, up, right, left); stationary placements use it immediately after publication, while wanderers retain their last step direction. Older NPCs fall back to their look's facing or down. This also requires the updated game client to render placement facing. The shared quest controls include completion/reset flags, state/equipment objectives, greeting reactions and current reward fields.
 
 **Export bundle** / **Import bundle…** in both editors move work as `*.lidollquest.json` files
