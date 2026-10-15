@@ -198,14 +198,14 @@ export function createQuestService({filename=':memory:',musicOptions=null,wallet
    if(input?.action==='tutor_ask')void tutor.kick(); // The question is committed; ask npc-rag now without holding this response open.
    const receipt=result.receipt,snapshotView=req.method==='GET'?view:{companion:['bank_sell','companion_equip','companion_unequip','companion_use','companion_roll','companion_withdraw'].includes(input?.action)||(input?.companion===true&&/^guild_/.test(String(input?.action??'')))};
    if(shards){
-    await flush(verified.owner,token);let prepared;identity=verified;try{prepared=metrics.measure('zones.prepare_read',()=>zones.prepareRead(token,result.character?.id,snapshotView));}finally{identity=null;}
+    await flush(verified.owner,token);let prepared;identity=verified;try{prepared=metrics.measure('zones.prepare_read',()=>zones.prepareRead(token,result.character?.id,snapshotView,{counted:req.method!=='GET'}));}finally{identity=null;}
     if(!prepared.testing){
      const zone=prepared.c?db.prepare('SELECT zone FROM quest_presence WHERE character_id=?').get(prepared.c.id)?.zone??'lobby':'lobby';
      const bytes=await metrics.measureAsync('zones.shard_refresh',()=>shards.render(zone,{at:now(),identity:{owner:verified.owner,client:verified.client,gamemaster:verified.gamemaster,supporterUntil:verified.supporterUntil,blockedAccounts:verified.blockedAccounts},character:prepared.c?.id??null,view:snapshotView,badges:zones.snapshotBadges(),receipt,capabilities,known:url.searchParams.get('known')}));
      res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(bytes);return;
     }
     result=prepared.testing;if(receipt)result.receipt=receipt; // Isolated GM test worlds remain on their own coordinator and never leak into the shared worker database.
-   }else{identity=verified;try{result=metrics.measure(req.method==='GET'?'zones.read':'zones.refresh',()=>zones.read(token,result.character?.id,snapshotView));if(receipt)result.receipt=receipt;}finally{identity=null;}} // Build exactly one final view after purchase settlement, including durable replay receipts.
+   }else{identity=verified;try{result=metrics.measure(req.method==='GET'?'zones.read':'zones.refresh',()=>zones.read(token,result.character?.id,snapshotView,{counted:req.method!=='GET'}));if(receipt)result.receipt=receipt;}finally{identity=null;}} // Build exactly one final view after purchase settlement, including durable replay receipts.
    await flush(verified.owner,token);result.coins=db.prepare('SELECT coins FROM wallet_cache WHERE owner=?').get(verified.owner).coins;
    result.pendingCoins=db.prepare('SELECT COALESCE(SUM(amount-paid),0) AS n FROM reward_outbox WHERE owner=? AND delivered=0').get(verified.owner).n;
    result.tutor=tutor.view(result.character?.id??null); // Pip's latest answer for this character (tutor.mjs); null when there is none.

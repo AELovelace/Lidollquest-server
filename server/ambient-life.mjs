@@ -14,6 +14,7 @@
 import {participationSaysJoin,npcParticipationContext} from './participation-gate.mjs';
 import {personaText,participationProfile} from './ambient-persona.mjs';
 import {situationFacts} from './companion-situation.mjs';
+import {trimLine} from './follower-chat.mjs';
 
 export const AMBIENT_DEFAULTS=Object.freeze({ // GM Companions tab knobs (companion-admin.mjs AMBIENT bounds); the master switch ships off.
  ambient_enabled:'off',ambient_chance:0.25,ambient_check_s:20,ambient_chime_chance:0.35,ambient_talk_range:4,
@@ -115,7 +116,7 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
   if(!res.ok||res.body?.fallback){stats.ai_failures++;warn('line','AI answered '+res.status);return '';}
   if(res.body?.lane==='cloud'){alarms++;log('ambient_cost_guard','an ambient line came back from the paid cloud; dropped');return '';} // Cannot happen (npc-rag PAID_KINDS); dropped and counted if it ever does.
   if(!String(res.body?.guard??'passed').startsWith('passed')){stats.repeats++;return '';} // npc-rag gave up on this line (it kept repeating itself, or named things it shouldn't): silence.
-  const text=clean(res.body?.reply).slice(0,300);
+  const text=trimLine(clean(res.body?.reply)); // Whole sentences or words, never a mid-word cut.
   if(repeats(text,[...(recentSaid.get(actor.key)??[]),...(convo?convo.lines.filter(l=>l.key===actor.key).map(l=>l.text):[])])){stats.repeats++;return '';} // Never say the same thing twice in one conversation.
   return text;
  }

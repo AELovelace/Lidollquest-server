@@ -14,7 +14,13 @@ export const SLIP_DEFAULTS=Object.freeze({
  gossip_chance:.2,   // Chance per reply that anonymous memories of other travellers are offered (used only when no own memory fits).
 });
 
-const clean=value=>String(value??'').replace(/<think>[\s\S]*?(?:<\/think>|$)/gi,'').replace(/[\u0000-\u001f\u007f-\u009f#]/g,' ').replace(/\s+/g,' ').trim().slice(0,240);
+export function trimLine(text,max=300){ // Cut at the last whole sentence, else whole words plus "..." (2026-10-15 audit: a hard slice cut companion lines mid-word).
+ if(text.length<=max)return text;
+ const cut=text.slice(0,max),ends=[...cut.matchAll(/[.!?]["')]*(?=\s|$)/g)],last=ends.at(-1);
+ if(last&&last.index>max/3)return cut.slice(0,last.index+last[0].length).trim();
+ return text.slice(0,max-3).replace(/\s+\S*$/,'').replace(/[\s,;:-]+$/,'')+'...';
+}
+const clean=value=>trimLine(String(value??'').replace(/<think>[\s\S]*?(?:<\/think>|$)/gi,'').replace(/[\u0000-\u001f\u007f-\u009f#]/g,' ').replace(/\s+/g,' ').trim());
 export function mentionsFollower(text,def){
  return [def.name,...(def.online.aliases??[])].some(alias=>new RegExp('(?<![\\p{L}\\p{N}_])'+alias.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?![\\p{L}\\p{N}_])','iu').test(text));
 } // Exact name/alias boundaries avoid replies to names hidden inside unrelated words.
