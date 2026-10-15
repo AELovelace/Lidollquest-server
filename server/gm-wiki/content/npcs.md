@@ -176,9 +176,9 @@ An NPC with an AI persona can start short conversations with other persona NPCs 
    - **Who they talk to**.
 3. Click **Test line** to hear how they sound, and **Test gate** to see whether they'd join in on a line. Both use the local AI and post nothing in game.
 4. Tick **AI persona enabled**, publish, and place the NPC anywhere with the placement map.
-5. On the Companions tab, set `ambient_enabled` to on in Tuning.
+5. On the **Ambient Life** tab, set `ambient_enabled` to on in Tuning and save.
 
-The **Ambient Life** section on the Companions tab shows:
+The **Ambient Life** tab also shows:
 - live conversations, recent lines and the Decider's choices;
 - an **Export decisions** button (player names are replaced with Player1, Player2, ...).
 

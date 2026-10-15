@@ -54,7 +54,7 @@ export function createCompanionAdmin(db,{memory,followers,ambient=()=>null,now=D
 
  function gmView({character=''}={}){
   const matches=findCharacters(character),chosen=matches.length===1?matches[0]:null;
-  return {settings:settings(),defaults,bounds:COMPANION_SETTING_BOUNDS,nodes:pool(),ambient:ambient()?.view()??null, // Ambient Life status, transcript and Decider log.
+  return {settings:settings(),defaults,bounds:Object.fromEntries(Object.entries(COMPANION_SETTING_BOUNDS).filter(([key])=>!key.startsWith('ambient_'))),nodes:pool(), // Ambient Life knobs live on their own tab (ambientView).
    companions:Object.entries(lore()).map(([npc,v])=>({npc,name:v.name,sections:v.online.backstory,drafts:v.online.backstory.filter(s=>s.draft).length})),
    matches,character:chosen?{...chosen,...memory.view(chosen.id)}:null};
  }
@@ -97,13 +97,18 @@ export function createCompanionAdmin(db,{memory,followers,ambient=()=>null,now=D
    memory.db.prepare('INSERT INTO bonds(npc,character_id,bond,hour,hour_gain,updated) VALUES (?,?,?,0,0,?) ON CONFLICT(npc,character_id) DO UPDATE SET bond=excluded.bond,updated=excluded.updated').run(npc,id,bond,now());
    return {npc,character_id:id,bond};
   },
+  ambient_settings(input,actor){const values=input.values??{};for(const key of Object.keys(values))if(!Object.hasOwn(AMBIENT_BOUNDS,key))fail('Not an Ambient Life setting: '+key+'.');return actions.companion_settings(input,actor);}, // Same bounded store as companion tuning, limited to ambient_* keys.
   ambient_export(){const life=ambient();if(!life)fail('Ambient life is not running on this server.',409);const jsonl=life.exportDecisions();return {jsonl,rows:jsonl?jsonl.split(String.fromCharCode(10)).length:0};}, // Scrubbed Decider decisions for training (player names -> Player1..n).
  };
+ function ambientView(){ // GM "Ambient Life" tab (GET /gm/ambient): its own knobs, the AI nodes, and the live status, transcript and Decider log.
+  const all=settings();
+  return {settings:Object.fromEntries(Object.keys(AMBIENT_BOUNDS).map(k=>[k,all[k]])),defaults:{...AMBIENT_DEFAULTS},bounds:AMBIENT_BOUNDS,nodes:pool(),ambient:ambient()?.view()??null};
+ }
  async function ambientTest(input){ // GM persona editor preview (POST /gm/ambient-test): validated draft persona, one line or one Decider verdict.
   const life=ambient();if(!life)fail('Ambient life is not running on this server.',409);
   const npc=input?.npc;if(!npc||typeof npc!=='object')fail('Send the NPC draft to test.');
   let persona;try{persona=validateAiPersona(npc.ai_persona??{});}catch(error){fail(error.message);}
   return life.test({id:clean(npc.id).slice(0,64),name:clean(npc.name).slice(0,32),ai_persona:persona},{mode:input.mode==='gate'?'gate':'line',message:clean(input.message).slice(0,500),speaker:clean(input.speaker).slice(0,64)||'Traveller'});
  }
- return {settings,lore,gmView,actions,ambientTest,invalidate(){cached=null;}};
+ return {settings,lore,gmView,ambientView,actions,ambientTest,invalidate(){cached=null;}};
 }

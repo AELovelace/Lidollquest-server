@@ -38,7 +38,7 @@ const near=(a,b,r)=>Math.abs(a.x-b.x)<=r&&Math.abs(a.y-b.y)<=r; // Square talk r
 const dist=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
 const defaultSleep=ms=>new Promise(r=>{const t=setTimeout(r,ms);t.unref?.();}); // Never holds the process open.
 const grams=(text,n=5)=>{const w=String(text).toLowerCase().match(/[a-z']+/g)??[],out=new Set();for(let i=0;i+n<=w.length;i++)out.add(w.slice(i,i+n).join(' '));return out;}; // Word 5-grams for the repeat check.
-const repeats=(text,said)=>{const mine=grams(text);return said.some(old=>clean(old).toLowerCase()===clean(text).toLowerCase()||[...grams(old)].some(g=>mine.has(g)));}; // Live 2026-10-14: Wren said one line three times.
+const repeats=(text,said)=>{const mine=grams(text,7);return said.some(old=>clean(old).toLowerCase()===clean(text).toLowerCase()||[...grams(old,7)].some(g=>mine.has(g)));}; /* 7 words in a row or the same line: 5-word runs matched everyday phrases and silenced openers (2026-10-15). */ // Live 2026-10-14: Wren said one line three times.
 const TOPICS=[['hungry','hunger','starv','peckish','eat','food','snack','meal','stew','feed'],['thirsty','thirst','parched','drink'],['hurt','wound','injur','bruis'],['toilet','potty','fidget','desperate','squirm'],['accident'],['padding','diaper','nappy','soggy','soaked','mess','squish'],['smell','stink','whiff','pong']]; // Word starts that mean the same observation; no plain "wet" ("wet the whistle" is a tavern line, not a padding remark).
 const said=(text,words)=>words.some(w=>new RegExp('\\b'+w,'i').test(String(text))); // Word starts: "eat" never matches "great".
 const unsaid=(facts,lines)=>facts.filter(f=>{const topic=TOPICS.find(words=>said(f,words));return !topic||!lines.some(l=>said(l,topic));}); // Doll 2026-10-15: remark on what you notice once per conversation, not four times in a row.
@@ -58,7 +58,7 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
  const recentSaid=new Map();   // actor key -> its last 12 lines across conversations (never said again; live 2026-10-15 the same exchange every time)
  const recentTopics=new Map(); // actor key -> the last 3 topics it opened with, so the next opener picks a different one
  const heard=[];               // queued player lines {c,text,area,zone,x,y,emote,companion,at}
- const decisions=[],transcript=[],stats={lines:0,busy:0,quiet:0,join:0,gate_failures:0,ai_failures:0,repeats:0};
+ const decisions=[],transcript=[],stats={lines:0,busy:0,quiet:0,join:0,gate_failures:0,ai_failures:0,repeats:0,openers_dropped:0},drops={}; // drops: npc-rag guard verdict -> count (repeated, unsupported_terms, leak_blocked).
  const warned=new Map();
  function warn(what,error){const t=now();if(t-(warned.get(what)??-Infinity)<60000)return;warned.set(what,t);log('ambient_'+what+'_failed',String(error?.message??error).slice(0,200));} // One line per kind per minute.
  const knobs=()=>{const out={...AMBIENT_DEFAULTS},raw=tuning()??{};for(const key of Object.keys(AMBIENT_DEFAULTS))if(raw[key]!==undefined)out[key]=raw[key];return out;};
@@ -115,7 +115,7 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
   if(res.status===429){lineBudget.refund();stats.busy++;return '';} // local_busy: the local slots belong to players right now; no charge, no line.
   if(!res.ok||res.body?.fallback){stats.ai_failures++;warn('line','AI answered '+res.status);return '';}
   if(res.body?.lane==='cloud'){alarms++;log('ambient_cost_guard','an ambient line came back from the paid cloud; dropped');return '';} // Cannot happen (npc-rag PAID_KINDS); dropped and counted if it ever does.
-  if(!String(res.body?.guard??'passed').startsWith('passed')){stats.repeats++;return '';} // npc-rag gave up on this line (it kept repeating itself, or named things it shouldn't): silence.
+  const verdict=String(res.body?.guard??'passed');if(!verdict.startsWith('passed')){drops[verdict]=(drops[verdict]??0)+1;if(verdict==='repeated')stats.repeats++;return '';} // npc-rag gave up on this line (it kept repeating itself, or named things it shouldn't): silence.
   const text=trimLine(clean(res.body?.reply)); // Whole sentences or words, never a mid-word cut.
   if(repeats(text,[...(recentSaid.get(actor.key)??[]),...(convo?convo.lines.filter(l=>l.key===actor.key).map(l=>l.text):[])])){stats.repeats++;return '';} // Never say the same thing twice in one conversation.
   return text;
@@ -152,7 +152,7 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
  // ── NPC <-> NPC: roll to open, the Decider keeps it going, one chime-in ──
  async function converse(convo,a,b,scene,k){
   convo.actors.set(b.key,b); // B is part of it from the start: present() watches it and the Decider knows it was spoken to.
-  const opener=await line(a,{kind:'ambient_open',partner:partnerOf(b),situation:place(scene),topic:topicFor(a)},convo);if(!opener)return;
+  const opener=await line(a,{kind:'ambient_open',partner:partnerOf(b),situation:place(scene),topic:topicFor(a)},convo);if(!opener){retrySoon(a,b);return;} // Nothing was said: try again soon with a fresh topic.
   post(a,opener,convo);hold(b.ref,now()+Number(k.ambient_idle_s)*1000);
   let speaker=a,listener=b;
   for(;;){
@@ -182,9 +182,10 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
  }
 
  // ── NPC -> player: a greeting, then the player's own lines route back through hear() ──
+ function retrySoon(...actors){stats.openers_dropped++;const k=knobs();for(const a of actors)if(a)cooldown.set(a.key,now()+Number(k.ambient_check_s)*1000);} // A dropped opener must not silence both NPCs for minutes.
  async function greet(convo,a,player,scene,k){
   const others=hearers(scene,a,convo.area).filter(p=>p.id!==player.id).length;
-  const text=await line(a,{kind:'ambient_greet',topic:topicFor(a),player_name:clean(player.name).slice(0,64),audience:Math.min(500,others),situation:[...place(scene),...about(player,scene.zone)].slice(0,10)},convo);if(!text)return;
+  const text=await line(a,{kind:'ambient_greet',topic:topicFor(a),player_name:clean(player.name).slice(0,64),audience:Math.min(500,others),situation:[...place(scene),...about(player,scene.zone)].slice(0,10)},convo);if(!text){retrySoon(a);return;}
   post(a,text,convo);convo.players.add(player.id);convo.playerNames.add(clean(player.name));convo.target=player.id;
  }
  async function beckon(convo,shop,player,scene){
@@ -283,7 +284,7 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
  function view(){ // GM panel: switches, health, live conversations, transcript and recent decisions.
   const k=knobs(),t=now();
   return {enabled:k.ambient_enabled==='on',backend:gateBackend,ai:!!pool(),gate_down_for_ms:Math.max(0,gateDownUntil-t),cost_alarms:alarms,stats:{...stats},
-   budgets:{lines:lineBudget.view(),gates:gateBudget.view()},
+   budgets:{lines:lineBudget.view(),gates:gateBudget.view()},drops:{...drops},
    conversations:[...convos.values()].map(c=>({area:c.area,running:c.running,speakers:[...c.actors.values()].map(a=>a.name),lines:c.lines.length,players:c.players.size,age_s:Math.round((t-c.lastAt)/1000)})),
    transcript:transcript.slice(-50).reverse(),decisions:decisions.slice(-50).reverse().map(({players,...d})=>d)}; // Raw player lists never leave the server.
  }

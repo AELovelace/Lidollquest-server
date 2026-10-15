@@ -176,3 +176,21 @@ test('back-to-back conversations open on different topics and remember earlier l
  await opened(echo);const before=echo.lines().length;echo.advance(120000);await echo.tick();echo.advance(60000);await echo.tick();
  assert.equal(echo.lines().length,before,'a line said in an earlier conversation is never said again');
 });
+
+test('a dropped opener retries within one check instead of silencing both NPCs for minutes (live 2026-10-15)',async()=>{
+ let first=true;
+ const h=harness({players:[{id:'c1',owner:'o1',name:'Dollie',x:12,y:12,area:AREA,state:{}}],
+  chat:b=>{if(b.kind==='ambient_open'&&first){first=false;return {ok:true,status:200,body:{reply:'Old Tom says hi.',lane:'local',guard:'unsupported_terms'}};}return null;}});
+ await opened(h);
+ assert.equal(h.lines().length,0,'the invented-name opener was not said');assert.deepEqual(h.life.view().drops,{unsupported_terms:1});assert.equal(h.life.view().stats.openers_dropped,1);
+ h.advance(25000);await h.tick();h.advance(25000);await h.tick(); // Well inside the old 3-6 minute cooldown.
+ assert.ok(h.lines().length>=1,'they try again with a fresh topic and talk');
+});
+
+test('everyday phrases shared with older lines no longer count as repeats; whole repeated sentences still do',async()=>{
+ const said=['What can I get you tonight, love?'];let n=0;
+ const h=harness({knobs:{ambient_chance:0},chat:()=>({ok:true,status:200,body:{reply:n++===0?said[0]:'Well, what can I get you then, pet?',lane:'local',guard:'passed'}})});await h.tick();
+ h.life.hear({id:'c1',name:'Dollie'},'Wren, hi',{area:AREA,zone:AREA,x:5,y:16});await h.tick();
+ h.life.hear({id:'c1',name:'Dollie'},'Wren, hello again',{area:AREA,zone:AREA,x:5,y:16});await h.tick();
+ assert.equal(h.lines().filter(r=>r.name==='Wren').length,2,'"what can I get you" alone is not a repeat');
+});

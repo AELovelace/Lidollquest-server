@@ -7,6 +7,31 @@ import {createQuestService} from '../server/service.mjs';
 import {fullDungeons} from '../server/full-dungeons.mjs';
 import {blankCanvasRoute,clearBuiltinFixtures,essentialFixture,removedQuestIds,migrateBlankCanvas,migrateRemovedQuestLogs,restoreCompanionSheets} from '../server/blank-canvas.mjs';
 import {nativeNpcSource,fullDungeonNpc} from '../server/full-dungeon-quests.mjs';
+import {hubRooms} from '../server/hubs.mjs';
+
+test('authored room painting forgets removed NPCs before validation and replay, while retaining service protection',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'removed-npc-paint-')),filename=join(dir,'world.sqlite'),now=()=>Date.parse('2026-10-15T12:00:00Z'),zone='utopia-arcanum-tower';
+ const catalog=hubRooms.find(r=>r.id===zone),original=structuredClone(catalog),retired=['archivist','registrar'];let service=createQuestService({filename,now,log:()=>{}});
+ const map=()=>service.zones.world.paintMap(zone);
+ const action=(action,extra={})=>{const m=map();return service.zones.world.act({action,zone,edition:m.edition,revision:m.revision,patch_revision:m.patch.revision,...extra});}; // Use the same live-world path as the GM editor, including authored-room materialization.
+ try{
+  const initial=map(),residents=initial.placements.filter(p=>p.kind==='npc').map(p=>p.content).sort();
+  assert.ok(initial.floor.fixtures.every(f=>!retired.includes(f.id)),'the online map already excludes the old NPCs');assert.equal(residents.length,4);
+  for(const layer of ['prop','wall']){
+   const grid=layer==='prop'?'props':'walls'; // Brush payload fields are singular; map grids are plural.
+   const cells=[];for(let y=2;y<=9;y++)for(let x=2;x<=15;x++)cells.push({x,y,wall:0,prop:0,floor:3});
+   for(const [x,y] of [[10,3],[15,9]])cells.find(c=>c.x===x&&c.y===y)[layer]=1; // A 112-cell paint change can put collision on both retired NPC tiles.
+   assert.equal(cells.length,112);action('world_patch_apply',{ops:[{kind:'cells',cells}]});
+   let painted=map();assert.equal(painted.floor[grid][9][15],1);assert.equal(painted.floor[grid][3][10],1);assert.deepEqual(painted.placements.filter(p=>p.kind==='npc').map(p=>p.content).sort(),residents);
+   const revision=painted.patch.revision;
+   assert.throws(()=>action('world_patch_apply',{ops:[{kind:'cells',cells:[{x:17,y:12,wall:1}]}]}),/That would cover the cauldron/,'retained services remain protected');assert.equal(map().patch.revision,revision);
+   service.server.emit('close');service=createQuestService({filename,now,log:()=>{}});painted=map(); // Restart rebuilds the authored room and reapplies saved patches without resurrecting stale protection.
+   assert.deepEqual(painted.patch.skipped,[]);assert.equal(painted.floor[grid][9][15],1);assert.equal(painted.floor[grid][3][10],1);assert.ok(painted.floor.fixtures.every(f=>!retired.includes(f.id)));
+   action('world_patch_clear');const cleared=map();assert.equal(cleared.floor.walls[9][15],0);assert.equal(cleared.floor.props?.[9]?.[15]??0,0);assert.ok(cleared.floor.fixtures.every(f=>!retired.includes(f.id)));
+  }
+  assert.deepEqual(catalog,original,'cleaning the online copy leaves legacy catalog data intact');
+ }finally{service?.server.emit('close');rmSync(dir,{recursive:true,force:true});}
+});
 
 test('online route stripping preserves care mechanics, offline sources and Caverns placements',()=>{
  const route=fullDungeons.find(r=>r.config.zone_id==='dungeon-castle-dungeon'),before=structuredClone(route),clean=blankCanvasRoute(route);

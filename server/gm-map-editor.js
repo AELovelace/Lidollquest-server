@@ -9,7 +9,7 @@ async function liveApi(path,body,raw=false){const r=await fetch(path,{method:bod
 const action=(name,payload={})=>liveApi('/gm/action',{...payload,action:name,request_id:crypto.randomUUID()}).then(r=>r.result);
 const params=new URL(location.href).searchParams;
 const state={zone:params.get('zone')??'',focus:params.get('focus')??'',content:null,manifest:null,map:null,plan:null,reach:null,tool:'inspect',zoom:1,pan:{x:0,y:0},hover:null,drag:null,pending:[],undone:[],selection:null,clipboard:null,route:null,paths:null,timer:null,images:new Map(),base:null,baseKey:'',opts:{furniture:'vanity',kind:'npc',definition:'',sprite:'sprItem',target:'',name:'',lifetime:'persistent',aggressive:false,respawning:false,remove:false,brush:'wall',brushSize:1,floorTile:1,wallTile:10,scenerySprite:'',spanW:1,spanH:1,solid:true,toilet:false,eraser:false,spawnTarget:'entrance',layer:'cover',layerValue:'1',craterR:9,exitZone:'',exitMode:'move',newZone:'',newStyle:'gap'}};
-const TOOLS=[{id:'inspect',name:'Select / move'},{id:'place',name:'Place content'},{id:'terrain',name:'Terrain brush',patch:true},{id:'scenery',name:'Scenery stamp',patch:true},{id:'safe',name:'Safe room',patch:true,dive:true},{id:'spawn',name:'Arrival spawn',patch:true},{id:'layers',name:'Biome layers',patch:true,dive:true,layers:true},{id:'exits',name:'Exits & pads',patch:true,dive:true},{id:'route',name:'NPC routes'}];
+const TOOLS=[{id:'inspect',name:'Select / move'},{id:'place',name:'Place content'},{id:'terrain',name:'Terrain brush',patch:true},{id:'scenery',name:'Scenery stamp',patch:true},{id:'safe',name:'Safe room',patch:true,dive:true},{id:'spawn',name:'Arrival spawn',patch:true},{id:'layers',name:'Biome layers',patch:true,dive:true,layers:true},{id:'exits',name:'Exits & pads',patch:true,dive:true},{id:'route',name:'NPC routes'},{id:'player',name:'Move offline player'}];
 const ROUTE_COLOURS=['#ffdc3c','#7fe0c0','#ff8fc4','#77bbff'];
 const clockText=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'),clockMinutes=v=>{const [h,m]=String(v).split(':').map(Number);return (h*60+m)||0;};
 const LAYER_NAMES={cover:'Cover (tall grass / shelter)',wash:'Wash (riverbed)',shore:'Shoreline',mist:'Pink Mist',crater:'Crater'};
@@ -27,7 +27,7 @@ const columnsOf=name=>Math.max(1,Math.floor((spriteMeta(name)?.width??320)/TILE)
 
 function effectiveFloor(){ // The server floor with pending (unsent) patch ops previewed on a copy, so the GM sees the result before applying.
  const base=state.map?.floor;if(!base)return null;if(!state.pending.length)return base;
- const f={...base,walls:base.walls.map(r=>[...r]),props:(base.props??[]).map(r=>[...r]),floors:base.floors?.map(r=>[...r]),wallTiles:base.wallTiles?.map(r=>[...r]),decorTiles:base.decorTiles?.map(r=>[...r]),decorations:[...(base.decorations??[])],fixtures:[...(base.fixtures??[])],safeRooms:[...(base.safeRooms??[])],entries:{...(base.entries??{})},exits:(base.exits??[]).map(e=>({...e})),doors:(base.doors??[]).map(d=>({...d})),portals:(base.portals??[]).map(p=>({...p})),exit:base.exit?{...base.exit}:base.exit,cover:base.cover?[...base.cover]:undefined,wash:base.wash?[...base.wash]:undefined,shore:base.shore?[...base.shore]:undefined,mist:base.mist?{...base.mist,rows:[...(base.mist.rows??[])]}:undefined,crater:base.crater?{...base.crater}:undefined};
+ const f={...base,walls:base.walls.map(r=>[...r]),props:(base.props??base.walls.map(r=>r.map(()=>0))).map(r=>[...r]),floors:base.floors?.map(r=>[...r]),wallTiles:base.wallTiles?.map(r=>[...r]),decorTiles:base.decorTiles?.map(r=>[...r]),decorations:[...(base.decorations??[])],fixtures:[...(base.fixtures??[])],safeRooms:[...(base.safeRooms??[])],entries:{...(base.entries??{})},exits:(base.exits??[]).map(e=>({...e})),doors:(base.doors??[]).map(d=>({...d})),portals:(base.portals??[]).map(p=>({...p})),exit:base.exit?{...base.exit}:base.exit,cover:base.cover?[...base.cover]:undefined,wash:base.wash?[...base.wash]:undefined,shore:base.shore?[...base.shore]:undefined,mist:base.mist?{...base.mist,rows:[...(base.mist.rows??[])]}:undefined,crater:base.crater?{...base.crater}:undefined};
  for(const op of state.pending)previewOp(f,op);return f;
 }
 function previewPaint(f,changes){ /* Mirror of floor-patches.mjs setPaint: rebuild a fresh flat list so the base floor is never mutated. */
@@ -103,7 +103,7 @@ function rebuildBase(f){ // Terrain and scenery at 32 px per tile, rebuilt only 
  }
  for(const p of f.decorations??[]){const img=art(p.sprite);if(!img)continue;const fw=img.width/Number(img.dataset.frames||1);ctx.drawImage(img,0,0,fw,img.height,p.x*TILE+TILE/2-Number(img.dataset.xorigin||0),p.y*TILE+TILE/2-Number(img.dataset.yorigin||0),fw,img.height);} // Dive scenery: authored origin at the cell centre.
  for(const x of f.fixtures??[]){ // Hub fixtures: sprites at their footprint, people on their tile, services as markers.
-  if(x.kind==='npc'||x.kind==='shop'){fit32(ctx,x.sprite??avatarSprite(x.kind==='shop'?x.id:x.avatar),x.x,x.y)||marker(ctx,x.x,x.y,x.kind==='npc'?'#77bbff':'#be78dc');continue;} // People fit their one cell like in game; 64px Piko canvases drawn unscaled looked twice as big.
+  if(x.kind==='npc'||x.kind==='shop'){fitLook(ctx,x.lookKey,x.facing,x.x,x.y)||fit32(ctx,x.sprite??avatarSprite(x.kind==='shop'?x.id:x.avatar),x.x,x.y)||marker(ctx,x.x,x.y,x.kind==='npc'?'#77bbff':'#be78dc');continue;} // People fit their one cell like in game; 64px Piko canvases drawn unscaled looked twice as big.
   if(x.kind==='bank'){fit32(ctx,'sprItem',x.x,x.y);continue;}if(x.kind==='dumpster'){fit32(ctx,'sprCityTrashCan',x.x,x.y)||marker(ctx,x.x,x.y,'#888');continue;}
   if(typeof x.sprite==='string'&&x.sprite&&x.kind!=='token'){const img=art(x.sprite);if(img){const fw=img.width/Number(img.dataset.frames||1);ctx.drawImage(img,0,0,fw,img.height,x.x*TILE,x.y*TILE,fw,img.height);continue;}}
   if(x.kind==='bed'){ctx.fillStyle='#ecc9df';ctx.fillRect(x.x*TILE+4,x.y*TILE+6,TILE-8,TILE-12);continue;}
@@ -114,6 +114,14 @@ function rebuildBase(f){ // Terrain and scenery at 32 px per tile, rebuilt only 
 }
 const avatarSprite=id=>state.content?.avatarSprites?.[id]??null;
 function fit32(ctx,name,x,y,tint=null){const img=art(name);if(!img)return false;const fw=img.width/Number(img.dataset.frames||1),s=TILE/Math.max(fw,img.height),w=Math.max(1,Math.round(fw*s)),h=Math.max(1,Math.round(img.height*s));ctx.drawImage(img,0,0,fw,img.height,x*TILE+(TILE-w)/2,y*TILE+(TILE-h)/2,w,h);if(tint){ctx.globalCompositeOperation='multiply';ctx.fillStyle=tint;ctx.fillRect(x*TILE+(TILE-w)/2,y*TILE+(TILE-h)/2,w,h);ctx.globalCompositeOperation='source-over';}return true;} // online_dive_sprite: fit one cell.
+function fitLook(ctx,key,facing,x,y){ /* An NPC's Sprite Lab look (gm-sprite-lab.js spriteLabComposite), its idle frame for this facing, fitted to one cell. False until composited, so callers fall back to the compiled sprite. */
+ const look=key?state.map?.looks?.[key]:null;if(!look||typeof spriteLabComposite!=='function')return false;
+ state.lookSheets??=new Map();const sheet=state.lookSheets.get(key);
+ if(sheet===undefined){state.lookSheets.set(key,'loading');spriteLabLoad(liveApi).then(data=>spriteLabComposite(data,look).then(canvas=>({canvas,cat:data.catalog}))).then(done=>{state.lookSheets.set(key,done);state.baseKey='';schedule();}).catch(()=>state.lookSheets.set(key,null));return false;} /* Composited once per look hash; the whole layer catalog loads only when a zone has a look. */
+ if(!sheet||sheet==='loading')return false;
+ const cat=sheet.cat,size=cat.frame_size??32,row=(cat.direction_rows??[0,3,2,1])[facing??look.facing??0]??0,col=cat.idle_column??0;
+ ctx.drawImage(sheet.canvas,col*size,row*size,size,size,x*TILE,y*TILE,TILE,TILE);return true;
+}
 function trapMarker(ctx,x,y,generated=false){ctx.strokeStyle=generated?'rgba(255,92,122,.55)':'#ff5c7a';ctx.lineWidth=generated?1.5:2.5;if(generated)ctx.setLineDash([3,3]);const l=x*TILE+7,t=y*TILE+7,r=x*TILE+TILE-7,b=y*TILE+TILE-7;ctx.beginPath();ctx.moveTo(x*TILE+16,t);ctx.lineTo(r,y*TILE+16);ctx.lineTo(x*TILE+16,b);ctx.lineTo(l,y*TILE+16);ctx.closePath();ctx.stroke();if(!generated){ctx.beginPath();ctx.moveTo(l+4,t+4);ctx.lineTo(r-4,b-4);ctx.moveTo(r-4,t+4);ctx.lineTo(l+4,b-4);ctx.stroke();}ctx.setLineDash([]);} // Red diamond: a GM trap placement (hidden from players); dashed: a generated full-dungeon floor trap (read-only).
 function marker(ctx,x,y,colour,inset=8){ctx.fillStyle=colour;ctx.fillRect(x*TILE+inset,y*TILE+inset,TILE-inset*2,TILE-inset*2);ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.strokeRect(x*TILE+inset+.5,y*TILE+inset+.5,TILE-inset*2-1,TILE-inset*2-1);}
 function draw(){
@@ -126,13 +134,14 @@ function draw(){
  for(const c of f.chests??[])fit32(ctx,'sprItem',c.x,c.y,'#ff0')||marker(ctx,c.x,c.y,'#fc6');for(const p of f.pickups??[])fit32(ctx,p.sprite||'sprItem',p.x,p.y,'#ff0')||marker(ctx,p.x,p.y,'#fc6');
  for(const e of f.enemies??[]){if(e.dead)continue;fit32(ctx,e.definition?.sprite??e.sprite,e.x,e.y)||marker(ctx,e.x,e.y,'#ae243d');if(e.engaged){ctx.strokeStyle='#ff8fc4';ctx.strokeRect(e.x*TILE,e.y*TILE,TILE,TILE);}}
  for(const t of f.traps??[])trapMarker(ctx,t.x,t.y,true); // Full dungeons' generated floor traps, for reference; they reroll with the floor and cannot be edited here.
- for(const p of m.placements??[]){if(p.kind==='npc'){fit32(ctx,p.sprite,p.x,p.y)||marker(ctx,p.x,p.y,'#77bbff');}else if(p.kind==='orb'){ctx.fillStyle=orbColour(p.content);ctx.beginPath();ctx.arc(p.x*TILE+16,p.y*TILE+16,10,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(p.x*TILE+16,p.y*TILE+16,4,0,Math.PI*2);ctx.fill();}else if(p.kind==='trap'){trapMarker(ctx,p.x,p.y);}else if(p.kind==='location'){ctx.strokeStyle='#caff77';ctx.strokeRect(p.x*TILE+6,p.y*TILE+6,TILE-12,TILE-12);}else fit32(ctx,p.sprite||'sprItem',p.x,p.y)||marker(ctx,p.x,p.y,'#caff77');if(p.content===state.focus){ctx.strokeStyle='#fff';ctx.strokeRect(p.x*TILE+1,p.y*TILE+1,TILE-2,TILE-2);}}
+ for(const p of m.placements??[]){if(p.kind==='npc'){fitLook(ctx,p.lookKey,p.facing,p.x,p.y)||fit32(ctx,p.sprite,p.x,p.y)||marker(ctx,p.x,p.y,'#77bbff');}else if(p.kind==='orb'){ctx.fillStyle=orbColour(p.content);ctx.beginPath();ctx.arc(p.x*TILE+16,p.y*TILE+16,10,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(p.x*TILE+16,p.y*TILE+16,4,0,Math.PI*2);ctx.fill();}else if(p.kind==='trap'){trapMarker(ctx,p.x,p.y);}else if(p.kind==='location'){ctx.strokeStyle='#caff77';ctx.strokeRect(p.x*TILE+6,p.y*TILE+6,TILE-12,TILE-12);}else fit32(ctx,p.sprite||'sprItem',p.x,p.y)||marker(ctx,p.x,p.y,'#caff77');if(p.content===state.focus){ctx.strokeStyle='#fff';ctx.strokeRect(p.x*TILE+1,p.y*TILE+1,TILE-2,TILE-2);}}
  const entrance=f.entrance??f.spawn;if(entrance){ctx.strokeStyle='#7fe0c0';ctx.strokeRect(entrance.x*TILE+2,entrance.y*TILE+2,TILE-4,TILE-4);}for(const e of Object.values(f.entries??{})){ctx.strokeStyle='#7fe0c0';ctx.strokeRect(e.x*TILE+6,e.y*TILE+6,TILE-12,TILE-12);}
  if($('showLayers').checked&&Array.isArray(f.mist?.rows)){ctx.fillStyle='rgba(255,143,196,.28)';for(let y=0;y<f.height;y++){const row=f.mist.rows[y]??'';for(let x=0;x<f.width;x++)if(row.charAt(x)==='1')ctx.fillRect(x*TILE,y*TILE,TILE,TILE);}} // Pink Mist tiles.
+ if(Array.isArray(f.props)){ctx.fillStyle='rgba(255,196,90,.38)';ctx.strokeStyle='rgba(255,214,140,.95)';ctx.lineWidth=2/state.zoom;for(let y=0;y<f.height;y++)for(let x=0;x<f.width;x++)if(f.props[y]?.[x]&&!f.walls[y]?.[x]){ctx.fillRect(x*TILE,y*TILE,TILE,TILE);ctx.beginPath();ctx.moveTo(x*TILE+6,y*TILE+6);ctx.lineTo(x*TILE+TILE-6,y*TILE+TILE-6);ctx.moveTo(x*TILE+TILE-6,y*TILE+6);ctx.lineTo(x*TILE+6,y*TILE+TILE-6);ctx.stroke();}} // Prop cells (Terrain brush "Prop"): blocked but not wall, marked amber with an X; before 2026-10-15 they were invisible in the editor.
  if($('showLayers').checked&&f.crater){ctx.strokeStyle='rgba(255,120,60,.8)';ctx.beginPath();ctx.arc((f.crater.x+.5)*TILE,(f.crater.y+.5)*TILE,(f.crater.r+2.2)*TILE,0,Math.PI*2);ctx.stroke();}
  if($('showSafe').checked)for(const r of f.safeRooms??[]){ctx.strokeStyle='rgba(127,224,192,.7)';ctx.strokeRect(r.x*TILE,r.y*TILE,r.w*TILE,r.h*TILE);}
  if($('showReach').checked){state.reach??=reachableCells(f);ctx.fillStyle='rgba(255,60,90,.35)';for(let y=0;y<f.height;y++)for(let x=0;x<f.width;x++)if(walkableCell(f,x,y)&&!state.reach.has(x+','+y))ctx.fillRect(x*TILE,y*TILE,TILE,TILE);} // Walkable but cut off from every entrance.
- if($('showPlayers').checked)for(const p of m.players??[]){ctx.fillStyle='#7fe0c0';ctx.fillRect(p.x*TILE+9,p.y*TILE+9,TILE-18,TILE-18);ctx.strokeStyle='#fff';ctx.strokeRect(p.x*TILE+9,p.y*TILE+9,TILE-18,TILE-18);}
+ if($('showPlayers').checked)for(const p of m.players??[]){ctx.globalAlpha=p.online===false?.5:1;ctx.fillStyle=p.online===false?'#9a8fa6':'#7fe0c0';ctx.fillRect(p.x*TILE+9,p.y*TILE+9,TILE-18,TILE-18);ctx.strokeStyle='#fff';ctx.strokeRect(p.x*TILE+9,p.y*TILE+9,TILE-18,TILE-18);}ctx.globalAlpha=1; /* Offline players are drawn faded and grey. */
  if($('showGrid').checked&&state.zoom>=0.5){ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=1/state.zoom;ctx.beginPath();for(let x=0;x<=f.width;x++){ctx.moveTo(x*TILE,0);ctx.lineTo(x*TILE,f.height*TILE);}for(let y=0;y<=f.height;y++){ctx.moveTo(0,y*TILE);ctx.lineTo(f.width*TILE,y*TILE);}ctx.stroke();}
  if($('showRoutes').checked||state.tool==='route')drawRoutes(ctx,f);
  drawClipboard(ctx);
@@ -164,7 +173,7 @@ function describe(cell){ // Inspector text for the cell under the cursor.
  for(const e of [...(f.exits??[]),...(f.portals??[])])if(x>=e.x&&x<e.x+(e.w??1)&&y>=e.y&&y<e.y+(e.h??1))lines.push((e.style??'exit')+' → '+(e.name??e.zone??e.target??''));
  for(const e of f.enemies??[])if(e.x===x&&e.y===y&&!e.dead)lines.push('monster '+(e.definition?.name??e.type)+(e.manual?' (DM)':'')+(e.engaged?' in combat':''));
  for(const p of m.placements??[])if(p.x===x&&p.y===y)lines.push(p.kind+' '+p.name+' ['+p.content+'] '+p.lifetime+(p.routes?.length?' · '+p.routes.length+' route'+(p.routes.length>1?'s':''):''));
- for(const p of m.players??[])if(p.x===x&&p.y===y)lines.push('player '+p.name);
+ for(const p of m.players??[])if(p.x===x&&p.y===y)lines.push('player '+p.name+(p.online===false?' (offline)':''));
  for(const c of f.chests??[])if(c.x===x&&c.y===y)lines.push('chest '+c.id);for(const c of f.pickups??[])if(c.x===x&&c.y===y)lines.push('pickup '+c.id);
  const entrance=f.entrance??f.spawn;if(entrance?.x===x&&entrance?.y===y)lines.push('arrival spawn');for(const [zone,e] of Object.entries(f.entries??{}))if(e.x===x&&e.y===y)lines.push('arrival from '+zone);
  return lines.join('\n');
@@ -230,6 +239,7 @@ function renderToolOptions(){
    el('p',o.newStyle==='gap'?'Click a tile on the outer wall: the gate opens there (two tiles wide) and a corridor is carved inward until it meets the map. Arrivals from that neighbour stand just inside.':'Click a walkable tile: the pad goes there and arrivals from that neighbour stand beside it.',host,'note');}
  }
  if(state.tool==='route')renderRouteOptions(host);
+ if(state.tool==='player')renderPlayerOptions(host);
  if(state.tool==='spawn'){const targets=[{id:'entrance',name:'Default arrival (entrance / spawn)'},...Object.keys(state.map?.floor?.entries??{}).map(z=>({id:z,name:'Arrival from '+z}))];if(!targets.some(t=>t.id===o.spawnTarget))o.spawnTarget='entrance';field(host,'Which arrival point','spawnTarget','text',targets);el('p','Click a walkable tile to move that arrival point there.',host,'note');}
 }
 // Prop families by zone, for the Scenery stamp's Zone picker. Any prop may be stamped in any zone; the client draws every shipped sprite.
@@ -240,6 +250,16 @@ function sceneryPrefixes(){ /* Prefixes for the chosen Zone category: this map's
  const pick=state.opts.sceneryZone||'auto';if(pick==='all')return ['spr'];
  const sets=pick==='auto'?(THEME_PROPS[state.plan?.theme??'']??null):[pick];if(!sets)return ['spr']; // Themes with no family of their own show every prop.
  return sets.flatMap(k=>PROP_SETS[k]?.prefixes??[]);
+}
+function renderPlayerOptions(host){ /* Move offline player: find a character, then click an open tile; their next login starts there (zones.mjs movePlayer). */
+ const o=state.opts;
+ el('p','Find an offline character, then click an open tile on this map. Their next login starts there. This works in any hub or room, and inside the dungeon a character is already in. Online players are moved with Move on the Players tab.',host,'note');
+ const box=el('label','Find a character (name or id)',host),input=el('input',undefined,box);input.value=o.playerQuery??'';
+ const list=el('div',undefined,host,'sprite-list');
+ const show=rows=>{clear(list);for(const r of rows){const here=(state.map?.players??[]).find(v=>v.id===r.id),b=el('button',r.name+(here?(here.online?' · online here':' · offline here'):''),list);b.type='button';b.className=o.player?.id===r.id?'active':'';b.onclick=()=>{o.player={id:r.id,name:r.name};renderToolOptions();};}if(!rows.length&&input.value.trim())el('p','No character matches.',list,'note');};
+ let timer=null;const search=()=>attempt(async()=>{const q=input.value.trim();if(q.length<2){show([]);return;}show((await liveApi('/gm/progress?q='+encodeURIComponent(q))).characters??[]);});
+ input.oninput=()=>{o.playerQuery=input.value;clearTimeout(timer);timer=setTimeout(search,250);};if((o.playerQuery??'').trim().length>=2)search();
+ el('p',o.player?'Moving '+o.player.name+': click a tile.':'No character chosen yet.',host,'note');
 }
 function renderSpriteList(){const list=$('spriteList');if(!list)return;clear(list);const q=(state.opts.sceneryQuery??'').toLowerCase(),prefix=sceneryPrefixes(),names=Object.keys(state.manifest?.sprites??{}).filter(propSprite).filter(n=>prefix.some(p=>n.startsWith(p))).filter(n=>!q||n.toLowerCase().includes(q)).sort();for(const n of names.slice(0,200)){const b=el('button',n,list);b.type='button';b.className=n===state.opts.scenerySprite?'active':'';b.onclick=()=>{state.opts.scenerySprite=n;onOptionChange('scenerySprite');};}if(!names.length)el('p',q?'No props in this zone category match. Try "Every zone", or part of a name like "hay" or "bench".':'This zone category has no props.',list,'note');else if(names.length>200)el('p','Showing the first 200 of '+names.length+'. Search to narrow it down.',list,'note');} // Search now filters inside the chosen Zone category.
 function previewSprite(host,name){clear(host);const img=art(name);if(!img){el('span','loading…',host,'note');setTimeout(()=>{if(host.isConnected&&!host.querySelector('canvas'))previewSprite(host,name);},300);return;}const fw=img.width/Number(img.dataset.frames||1),canvas=el('canvas',undefined,host);canvas.width=fw;canvas.height=img.height;canvas.style.width=Math.min(128,fw*2)+'px';const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=false;ctx.drawImage(img,0,0,fw,img.height,0,0,fw,img.height);el('span',' '+fw+'×'+img.height+' px',host,'note');}
@@ -366,6 +386,14 @@ async function saveRoutes(){
 async function useTool(cell,event){
  const m=state.map,o=state.opts,f=effectiveFloor();if(!m?.floor||!cell)return;const {x,y}=cell;
  if(state.tool==='inspect'){select(x,y);return;}
+ if(state.tool==='player'){ /* Move offline player to this tile. */
+  if(!o.player)throw Error('Find and choose a character first.');
+  if(!walkableCell(f,x,y))throw Error('That tile is blocked. Choose an open floor tile.');
+  if(!(state.reach??=reachableCells(f)).has(x+','+y))throw Error('That tile is cut off from the rest of the map.');
+  if(!confirm('Move '+o.player.name+' to '+x+','+y+' in '+(m.name??m.id)+'? Their next login starts there.'))return;
+  const r=await action('world_move_player',{zone:m.id,edition:m.edition,revision:m.revision,character_id:o.player.id,x,y});
+  await loadZone({keepPending:true});say(o.player.name+' moved to '+x+','+y+(r?.moved?.from?.zone?' (from '+r.moved.from.zone+')':'')+'.');return;
+ }
  if(state.tool==='place'){
   if(o.kind==='furniture'){ /* Hub furniture: a pending fixture op (floor-patches.mjs), applied with the rest of the queue. */
    if(!fixturesEditable())throw Error('Furniture can be placed in hubs and their rooms only (this server needs the patch layer).');
@@ -497,7 +525,7 @@ function drawGhost(ctx,c,x,y){ /* A see-through copy of an object with its top-l
  else if(c.type==='monster')fit32(ctx,d.sprite,x,y)||marker(ctx,x,y,'#ae243d');
  else if(d.kind==='orb'){ctx.fillStyle=orbColour(d.content);ctx.beginPath();ctx.arc(x*TILE+16,y*TILE+16,10,0,Math.PI*2);ctx.fill();}
  else if(d.kind==='trap')trapMarker(ctx,x,y);
- else if(d.kind!=='location')fit32(ctx,d.sprite||'sprItem',x,y)||marker(ctx,x,y,'#77bbff');
+ else if(d.kind!=='location')fitLook(ctx,d.lookKey,d.facing,x,y)||fit32(ctx,d.sprite||'sprItem',x,y)||marker(ctx,x,y,'#77bbff');
  ctx.globalAlpha=1;ctx.strokeStyle='#ffdc3c';ctx.lineWidth=2/state.zoom;ctx.setLineDash([4/state.zoom,3/state.zoom]);ctx.strokeRect(x*TILE,y*TILE,c.w*TILE,c.h*TILE);ctx.setLineDash([]);
 }
 function drawClipboard(ctx){ /* A cut object is dimmed in place until it is pasted; a drag shows where the object will land. */

@@ -29,7 +29,8 @@ test('settings are bounded, typed and persisted; unknown keys are refused',()=>{
   assert.throws(()=>a.companion_settings({},'gm'),/Nothing to change/);
   const saved=a.companion_settings({values:{slip_chance:.3,bond_hourly_cap:20}},'gm');assert.equal(saved.slip_chance,.3);assert.equal(saved.bond_hourly_cap,20);
   assert.equal(w.changes(),0,'tuning alone does not touch the lore');a.companion_settings({values:{lore_drafts:'hidden'}},'gm');assert.equal(w.changes(),1);
-  assert.deepEqual(Object.keys(COMPANION_SETTING_BOUNDS).sort(),Object.keys(w.admin.gmView().bounds).sort());
+  assert.deepEqual(Object.keys(COMPANION_SETTING_BOUNDS).filter(k=>!k.startsWith('ambient_')).sort(),Object.keys(w.admin.gmView().bounds).sort()); // Ambient Life knobs have their own tab (2026-10-15).
+  assert.deepEqual(Object.keys(COMPANION_SETTING_BOUNDS).filter(k=>k.startsWith('ambient_')).sort(),Object.keys(w.admin.ambientView().bounds).sort());
  }finally{w.close();}
 });
 
