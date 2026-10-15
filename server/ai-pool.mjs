@@ -48,14 +48,16 @@ export function createAiPool({nodes=[],key='',fetcher=globalThis.fetch,now=Date.
   }finally{clearTimeout(timer);signal?.removeEventListener('abort',onAbort);controllers.delete(controller);n.inFlight--;}
  }
 
- async function run(urlOf,body,{attempts=2,auth=false,...opts}={}){ // Try the best node, then the next one once; 4xx answers go straight back to the caller.
+ async function run(urlOf,body,{attempts=2,auth=false,busyStatuses=[],...opts}={}){ // busyStatuses: answers that mean "full right now" (ambient 429 local_busy): try the next node, never mark this one down. // Try the best node, then the next one once; 4xx answers go straight back to the caller.
   if(closed)throw Error('AI pool closed');
   const headers=auth&&key?{'X-Api-Key':key,Authorization:'Bearer '+key}:{}; // npc-rag accepts either header; model servers get no key.
   let last=null;
-  for(const n of order().slice(0,Math.max(1,attempts))){
+  const tries=order().slice(0,Math.max(1,attempts));
+  for(const [i,n] of tries.entries()){
    const url=urlOf(n);
    try{
     const res=await call(n,url,body,{...opts,headers});
+    if(busyStatuses.includes(res.status)&&i<tries.length-1){last=null;continue;} // Busy, not sick: the next node may have a free slot (2026-10-15: one box idled while the other was full).
     if(res.status>=500||res.status===401||res.status===403){last=Object.assign(Error('AI answered '+res.status+(res.status<500?' (wrong or missing NPC_RAG_KEY on this node?)':'')),{status:res.status,url,node:n.host});down(n,last);continue;} // Sick or misconfigured (prod 2026-10-13: node B rejected the key): move on.
     if(res.ok)up(n,res.ms);
     return {...res,node:n.host,url};

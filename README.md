@@ -1,5 +1,20 @@
 # LiDollQuest server
 
+Combined Decider v2 preparation (2026-10-15): the participation response validator
+now accepts both the previous specialist and `lidoll/decider-multitask-v2` with its
+matching `routing-participation-multitask-v1` policy. **Deploy this server change before
+switching the RAG hosts**, otherwise the older validator rejects the new model identity.
+Upload `decider-multitask-v2.gguf` and `decider-multitask-v2-support.zip` from npc-rag's
+release directory to `https://lidoll.dev/gguf/`. Install the updated npc-rag code on both
+RAG hosts, set `CLASSIFIER_BACKEND=decider`, `DECIDER_MODEL=lidoll/decider-multitask-v2`,
+`DECIDER_GGUF_FILE=decider-multitask-v2.gguf`, `PARTICIPATION_ENABLED=true`, and
+`PARTICIPATION_MODEL=shared`, then restart RAG. Retain GPU settings and
+`QUEST_PARTICIPATION_BACKEND=decider`. Routing and participation now share one model
+and queue per GPU; both health sections show the same worker PIDs. The previous
+specialist responses still validate, allowing staggered upgrades and rollback.
+This preparation does not upload files or restart live services. Check with
+`node --test test/participation-gate.test.mjs test/companion-addressing.test.mjs test/ambient-life.test.mjs test/ambient-life-service.test.mjs`.
+
 Overflow-enabled capacity result (2026-10-14): the same seeded workload completed
 25/50/75-player ten-minute stages, 3,000 offered messages and 2,936 generated replies,
 with zero failed messages or availability fallbacks. The other outcomes were 60 source/

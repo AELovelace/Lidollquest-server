@@ -10,6 +10,14 @@ test('participation context bounds history and profile without copying private p
  assert.deepEqual(body.nearby_names,['Elowen','Astra']);assert.equal(body.candidate.role,'paladin');
  assert.equal(body.recent_turns[1].speaker,'Elowen');assert.equal(JSON.stringify(body).includes('secret story'),false);
 });
+test('gate accepts combined v2 and rejects mismatched release policies',()=>{
+ const body={decision:'join',join:true,join_probability:.8,policy:'routing-participation-multitask-v1',model:'lidoll/decider-multitask-v2'};
+ assert.equal(participationSaysJoin(body),true);
+ assert.equal(participationSaysJoin({...body,decision:'quiet',join:false,join_probability:.1}),false);
+ for(const changes of [{policy:'participation-sociable-v1-schema_first'},{model:'lidoll/decider-chat-0-1'},{model:'unknown'},{join:false},{join_probability:1.1}]){
+  assert.throws(()=>participationSaysJoin({...body,...changes}),/Invalid participation/);
+ }
+}); // Both known models remain usable during staggered upgrades and rollback.
 test('gate requires a consistent response from the participation model',()=>{
  const body={decision:'join',join:true,join_probability:.75,policy:'participation-sociable-v1-schema_first',model:'lidoll/decider-chat-0-1'};
  assert.equal(participationSaysJoin(body),true);

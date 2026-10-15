@@ -20,8 +20,10 @@ export function npcParticipationContext(actor,{speaker='Someone',message,kind='c
 } // Same bounded contract as the companion gate: role and interests only, never the persona text.
 
 export function participationSaysJoin(body){
+ const knownModel=(body?.model==='lidoll/decider-chat-0-1'&&body?.policy==='participation-sociable-v1-schema_first')
+   ||(body?.model==='lidoll/decider-multitask-v2'&&body?.policy==='routing-participation-multitask-v1'); // Accept each release only with its matching trained policy.
  if(!body||!['join','quiet'].includes(body.decision)||typeof body.join!=='boolean'||body.join!==(body.decision==='join')
     ||!Number.isFinite(body.join_probability)||body.join_probability<0||body.join_probability>1
-    ||body.policy!=='participation-sociable-v1-schema_first'||body.model!=='lidoll/decider-chat-0-1')throw Error('Invalid participation response');
+    ||!knownModel)throw Error('Invalid participation response');
  return body.join;
 } // A malformed or wrong-model response is an availability failure, never a silent YES.

@@ -105,3 +105,14 @@ test('a node that rejects the key (401/403) is benched and the other node answer
  assert.equal((await forbidden.pool.request('/x',{})).body.reply,'b');
  const both=harness(()=>Response.json({},{status:401}));await assert.rejects(both.pool.request('/x',{}),/401/,'every node rejecting the key still surfaces as an error');
 });
+
+test('a "local busy" ambient line moves to the other node instead of being skipped, and the busy node stays healthy (2026-10-15)',async()=>{
+ const h=harness(url=>url.startsWith(A)?new Response(JSON.stringify({detail:'local_busy'}),{status:429}):new Response(JSON.stringify({reply:'hi',lane:'local'}),{status:200}));
+ const first=await h.pool.request('/v1/companion/chat',{},{busyStatuses:[429]});
+ assert.equal(first.status,200);assert.deepEqual(h.hosts(),['47.51.162.106:9092','192.168.1.188:9092'],'tried the busy node, then the free one');
+ assert.ok(h.pool.view().every(n=>n.healthy),'busy is not sick: nobody is marked down');
+ const plain=harness(url=>new Response(JSON.stringify({detail:'local_busy'}),{status:429}));
+ assert.equal((await plain.pool.request('/v1/companion/chat',{})).status,429,'without busyStatuses a 4xx still comes straight back');assert.equal(plain.calls.length,1);
+ const both=harness(()=>new Response(JSON.stringify({detail:'local_busy'}),{status:429}));
+ assert.equal((await both.pool.request('/v1/companion/chat',{},{busyStatuses:[429]})).status,429,'every node full: the caller skips the line');assert.equal(both.calls.length,2);
+});

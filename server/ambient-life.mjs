@@ -20,13 +20,13 @@ export const AMBIENT_DEFAULTS=Object.freeze({ // GM Companions tab knobs (compan
  ambient_enabled:'off',ambient_chance:0.25,ambient_check_s:20,ambient_chime_chance:0.35,ambient_talk_range:4,
  ambient_cooldown_min_s:180,ambient_cooldown_max_s:360,ambient_max_responses:5,ambient_gate_fanout:3,
  ambient_calls_per_minute:20,ambient_gate_calls_per_minute:60,ambient_line_gap_s:4,ambient_idle_s:60,
- ambient_beckons:'off',ambient_beckon_chance:0.2,ambient_beckon_range:5,ambient_beckon_cooldown_s:300,
+ ambient_beckons:'off',ambient_beckon_chance:0.2,ambient_beckon_range:5,ambient_beckon_cooldown_s:300,ambient_conversations_per_area:4,
 });
 export const AMBIENT_BOUNDS=Object.freeze({ // [min,max] numbers or allowed values, merged into COMPANION_SETTING_BOUNDS.
  ambient_enabled:['on','off'],ambient_chance:[0,1],ambient_check_s:[5,600],ambient_chime_chance:[0,1],ambient_talk_range:[1,15],
  ambient_cooldown_min_s:[30,7200],ambient_cooldown_max_s:[30,7200],ambient_max_responses:[1,10],ambient_gate_fanout:[1,8],
  ambient_calls_per_minute:[0,600],ambient_gate_calls_per_minute:[0,600],ambient_line_gap_s:[1,30],ambient_idle_s:[15,600],
- ambient_beckons:['on','off'],ambient_beckon_chance:[0,1],ambient_beckon_range:[2,10],ambient_beckon_cooldown_s:[30,7200],
+ ambient_beckons:['on','off'],ambient_beckon_chance:[0,1],ambient_beckon_range:[2,10],ambient_beckon_cooldown_s:[30,7200],ambient_conversations_per_area:[1,4],
 });
 const TICK_MS=5000;        // Strike-ups and beckons are considered at most this often; heard player lines every tick.
 const GATE_DOWN_MS=60000;  // A failed Decider call pauses all ambient life this long.
@@ -50,8 +50,9 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
  tuning=()=>({}),npcs=()=>({}),scenes=()=>[],stamp=()=>{},hold=()=>{},onScreen=(a,b)=>near(a,b,15),sleep=defaultSleep,log=console.warn}={}){
  let closed=false,lastTick=-Infinity,gateDownUntil=0,alarms=0;
  const stop=new AbortController();
- const convos=new Map();       // area -> conversation {id,zone,area,actors:Map,responses:Map,lines,players:Set,target,chimed,running,lastAt}
- const busy=new Set();         // areas with an AI step on the way: one at a time per area
+ const convos=new Map();       // conversation id -> {id,zone,area,actors:Map,responses:Map,lines,players:Set,target,chimed,running,lastAt}; up to ambient_conversations_per_area per room
+ const busy=new Set();         // conversation ids with an AI step on the way, plus 'heard:<area>' while a room's player lines are answered in order
+ let convoSeq=0;
  const nextCheck=new Map();    // actor key -> when its next strike-up roll may happen
  const cooldown=new Map();     // actor key -> when it may start (or be pulled into) another conversation
  const beckoned=new Map();     // shop key|character -> when that player may be beckoned by that shop again
@@ -88,17 +89,18 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
  const hearers=(scene,at,area)=>(scene?.players??[]).filter(p=>p.area===area&&onScreen(at,p)); // Players who would hear a line spoken at `at`.
 
  // ── The Decider: one candidate per call, at most one speaker per line ──
- async function gate(candidates,{speaker,message,kind='chat',convo,nearby=[],players=[...(convo?.playerNames??[])]}){ // -> chosen actor or null; throws GateDown on any failure
+ async function gate(candidates,{speaker,message,kind='chat',convo,nearby=[],players=null}){ // -> chosen actor or null; throws GateDown on any failure. convo: a conversation, or a function actor -> its conversation.
   const affordable=[];for(const a of candidates)if(gateBudget.spend())affordable.push(a);else break; // Closest first: the budget trims the far end.
   if(!affordable.length)return null;
-  const turns=(convo?.lines??[]).map(l=>({speaker:l.speaker,text:l.text}));
+  const convoOf=typeof convo==='function'?convo:()=>convo;
   const results=await Promise.all(affordable.map(async a=>{
-   const body=npcParticipationContext(a,{speaker,message,kind,turns,conversation:!!convo&&(convo.actors.has(a.key)),nearbyNames:nearby});
+   const cv=convoOf(a),turns=(cv?.lines??[]).map(l=>({speaker:l.speaker,text:l.text})),who=players??[...(cv?.playerNames??[])];
+   const body=npcParticipationContext(a,{speaker,message,kind,turns,conversation:!!cv&&cv.actors.has(a.key),nearbyNames:nearby});
    const t0=now();let res;try{res=await pool().request('/v1/participation/decide',body,{timeoutMs:12000,signal:stop.signal});}catch(error){throw Object.assign(Error('decider unreachable: '+(error?.message??error)),{gateDown:true});}
    if(!res.ok)throw Object.assign(Error('decider answered '+res.status),{gateDown:true});
    let join;try{join=participationSaysJoin(res.body);}catch(error){throw Object.assign(error,{gateDown:true});} // A malformed reply is an outage, never a silent JOIN.
-   push(decisions,{at:t0,area:convo?.area??'',candidate:body.candidate.name,role:body.candidate.role,interests:body.candidate.interests,speaker:body.speaker,message:body.message,kind:body.kind,
-    recent_turns:body.recent_turns,nearby_names:body.nearby_names,conversation_with_candidate:body.conversation_with_candidate,decision:res.body.decision,join_probability:res.body.join_probability,ms:now()-t0,players});
+   push(decisions,{at:t0,area:cv?.area??'',candidate:body.candidate.name,role:body.candidate.role,interests:body.candidate.interests,speaker:body.speaker,message:body.message,kind:body.kind,
+    recent_turns:body.recent_turns,nearby_names:body.nearby_names,conversation_with_candidate:body.conversation_with_candidate,decision:res.body.decision,join_probability:res.body.join_probability,ms:now()-t0,players:who});
    stats[join?'join':'quiet']++;return {actor:a,join,p:res.body.join_probability};
   }));
   const joins=results.filter(r=>r.join).sort((a,b)=>b.p-a.p); // join_probability only ranks JOINs; it is never a threshold (uncalibrated).
@@ -111,7 +113,7 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
   if(!lineBudget.spend())return '';
   const said=(recentSaid.get(actor.key)??[]).slice(-8); // Lines from earlier conversations: shown as "never say again" and checked below.
   const body={npc_id:actor.npcId,npc_name:actor.name,persona:actor.persona.slice(0,1500),voice:actor.voice.map(v=>clean(v).slice(0,200)),said,message:'(ambient)',...extra};
-  let res;try{res=await pool().request('/v1/companion/chat',body,{timeoutMs:20000,signal:stop.signal});}catch(error){stats.ai_failures++;warn('line',error);return '';}
+  let res;try{res=await pool().request('/v1/companion/chat',body,{timeoutMs:20000,signal:stop.signal,busyStatuses:[429]});}catch(error){stats.ai_failures++;warn('line',error);return '';}
   if(res.status===429){lineBudget.refund();stats.busy++;return '';} // local_busy: the local slots belong to players right now; no charge, no line.
   if(!res.ok||res.body?.fallback){stats.ai_failures++;warn('line','AI answered '+res.status);return '';}
   if(res.body?.lane==='cloud'){alarms++;log('ambient_cost_guard','an ambient line came back from the paid cloud; dropped');return '';} // Cannot happen (npc-rag PAID_KINDS); dropped and counted if it ever does.
@@ -134,7 +136,10 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
   const mine=recentSaid.get(actor.key)??[];mine.push(text);if(mine.length>12)mine.shift();recentSaid.set(actor.key,mine);
  }
  const capped=(convo,a,k)=>(convo.responses.get(a.key)??0)>=Number(k.ambient_max_responses); // Doll: 5 responses per NPC per conversation.
- const newConvo=(zone,area)=>{const c={id:zone+'#'+now(),zone,area,actors:new Map(),responses:new Map(),lines:[],players:new Set(),playerNames:new Set(),target:null,chimed:false,running:true,lastAt:now()};convos.set(area,c);return c;};
+ const newConvo=(zone,area)=>{const c={id:zone+'#'+(++convoSeq),zone,area,actors:new Map(),responses:new Map(),lines:[],players:new Set(),playerNames:new Set(),target:null,chimed:false,running:true,lastAt:now()};convos.set(c.id,c);return c;};
+ const inRoom=area=>[...convos.values()].filter(c=>c.area===area);
+ const live=c=>c.running||busy.has(c.id); // A conversation still taking its turns.
+ const engaged=()=>new Set([...convos.values()].filter(live).flatMap(c=>[...c.actors.keys()])); // NPCs already talking: never pulled into a second conversation.
  const thread=c=>c.lines.slice(-8).map(l=>({speaker:l.speaker.slice(0,64),text:l.text.slice(0,300)}));
  const partnerOf=a=>({name:a.name,persona:a.persona.slice(0,600),line:''});
  function topicFor(a){ // One of their interests, desires or people, never one of the last three they opened with.
@@ -173,7 +178,7 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
  }
  async function chime(convo,scene,last,k){
   convo.chimed=true;
-  const pool2=actorsOf(scene).filter(x=>x.kind==='npc'&&!convo.actors.has(x.key)&&x.talksTo!=='players'&&onScreen(last,x)&&!capped(convo,x,k)&&(cooldown.get(x.key)??0)<=now()&&roll()<Math.min(1,x.chattiness/50))
+  const talking=engaged(),pool2=actorsOf(scene).filter(x=>x.kind==='npc'&&!convo.actors.has(x.key)&&!talking.has(x.key)&&x.talksTo!=='players'&&onScreen(last,x)&&!capped(convo,x,k)&&(cooldown.get(x.key)??0)<=now()&&roll()<Math.min(1,x.chattiness/50))
    .sort((x,y)=>dist(x,last)-dist(y,last)).slice(0,Number(k.ambient_gate_fanout)); // Chattier NPCs are likelier to be considered at all.
   if(!pool2.length)return null;
   const heard2=convo.lines.at(-1),nearby=[...convo.actors.values(),...pool2].map(x=>x.name);
@@ -198,67 +203,72 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
  function hear(c,text,{area,zone,x,y,emote=false,companion=false}){
   if(closed||x==null||y==null)return;const k=knobs();if(!on(k))return;
   heard.push({c:{id:c.id,name:c.name},text:clean(text).slice(0,500),area,zone,x,y,emote,companion:typeof companion==='function'?!!companion():!!companion,at:now()});if(heard.length>50)heard.shift(); // companion: did follower-chat queue a reply to this line?
-  const convo=convos.get(area);if(convo?.running)convo.interrupted=true; // The NPCs stop their exchange and turn to the player.
  }
- async function answer(h,k){
+ async function answer(h,k){ // A player's line: the named NPC, or the Decider's pick among nearby NPCs, answers in that NPC's own conversation.
   const scene=sceneFor(h.zone);if(!scene)return;
-  const spot={x:h.x,y:h.y},all=actorsOf(scene).filter(a=>onScreen(spot,a)),convo0=convos.get(h.area),fresh=convo0&&now()-convo0.lastAt<Number(k.ambient_idle_s)*1000?convo0:null;
+  const spot={x:h.x,y:h.y},all=actorsOf(scene).filter(a=>onScreen(spot,a)),idleMs=Number(k.ambient_idle_s)*1000;
+  const fresh=inRoom(h.area).filter(c=>now()-c.lastAt<idleMs),convoOf=a=>fresh.find(c=>c.actors.has(a.key))??null,mine=fresh.find(c=>c.players.has(h.c.id))??null;
   const named=all.find(a=>nameIn(h.text,a.name));
   let chosen=null;
-  if(named){if(!fresh||!capped(fresh,named,k))chosen=named;} // A name always reaches that NPC, no gate (like companions).
+  if(named){const cv=convoOf(named);if(!cv||!capped(cv,named,k))chosen=named;} // A name always reaches that NPC, no gate (like companions).
   else{
    if(h.companion)return; // The line went to a companion (follower-chat queued a reply): residents stay out of it.
-   const range=Number(k.ambient_talk_range),parts=fresh?[...fresh.actors.values()].filter(a=>all.some(x=>x.key===a.key)):[];
-   const closeBy=all.filter(a=>a.talksTo!=='npcs'&&near(spot,a,range)&&!parts.some(p=>p.key===a.key)).sort((a,b)=>dist(a,spot)-dist(b,spot));
-   const candidates=[...parts,...closeBy].filter(a=>!fresh||!capped(fresh,a,k)).slice(0,Number(k.ambient_gate_fanout));
+   const range=Number(k.ambient_talk_range),inConvo=a=>!!convoOf(a);
+   const parts=all.filter(a=>inConvo(a)&&near(spot,a,range+2)).sort((a,b)=>(convoOf(b)===mine)-(convoOf(a)===mine)||dist(a,spot)-dist(b,spot)); // The conversation this player is already in comes first.
+   const closeBy=all.filter(a=>a.talksTo!=='npcs'&&near(spot,a,range)&&!inConvo(a)).sort((a,b)=>dist(a,spot)-dist(b,spot));
+   const candidates=[...parts,...closeBy].filter(a=>{const cv=convoOf(a);return !cv||!capped(cv,a,k);}).slice(0,Number(k.ambient_gate_fanout));
    if(!candidates.length)return;
    const nearby=[...new Set([...all.map(a=>a.name),...hearers(scene,spot,h.area).map(p=>p.name)])];
-   chosen=await gate(candidates,{speaker:clean(h.c.name)||'Someone',message:h.text,kind:h.emote?'emote':'chat',convo:fresh,nearby,players:[...(fresh?.playerNames??[]),clean(h.c.name)]});
+   chosen=await gate(candidates,{speaker:clean(h.c.name)||'Someone',message:h.text,kind:h.emote?'emote':'chat',convo:a=>convoOf(a)??mine,nearby,players:[...new Set([...(mine?.playerNames??[]),...fresh.flatMap(c=>[...c.playerNames]),clean(h.c.name)])]});
    if(!chosen)return;
   }
-  const convo=fresh??newConvo(h.zone,h.area);convo.running=true;convo.interrupted=false;
-  const player=scene.players.find(p=>p.id===h.c.id)??{id:h.c.id,name:h.c.name,state:{}};
-  const others=hearers(scene,chosen,h.area).filter(p=>p.id!==player.id).length;
-  const seen=unsaid(about(player,scene.zone),convo.lines.filter(l=>l.key===chosen.key).map(l=>l.text)); // Each observation once per conversation: Wren said "you look hungry" four times (2026-10-14).
-  const text=await line(chosen,{kind:'ambient_answer',message:h.text.slice(0,500),player_name:clean(h.c.name).slice(0,64),audience:Math.min(500,others),thread:thread(convo),situation:[...place(scene),...seen].slice(0,10)},convo);
-  convo.lines.push({speaker:clean(h.c.name).slice(0,64)||'Someone',text:h.text,key:'player:'+player.id});convo.playerNames.add(clean(h.c.name));convo.lastAt=now(); // The player's line is part of the thread from now on.
-  if(!text)return;
-  post(chosen,text,convo);convo.players.add(player.id);convo.target=player.id;
+  const convo=convoOf(chosen)??mine??newConvo(h.zone,h.area);
+  if(convo.running)convo.interrupted=true; // Only this NPC's exchange stops to turn to the player; the room's other conversations carry on.
+  convo.running=true;
+  try{
+   const player=scene.players.find(p=>p.id===h.c.id)??{id:h.c.id,name:h.c.name,state:{}};
+   const others=hearers(scene,chosen,h.area).filter(p=>p.id!==player.id).length;
+   const seen=unsaid(about(player,scene.zone),convo.lines.filter(l=>l.key===chosen.key).map(l=>l.text)); // Each observation once per conversation: Wren said "you look hungry" four times (2026-10-14).
+   const text=await line(chosen,{kind:'ambient_answer',message:h.text.slice(0,500),player_name:clean(h.c.name).slice(0,64),audience:Math.min(500,others),thread:thread(convo),situation:[...place(scene),...seen].slice(0,10)},convo);
+   convo.lines.push({speaker:clean(h.c.name).slice(0,64)||'Someone',text:h.text,key:'player:'+player.id});convo.playerNames.add(clean(h.c.name));convo.lastAt=now(); // The player's line is part of the thread from now on.
+   if(!text)return;
+   post(chosen,text,convo);convo.players.add(player.id);convo.target=player.id;
+  }finally{convo.running=false;}
  }
 
  // ── The ticker (zones.tick, every second) ──
- function run(area,work){ // One AI step per area at a time; a Decider failure pauses everything.
-  busy.add(area);
-  void work().catch(error=>{if(closed)return;if(error?.gateDown)gateDown(error);else warn('step',error);}).finally(()=>{busy.delete(area);const c=convos.get(area);if(c)c.running=false;});
+ function run(key,work){ // key: a conversation id (its turns, one at a time) or 'heard:<area>' (a room's player lines, in order). A Decider failure pauses everything.
+  busy.add(key);
+  void work().catch(error=>{if(closed)return;if(error?.gateDown)gateDown(error);else warn('step',error);}).finally(()=>{busy.delete(key);const c=convos.get(key);if(c)c.running=false;});
  }
  function tick(){
   const k=knobs(),t=now();
   if(!on(k)){heard.length=0;return;}
   for(let i=0;i<heard.length;){ // Players first: answers are never more than a tick late.
    const h=heard[i];if(t-h.at>HEARD_MAX_AGE){heard.splice(i,1);continue;}
-   if(busy.has(h.area)){i++;continue;} // That area's current step finishes first; its later lines keep their order.
-   heard.splice(i,1);run(h.area,()=>answer(h,k));
+   if(busy.has('heard:'+h.area)){i++;continue;} // That room's previous player line is answered first; later lines keep their order.
+   heard.splice(i,1);run('heard:'+h.area,()=>answer(h,k));
   }
-  for(const [area,c] of convos)if(!c.running&&!busy.has(area)&&t-c.lastAt>Number(k.ambient_idle_s)*1000)convos.delete(area); // Finished and quiet: forget it.
+  for(const [id,c] of convos)if(!live(c)&&t-c.lastAt>Number(k.ambient_idle_s)*1000)convos.delete(id); // Finished and quiet: forget it.
   if(t-lastTick<TICK_MS)return;lastTick=t;
   let list=[];try{list=scenes(null,{beckons:k.ambient_beckons==='on'});}catch(error){warn('scene',error);return;}
   for(const scene of list)startIn(scene,k,t);
  }
  function startIn(scene,k,t){
   const actors=actorsOf(scene);if(!actors.length)return;
-  const range=Number(k.ambient_talk_range),free=a=>(cooldown.get(a.key)??0)<=t;
-  const idle=area=>!busy.has(area)&&!convos.get(area)?.running;
+  const talking=engaged(),range=Number(k.ambient_talk_range),free=a=>(cooldown.get(a.key)??0)<=t&&!talking.has(a.key);
+  const room=area=>inRoom(area).filter(live).length<Number(k.ambient_conversations_per_area); // Doll 2026-10-15: up to 4 conversations at once per room.
   for(const a of actors){
    if(!free(a))continue;
    const listeners=(scene.players??[]).filter(p=>onScreen(a,p));if(!listeners.length)continue; // Nobody would hear it.
-   const area=listeners[0].area;if(!idle(area))continue;
+   const area=listeners[0].area;if(!room(area))continue;
    if(a.kind==='shop'){ // Beckons: a player passing by, not already at the counter.
     if(k.ambient_beckons!=='on')continue;
     const target=listeners.find(p=>p.area===area&&near(a,p,Number(k.ambient_beckon_range))&&dist(a,p)>1&&!p.state?.run&&(beckoned.get(a.key+'|'+p.id)??0)<=t);if(!target)continue;
     if(t<(nextCheck.get(a.key)??0))continue;nextCheck.set(a.key,t+Number(k.ambient_check_s)*1000*(0.75+0.5*roll()));
     if(roll()>=Number(k.ambient_beckon_chance))continue;
     beckoned.set(a.key+'|'+target.id,t+Number(k.ambient_beckon_cooldown_s)*1000);cooldown.set(a.key,t+60000); // At most a call a minute per shop.
-    const convo=newConvo(scene.zone,area);run(area,()=>beckon(convo,a,target,scene));continue;
+    const convo=newConvo(scene.zone,area);run(convo.id,()=>beckon(convo,a,target,scene));continue;
    }
    if(!nextCheck.has(a.key)){nextCheck.set(a.key,t+roll()*Number(k.ambient_check_s)*1000);continue;} // Staggered first rolls: a restart never opens every conversation at once.
    if(t<nextCheck.get(a.key))continue;nextCheck.set(a.key,t+Number(k.ambient_check_s)*1000*(0.75+0.5*roll()));
@@ -268,8 +278,8 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
    if(roll()>=Math.min(1,Number(k.ambient_chance)*a.chattiness/50))continue; // The strike-up check.
    const pick=targets[Math.floor(roll()*targets.length)],until=t+pause(k,'ambient_cooldown_min_s','ambient_cooldown_max_s');
    cooldown.set(a.key,until);if(pick.b)cooldown.set(pick.b.key,until);
-   const convo=newConvo(scene.zone,area);hold(a.ref,t+Number(k.ambient_idle_s)*1000);
-   run(area,()=>pick.b?converse(convo,a,pick.b,scene,k):greet(convo,a,pick.p,scene,k));
+   const convo=newConvo(scene.zone,area);hold(a.ref,t+Number(k.ambient_idle_s)*1000);if(pick.b)convo.actors.set(pick.b.key,pick.b); // Both are engaged from this moment.
+   run(convo.id,()=>pick.b?converse(convo,a,pick.b,scene,k):greet(convo,a,pick.p,scene,k));
    return; // One new conversation per zone per tick.
   }
  }
@@ -286,7 +296,7 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
   const k=knobs(),t=now();
   return {enabled:k.ambient_enabled==='on',backend:gateBackend,ai:!!pool(),gate_down_for_ms:Math.max(0,gateDownUntil-t),cost_alarms:alarms,stats:{...stats},
    budgets:{lines:lineBudget.view(),gates:gateBudget.view()},drops:{...drops},
-   conversations:[...convos.values()].map(c=>({area:c.area,running:c.running,speakers:[...c.actors.values()].map(a=>a.name),lines:c.lines.length,players:c.players.size,age_s:Math.round((t-c.lastAt)/1000)})),
+   conversations:[...convos.values()].map(c=>({id:c.id,area:c.area,running:live(c),speakers:[...c.actors.values()].map(a=>a.name),lines:c.lines.length,players:c.players.size,age_s:Math.round((t-c.lastAt)/1000)})),
    transcript:transcript.slice(-50).reverse(),decisions:decisions.slice(-50).reverse().map(({players,...d})=>d)}; // Raw player lists never leave the server.
  }
  async function test(def,{mode='line',message='',speaker='Traveller'}={}){ // GM persona editor: one line or one Decider verdict for a draft NPC; no budgets, still local only.

@@ -10,7 +10,7 @@ const AREA='utopia-arcanum-tower';
 const persona=(name,extra={})=>({name,ai_persona:{enabled:true,pronouns:'she/her',occupation:name+' job',desires:[name+' wants a quiet evening',name+' wants better supplies'],traits:[],background:'',interests:[name.toLowerCase()+' things'],relationships:[],voice:[],chattiness:50,talks_to:'both',avoid:[],...extra}});
 const NPCS={wren:persona('Wren'),felix:persona('Felix'),padma:persona('Padma'),shy:persona('Shy',{talks_to:'players'}),off:{...persona('Off'),ai_persona:{...persona('Off').ai_persona,enabled:false}}};
 
-function harness({knobs={},npcs=[{ref:'p-wren',content:'wren',x:3,y:17},{ref:'p-felix',content:'felix',x:6,y:15}],shops=[],players=[{id:'c1',owner:'o1',name:'Dollie',x:5,y:16,area:AREA,state:{}}],decide=()=>'join',chat=null,backend='decider'}={}){
+function harness({sleep=async()=>{},knobs={},npcs=[{ref:'p-wren',content:'wren',x:3,y:17},{ref:'p-felix',content:'felix',x:6,y:15}],shops=[],players=[{id:'c1',owner:'o1',name:'Dollie',x:5,y:16,area:AREA,state:{}}],decide=()=>'join',chat=null,backend='decider'}={}){
  const db=new DatabaseSync(':memory:');let time=Date.parse('2026-10-14T18:00:00Z');
  db.exec('CREATE TABLE quest_chat(seq INTEGER PRIMARY KEY AUTOINCREMENT,zone TEXT,owner TEXT,character_id TEXT,name TEXT,text TEXT,created INTEGER,emote INTEGER,x INTEGER,y INTEGER)');
  const calls=[],holds=[],scene={zone:AREA,npcs,shops,players};let stamps=0,said=0;
@@ -21,7 +21,7 @@ function harness({knobs={},npcs=[{ref:'p-wren',content:'wren',x:3,y:17},{ref:'p-
   return {ok:true,status:200,body:{reply:`${body.npc_name} (${body.kind}) ${++said}`,lane:'local',fallback:false,guard:'passed'}}; // Numbered: residents never repeat a line word for word.
  }};
  const life=createAmbientLife(db,{now:()=>time,roll:()=>0,pool:()=>pool,gateBackend:backend,tuning:()=>({...AMBIENT_DEFAULTS,ambient_enabled:'on',ambient_chime_chance:0,...knobs}),
-  npcs:()=>NPCS,scenes:(only)=>!only||only.includes(AREA)?[scene]:[],stamp:()=>{stamps++;},hold:(id,until)=>holds.push(id),sleep:async()=>{},log:()=>{}});
+  npcs:()=>NPCS,scenes:(only)=>!only||only.includes(AREA)?[scene]:[],stamp:()=>{stamps++;},hold:(id,until)=>holds.push(id),sleep,log:()=>{}});
  const settle=async()=>{for(let i=0;i<60;i++)await new Promise(r=>setImmediate(r));}; // Let every queued AI step finish.
  const lines=()=>db.prepare('SELECT * FROM quest_chat ORDER BY seq').all();
  return {db,life,calls,holds,scene,settle,lines,stamps:()=>stamps,advance:ms=>{time+=ms;},tick:async()=>{life.tick();await settle();}};
@@ -193,4 +193,37 @@ test('everyday phrases shared with older lines no longer count as repeats; whole
  h.life.hear({id:'c1',name:'Dollie'},'Wren, hi',{area:AREA,zone:AREA,x:5,y:16});await h.tick();
  h.life.hear({id:'c1',name:'Dollie'},'Wren, hello again',{area:AREA,zone:AREA,x:5,y:16});await h.tick();
  assert.equal(h.lines().filter(r=>r.name==='Wren').length,2,'"what can I get you" alone is not a repeat');
+});
+
+
+test('one room holds up to four NPC conversations at once (Doll 2026-10-15); nobody is in two at the same time',async()=>{
+ const pairs=['a','b','c','d','e','f','g','h','i','j'].map((id,i)=>({ref:'p-'+id,content:'n'+id,x:2+(i>>1)*6,y:3+(i%2)}));
+ for(const n of pairs)NPCS[n.content]=persona('N'+n.content.slice(1));
+ let release;const held=new Promise(r=>{release=r;});
+ const h=harness({npcs:pairs,knobs:{ambient_chance:1,ambient_talk_range:2},sleep:()=>held,players:[{id:'c1',owner:'o1',name:'Dollie',x:15,y:12,area:AREA,state:{}}]});
+ for(let i=0;i<8;i++){h.advance(6000);await h.tick();} // One new conversation per tick; every opener then waits mid-conversation.
+ const live=h.life.view().conversations.filter(c=>c.running);
+ assert.equal(live.length,4,'four at once, not five: '+JSON.stringify(live.map(c=>c.speakers)));
+ const speakers=live.flatMap(c=>c.speakers);assert.equal(new Set(speakers).size,speakers.length,'no NPC is in two conversations');
+ assert.equal(h.lines().length,4,'each opened with one line');
+ release();await h.settle();
+ const two=harness({npcs:pairs,knobs:{ambient_chance:1,ambient_talk_range:2,ambient_conversations_per_area:2},sleep:()=>new Promise(()=>{}),players:[{id:'c1',owner:'o1',name:'Dollie',x:15,y:12,area:AREA,state:{}}]});
+ for(let i=0;i<8;i++){two.advance(6000);await two.tick();}
+ assert.equal(two.life.view().conversations.filter(c=>c.running).length,2,'the knob lowers the cap');
+ for(const n of pairs)delete NPCS[n.content];
+});
+
+test('a player naming an NPC interrupts only that NPC conversation; the other one carries on',async()=>{
+ const npcs=[{ref:'p-wren',content:'wren',x:3,y:17},{ref:'p-felix',content:'felix',x:5,y:17},{ref:'p-padma',content:'padma',x:12,y:17},{ref:'p-shy2',content:'brit',x:14,y:17}];
+ NPCS.brit=persona('Brit');
+ let release;const held=new Promise(r=>{release=r;});
+ const h=harness({npcs,knobs:{ambient_chance:1,ambient_talk_range:2},sleep:()=>held,players:[{id:'c1',owner:'o1',name:'Dollie',x:8,y:12,area:AREA,state:{}}]});
+ for(let i=0;i<4;i++){h.advance(6000);await h.tick();}
+ assert.equal(h.life.view().conversations.filter(c=>c.running).length,2,'two conversations running');
+ h.life.hear({id:'c1',name:'Dollie'},'Padma, what is good today?',{area:AREA,zone:AREA,x:8,y:12});await h.tick();
+ const padmaLine=h.lines().filter(r=>r.name==='Padma').at(-1);assert.match(padmaLine.text,/ambient_answer/,'Padma answered the player');
+ release();await h.settle();
+ const kinds=h.calls.filter(c=>c.path==='/v1/companion/chat').map(c=>c.body.npc_name+':'+c.body.kind);
+ assert.ok(kinds.some(k=>/^(Wren|Felix):ambient_reply/.test(k)),'the Wren/Felix conversation kept going: '+kinds.join(' '));
+ delete NPCS.brit;
 });
