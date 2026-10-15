@@ -116,7 +116,7 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
   if(!res.ok||res.body?.fallback){stats.ai_failures++;warn('line','AI answered '+res.status);return '';}
   if(res.body?.lane==='cloud'){alarms++;log('ambient_cost_guard','an ambient line came back from the paid cloud; dropped');return '';} // Cannot happen (npc-rag PAID_KINDS); dropped and counted if it ever does.
   const verdict=String(res.body?.guard??'passed');if(!verdict.startsWith('passed')){drops[verdict]=(drops[verdict]??0)+1;if(verdict==='repeated')stats.repeats++;return '';} // npc-rag gave up on this line (it kept repeating itself, or named things it shouldn't): silence.
-  const text=trimLine(clean(res.body?.reply)); // Whole sentences or words, never a mid-word cut.
+  const text=trimLine(clean(String(res.body?.reply??'').replace(/<\/?think>/gi,' '))); // A stray reasoning tag never reaches chat (live 2026-10-15). // Whole sentences or words, never a mid-word cut.
   if(repeats(text,[...(recentSaid.get(actor.key)??[]),...(convo?convo.lines.filter(l=>l.key===actor.key).map(l=>l.text):[])])){stats.repeats++;return '';} // Never say the same thing twice in one conversation.
   return text;
  }
