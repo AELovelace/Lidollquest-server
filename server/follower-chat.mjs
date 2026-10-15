@@ -38,7 +38,7 @@ export function storyFlags(c){ // True story flags on the character (state.fullD
  try{const flags=JSON.parse(c?.state??'{}')?.fullDungeon?.flags??{};return Object.keys(flags).filter(k=>flags[k]&&FLAG_ID.test(k)).slice(0,200);}catch{return [];}
 }
 
-export function createFollowerChat(db,{followers,now=Date.now,fetcher=fetch,allowed=()=>true,stamp=()=>{},locate=(c,area)=>followers.chatTargets(c,{area}),pool=null,agentUrl=process.env.QUEST_FOLLOWER_AGENT_URL||'http://192.168.1.188:9092',gateBackend=process.env.QUEST_PARTICIPATION_BACKEND||'qwen',classifierUrl=process.env.QUEST_FOLLOWER_CLASSIFIER_URL||'http://192.168.1.188:9091',llmUrl=process.env.QUEST_FOLLOWER_LLM_URL||'http://192.168.1.188:9090',apiKey=process.env.QUEST_FOLLOWER_AGENT_KEY||'',concurrency=null,log=console.warn,loreDrafts=process.env.QUEST_COMPANION_LORE_DRAFTS||'live',memoryStore=null,audience=()=>0,roll=Math.random,slipTuning=()=>SLIP_DEFAULTS,loreCatalog=null}={}){ // loreCatalog: companion-admin.mjs lore() (GM edits over the export) // memoryStore: companion-memory.mjs (main process only); audience: other players on screen with the speaker
+export function createFollowerChat(db,{followers,now=Date.now,gameMinute=()=>undefined,fetcher=fetch,allowed=()=>true,stamp=()=>{},locate=(c,area)=>followers.chatTargets(c,{area}),pool=null,agentUrl=process.env.QUEST_FOLLOWER_AGENT_URL||'http://192.168.1.188:9092',gateBackend=process.env.QUEST_PARTICIPATION_BACKEND||'qwen',classifierUrl=process.env.QUEST_FOLLOWER_CLASSIFIER_URL||'http://192.168.1.188:9091',llmUrl=process.env.QUEST_FOLLOWER_LLM_URL||'http://192.168.1.188:9090',apiKey=process.env.QUEST_FOLLOWER_AGENT_KEY||'',concurrency=null,log=console.warn,loreDrafts=process.env.QUEST_COMPANION_LORE_DRAFTS||'live',memoryStore=null,audience=()=>0,roll=Math.random,slipTuning=()=>SLIP_DEFAULTS,loreCatalog=null}={}){ // loreCatalog: companion-admin.mjs lore() (GM edits over the export) // memoryStore: companion-memory.mjs (main process only); audience: other players on screen with the speaker
  if(!['qwen','decider'].includes(gateBackend))throw Error('QUEST_PARTICIPATION_BACKEND must be qwen or decider');
  const legacy1=parseNodes(agentUrl);if(legacy1.length===1)Object.assign(legacy1[0],{llm:String(llmUrl).replace(/\/+$/,''),classifier:String(classifierUrl).replace(/\/+$/,'')}); // One legacy node keeps its separately configured model URLs.
  const ai=pool??createAiPool({nodes:legacy1,key:apiKey,fetcher,now,log}),ownPool=!pool; // service.mjs passes the shared pool (NPC_RAG_NODES); tests and legacy setups build their own.
@@ -116,7 +116,7 @@ export function createFollowerChat(db,{followers,now=Date.now,fetcher=fetch,allo
   const knobs={...SLIP_DEFAULTS,...(slipTuning()??{})},listeners=Math.max(0,Math.min(500,Math.floor(Number(audience(c,job.area))||0)));
   const slip=listeners>0&&memoryStore&&roll()<knobs.slip_chance?memoryStore.slipCandidate(job.npc,c.id):null; // The game server rolls; the AI node only says it.
   if((knobs.situation_enabled??'on')==='on'){let state={};try{state=JSON.parse(c.state??'{}');}catch{}
-   const facts=situationFacts({name:String(c.name??'').slice(0,32),state,zone:job.zone,now:now(),hire:followers.occupied(job.npc)??null,speakerId:c.id,recent:memoryStore?.recent(job.npc,c.id)??null});
+   const facts=situationFacts({name:String(c.name??'').slice(0,32),state,zone:job.zone,now:now(),gameMinute:gameMinute(),hire:followers.occupied(job.npc)??null,speakerId:c.id,recent:memoryStore?.recent(job.npc,c.id)??null});
    body.situation=facts.filter(f=>!f.private||listeners===0).map(f=>f.text).slice(0,10);} // Embarrassing facts only reach the prompt when nobody else can hear.
   Object.assign(body,{audience:listeners,gossip:memoryStore&&roll()<knobs.gossip_chance?memoryStore.gossipLines(job.npc,c.id,5):[],...(slip?{slip}:{})});
   let slipped=false;
@@ -241,7 +241,7 @@ Character voice examples: ${(def.dialogue.talk_lines??[]).slice(0,3).join(' ')}`
  async function muse(hire,c,knobs){
   let state={};try{state=JSON.parse(c.state??'{}');}catch{}
   const listeners=Math.max(0,Math.floor(Number(audience(c,hire.area))||0));
-  const situation=situationFacts({name:String(c.name??'').slice(0,32),state,zone:hire.zone,now:now(),hire,speakerId:c.id,recent:memoryStore?.recent(hire.npc,c.id)??null})
+  const situation=situationFacts({name:String(c.name??'').slice(0,32),state,zone:hire.zone,now:now(),gameMinute:gameMinute(),hire,speakerId:c.id,recent:memoryStore?.recent(hire.npc,c.id)??null})
    .filter(f=>!f.private||listeners===0).map(f=>f.text).slice(0,10); // Embarrassing facts only when nobody else can hear.
   const text=await askGraph(companionBody(hire.npc,c,{message:'waiting around',kind:'musing',audience:listeners,situation,bond:Math.max(0,Math.min(100,memoryStore?.bondOf(hire.npc,c.id)??0)),
    memories:(memoryStore?.candidates(hire.npc,c.id,'')??[]).filter(m=>!m.embarrassing||listeners===0),summary:(memoryStore?.summary(hire.npc,c.id)??'').slice(0,1200)}));
@@ -249,7 +249,7 @@ Character voice examples: ${(def.dialogue.talk_lines??[]).slice(0,3).join(' ')}`
  }
  async function banter(a,b,knobs){ // Two lines at most: A speaks to B, B answers. Public lore only; no player memories, gossip or slips.
   const ca=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(a.character_id),cb=db.prepare('SELECT * FROM quest_characters WHERE id=?').get(b.character_id);if(!ca||!cb)return;
-  const da=followers.catalog[a.npc],db2=followers.catalog[b.npc],around=situationFacts({name:'',state:{},zone:a.zone,now:now()}).slice(0,1).map(f=>f.text); // Just the place and time: a topic, nothing about players.
+  const da=followers.catalog[a.npc],db2=followers.catalog[b.npc],around=situationFacts({name:'',state:{},zone:a.zone,now:now(),gameMinute:gameMinute()}).slice(0,1).map(f=>f.text); // Just the place and time: a topic, nothing about players.
   const first=await askGraph(companionBody(a.npc,null,{message:'banter',kind:'banter',situation:around,partner:{name:String(db2.name).slice(0,32),persona:String(db2.online.persona??'').slice(0,600),line:''}}));
   const hereA=stillHere(a);if(closed||!first||!hereA)return;postLine({npc:a.npc,c:ca,hire:hereA,text:first,knobs});
   const second=await askGraph(companionBody(b.npc,null,{message:'banter',kind:'banter',situation:around,partner:{name:String(da.name).slice(0,32),persona:String(da.online.persona??'').slice(0,600),line:first.slice(0,300)}}));

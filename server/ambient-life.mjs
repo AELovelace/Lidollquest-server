@@ -46,7 +46,7 @@ const nameIn=(text,name)=>{const first=clean(name).split(' ')[0];if(first.length
 
 // scenes(zoneIds|null, {beckons}) -> [{zone, npcs:[{ref,content,x,y}], shops:[{ref,name,x,y,wares}], players:[{id,owner,name,x,y,area,state}]}]
 // is supplied by zones.mjs: realized world placements, hub shop fixtures and present players of the zones that matter.
-export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>null,gateBackend=process.env.QUEST_PARTICIPATION_BACKEND||'qwen',
+export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll=Math.random,pool=()=>null,gateBackend=process.env.QUEST_PARTICIPATION_BACKEND||'qwen',
  tuning=()=>({}),npcs=()=>({}),scenes=()=>[],stamp=()=>{},hold=()=>{},onScreen=(a,b)=>near(a,b,15),sleep=defaultSleep,log=console.warn}={}){
  let closed=false,lastTick=-Infinity,gateDownUntil=0,alarms=0;
  const stop=new AbortController();
@@ -73,7 +73,7 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
   const defs=npcs()??{},names=Object.fromEntries(Object.entries(defs).map(([id,n])=>[id,n?.name??id])),out=[];
   for(const p of scene.npcs??[]){
    const def=defs[p.content],persona=def?.ai_persona;if(!def||def.retired||!persona?.enabled)continue; // Only GM NPCs whose persona is switched on.
-   out.push({key:scene.zone+':'+p.ref,ref:p.ref,charId:'npc:'+scene.zone+':'+p.ref,npcId:String(p.content).slice(0,64),kind:'npc',zone:scene.zone,x:p.x,y:p.y,name:clean(def.name).slice(0,32)||'Resident',
+   out.push({key:'resident:'+p.ref,ref:p.ref,charId:'npc:'+scene.zone+':'+p.ref,npcId:String(p.content).slice(0,64),kind:'npc',zone:scene.zone,x:p.x,y:p.y,name:clean(def.name).slice(0,32)||'Resident',
     persona:personaText(def.name,persona,{names}),voice:(persona.voice??[]).slice(0,5),profile:participationProfile(persona),
     topics:[...(persona.interests??[]),...(persona.desires??[]),...(persona.relationships??[]).map(r=>clean((names[r.ref]??r.name)+': '+r.note))].map(t=>clean(t).slice(0,160)).filter(Boolean),talksTo:persona.talks_to??'both',chattiness:Number(persona.chattiness??50)});
   }
@@ -122,6 +122,7 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
  }
  function post(actor,text,convo){ // One ambient line in area chat at the speaker's tile, heard like any area line.
   if(closed)return; // The service shut down while the line was being written.
+  const scene=sceneFor(convo.zone),current=scene&&actorsOf(scene).find(a=>a.key===actor.key);if(!current)return;actor=current; // Drop delayed replies after a resident crosses into another zone.
   db.exec('BEGIN IMMEDIATE');try{
    db.prepare('INSERT INTO quest_chat(zone,owner,character_id,name,text,created,emote,x,y) VALUES (?,?,?,?,?,?,0,?,?)').run(convo.area,'ambient:'+convo.area,actor.charId,actor.name,text,now(),actor.x,actor.y);
    db.prepare('DELETE FROM quest_chat WHERE zone=? AND seq NOT IN (SELECT seq FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 100)').run(convo.area,convo.area); // Same 100-row cap as speak().
@@ -141,8 +142,8 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
   const used=recentTopics.get(a.key)??[],fresh=all.filter(t=>!used.includes(t)),pool=fresh.length?fresh:all,topic=pool[Math.floor(roll()*pool.length)%pool.length];
   used.push(topic);if(used.length>Math.min(3,all.length-1))used.shift();recentTopics.set(a.key,used);return topic;
  }
- const place=scene=>situationFacts({name:'',state:{},zone:scene.zone,now:now()}).slice(0,1).map(f=>f.text); // Just where and when.
- const about=(player,zone)=>situationFacts({name:clean(player.name).slice(0,32),state:player.state??{},zone,now:now()}).map(f=>f.text).slice(0,10); // Doll: visible state may be remarked on in public (no Dignity cost).
+ const place=scene=>situationFacts({name:'',state:{},zone:scene.zone,now:now(),gameMinute:gameMinute()}).slice(0,1).map(f=>f.text); // Just where and when.
+ const about=(player,zone)=>situationFacts({name:clean(player.name).slice(0,32),state:player.state??{},zone,now:now(),gameMinute:gameMinute()}).map(f=>f.text).slice(0,10); // Doll: visible state may be remarked on in public (no Dignity cost).
  function present(convo){ // Refresh the participants from the live scene; false once the conversation can't go on.
   const scene=sceneFor(convo.zone);if(!scene)return null;const live=new Map(actorsOf(scene).map(a=>[a.key,a]));
   for(const key of convo.actors.keys()){const a=live.get(key);if(!a)return null;convo.actors.set(key,a);} // A retired, moved-away or switched-off NPC ends it.

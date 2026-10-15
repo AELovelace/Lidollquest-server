@@ -1,5 +1,17 @@
 # NPC routes and pathfinding
 
+## Cross-zone routines and daylight
+
+For journeys between maps, open **Routines & Daylight** from GM tools, Story Workshop or Map Editor. Select a persistent placed NPC, then add schedule cards and Travel, Return home, Wait, Stay or Patrol blocks. Drag cards and blocks to reorder them; arrow buttons provide the same controls. Each schedule independently chooses shared game time or real UTC, days, start/end and priority. Higher priority wins, then the first matching card. Overnight schedules belong to their starting weekday. No matching schedule sends the resident home.
+
+**Load Brittany example** provides four copyable activities: Utopia morning walk (07:00–09:00), tower work (09:00–17:00), Workshop visit (17:00–20:00), and Nap Pods rest (20:00–07:00). Loading is a draft; **Save routine** activates it. Export a copy, select another placed NPC, import it, change the destinations, and save to reuse it. Imports do not clone dialogue or NPC identity.
+
+Travel follows actual doors and portals. Destination anchors can reference arrival points or fixtures with offsets; **Pick tile** selects explicit coordinates. Direct dialogue holds the resident still. Ambient chatter gets up to 30 seconds of departure grace. Watched travel advances one tile per two seconds; empty zones catch up within a work budget. Current zone and position survive restarts, with no home duplicate. Blocked journeys report their status and wait for a map/routine repair. Disable the cross-zone routine before using the local route/move/remove tools below.
+
+The preview sliders choose a hypothetical game day/time and real UTC date/time without changing live state. Shared clock controls change live game time, speed or pause; default speed is one game day per 60 real minutes. Real-time schedules keep running while game time is paused. Dawn fades 05:00–07:00 and dusk 18:00–21:00.
+
+**Zone lighting** controls gentle night dimming and themed streetlights. Automatic lights are nonblocking scenery. Custom lamps are placed/removed on the map and committed with **Save lighting**. Their circular footprints cover whole tiles, stop behind walls and do not reveal fog. Repeated saves preserve automatic/custom separation. Visible lighting requires the updated native game client.
+
 [Wiki home](index.md)
 
 Use **NPC routes** in the Map Editor to give a placed NPC a patrol, a daily workplace, or an occasional delivery round. You choose destinations and waiting times; the server finds the walk between them. Start with [your first patrol](tutorial-npc-patrol.md), then try [daily and interval schedules](tutorial-npc-schedules.md).

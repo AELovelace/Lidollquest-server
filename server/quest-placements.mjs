@@ -1,12 +1,14 @@
+import {createNpcRoutines} from './npc-routines.mjs';
 import {caveReach} from './caverns-generation.mjs';
 import {randomUUID,createHash} from 'node:crypto';
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'quest_placement_conflict'});};
 const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
-export function npcPlacementFacing(npc,placement={}){return (npc?.wander_radius||placement.routes?.length?placement.facing:undefined)??npc?.facing??npc?.look?.facing??0;} // Moving NPCs retain their last step; stationary ones immediately use the published default.
+export function npcPlacementFacing(npc,placement={}){return (npc?.wander_radius||placement.routes?.length||placement.routineManaged?placement.facing:undefined)??npc?.facing??npc?.look?.facing??0;} // Moving NPCs retain their last step; stationary ones immediately use the published default.
 export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQuests=()=>{},readOnly=false,traps=null}){ // traps: the live /gm trap registry (trap-store.mjs); without it 'trap' placements are refused. // readOnly: zone snapshot workers (zone-snapshot-runtime.mjs) hold a read-only database and must never commit a placement map.
  db.exec(`CREATE TABLE IF NOT EXISTS world_placements(id TEXT PRIMARY KEY,zone TEXT NOT NULL,body TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS world_placement_exclusions(zone TEXT NOT NULL,id TEXT NOT NULL,PRIMARY KEY(zone,id));
  CREATE TABLE IF NOT EXISTS world_placement_maps(zone TEXT NOT NULL,edition TEXT NOT NULL,signature TEXT NOT NULL,body TEXT NOT NULL,PRIMARY KEY(zone,edition));`);
+ const routines=createNpcRoutines(db,{now,base,clock:()=>base.clock?.()??{gameMs:now()},published:()=>live.published().npcs,readOnly,held:(id,t)=>db.prepare('SELECT 1 FROM online_conversations WHERE placement=? AND expires>?').get(id,t)?'direct':(holds.get(id)??0)>t?'ambient':false}); // Stable residents move independently of zone-local placement caches.
  const quiet=p=>p.kind==='trap'?[]:affected(p); // No quest can depend on a trap placement.
  const rows=zone=>db.prepare('SELECT body FROM world_placements WHERE zone=? ORDER BY id').all(zone).map(r=>JSON.parse(r.body));
  function geometry(f){return hash([f.width,f.height,f.walls,f.props,f.entrance,f.entries,f.exits,(f.fixtures??[]).filter(p=>p.kind!=='npc'),f.portals]);}
@@ -78,13 +80,14 @@ export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQues
  function realize(zone,edition,f,{commit=true,players=[]}={}){
   const logical=[...(f.authoredPlacements??[]).filter(p=>!db.prepare('SELECT 1 FROM world_placement_exclusions WHERE zone=? AND id=?').get(zone,p.id)&&!rows(zone).some(v=>v.id===p.id)),...rows(zone)];for(const p of logical)if(p.lifetime==='temporary'&&p.edition!==edition&&quiet({...p,replacementEdition:edition}).length)fail('Active quests require expiring placement '+p.name+'. Place a persistent replacement or remove it with an explicit failure decision before replacing the map.');
   const definitions=logical.filter(p=>p.lifetime==='persistent'||p.edition===edition),signature=hash([geometry(f),definitions]),old=db.prepare('SELECT * FROM world_placement_maps WHERE zone=? AND edition=?').get(zone,edition);
-  if(!definitions.length){if(commit&&old)db.prepare('DELETE FROM world_placement_maps WHERE zone=? AND edition=?').run(zone,edition);return [];}if(old?.signature===signature)return JSON.parse(old.body);
+  if(!definitions.length){if(commit&&old)db.prepare('DELETE FROM world_placement_maps WHERE zone=? AND edition=?').run(zone,edition);return routines.project(zone,[]);}if(old?.signature===signature)return routines.project(zone,JSON.parse(old.body));
   const free=tiles(f),dry=f.caveChannels?caveReach({...f,managedOccupancy:[]},undefined,true):null,occupied=[...obstacles(f),...players],placements=[];
   for(const p of definitions){const candidates=free.filter(t=>(!p.dry||!dry||dry.has(t.x+','+t.y))&&!occupied.some(o=>Math.abs(o.x-t.x)+Math.abs(o.y-t.y)<=1)).sort((a,b)=>(Math.abs(a.x-p.x)+Math.abs(a.y-p.y))-(Math.abs(b.x-p.x)+Math.abs(b.y-p.y))||a.y-b.y||a.x-b.x),spot=candidates[0];if(!spot)fail('No reachable tile for '+p.name+' in '+zone+'.');const placed={...p,...spot,home:{...spot}};if(p.kind==='npc'&&Array.isArray(p.routes)&&p.routes.length){const snapped=snapRoutes(p.routes,free,f);placed.routes=snapped.routes;if(snapped.dropped)placed.routeDropped=snapped.dropped;}placements.push(placed);occupied.push(spot);}
-  if(commit)db.prepare('INSERT INTO world_placement_maps VALUES (?,?,?,?) ON CONFLICT(zone,edition) DO UPDATE SET signature=excluded.signature,body=excluded.body').run(zone,edition,signature,JSON.stringify(placements));return placements;
+  if(commit)db.prepare('INSERT INTO world_placement_maps VALUES (?,?,?,?) ON CONFLICT(zone,edition) DO UPDATE SET signature=excluded.signature,body=excluded.body').run(zone,edition,signature,JSON.stringify(placements));return routines.project(zone,placements);
  }
  function view(zone){const map=base.map(zone);if(!map.floor)return {...map,placements:[]};const placements=realize(zone,map.edition,map.floor,{commit:!readOnly}),fresh=JSON.stringify(map.floor.managedOccupancy??[])===JSON.stringify(placements.filter(p=>p.kind==='npc'&&!p.walking).map(({x,y})=>({x,y})))?map:base.map(zone),revision=hash([fresh.revision,placements]);return {...fresh,baseRevision:fresh.revision,revision,placements};}
  function act(input){
+  if(['world_route_content','world_update_content','world_remove_content'].includes(input.action)&&routines.has(input.placement))fail('Disable this resident\'s routine before editing its home placement or local routes.');
   const map=view(input.zone);if((input.action!=='world_route_content'&&input.revision!==map.revision)||input.edition!==map.edition)fail('The map changed. Refresh before placing content.'); // Routes are checked against the live floor below, so a monster or NPC stepping mid-edit (which changes the revision) never discards a drawn route.
   if((input.action==='world_place'||input.action==='world_move')&&map.placements.some(p=>Math.abs(p.x-input.x)+Math.abs(p.y-input.y)<=1))fail('Choose a tile away from NPCs and quest objectives.');
   if(input.action==='world_move_player'&&map.placements.some(p=>(p.kind==='npc'||p.kind==='interact')&&p.x===Number(input.x)&&p.y===Number(input.y)))fail('An NPC stands on that tile.'); // Moving a player: only the occupied tile itself is refused.
@@ -138,6 +141,7 @@ export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQues
  let presentQuery=null;const lastBusy=new Map(); // lastBusy: zone -> when its routed NPCs last walked with someone present.
  let lastStep=null;const freeTiles=new Map(); // lastStep: the 2 s walking slot already fully handled. freeTiles: zone -> {key, free} walkable-tile set, rebuilt only when the map's edition or placement signature changes.
  function tick(){ // NPC walking is deterministic, bounded, and pauses while a conversation holds its placement.
+  routines.tick(); // Shared resident travel continues through empty zones; ordinary local routes retain their existing behavior.
   const step=Math.floor(now()/2000);if(step===lastStep)return; // Each NPC moves at most once per 2 s slot, so later ticks in a finished slot have nothing to do.
   const npcs=live.published().npcs,wanderers=new Set(Object.keys(npcs).filter(k=>npcs[k]?.wander_radius)); // Only NPCs with a wander radius ever move.
   const zones=wanderers.size?new Set(db.prepare('SELECT zone,body FROM world_placements').all().filter(r=>{const p=JSON.parse(r.body);return p.kind==='npc'&&wanderers.has(p.content);}).map(r=>r.zone)):new Set(); // Realized maps come only from these rows, so a zone without a wandering NPC can skip map building entirely.
@@ -149,7 +153,7 @@ export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQues
    const key=row.edition+'|'+row.signature;let cached=freeTiles.get(zone);if(cached?.key!==key){cached={key,free:new Set(tiles(map.floor).map(p=>p.x+','+p.y))};freeTiles.set(zone,cached);} // The flood fill is the costly part; the signature already hashes geometry and placements.
    const free=cached.free,fixed=[...obstacles(map.floor),...map.players]; // Terrain obstacles and players, built once per zone instead of once per NPC.
    const busy=routed.has(zone)&&!!(presentQuery??=db.prepare('SELECT 1 FROM quest_presence WHERE zone=? AND seen>? LIMIT 1')).get(zone,now()-30000),snap=busy&&now()-(lastBusy.get(zone)??0)>60000,solid=busy?obstacles(map.floor).map(tileKey):[];if(busy)lastBusy.set(zone,now()); // Routed NPCs only walk while someone is in the zone; after a minute alone they resume where their schedule puts them.
-   for(const p of placements){const n=npcs[p.content];
+   for(const p of placements){if(routines.has(p.id))continue;const n=npcs[p.content];
     if(p.kind==='npc'&&p.routes?.length){ // A routed NPC follows its schedule instead of wandering, and walks through players rather than queueing behind them.
      if(!busy||step===(p.step??0))continue;
      if((holds.get(p.id)??0)>now()||db.prepare("SELECT 1 FROM online_conversations WHERE placement=? AND expires>?").get(p.id,now())){held=true;if(p.walking){p.walking=false;changed=true;}continue;}
@@ -161,5 +165,5 @@ export function createQuestPlacements(db,{live,now,base,affected=()=>[],failQues
   }
   if(!held)lastStep=step; // An NPC paused by a conversation gets retried on the next tick of this slot, exactly as before.
  }
- return {rows,realize,view,act,visible,tick,hold(id,until){if(until>now())holds.set(id,until);else holds.delete(id);for(const [k,v] of holds)if(v<=now())holds.delete(k);},positions(zone,edition){const row=db.prepare('SELECT body FROM world_placement_maps WHERE zone=? AND edition=?').get(zone,edition);return row?JSON.parse(row.body).filter(p=>p.kind==='npc'&&!p.walking).map(({x,y})=>({x,y})):[];},catalog:base.catalog};
+ return {routines,rows,realize,view,act,visible,tick,hold(id,until){if(until>now())holds.set(id,until);else holds.delete(id);for(const [k,v] of holds)if(v<=now())holds.delete(k);},positions(zone,edition){const row=db.prepare('SELECT body FROM world_placement_maps WHERE zone=? AND edition=?').get(zone,edition);return routines.project(zone,row?JSON.parse(row.body):[]).filter(p=>p.kind==='npc'&&!p.walking).map(({x,y})=>({x,y}));},catalog:base.catalog};
 } // Logical placements and their per-instance positions are persisted separately from terrain.

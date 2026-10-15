@@ -18,14 +18,14 @@ export function placeOf(zone){ // "in Honeydew Village, a safe town" / "out in t
  return id?`in ${zoneName(id)}`:'';
 }
 
-export function timeOfDay(ms){
- const hour=Number(new Intl.DateTimeFormat('en-US',{timeZone:TIME_ZONE,hour:'numeric',hourCycle:'h23'}).format(new Date(ms)));
+export function timeOfDay(ms,gameMinute){
+ const hour=Number.isFinite(gameMinute)?Math.floor(gameMinute/60):Number(new Intl.DateTimeFormat('en-US',{timeZone:TIME_ZONE,hour:'numeric',hourCycle:'h23'}).format(new Date(ms)));
  return hour>=5&&hour<12?'morning':hour<17&&hour>=12?'afternoon':hour>=17&&hour<21?'evening':'night';
 }
 
-export function situationFacts({name,state,zone,now,hire=null,speakerId='',recent=null}){ // -> [{text, private}]
+export function situationFacts({name,state,zone,now,hire=null,speakerId='',recent=null,gameMinute=undefined}){ // -> [{text, private}]
  const p=state?.loadout?.player_info??{},facts=[],pub=text=>facts.push({text,private:false}),priv=text=>facts.push({text,private:true});
- const place=placeOf(zone);if(place)pub(`You are ${place}. It is ${timeOfDay(now)}.`);
+ const place=placeOf(zone);if(place)pub(`You are ${place}. It is ${timeOfDay(now,gameMinute)}.`);
  if(hire&&hire.character_id===speakerId){
   pub(`${name} hired you; you are traveling together.`);
   const left=num(hire.expires)-now;if(left>0&&left<10*60000)pub(`Your contract with ${name} ends in a few minutes.`);
