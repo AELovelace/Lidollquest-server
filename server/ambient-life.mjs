@@ -36,6 +36,11 @@ const clean=s=>String(s??'').replace(/[\u0000-\u001f\u007f]+/g,' ').replace(/\s+
 const near=(a,b,r)=>Math.abs(a.x-b.x)<=r&&Math.abs(a.y-b.y)<=r; // Square talk range, in tiles.
 const dist=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
 const defaultSleep=ms=>new Promise(r=>{const t=setTimeout(r,ms);t.unref?.();}); // Never holds the process open.
+const grams=(text,n=5)=>{const w=String(text).toLowerCase().match(/[a-z']+/g)??[],out=new Set();for(let i=0;i+n<=w.length;i++)out.add(w.slice(i,i+n).join(' '));return out;}; // Word 5-grams for the repeat check.
+const repeats=(text,said)=>{const mine=grams(text);return said.some(old=>clean(old).toLowerCase()===clean(text).toLowerCase()||[...grams(old)].some(g=>mine.has(g)));}; // Live 2026-10-14: Wren said one line three times.
+const TOPICS=[['hungry','hunger','starv','peckish','eat','food','snack','meal','stew','feed'],['thirsty','thirst','parched','drink'],['hurt','wound','injur','bruis'],['toilet','potty','fidget','desperate','squirm'],['accident'],['padding','diaper','nappy','soggy','soaked','mess','squish'],['smell','stink','whiff','pong']]; // Word starts that mean the same observation; no plain "wet" ("wet the whistle" is a tavern line, not a padding remark).
+const said=(text,words)=>words.some(w=>new RegExp('\\b'+w,'i').test(String(text))); // Word starts: "eat" never matches "great".
+const unsaid=(facts,lines)=>facts.filter(f=>{const topic=TOPICS.find(words=>said(f,words));return !topic||!lines.some(l=>said(l,topic));}); // Doll 2026-10-15: remark on what you notice once per conversation, not four times in a row.
 const nameIn=(text,name)=>{const first=clean(name).split(' ')[0];if(first.length<3)return false;return new RegExp('\\b'+first.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i').test(text);}; // "Padma, what's good?" names Padma.
 
 // scenes(zoneIds|null, {beckons}) -> [{zone, npcs:[{ref,content,x,y}], shops:[{ref,name,x,y,wares}], players:[{id,owner,name,x,y,area,state}]}]
@@ -49,8 +54,10 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
  const nextCheck=new Map();    // actor key -> when its next strike-up roll may happen
  const cooldown=new Map();     // actor key -> when it may start (or be pulled into) another conversation
  const beckoned=new Map();     // shop key|character -> when that player may be beckoned by that shop again
+ const recentSaid=new Map();   // actor key -> its last 12 lines across conversations (never said again; live 2026-10-15 the same exchange every time)
+ const recentTopics=new Map(); // actor key -> the last 3 topics it opened with, so the next opener picks a different one
  const heard=[];               // queued player lines {c,text,area,zone,x,y,emote,companion,at}
- const decisions=[],transcript=[],stats={lines:0,busy:0,quiet:0,join:0,gate_failures:0,ai_failures:0};
+ const decisions=[],transcript=[],stats={lines:0,busy:0,quiet:0,join:0,gate_failures:0,ai_failures:0,repeats:0};
  const warned=new Map();
  function warn(what,error){const t=now();if(t-(warned.get(what)??-Infinity)<60000)return;warned.set(what,t);log('ambient_'+what+'_failed',String(error?.message??error).slice(0,200));} // One line per kind per minute.
  const knobs=()=>{const out={...AMBIENT_DEFAULTS},raw=tuning()??{};for(const key of Object.keys(AMBIENT_DEFAULTS))if(raw[key]!==undefined)out[key]=raw[key];return out;};
@@ -66,12 +73,13 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
   for(const p of scene.npcs??[]){
    const def=defs[p.content],persona=def?.ai_persona;if(!def||def.retired||!persona?.enabled)continue; // Only GM NPCs whose persona is switched on.
    out.push({key:scene.zone+':'+p.ref,ref:p.ref,charId:'npc:'+scene.zone+':'+p.ref,npcId:String(p.content).slice(0,64),kind:'npc',zone:scene.zone,x:p.x,y:p.y,name:clean(def.name).slice(0,32)||'Resident',
-    persona:personaText(def.name,persona,{names}),voice:(persona.voice??[]).slice(0,5),profile:participationProfile(persona),talksTo:persona.talks_to??'both',chattiness:Number(persona.chattiness??50)});
+    persona:personaText(def.name,persona,{names}),voice:(persona.voice??[]).slice(0,5),profile:participationProfile(persona),
+    topics:[...(persona.interests??[]),...(persona.desires??[]),...(persona.relationships??[]).map(r=>clean((names[r.ref]??r.name)+': '+r.note))].map(t=>clean(t).slice(0,160)).filter(Boolean),talksTo:persona.talks_to??'both',chattiness:Number(persona.chattiness??50)});
   }
   for(const s of scene.shops??[]){ // A shopkeeper only calls out to players; it has no persona beyond its shop.
    const wares=(s.wares??[]).map(w=>clean(w)).filter(Boolean).slice(0,6),name=clean(s.name).slice(0,32)||'Shopkeeper';
    out.push({key:scene.zone+':shop:'+s.ref,ref:'shop:'+s.ref,charId:'npc:'+scene.zone+':shop:'+s.ref,npcId:('shop_'+s.ref).slice(0,64),kind:'shop',zone:scene.zone,x:s.x,y:s.y,name,
-    persona:`${name} runs a shop here${wares.length?' and sells '+wares.join(', '):''}.`,voice:[],profile:{role:'shopkeeper',interests:wares.slice(0,4)},talksTo:'players',chattiness:50,wares});
+    persona:`${name} runs a shop here${wares.length?' and sells '+wares.join(', '):''}.`,voice:[],profile:{role:'shopkeeper',interests:wares.slice(0,4)},topics:wares,talksTo:'players',chattiness:50,wares});
   }
   return out;
  }
@@ -98,14 +106,18 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
  function gateDown(error){gateDownUntil=now()+GATE_DOWN_MS;stats.gate_failures++;warn('decider',error);for(const c of convos.values())c.running=false;} // Doll: gate down = nothing ambient happens.
 
  // ── One generated line, local only ──
- async function line(actor,extra){ // -> text or '' (skipped); never throws for an AI failure
+ async function line(actor,extra,convo=null){ // -> text or '' (skipped); never throws for an AI failure
   if(!lineBudget.spend())return '';
-  const body={npc_id:actor.npcId,npc_name:actor.name,persona:actor.persona.slice(0,1500),voice:actor.voice.map(v=>clean(v).slice(0,200)),message:'(ambient)',...extra};
+  const said=(recentSaid.get(actor.key)??[]).slice(-8); // Lines from earlier conversations: shown as "never say again" and checked below.
+  const body={npc_id:actor.npcId,npc_name:actor.name,persona:actor.persona.slice(0,1500),voice:actor.voice.map(v=>clean(v).slice(0,200)),said,message:'(ambient)',...extra};
   let res;try{res=await pool().request('/v1/companion/chat',body,{timeoutMs:20000,signal:stop.signal});}catch(error){stats.ai_failures++;warn('line',error);return '';}
   if(res.status===429){lineBudget.refund();stats.busy++;return '';} // local_busy: the local slots belong to players right now; no charge, no line.
   if(!res.ok||res.body?.fallback){stats.ai_failures++;warn('line','AI answered '+res.status);return '';}
   if(res.body?.lane==='cloud'){alarms++;log('ambient_cost_guard','an ambient line came back from the paid cloud; dropped');return '';} // Cannot happen (npc-rag PAID_KINDS); dropped and counted if it ever does.
-  return clean(res.body?.reply).slice(0,300);
+  if(!String(res.body?.guard??'passed').startsWith('passed')){stats.repeats++;return '';} // npc-rag gave up on this line (it kept repeating itself, or named things it shouldn't): silence.
+  const text=clean(res.body?.reply).slice(0,300);
+  if(repeats(text,[...(recentSaid.get(actor.key)??[]),...(convo?convo.lines.filter(l=>l.key===actor.key).map(l=>l.text):[])])){stats.repeats++;return '';} // Never say the same thing twice in one conversation.
+  return text;
  }
  function post(actor,text,convo){ // One ambient line in area chat at the speaker's tile, heard like any area line.
   if(closed)return; // The service shut down while the line was being written.
@@ -117,11 +129,17 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
   convo.actors.set(actor.key,actor);convo.responses.set(actor.key,(convo.responses.get(actor.key)??0)+1);convo.lines.push({speaker:actor.name,text,key:actor.key});convo.lastAt=now();stats.lines++;
   if(actor.kind==='npc')hold(actor.ref,now()+Number(knobs().ambient_idle_s)*1000); // Wanderers and routed NPCs stand still while they talk.
   push(transcript,{at:now(),zone:convo.zone,area:convo.area,speaker:actor.name,text});
+  const mine=recentSaid.get(actor.key)??[];mine.push(text);if(mine.length>12)mine.shift();recentSaid.set(actor.key,mine);
  }
  const capped=(convo,a,k)=>(convo.responses.get(a.key)??0)>=Number(k.ambient_max_responses); // Doll: 5 responses per NPC per conversation.
  const newConvo=(zone,area)=>{const c={id:zone+'#'+now(),zone,area,actors:new Map(),responses:new Map(),lines:[],players:new Set(),playerNames:new Set(),target:null,chimed:false,running:true,lastAt:now()};convos.set(area,c);return c;};
  const thread=c=>c.lines.slice(-8).map(l=>({speaker:l.speaker.slice(0,64),text:l.text.slice(0,300)}));
  const partnerOf=a=>({name:a.name,persona:a.persona.slice(0,600),line:''});
+ function topicFor(a){ // One of their interests, desires or people, never one of the last three they opened with.
+  const all=a.topics??[];if(!all.length)return '';
+  const used=recentTopics.get(a.key)??[],fresh=all.filter(t=>!used.includes(t)),pool=fresh.length?fresh:all,topic=pool[Math.floor(roll()*pool.length)%pool.length];
+  used.push(topic);if(used.length>Math.min(3,all.length-1))used.shift();recentTopics.set(a.key,used);return topic;
+ }
  const place=scene=>situationFacts({name:'',state:{},zone:scene.zone,now:now()}).slice(0,1).map(f=>f.text); // Just where and when.
  const about=(player,zone)=>situationFacts({name:clean(player.name).slice(0,32),state:player.state??{},zone,now:now()}).map(f=>f.text).slice(0,10); // Doll: visible state may be remarked on in public (no Dignity cost).
  function present(convo){ // Refresh the participants from the live scene; false once the conversation can't go on.
@@ -133,7 +151,7 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
  // ── NPC <-> NPC: roll to open, the Decider keeps it going, one chime-in ──
  async function converse(convo,a,b,scene,k){
   convo.actors.set(b.key,b); // B is part of it from the start: present() watches it and the Decider knows it was spoken to.
-  const opener=await line(a,{kind:'ambient_open',partner:partnerOf(b),situation:place(scene)});if(!opener)return;
+  const opener=await line(a,{kind:'ambient_open',partner:partnerOf(b),situation:place(scene),topic:topicFor(a)},convo);if(!opener)return;
   post(a,opener,convo);hold(b.ref,now()+Number(k.ambient_idle_s)*1000);
   let speaker=a,listener=b;
   for(;;){
@@ -143,7 +161,7 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
    if(capped(convo,listener,k))return;
    const last=convo.lines.at(-1),nearby=[...convo.actors.values()].map(x=>x.name).concat(hearers(now2,speaker,convo.area).map(p=>p.name));
    const chosen=await gate([listener],{speaker:speaker.name,message:last.text,convo,nearby});if(!chosen){return;} // QUIET: the conversation ends naturally.
-   const reply=await line(listener,{kind:'ambient_reply',partner:{...partnerOf(speaker),line:last.text.slice(0,300)},thread:thread(convo),situation:place(now2)});if(!reply||!convo.running)return;
+   const reply=await line(listener,{kind:'ambient_reply',partner:{...partnerOf(speaker),line:last.text.slice(0,300)},thread:thread(convo),situation:place(now2)},convo);if(!reply||!convo.running)return;
    post(listener,reply,convo);
    if(!convo.chimed&&roll()<Number(k.ambient_chime_chance)){ // Someone else in earshot may join, once per conversation.
     const joiner=await chime(convo,now2,listener,k);if(joiner){speaker=joiner;continue;} // The chimer spoke to the last speaker, who answers next.
@@ -158,18 +176,18 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
   if(!pool2.length)return null;
   const heard2=convo.lines.at(-1),nearby=[...convo.actors.values(),...pool2].map(x=>x.name);
   const chosen=await gate(pool2,{speaker:last.name,message:heard2.text,convo,nearby});if(!chosen||!convo.running)return null;
-  const text=await line(chosen,{kind:'ambient_chime',partner:{...partnerOf(last),line:heard2.text.slice(0,300)},thread:thread(convo),situation:place(scene)});if(!text||!convo.running)return null;
+  const text=await line(chosen,{kind:'ambient_chime',partner:{...partnerOf(last),line:heard2.text.slice(0,300)},thread:thread(convo),situation:place(scene)},convo);if(!text||!convo.running)return null;
   post(chosen,text,convo);cooldown.set(chosen.key,now()+pause(k,'ambient_cooldown_min_s','ambient_cooldown_max_s'));return chosen;
  }
 
  // ── NPC -> player: a greeting, then the player's own lines route back through hear() ──
  async function greet(convo,a,player,scene,k){
   const others=hearers(scene,a,convo.area).filter(p=>p.id!==player.id).length;
-  const text=await line(a,{kind:'ambient_greet',player_name:clean(player.name).slice(0,64),audience:Math.min(500,others),situation:[...place(scene),...about(player,scene.zone)].slice(0,10)});if(!text)return;
+  const text=await line(a,{kind:'ambient_greet',topic:topicFor(a),player_name:clean(player.name).slice(0,64),audience:Math.min(500,others),situation:[...place(scene),...about(player,scene.zone)].slice(0,10)},convo);if(!text)return;
   post(a,text,convo);convo.players.add(player.id);convo.playerNames.add(clean(player.name));convo.target=player.id;
  }
  async function beckon(convo,shop,player,scene){
-  const text=await line(shop,{kind:'shop_beckon',player_name:clean(player.name).slice(0,64),about:(shop.wares.length?`${shop.name} sells: ${shop.wares.join(', ')}.`:`${shop.name} runs a shop here.`).slice(0,300),situation:place(scene)});if(!text)return;
+  const text=await line(shop,{kind:'shop_beckon',player_name:clean(player.name).slice(0,64),about:(shop.wares.length?`${shop.name} sells: ${shop.wares.join(', ')}.`:`${shop.name} runs a shop here.`).slice(0,300),situation:place(scene)},convo);if(!text)return;
   post(shop,text,convo);convo.players.add(player.id);convo.playerNames.add(clean(player.name));convo.target=player.id;
  }
 
@@ -198,7 +216,8 @@ export function createAmbientLife(db,{now=Date.now,roll=Math.random,pool=()=>nul
   const convo=fresh??newConvo(h.zone,h.area);convo.running=true;convo.interrupted=false;
   const player=scene.players.find(p=>p.id===h.c.id)??{id:h.c.id,name:h.c.name,state:{}};
   const others=hearers(scene,chosen,h.area).filter(p=>p.id!==player.id).length;
-  const text=await line(chosen,{kind:'ambient_answer',message:h.text.slice(0,500),player_name:clean(h.c.name).slice(0,64),audience:Math.min(500,others),thread:thread(convo),situation:[...place(scene),...about(player,scene.zone)].slice(0,10)});
+  const seen=unsaid(about(player,scene.zone),convo.lines.filter(l=>l.key===chosen.key).map(l=>l.text)); // Each observation once per conversation: Wren said "you look hungry" four times (2026-10-14).
+  const text=await line(chosen,{kind:'ambient_answer',message:h.text.slice(0,500),player_name:clean(h.c.name).slice(0,64),audience:Math.min(500,others),thread:thread(convo),situation:[...place(scene),...seen].slice(0,10)},convo);
   convo.lines.push({speaker:clean(h.c.name).slice(0,64)||'Someone',text:h.text,key:'player:'+player.id});convo.playerNames.add(clean(h.c.name));convo.lastAt=now(); // The player's line is part of the thread from now on.
   if(!text)return;
   post(chosen,text,convo);convo.players.add(player.id);convo.target=player.id;
