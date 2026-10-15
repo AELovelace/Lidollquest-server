@@ -2,9 +2,11 @@
 // tileLBCInterior indices (floors 1-9/30-39, wainscot walls 10-19, rugs/plants 20-29; 0 is "no tile"), like lbc-inn.mjs.
 //  - Nap Pods (beds): six glowing sleep capsules round a soft-mat aisle; resting here slowly restores Dignity (client, nap_pods).
 //  - Artificer's Workshop (dives): workbenches, rune consoles and the warp pads (UTOPIA_PADS) into the Auto-Nursery and Regression School.
-//  - Arcanum Tower (tower): the city's archive and registry, with the Archivist and the Rune Registrar.
+//  - Arcanum Tower (tower): the city's archive and registry, with the Archivist and the Rune Registrar, and the commons below
+//    where Padma, Wren, Felix and Brittany (utopia-npcs.mjs) keep their bar, stall and toy shelf.
 // Utopia has no toilets anywhere: every room has an Auto-Changing Station (kind 'changer', client online_auto_change).
 import {cauldronFixture,reagentFixture,changerFixture} from './hub-districts.mjs';
+import {UTOPIA_TOWER_PLACEMENTS} from './utopia-npcs.mjs';
 
 export const UTOPIA_ROOM_EXIT=Object.freeze({x:0,y:6,w:1,h:2,style:'gap',side:'left'}); // Every interior leaves through a gap in its left wall.
 export const UTOPIA_PADS=Object.freeze([{x:17,y:3,zone:'dive-nursery'},{x:17,y:9,zone:'dive-school'}]); // The Workshop's warp pads (hubs.mjs dungeonPortals).
@@ -44,15 +46,28 @@ export function utopiaWorkshop(){ // 22x14: workbenches down the middle, rune co
  return r;
 }
 
-export function utopiaTower(){ // 20x14: the Arcanum archive, with the Archivist, the Rune Registrar, the city's brewing lab and a changer.
- const r=room(20,14,9,15,({floors,decorTiles})=>{for(let y=4;y<10;y++)for(let x=7;x<13;x++)floors[y][x]=33;decorTiles[7][10]=25;decorTiles[1][1]=26;decorTiles[12][18]=26;});
+export function utopiaTower(){ // 20x20: the Arcanum archive (rows 1-12) with the Archivist, the Rune Registrar, the city's brewing lab and a changer,
+ // and below it the commons (rows 14-18): Wren's bar, Padma's diaper stall and Brittany's toy shelf (utopia-npcs.mjs residents).
+ const r=room(20,20,9,15,({floors,decorTiles})=>{
+  for(let y=4;y<10;y++)for(let x=7;x<13;x++)floors[y][x]=33;decorTiles[7][10]=25;decorTiles[1][1]=26;decorTiles[12][18]=26; // The archive rug, as before.
+  for(let y=14;y<19;y++)for(let x=1;x<19;x++)floors[y][x]=35; // The commons floor sets it apart from the archive.
+  for(let x=1;x<19;x++)floors[13][x]=36; // A runner between the two halves.
+  decorTiles[18][18]=26;decorTiles[14][12]=21; // A plant in the far corner and a rug by the stall.
+ });
  r.fixtures=[
   {id:'archivist',name:'Archivist Quill',kind:'npc',avatar:'objNPCShyStudent',x:10,y:3,span_w:1,span_h:1,solid:true,line:'The Arcanum keeps every rune ever drawn in Utopia. Someday the Director says the whole world will want to live like we do.'},
   {id:'registrar',name:'Rune Registrar',kind:'npc',avatar:'objNPCClassClown',x:15,y:9,span_w:1,span_h:1,solid:true,line:'New arrivals get a sticker and a smart diaper. Those are the only two rules. Well, three: no potties.'},
   scenery('shelf-1','sprSchoolEnvBookshelf',3,1),scenery('shelf-2','sprSchoolEnvBookshelf',4,1),scenery('shelf-3','sprSchoolEnvBookshelf',15,1),scenery('shelf-4','sprSchoolEnvBookshelf',16,1),
   scenery('orb-console','sprUtopiaConsole',10,6),scenery('spire','sprUtopiaEnvCrystalSpire',1,10),
   cauldronFixture(17,12),reagentFixture(15,12), // Utopia's Alchemy Lab corner (the city's cauldron and a reagent seller).
-  changerFixture('tower-changer',18,5)
+  changerFixture('tower-changer',18,5),
+  // The commons: bar (left), diaper stall (middle), toy corner (right). Stools and soft blocks are walk-through decoration.
+  scenery('bar-counter','sprArcadiaAssayCounter',2,15,{span_w:2}),scenery('bar-barrel','sprTownEnvBarrel',1,17),
+  scenery('bar-stool-1','sprPQDetailPinkStool',2,14,{solid:false}),scenery('bar-stool-2','sprPQDetailPinkStool',3,14,{solid:false}),
+  scenery('padma-stall','sprTownEnvMarketStall',8,16),scenery('padma-dispenser','sprDiaperDispenser',10,16,{span_w:2,span_h:2}),
+  scenery('toy-shelf','sprNurseryEnvTestToyShelfWide',14,18,{span_w:3}),scenery('toy-chest','sprNurseryEnvToyChest',18,17),
+  scenery('toy-plush','sprNurseryEnvPlushPile',18,15),scenery('toy-blocks','sprUtopiaEnvSoftBlocks',13,17,{solid:false})
  ];
+ r.authoredPlacements=UTOPIA_TOWER_PLACEMENTS.map(p=>({...p})); // Padma, Wren, Felix and Brittany: GM NPC records (utopia-npcs.mjs), placed like any world placement.
  return r;
 }

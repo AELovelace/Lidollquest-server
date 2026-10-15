@@ -1,5 +1,102 @@
 # LiDollQuest server
 
+Overflow-enabled capacity result (2026-10-14): the same seeded workload completed
+25/50/75-player ten-minute stages, 3,000 offered messages and 2,936 generated replies,
+with zero failed messages or availability fallbacks. The other outcomes were 60 source/
+content-guard replies and four quiet decisions. Generated median/p95 at 25 players:
+2.355/4.057s; at 50: 4.493/9.055s; at 75: 5.409/13.551s. Stages 25 and 50 passed;
+75 failed only the median/p95 limits, so 100 was skipped. Backlog-growth scores were
+0.028/0.583/1.250, all below the limit of two. All 914 participation calls completed;
+at 75 their median/p95 was 0.808/1.902s. Highest passing tested population increased
+from 25 local-only to 50 with overflow; this does not establish an exact maximum.
+All 67 recorded two-host health snapshots showed overflow enabled; 17 node snapshots
+observed cloud requests in flight, up to four per node, and none showed a cloud cooldown.
+Both hosts finished idle/healthy with all eight classifiers failure-free, and all four
+generation endpoints answered health. Exact cloud request/token usage was not recorded.
+Artifacts: `artifacts/overflow-player-capacity-20261014.json`, adjacent `-health-after.json`
+and `-model-health-after.json`, and `artifacts/player-capacity-local-vs-overflow-20261014.json`.
+The seeded offered workload and thresholds match; generated histories, caches and external
+load can differ. Local-only 50 stopped early, whereas enabled 50/75 completed ten minutes.
+Cloud overflow remains enabled on both hosts.
+
+To repeat the scheduled-player test with OpenAI overflow, restore the provider key and
+restart both RAG hosts, then use the same workload with an explicit mode:
+
+```powershell
+node deploy/ai-player-test.mjs --key-file C:/Scripts/npc-rag/.env --overflow enabled --players 25,50,75,100 --seconds 600 --chat-every 30 --seed 20261014 --output artifacts/overflow-player-capacity.json
+```
+
+The default remains `--overflow disabled`. Either mode requires both hosts to report
+the selected setting at preflight, every 30 seconds and after each stage. This flag
+checks remote configuration; it does not change it. Overflow-enabled runs still prefer
+local generation and retain local RAG/classification. Health snapshots record cloud
+in-flight slots and cooldowns, but do not supply an exact cloud request count or token
+bill. The seeded arrival schedule is repeatable; generated history, caches and external
+load can still differ between runs. All 17 focused scheduler/pool/participation checks
+passed after adding explicit enabled-mode validation.
+
+Local-only capacity result (2026-10-14): **25 active AI users passed; 50 overloaded the
+pool** with one message per user every 30s and the workload below. The 25-player stage
+completed all 500 scheduled messages in ten minutes: 483 generated replies, 16 source/
+content-guard replies and one availability fallback (0.2%). Generated message-to-reply
+median/p95 was 2.441/4.340s; gate median/p95 was 0.580/1.094s across 160 checks. Average
+pending-message growth was 0.056, and the final two requests drained in 1.64s.
+The 50-player stage stopped arrivals around 362s when completed-message failures exceeded
+10%. After draining for 87.75s, 610 offered messages produced 451 generated replies,
+one quiet decision, nine source/content-guard replies and 149 failures (24.43%): 140
+timeouts, seven overlapping-player 429s, one 503 and one availability fallback. Generated
+median/p95 was 6.030/19.289s, with 78 messages pending when arrivals stopped. Participation
+still completed 204 gate calls at 0.845/2.029s median/p95; all eight classifier workers
+finished healthy and idle with zero native failures. All four individual generation
+endpoints answered health afterward. All 37 recorded two-host health checks showed
+overflow disabled. Stages 75/100 were skipped. Twenty-five is the highest tested passing
+population, not the exact maximum between 25 and 50; this is also not total gameplay
+capacity. At a hypothetical 25% active-AI share, 25 active corresponds to 100 online;
+budgeting 20 active (80 online at that share) leaves 20% headroom below the passing load.
+Artifacts: `artifacts/local-player-capacity-20261014.json`, adjacent `-health-after.json`
+and `-model-health-after.json`. All 16 focused scheduler/pool/participation tests passed.
+
+Local-only player capacity test: on **both RAG hosts**, temporarily set `OPENAI_API_KEY=`
+in the environment file used by the service and restart RAG. Preserve the key privately
+for restoration. Existing process/service environment variables override `.env`, so clear
+any separate `OPENAI_API_KEY` override too. Check `/health`: `overflow.enabled` must be
+exactly `false`. No game-server restart is needed for this standalone harness.
+
+```powershell
+node deploy/ai-player-test.mjs --key-file C:/Scripts/npc-rag/.env --players 25,50,75,100 --seconds 600 --chat-every 30 --output artifacts/local-player-capacity.json
+```
+
+This separate harness sends scheduled arrivals without waiting for previous replies.
+Each active player sends once every 30 seconds; 75% target companions and 25% Pip.
+Prompts are 80% social / 20% game questions, with bounded per-player/candidate histories
+and synthetic companion memories. Twenty percent of companion messages check two nearby
+candidates (`--nearby 2`) and permit at most one reply if either joins. Other companion
+messages address their assigned companion directly. Every 120 seconds, 20% of players
+align their messages into a burst; this moves arrivals rather than adding more messages.
+`--seed` reproduces the offered schedule; finite prompt variations still warm caches.
+`--burst-every` must be a multiple of `--chat-every`; `--burst-fraction 0` disables bursts.
+
+Preflight, 30-second checks and stage-end checks require healthy routing/participation
+workers and explicitly disabled overflow on every node. A changed/unknown cloud state
+stops new arrivals; existing calls drain and the interrupted stage cannot pass. These
+health samples establish configuration, not packet-level auditing between checks.
+The harness uses production default attempt deadlines (gate 12s, companion 20s, Pip 45s),
+with up to two pool attempts. Client latency starts at the scheduled message time and
+includes gates, scheduling delay and failover. Quiet decisions and guard-only responses
+are separate from generated dialogue. Late arrivals (>1s) and the 128-pending-message
+client cap count as failures rather than silently lowering the load.
+
+Each ten-minute stage passes with at least 20 generated replies, generated median <5s,
+p95 <10s, failed-message rate <1%, and average pending-message growth <=2 between the
+first and last thirds after the initial minute. Pending messages are a client backlog
+proxy, not direct observation of the model's internal queue. An incomplete stage fails;
+the harness stops increasing population at the first failed stage, or ends early at
+10% failures (after 30 completed messages) or 100 pending messages. JSON checkpoints
+include timing rows, outcomes, backlog samples and health, without prompts or credentials.
+This estimates active AI users for this workload, not total game-server capacity or a
+production SLA; background memory jobs, all live candidate filters and gameplay are not
+simulated. Restore the saved key and restart both RAG services when cloud overflow is wanted.
+
 Participation B preparation (2026-10-14): `QUEST_PARTICIPATION_BACKEND=decider` switches
 the existing companion speaking gate to authenticated `POST /v1/participation/decide`
 on RAG's existing 9092 port. Default/rollback is `qwen`; restart the game server after
@@ -27,7 +124,25 @@ as historical A; the mix remains 60% companion / 25% Pip / 15% gate. Gates are i
 load requests, not filters on the simulated dialogue requests. Random workload, caches,
 cloud overflow and timing vary, so this is an operational before/after, not a controlled
 same-prompt model-quality comparison. The old 100-chat burst is Pip-only and cannot measure
-the new gate. No B load run has been performed yet.
+the new gate.
+
+Completed participation B (2026-10-14): both hosts passed preflight and finished healthy
+and idle, with zero failures across four routing and four participation GPU workers.
+The same 1/2/4/8/16/24-concurrency schedule completed 719 requests: 434 companion,
+175 Pip and 110 gate calls. There were zero HTTP errors or availability fallbacks;
+574 of 609 dialogue calls generated replies, with 30 no-relevant-notes responses and
+five unsupported-term rejections. Generated-reply medians were
+1.447/1.827/2.409/3.324/3.821/1.729 s; p95 values were
+2.982/4.758/4.224/6.564/10.471/15.825 s. Every stage met the five-second median target
+in this simulation, but the high-load tail remains long. Gate medians were
+0.312/0.311/0.381/0.444/0.471/0.636 s versus historical Qwen A's
+0.175/0.146/0.210/0.552/1.710/2.186 s: improvement is concentrated under load.
+Pooled gate median/p95 fell from 1.016/4.401 s to 0.477/1.301 s; pooled generated
+dialogue median/p95 changed from 2.273/13.445 s to 2.432/12.298 s. This is not a
+uniform dialogue speedup or an accuracy evaluation. B started after worker restarts;
+A had warm classifier caches. The live game server was still updating and was not tested.
+Artifacts: `artifacts/decider-chat-0-1-simulated-b-20261014.json`, adjacent
+`-health-after.json`, and `artifacts/decider-chat-0-1-simulated-ab-20261014.json`.
 
 Recovered two-host Vulkan test (2026-10-14): both Titan classifiers on `192.168.1.188`
 now work, retaining 95% held-out / 100% mixed routing accuracy. All four GPU workers across

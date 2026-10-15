@@ -25,6 +25,20 @@ export function validateStageMusic(value,musicTrack=null){ // Optional quest sta
   out.volume=num(m.volume??100,0,100);return out;
  });
 }
+export function validateAiPersona(v){ // AMBIENT_NPC_LIFE_PLAN.md: Doll's character template (occupation, desires, traits, background) for GM NPCs that talk on their own.
+ if(!v||typeof v!=='object'||Array.isArray(v))fail('The AI persona must be an object.');
+ const words=(rows,max,len)=>list(rows??[],max).map(s=>text(s,len).trim()).filter(Boolean); // Short trimmed lines; blanks dropped.
+ const out={enabled:v.enabled===true,pronouns:text(v.pronouns??'',40).trim(),occupation:text(v.occupation??'',80).trim(), // occupation doubles as the Decider's candidate.role.
+  desires:words(v.desires,6,160),
+  traits:list(v.traits??[],6).map(t=>({name:text(t?.name??'',40).trim(),note:text(t?.note??'',200).trim()})).filter(t=>t.name||t.note),
+  background:text(v.background??'',900).trim(),
+  interests:words(v.interests,4,64), // Up to four topics: the Decider's candidate.interests and conversation starters.
+  relationships:list(v.relationships??[],8).map(r=>({ref:r?.ref?id(r.ref):'',name:text(r?.name??'',64).trim(),note:text(r?.note??'',200).trim()})).filter(r=>r.ref||r.name), // ref: another GM NPC id; blank for system NPCs (Prudence).
+  voice:words(v.voice,5,200),chattiness:num(v.chattiness??50,0,100),talks_to:choose(v.talks_to??'both',['npcs','players','both']),
+  avoid:words(v.avoid,6,120),draft:v.draft===true}; // draft: Lumi wrote the voice lines; a GM should read them.
+ if(out.enabled&&!out.occupation)fail('Give the AI persona an occupation before enabling it.');
+ return out;
+}
 export function validateQuestContent(kind,v,{assetRef,spells,equipment,look,musicTrack=null}){
  const out={id:id(v.id),name:text(v.name??'',100),description:text(v.description??''),retired:!!v.retired};
  if(kind==='npc'){
@@ -36,6 +50,7 @@ export function validateQuestContent(kind,v,{assetRef,spells,equipment,look,musi
   out.story_reactions=list(v.story_reactions??[],32).map(r=>({conditions:validateFlagCondition(r.conditions),page:r.page?id(r.page):'',entry:r.entry?id(r.entry):''}));
   out.story_default=v.story_default?id(v.story_default):out.dialogue[0]?.id??'';if(out.story_default&&!names.has(out.story_default))fail('Choose an existing default greeting.');
   if(out.story_reactions.some(r=>r.page?!names.has(r.page):!r.entry))fail('Choose an existing dialogue page for each story reaction.');
+  if(v.ai_persona!=null)out.ai_persona=validateAiPersona(v.ai_persona); // Optional, so older NPC definitions keep their hashes.
  }else{
   if(v.offer_line!==undefined)out.offer_line=text(v.offer_line);if(v.complete_line!==undefined)out.complete_line=text(v.complete_line); // Preserve authored side-quest offer and outcome dialogue in pinned definitions.
   out.prerequisites=list(v.prerequisites??[],32).map(id);out.conditions=validateConditions(v.conditions);

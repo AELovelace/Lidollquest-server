@@ -159,3 +159,34 @@ when it fits the conversation.
 
 **Wipe all companion memories** removes everything for that character. Every change on this tab is recorded in the
 audit log.
+
+## Give an NPC an AI persona (Ambient Life)
+
+An NPC with an AI persona can start short conversations with other persona NPCs and with players standing nearby. It also answers when someone says its name in area chat.
+
+1. Open the NPC in the NPC editor and go to the **AI persona** step (between Quest links and Review).
+2. Fill in the character template:
+   - **Occupation**: what the Decider sees as their role.
+   - **Desires** and **personality traits**: one per line, written as "Name - note".
+   - **Background**.
+   - Up to four **interests**.
+   - **Relationships**: type another NPC's name to link them.
+   - A few **voice lines**.
+   - **Chattiness**.
+   - **Who they talk to**.
+3. Click **Test line** to hear how they sound, and **Test gate** to see whether they'd join in on a line. Both use the local AI and post nothing in game.
+4. Tick **AI persona enabled**, publish, and place the NPC anywhere with the placement map.
+5. On the Companions tab, set `ambient_enabled` to on in Tuning.
+
+The **Ambient Life** section on the Companions tab shows:
+- live conversations, recent lines and the Decider's choices;
+- an **Export decisions** button (player names are replaced with Player1, Player2, ...).
+
+Good to know:
+- Each NPC says at most `ambient_max_responses` (default 5) lines per conversation. The Decider usually ends things sooner.
+- If the Decider is down, or the server isn't set to `QUEST_PARTICIPATION_BACKEND=decider`, nothing ambient happens.
+- Ambient lines never use the paid AI. If the panel ever shows a COST ALARM, tell the developers.
+- Persona NPCs may comment on what anyone can see about a player (wet clothes, padding, a smell). It costs no Dignity.
+- Shopkeepers have no persona. With `ambient_beckons` on, they call out to passers-by now and then.
+- Example residents: Padma, Wren, Felix and Brittany in Utopia's Arcanum Tower commons. Open them in the NPC editor to see a finished persona.
+

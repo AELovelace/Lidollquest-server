@@ -5,6 +5,8 @@ import {SLIP_DEFAULTS} from './follower-chat.mjs';
 import {MEMORY_DEFAULTS} from './companion-memory.mjs';
 import {ADDRESS_DEFAULTS} from './companion-addressing.mjs';
 import {REACTION_DEFAULTS,IDLE_DEFAULTS} from './companion-reactions.mjs';
+import {AMBIENT_DEFAULTS,AMBIENT_BOUNDS} from './ambient-life.mjs';
+import {validateAiPersona} from './quest-content.mjs';
 
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{status,code:'companion_admin_invalid'});};
 const clean=v=>String(v??'').replace(/[\u0000-\u001f\u007f]+/g,' ').replace(/\s+/g,' ').trim();
@@ -18,14 +20,15 @@ export const COMPANION_SETTING_BOUNDS=Object.freeze({ // [min,max] for numbers; 
  reactions_enabled:['on','off'], reaction_chance:[0,1], reaction_ai_chance:[0,1], reaction_cooldown_s:[10,3600], ai_calls_per_minute:[0,600],
  musings_enabled:['on','off'], musing_after_s:[30,3600], musing_cooldown_min_s:[60,7200], musing_cooldown_max_s:[60,7200], musing_chance:[0,1],
  banter_enabled:['on','off'], banter_chance:[0,1], banter_cooldown_min_s:[60,7200], banter_cooldown_max_s:[60,7200],
+ ...AMBIENT_BOUNDS, // Ambient NPC life (ambient-life.mjs): GM NPC personas and shopkeeper beckons; local AI only.
 });
 const ID_RE=/^[a-z0-9][a-z0-9_-]{0,63}$/,FLAG_RE=/^[a-z][a-z0-9_:.-]{0,63}$/; // Same rules as python/companion_backstory.py.
 
-export function createCompanionAdmin(db,{memory,followers,now=Date.now,pool=()=>[],loreDrafts=process.env.QUEST_COMPANION_LORE_DRAFTS||'live',onLoreChange=()=>{}}={}){
+export function createCompanionAdmin(db,{memory,followers,ambient=()=>null,now=Date.now,pool=()=>[],loreDrafts=process.env.QUEST_COMPANION_LORE_DRAFTS||'live',onLoreChange=()=>{}}={}){
  db.exec(`CREATE TABLE IF NOT EXISTS quest_companion_settings(key TEXT PRIMARY KEY,value TEXT NOT NULL,updated INTEGER NOT NULL,actor TEXT NOT NULL DEFAULT '');
   CREATE TABLE IF NOT EXISTS quest_companion_lore(npc TEXT NOT NULL,id TEXT NOT NULL,heading TEXT NOT NULL DEFAULT '',text TEXT NOT NULL DEFAULT '',reveal_bond INTEGER NOT NULL DEFAULT 0,
    reveal_flag TEXT NOT NULL DEFAULT '',draft INTEGER NOT NULL DEFAULT 0,deleted INTEGER NOT NULL DEFAULT 0,updated INTEGER NOT NULL,actor TEXT NOT NULL DEFAULT '',PRIMARY KEY(npc,id));`);
- const defaults={...SLIP_DEFAULTS,...MEMORY_DEFAULTS,...ADDRESS_DEFAULTS,...REACTION_DEFAULTS,...IDLE_DEFAULTS,situation_enabled:'on',lore_drafts:loreDrafts==='hidden'?'hidden':'live'};
+ const defaults={...SLIP_DEFAULTS,...MEMORY_DEFAULTS,...ADDRESS_DEFAULTS,...REACTION_DEFAULTS,...IDLE_DEFAULTS,...AMBIENT_DEFAULTS,situation_enabled:'on',lore_drafts:loreDrafts==='hidden'?'hidden':'live'};
  let cached=null;
  function settings(){ // Every knob, GM values over the shipped defaults.
   if(cached)return cached;const out={...defaults};
@@ -51,7 +54,7 @@ export function createCompanionAdmin(db,{memory,followers,now=Date.now,pool=()=>
 
  function gmView({character=''}={}){
   const matches=findCharacters(character),chosen=matches.length===1?matches[0]:null;
-  return {settings:settings(),defaults,bounds:COMPANION_SETTING_BOUNDS,nodes:pool(),
+  return {settings:settings(),defaults,bounds:COMPANION_SETTING_BOUNDS,nodes:pool(),ambient:ambient()?.view()??null, // Ambient Life status, transcript and Decider log.
    companions:Object.entries(lore()).map(([npc,v])=>({npc,name:v.name,sections:v.online.backstory,drafts:v.online.backstory.filter(s=>s.draft).length})),
    matches,character:chosen?{...chosen,...memory.view(chosen.id)}:null};
  }
@@ -94,6 +97,13 @@ export function createCompanionAdmin(db,{memory,followers,now=Date.now,pool=()=>
    memory.db.prepare('INSERT INTO bonds(npc,character_id,bond,hour,hour_gain,updated) VALUES (?,?,?,0,0,?) ON CONFLICT(npc,character_id) DO UPDATE SET bond=excluded.bond,updated=excluded.updated').run(npc,id,bond,now());
    return {npc,character_id:id,bond};
   },
+  ambient_export(){const life=ambient();if(!life)fail('Ambient life is not running on this server.',409);const jsonl=life.exportDecisions();return {jsonl,rows:jsonl?jsonl.split(String.fromCharCode(10)).length:0};}, // Scrubbed Decider decisions for training (player names -> Player1..n).
  };
- return {settings,lore,gmView,actions,invalidate(){cached=null;}};
+ async function ambientTest(input){ // GM persona editor preview (POST /gm/ambient-test): validated draft persona, one line or one Decider verdict.
+  const life=ambient();if(!life)fail('Ambient life is not running on this server.',409);
+  const npc=input?.npc;if(!npc||typeof npc!=='object')fail('Send the NPC draft to test.');
+  let persona;try{persona=validateAiPersona(npc.ai_persona??{});}catch(error){fail(error.message);}
+  return life.test({id:clean(npc.id).slice(0,64),name:clean(npc.name).slice(0,32),ai_persona:persona},{mode:input.mode==='gate'?'gate':'line',message:clean(input.message).slice(0,500),speaker:clean(input.speaker).slice(0,64)||'Traveller'});
+ }
+ return {settings,lore,gmView,actions,ambientTest,invalidate(){cached=null;}};
 }

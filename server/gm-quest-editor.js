@@ -1,6 +1,6 @@
 // Both editors share the existing authenticated panel helpers; text is always rendered as textContent.
 const authorEditors={npc:null,quest:null},authorSearch={npc:'',quest:''};
-const authorSteps={npc:['Basics','Artwork','Dialogue','Quest links','Review'],quest:['Basics','Stages and objectives','Placements','Rewards','Review']};
+const authorSteps={npc:['Basics','Artwork','Dialogue','Quest links','AI persona','Review'],quest:['Basics','Stages and objectives','Placements','Rewards','Review']};
 const authorRows=kind=>contentData?.[kind==='npc'?'npcs':'quests']??[];
 function authorChanged(kind){const s=authorEditors[kind];s.dirty=true;sessionStorage.setItem('gm-'+kind+'-draft',JSON.stringify(s));const status=$(kind+'SaveState');if(status)status.textContent='Unsaved changes';}
 function authorInput(parent,label,object,key,kind,type='text'){const input=worldField(parent,label,object[key],type);input.oninput=()=>{object[key]=type==='checkbox'?input.checked:type==='number'?Number(input.value):input.value;authorChanged(kind);};return input;}
@@ -15,11 +15,12 @@ function renderAuthor(kind){const s=authorEditors[kind],d=s.d,host=$(kind+'Edito
  if(kind==='npc'&&s.step===1)npcArtwork(panel,s);
  if(kind==='npc'&&s.step===2)npcDialogue(panel,s);
  if(kind==='npc'&&s.step===3)authorIds(panel,'Offers these published quests',d,'quests',kind,authorRows('quest').filter(r=>r.published&&!r.published.retired).map(r=>({id:r.id,name:r.published.name})));
+ if(kind==='npc'&&s.step===4)npcPersona(panel,s);
  if(kind==='quest'&&s.step===1)questStages(panel,s);
  if(kind==='quest'&&s.step===2){panel.appendChild(el('p',null,'Publish the NPC or quest first, then use Zones to place NPCs, interaction objects, collection tokens and location objectives. Objective target IDs connect placements to stages. Persistent placements survive regenerated terrain.'));for(const stage of d.stages)for(const o of stage.objectives)panel.appendChild(el('p',null,stage.name+': '+o.type+' → '+(o.target||o.zone||'(choose a target)')));worldButton('Open live placement map',()=>{$('tab-world').click();},panel);}
  if(kind==='quest'&&s.step===3)questRewards(panel,s);
- if(s.step===4){panel.appendChild(el('h3',null,'Publication review'));panel.appendChild(el('p',null,d.description));if(kind==='npc'){panel.appendChild(el('p',null,d.look?'Appearance: Sprite Lab look (drawn instead of the walking sprite).':'Appearance: walking sprite.'));monsterArtPreview(panel,d.sprite,true);monsterArtPreview(panel,d.battle_sprite);worldButton('Preview dialogue',()=>previewWorldScene(d.dialogue,0),panel);panel.appendChild(el('p',null,'Quests: '+(d.quests.join(', ')||'None')));}else{for(const stage of d.stages)panel.appendChild(el('p',null,stage.name+': '+stage.objectives.map(o=>o.text||o.type+' '+o.target).join('; ')));panel.appendChild(el('p',null,'Rewards: '+rewardSummary(d.rewards)));worldButton('Preview quest',()=>previewQuest(d),panel);}panel.appendChild(el('p',null,'Publication does not place characters or objectives automatically.'));worldButton('Publish',async()=>{await saveAuthor(kind,true);s.wizard=false;renderAuthor(kind);},panel);}
- const controls=el('div','row');host.appendChild(controls);worldButton('Save draft',async()=>{await saveAuthor(kind);renderAuthor(kind);},controls);if(s.step>0)worldButton('Back',()=>{s.step--;renderAuthor(kind);},controls);if(s.step<4)worldButton(s.wizard?'Save and continue':'Next',async()=>{if(s.wizard)await saveAuthor(kind);s.step++;renderAuthor(kind);},controls);
+ if(s.step===authorSteps[kind].length-1){panel.appendChild(el('h3',null,'Publication review'));panel.appendChild(el('p',null,d.description));if(kind==='npc'){panel.appendChild(el('p',null,d.look?'Appearance: Sprite Lab look (drawn instead of the walking sprite).':'Appearance: walking sprite.'));monsterArtPreview(panel,d.sprite,true);monsterArtPreview(panel,d.battle_sprite);worldButton('Preview dialogue',()=>previewWorldScene(d.dialogue,0),panel);panel.appendChild(el('p',null,'Quests: '+(d.quests.join(', ')||'None')));}else{for(const stage of d.stages)panel.appendChild(el('p',null,stage.name+': '+stage.objectives.map(o=>o.text||o.type+' '+o.target).join('; ')));panel.appendChild(el('p',null,'Rewards: '+rewardSummary(d.rewards)));worldButton('Preview quest',()=>previewQuest(d),panel);}panel.appendChild(el('p',null,'Publication does not place characters or objectives automatically.'));worldButton('Publish',async()=>{await saveAuthor(kind,true);s.wizard=false;renderAuthor(kind);},panel);}
+ const controls=el('div','row');host.appendChild(controls);worldButton('Save draft',async()=>{await saveAuthor(kind);renderAuthor(kind);},controls);if(s.step>0)worldButton('Back',()=>{s.step--;renderAuthor(kind);},controls);if(s.step<authorSteps[kind].length-1)worldButton(s.wizard?'Save and continue':'Next',async()=>{if(s.wizard)await saveAuthor(kind);s.step++;renderAuthor(kind);},controls);
  worldButton('Duplicate',()=>{const copy=structuredClone(d);copy.id=kind+'_'+Date.now();copy.name+=' copy';if(s.dirty&&!confirm('Duplicate these unsaved edits?'))return;s.dirty=false;editAuthor(kind,{revision:0,draft:copy,history:[]});},controls);worldButton(d.retired?'Restore':'Retire',()=>{d.retired=!d.retired;authorChanged(kind);renderAuthor(kind);},controls);
  const history=worldSelect(controls,'Published history',(s.row.history??[]).map(h=>({id:String(h.revision),name:'Revision '+h.revision})),s.row.history?.[0]?.revision);worldButton('Roll back and publish',async()=>{if(!history.value)throw Error('There is no published revision.');if(!confirm('Publish this earlier revision?'))return;const saved=await worldAction('content_rollback',{kind,id:d.id,revision:s.row.revision,target_revision:Number(history.value)});s.dirty=false;editAuthor(kind,saved);},controls);
  worldButton('Reload server draft',async()=>{if(s.dirty&&!confirm('Discard these unsaved changes?'))return;await loadWorld();s.dirty=false;editAuthor(kind,authorRows(kind).find(r=>r.id===d.id)??s.row);},controls);
@@ -37,6 +38,42 @@ async function openAuthorBlocks(kind){
 function questRewards(panel,s){const r=s.d.rewards;for(const key of ['xp','coins','rpp'])authorInput(panel,key.toUpperCase(),r,key,'quest','number');panel.appendChild(el('p',null,'Coins use the existing account-wide cap. Excess is reported at claim time and is not deferred.'));for(const [i,item] of r.items.entries()){const row=el('div','row');panel.appendChild(row);authorSelect(row,'Item',item,'id','quest',contentData.equipment);authorInput(row,'Quantity',item,'count','quest','number');worldButton('Remove item',()=>{r.items.splice(i,1);authorChanged('quest');renderAuthor('quest');},row);}worldButton('Add item reward',()=>{r.items.push({id:contentData.equipment[0]?.id,count:1});authorChanged('quest');renderAuthor('quest');},panel);authorIds(panel,'Spell unlocks',r,'spells','quest',contentData.spells.map(id=>({id})));for(const stat of contentData.questCatalog.questStats)authorInput(panel,'Permanent '+stat+' change',r.stats,stat,'quest','number');authorIds(panel,'Forced equipment / existing cursed items',r,'equipment','quest',contentData.equipment);}
 function rewardSummary(r){return `${r.xp} XP, ${r.coins} coins, ${r.rpp} RPP; items: ${r.items.map(i=>i.count+' × '+i.id).join(', ')||'none'}; spells: ${r.spells.join(', ')||'none'}; stats: ${Object.entries(r.stats).map(([k,v])=>k+' '+v).join(', ')||'none'}; equipment: ${r.equipment.join(', ')||'none'}`;}
 function previewQuest(d){const dialog=el('dialog','scene-preview');document.body.appendChild(dialog);let key=d.stages[0]?.id,history=[];function show(){clear(dialog);dialog.appendChild(el('h3',null,d.name+' — preview only'));const stage=d.stages.find(s=>s.id===key);if(stage){dialog.appendChild(el('p',null,stage.text));for(const o of stage.objectives)dialog.appendChild(el('p',null,(o.text||o.type+' '+o.target)+' · '+o.count+' · '+o.sharing));for(const b of stage.branches.length?stage.branches:[{label:'Simulate stage completion',to:stage.next}])worldButton(b.label,()=>{history.push(key);key=b.to;show();},dialog);}else dialog.appendChild(el('p',null,key==='complete'?'Quest complete. '+rewardSummary(d.rewards):key==='failed'?d.failure_text:'Missing or empty stage.'));if(history.length)worldButton('Back',()=>{key=history.pop();show();},dialog);worldButton('Restart',()=>{key=d.stages[0]?.id;history=[];show();},dialog);worldButton('Close',()=>{dialog.close();dialog.remove();},dialog);}show();dialog.showModal();}
+/* AI persona (AMBIENT_NPC_LIFE_PLAN.md): Doll's character template. With it enabled, the NPC strikes up conversations
+   with nearby persona NPCs and players and answers when spoken to (Decider Chat picks who speaks; lines are local AI only). */
+const PERSONA_LINE=String.fromCharCode(10);
+function personaList(panel,label,p,key,max,kind){
+ const input=worldField(panel,label+' (one per line, up to '+max+')',(p[key]??[]).join(PERSONA_LINE),'textarea');
+ input.oninput=()=>{p[key]=input.value.split(PERSONA_LINE).map(v=>v.trim()).filter(Boolean).slice(0,max);authorChanged(kind);};
+ return input;
+}
+function personaPairs(panel,label,p,key,max,kind,toRow,fromRow){
+ const input=worldField(panel,label+' (one per line as "Name - note", up to '+max+')',(p[key]??[]).map(fromRow).join(PERSONA_LINE),'textarea');
+ input.oninput=()=>{p[key]=input.value.split(PERSONA_LINE).map(v=>v.trim()).filter(Boolean).slice(0,max).map(line=>{const cut=line.indexOf(' - ');return toRow(cut<0?line:line.slice(0,cut).trim(),cut<0?'':line.slice(cut+3).trim());});authorChanged(kind);};
+ return input;
+}
+function npcPersona(panel,s){
+ const d=s.d,kind='npc';d.ai_persona??={enabled:false,pronouns:'',occupation:'',desires:[],traits:[],background:'',interests:[],relationships:[],voice:[],chattiness:50,talks_to:'both',avoid:[],draft:false};const p=d.ai_persona;
+ panel.appendChild(el('p',null,'An AI persona lets this NPC start short conversations with nearby persona NPCs and players, and answer when spoken to. The Ambient Life switch on the Companions tab must also be on. Lines always come from the local AI, never the paid one.'));
+ authorInput(panel,'AI persona enabled',p,'enabled',kind,'checkbox');
+ authorInput(panel,'Pronouns (she/her, he/him, they/them)',p,'pronouns',kind);
+ authorInput(panel,'Occupation (also the role the Decider sees)',p,'occupation',kind);
+ personaList(panel,'Desires',p,'desires',6,kind);
+ personaPairs(panel,'Personality traits',p,'traits',6,kind,(name,note)=>({name,note}),t=>t.name+(t.note?' - '+t.note:''));
+ authorInput(panel,'Background',p,'background',kind,'textarea');
+ personaList(panel,'Interests the Decider weighs (short topics)',p,'interests',4,kind);
+ const npcs=authorRows('npc').filter(r=>r.id!==d.id);
+ personaPairs(panel,'Relationships (an NPC name or id links to that NPC)',p,'relationships',8,kind,(name,note)=>{const hit=npcs.find(r=>r.id===name||(r.published??r.draft)?.name===name);return {ref:hit?.id??'',name:hit?((hit.published??hit.draft).name):name,note};},r=>r.name+(r.note?' - '+r.note:''));
+ personaList(panel,'Voice lines (examples of how they talk)',p,'voice',5,kind);
+ authorInput(panel,'Voice lines are drafts (a GM should read them)',p,'draft',kind,'checkbox');
+ authorInput(panel,'Chattiness 0-100',p,'chattiness',kind,'number');
+ const talks=worldSelect(panel,'Talks to',[{id:'both',name:'Other NPCs and players'},{id:'npcs',name:'Other NPCs only'},{id:'players',name:'Players only'}],p.talks_to??'both');talks.onchange=()=>{p.talks_to=talks.value;authorChanged(kind);};
+ personaList(panel,'Never brings up',p,'avoid',6,kind);
+ const test=el('fieldset');test.appendChild(el('legend',null,'Try the persona (uses the local AI; nothing is posted in game)'));panel.appendChild(test);
+ const speaker=worldField(test,'Speaker name','Traveller'),message=worldField(test,'Something said to them (blank: they start talking)',''),out=el('p','note','');test.appendChild(out);
+ const run=async mode=>{out.textContent='Asking the AI...';const r=await api('/gm/ambient-test',{method:'POST',body:{npc:d,mode,message:message.value,speaker:speaker.value}});const x=r.result;
+  out.textContent=!x.ok?'The AI did not answer ('+x.status+(x.error?': '+x.error:'')+').':mode==='gate'?x.decision.toUpperCase()+' (join probability '+Number(x.join_probability).toFixed(2)+', role "'+x.candidate.role+'")':d.name+': '+x.text+(x.lane==='cloud'?' [COST ALARM: paid AI]':'');};
+ worldButton('Test line',()=>run('line'),test);worldButton('Test gate (would they join in?)',()=>run('gate'),test);
+}
 function npcDialogue(panel,s){
  panel.appendChild(el('p',null,'Edit dialogue pages, player choices and greeting reactions as connected blocks.'));
  worldButton('Edit NPC blocks',()=>openAuthorBlocks('npc'),panel);

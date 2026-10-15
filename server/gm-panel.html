@@ -585,6 +585,16 @@ tr.sel td{background:#2c1e3d}
     <div class="row"><button class="go" id="compSettingsSave">Save tuning</button><button id="compLoad">Refresh</button></div>
   </section>
   <section class="wide">
+    <h2>Ambient Life</h2>
+    <p class="note">GM NPCs with an AI persona (NPC editor, AI persona step) strike up short conversations with each other and with passing players, and answer when spoken to; shopkeepers can call out to passers-by. Decider Chat picks who speaks and when a conversation ends. Lines always use the local AI and never the paid one; if the Decider is down, nothing ambient happens. Switch it on with ambient_enabled (and ambient_beckons for shopkeepers) in Tuning above.</p>
+    <p id="ambientStatus" role="status"></p>
+    <h3>Live conversations and recent lines</h3>
+    <div id="ambientTranscript" class="log"></div>
+    <h3>Recent Decider decisions</h3>
+    <div id="ambientDecisions" class="log"></div>
+    <div class="row"><button id="ambientExport">Export decisions for training (player names scrubbed)</button></div>
+  </section>
+  <section class="wide">
     <h2>Backstories</h2>
     <p class="note">Every player's chats can draw on these sections. A section with a reveal bond stays hidden until that player's bond with the companion reaches it. A reveal flag also requires that story flag. Drafts are used in replies unless lore_drafts is set to hidden in Tuning. Read each draft, edit it if needed, then click Sign off. Edits reach the AI servers with the next reply.</p>
     <div class="row"><label for="compNpc">Companion</label><select id="compNpc"></select></div>
@@ -1152,7 +1162,7 @@ tr.sel td{background:#2c1e3d}
   var epoch=++compEpoch,session=perfEpoch,q=$("compFind").value.trim();
   return api("/gm/companions"+(q?"?character="+encodeURIComponent(q):"")).then(function(data){
    if(epoch!==compEpoch||session!==perfEpoch||!token)return;
-   compData=data;renderCompNodes();renderCompSettings();renderCompNpcs();renderCompLore();renderCompCharacter(q);
+   compData=data;renderCompNodes();renderCompSettings();renderCompNpcs();renderCompLore();renderCompCharacter(q);renderAmbient();
   }).catch(function(error){say("err",error.message);});
  }
  function renderCompNodes(){
@@ -1170,6 +1180,26 @@ tr.sel td{background:#2c1e3d}
    input.id="compSet_"+key;input.dataset.key=key;row.appendChild(input);row.appendChild(el("span","note",COMP_HELP[key]||""));box.appendChild(row);
   });
  }
+ var AMBIENT_HELP={ambient_enabled:"Master switch for Ambient Life: GM NPCs with an AI persona talk on their own. Needs QUEST_PARTICIPATION_BACKEND=decider on this server.",ambient_chance:"Strike-up chance per check (scaled by the NPC's chattiness: 50 = this value, 100 = double).",ambient_check_s:"Seconds between one NPC's strike-up checks.",ambient_chime_chance:"Chance per conversation that a third persona NPC in earshot is considered for joining in (once).",ambient_talk_range:"Tiles: how close two NPCs, or an NPC and a player, must stand to start talking.",ambient_cooldown_min_s:"Shortest rest (seconds) before an NPC starts another conversation.",ambient_cooldown_max_s:"Longest rest (seconds) before an NPC starts another conversation.",ambient_max_responses:"Lines each NPC may say in one conversation.",ambient_gate_fanout:"How many of the closest NPCs the Decider scores for one line (each costs one gate call).",ambient_calls_per_minute:"Ambient lines per minute, server-wide (separate from the companions' budget).",ambient_gate_calls_per_minute:"Decider calls per minute for ambient life, server-wide.",ambient_line_gap_s:"Seconds between lines in an NPC conversation, so players can read them.",ambient_idle_s:"Seconds a quiet conversation stays open for a player to answer.",ambient_beckons:"Shopkeepers call out to players walking past their shop.",ambient_beckon_chance:"Chance per check that a shopkeeper calls out to a passer-by.",ambient_beckon_range:"Tiles from the shop within which a passer-by can be called.",ambient_beckon_cooldown_s:"Seconds before the same shopkeeper calls the same player again."};
+ for(var ambientKey in AMBIENT_HELP)COMP_HELP[ambientKey]=AMBIENT_HELP[ambientKey];
+ function renderAmbient(){
+  var a=compData.ambient,status=$("ambientStatus"),tbox=$("ambientTranscript"),dbox=$("ambientDecisions");clear(tbox);clear(dbox);
+  if(!a){status.textContent="Ambient Life is not running on this server.";return;}
+  var gate=a.backend!=="decider"?"Decider not selected (QUEST_PARTICIPATION_BACKEND="+a.backend+"): nothing ambient happens":a.gate_down_for_ms>0?"Decider DOWN, paused for "+Math.ceil(a.gate_down_for_ms/1000)+" s":"Decider healthy";
+  status.textContent=(a.enabled?"On":"Off")+" · "+gate+" · budget "+a.budgets.lines+" lines / "+a.budgets.gates+" gate calls left this minute · "+a.stats.lines+" lines said, "+a.stats.busy+" skipped (local AI busy), "+a.stats.join+" JOIN / "+a.stats.quiet+" QUIET"+(a.cost_alarms?" · COST ALARM: "+a.cost_alarms+" ambient lines came back from the paid AI and were dropped":"");
+  a.conversations.forEach(function(c){tbox.appendChild(el("p",null,(c.running?"Talking":"Quiet")+" in "+c.area+": "+c.speakers.join(", ")+" · "+c.lines+" lines · "+c.players+" players · "+c.age_s+" s ago"));});
+  a.transcript.forEach(function(t){var p=el("p");p.appendChild(el("strong",null,when(t.at)+" · "+t.area+" · "+t.speaker+": "));p.appendChild(document.createTextNode(t.text));tbox.appendChild(p);});
+  if(!a.transcript.length)tbox.appendChild(el("p","note","No ambient lines yet."));
+  a.decisions.forEach(function(d){dbox.appendChild(el("p",null,when(d.at)+" · "+d.candidate+" ("+d.role+") on "+d.speaker+": \""+d.message+"\" → "+String(d.decision).toUpperCase()+" "+Number(d.join_probability).toFixed(2)+" · "+d.ms+" ms"));});
+  if(!a.decisions.length)dbox.appendChild(el("p","note","No Decider calls yet."));
+ }
+ $("ambientExport").addEventListener("click",function(){
+  api("/gm/action",{method:"POST",body:{action:"ambient_export"}}).then(function(response){
+   var r=response.result;if(!r.rows){say("ok","No decisions to export yet.");return;}
+   var link=el("a");link.href=URL.createObjectURL(new Blob([r.jsonl+"\n"],{type:"application/x-ndjson"}));link.download="ambient-decisions-"+new Date().toISOString().slice(0,10)+".jsonl";document.body.appendChild(link);link.click();link.remove();
+   say("ok","Exported "+r.rows+" decisions with player names scrubbed.");
+  }).catch(function(error){say("err",error.message);});
+ });
  function renderCompNpcs(){
   var sel=$("compNpc"),keep=sel.value;clear(sel);
   (compData.companions||[]).forEach(function(c){var o=el("option",null,c.name+(c.drafts?" ("+c.drafts+" drafts)":""));o.value=c.npc;sel.appendChild(o);});

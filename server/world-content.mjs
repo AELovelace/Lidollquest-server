@@ -9,6 +9,7 @@ import {createHash} from 'node:crypto';
 import {defaultScenes,compiledArtwork,defaultSceneRefs,registerDefaultScenes,pinDefeat} from './defeat-scenes.mjs';
 import {AFTERMATH_EFFECTS} from './defeat-aftermath.mjs';
 import {smokeConfig,SMOKE_FIELDS} from './pink-smoke.mjs'; // Drifting Pink Smoke: per-zone live tuning on the GM Zones tab.
+import {SHIPPED_RESIDENT_IDS} from './utopia-npcs.mjs';
 const clone=structuredClone;
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{status,code:'world_content_invalid'});};
 const id=value=>typeof value==='string'&&/^[a-z][a-z0-9_-]{1,79}$/.test(value)&&!['__proto__','constructor','prototype'].includes(value);
@@ -63,11 +64,11 @@ export function createWorldContent(db,{now=Date.now,spells={},equipment={},defea
   if(cache)return cache;const monsters=Object.fromEntries([...baselines.monster].map(([k,v])=>[k,clone(v)])),zones=Object.fromEntries([...baselines.zone].map(([k,v])=>[k,clone(v)]));let revision=0;const npcs={},orbs={},sheets=Object.fromEntries([...storySheets.sources].map(([k,v])=>[k,clone(v)])),quests=Object.fromEntries([...baselines.quest].map(([k,v])=>[k,clone(v)])); // A shipped quest pack is live on boot; a saved row still overlays it, so the panel can edit or retire any one of them.
   for(const row of rows()){if(row.published)({monster:monsters,zone:zones,npc:npcs,quest:quests,orb:orbs,sheet:sheets}[row.kind])[row.id]=JSON.parse(row.published);}
   for(const key of Object.keys(monsters))monsters[key]=effective(monsters[key]);
-  revision=db.prepare('SELECT COALESCE(SUM(revision),0) n FROM (SELECT MAX(revision) revision FROM world_content_history GROUP BY kind,id)').get().n;return cache={monsters,zones,npcs,quests,orbs,sheets,revision,enabled:rows().some(r=>r.published)};
+  revision=db.prepare('SELECT COALESCE(SUM(revision),0) n FROM (SELECT MAX(revision) revision FROM world_content_history GROUP BY kind,id)').get().n;return cache={monsters,zones,npcs,quests,orbs,sheets,revision,enabled:rows().some(r=>r.published&&!(r.kind==='npc'&&SHIPPED_RESIDENT_IDS.has(r.id)))}; // The shipped Utopia residents alone don't make this a GM-published world (client gates, monster revival rules).
  }
  function authorship(kind,key){
   if(!['sheet','quest','npc','orb'].includes(kind))return null;
-  const builtin=baselines[kind]?.has(key)||(kind==='quest'&&questLibrary.has(key))||db.prepare("SELECT actor FROM world_content_history WHERE kind=? AND id=? ORDER BY revision LIMIT 1").get(kind,key)?.actor==='shipped-caverns';
+  const builtin=baselines[kind]?.has(key)||(kind==='quest'&&questLibrary.has(key))||db.prepare("SELECT actor FROM world_content_history WHERE kind=? AND id=? ORDER BY revision LIMIT 1").get(kind,key)?.actor?.startsWith('shipped-');
   if(!builtin)return null;
   const row=db.prepare('SELECT * FROM world_content_authorship WHERE kind=? AND id=?').get(kind,key);
   return {builtin:true,needs_reauthoring:!row?.complete,revision:row?.revision??0,actor:row?.actor??null,updated:row?.updated??null};

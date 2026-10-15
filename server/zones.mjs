@@ -18,6 +18,8 @@ import {createFlowAdapters} from './flow-adapters.mjs';
 import {envFlag} from './env-flag.mjs';
 import {createFollowers} from './followers.mjs';
 import {createFollowerChat} from './follower-chat.mjs';
+import {createAmbientLife} from './ambient-life.mjs';
+import {SHIPPED_RESIDENT_IDS} from './utopia-npcs.mjs';
 import {tickFaith,combatFaith,prayText,breakFree,dedicate,GODS as GODS_BY_ID} from './faith.mjs'; // The gods: piety ticks on each commit; the blessing rides on the loadout.
 import {removeCursedGear} from './curse-removal.mjs'; // Orin's faith_break_free reuses the Cursebreaker's removal rules.
 import {inArcadia,arcadiaLook,littleTax,taxedPrice} from './arcadia-rules.mjs'; // Arcadia's little tax on displayed shop prices.
@@ -48,7 +50,7 @@ const CHAT_REACH_DEFAULT={x:Math.max(1,Number(process.env.CHAT_REACH_X)||15),y:M
 const HEARTBEAT_WRITE_INTERVAL=5000; // A heartbeat rewrites quest_presence.seen only when the stored value is at least this old (freshness window is 30 s).
 const CHAT_ECHO_WINDOW=4000; // A repeat of the same line by the same character inside this window is a lag double-send, not new speech.
 const FACING={south:0,north:1,east:2,west:3}; /* Shared with the client's objPlayer.facing encoding (0 S, 1 N, 2 E, 3 W). */
-import {roomExit,hubDoors,currentHubDoors,besideFixture,hubArrival,hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog,campaignDives,dailyCoinCap,configureShopLoot,shopperLevel,shopRoller,routeHome} from './hubs.mjs';
+import {roomExit,hubDoors,currentHubDoors,besideFixture,hubArrival,hubRooms,hubPortals,hubBlocked,hubDefinition,nearbyFixture,hubData,createHubPurchases,hubGaps,inHubGap,hubCatalog,findShop,campaignDives,dailyCoinCap,configureShopLoot,shopperLevel,shopRoller,routeHome} from './hubs.mjs';
 import {stackTokens,removeUnit,stackable,slotsUsed,addToInventory} from './loadout.mjs';
 import {createDive,DIVE_ZONE,diveData} from './dive.mjs';
 import {createEnchantmentStore} from './enchantment-store.mjs';
@@ -147,7 +149,7 @@ function canonical(value,depth=0){ // Nested loadout property order may change w
  return value;
 }
 
-export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},highDesertOptions={},hauntedWoodsOptions={},spookyMansionOptions={},musicOptions={},autumnalPlainsOptions={},farmsteadOptions={},coastOptions={},cavernsOptions={},calderaOptions={},spaOptions={},gulchOptions={},onPresence=()=>{},compute=null,live=null,audit=()=>{},chatReach=CHAT_REACH_DEFAULT,followerOptions={},followerChatOptions={},flowTesting=false,readOnly=false,zoneCapacity=DEFAULT_ZONE_CAPACITY}={}) {
+export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled=()=>true,muted=()=>false,now=Date.now,roll=randomInt,measure=(_name,work)=>work(),diveOptions={},desertOptions={},tundraOptions={},taigaOptions={},highDesertOptions={},hauntedWoodsOptions={},spookyMansionOptions={},musicOptions={},autumnalPlainsOptions={},farmsteadOptions={},coastOptions={},cavernsOptions={},calderaOptions={},spaOptions={},gulchOptions={},onPresence=()=>{},compute=null,live=null,audit=()=>{},chatReach=CHAT_REACH_DEFAULT,followerOptions={},followerChatOptions={},ambientOptions={},flowTesting=false,readOnly=false,zoneCapacity=DEFAULT_ZONE_CAPACITY}={}) {
  zoneCapacity=parseZoneCapacity(zoneCapacity); // Admission and peer snapshots share the validated configured capacity.
  cacheStatements(db); // Reuse compiled SQL for every inline db.prepare (statement-cache.mjs); a no-op when service.mjs already installed it.
  const reachX=Math.max(1,Number(chatReach?.x)||CHAT_REACH_DEFAULT.x),reachY=Math.max(1,Number(chatReach?.y)||CHAT_REACH_DEFAULT.y); // Half-width and half-height of the hearing rectangle, in tiles.
@@ -277,6 +279,35 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
  }
  if(live){live.mapReady=(zone,edition,floor,options)=>quests.placements.realize(zone,edition,floor,options);live.questEvent=quests.event;live.placementPositions=quests.placements.positions;}
  const isDungeon=id=>engines.has(id);
+ // Ambient NPC life (ambient-life.mjs, AMBIENT_NPC_LIFE_PLAN.md): GM NPCs with an ai_persona talk on their own; shopkeepers beckon.
+ const hubIds=new Set([...hubCatalog,...hubRooms].map(z=>z.id));let ambientZoneCache={at:-Infinity,zones:new Set()};
+ function ambientZones(){ // Zones holding a persona NPC (GM placements and authored room placements); rebuilt every 30 s.
+  const t=now();if(t-ambientZoneCache.at<30000)return ambientZoneCache.zones;
+  const defs=live?.published().npcs??{},persona=id=>!!defs[id]?.ai_persona?.enabled&&!defs[id]?.retired,out=new Set();
+  if(quests)for(const r of db.prepare('SELECT zone,body FROM world_placements').all()){try{const b=JSON.parse(r.body);if(b.kind==='npc'&&persona(b.content))out.add(r.zone);}catch{}}
+  for(const z of [...hubCatalog,...hubRooms])if((z.authoredPlacements??[]).some(p=>p.kind==='npc'&&persona(p.content)))out.add(z.id);
+  for(const [id,route] of engines)if((route.floor?.()?.authoredPlacements??[]).some(p=>p.kind==='npc'&&persona(p.content)))out.add(id);
+  ambientZoneCache={at:t,zones:out};return out;
+ }
+ function ambientScenes(only=null,{beckons=false}={}){ // Who is where, for the zones ambient life cares about that have players in them.
+  if(!quests)return [];
+  const zonesWithNpcs=ambientZones(),byZone=new Map();
+  for(const r of db.prepare('SELECT p.character_id AS id,p.owner,p.zone,p.x,p.y,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.seen>?').all(now()-30000)){
+   if((only&&!only.includes(r.zone))||!enabled(r.owner))continue;if(!byZone.has(r.zone))byZone.set(r.zone,[]);byZone.get(r.zone).push(r);
+  }
+  const out=[];
+  for(const [zid,rows] of byZone){
+   const npcHere=zonesWithNpcs.has(zid),shopHere=beckons&&hubIds.has(zid);if(!npcHere&&!shopHere)continue; // Most zones: nothing to do.
+   let npcs=[],shops=[];
+   if(npcHere)try{npcs=(quests.placements.view(zid).placements??[]).filter(p=>p.kind==='npc').map(p=>({ref:p.id,content:p.content,x:p.x,y:p.y}));}catch{} // Realized tiles, walking NPCs included.
+   if(shopHere)shops=(zone(zid).fixtures??[]).filter(f=>f.kind==='shop'&&f.name).map(f=>({ref:f.id,name:f.name,x:f.x,y:f.y,wares:(findShop(f.id)?.pool??[]).map(id=>hubData.equipment[id]?.name??String(id).replaceAll('_',' ')).slice(0,6)}));
+   if(!npcs.length&&!shops.length)continue;
+   out.push({zone:zid,npcs,shops,players:rows.map(r=>{let state={};try{state=JSON.parse(r.state??'{}');}catch{}return {id:r.id,owner:r.owner,name:r.name,x:r.x,y:r.y,area:rpArea(r,r),state};})});
+  }
+  return out;
+ }
+ const ambientLife=createAmbientLife(db,{now,pool:()=>followerChat.pool?.configured?followerChat.pool:null,npcs:()=>live?.published().npcs??{},scenes:ambientScenes,stamp:()=>stampHearers(),
+  hold:(id,until)=>quests?.placements.hold?.(id,until),onScreen,...ambientOptions}); // Lines are written only from the main process's tick and AI callbacks.
  function changingRoomAt(p){ // Sable's changing rooms: any Inn, bedroom or temple, or beside a toilet, outhouse, changer, hut or stall (hub fixtures and wilderness decorations alike).
   if(!p)return false;
   const near=f=>{const dx=p.x<f.x?f.x-p.x:Math.max(0,p.x-(f.x+(f.span_w??1)-1)),dy=p.y<f.y?f.y-p.y:Math.max(0,p.y-(f.y+(f.span_h??1)-1));return dx+dy<=1;}; // Beside any tile of the footprint.
@@ -386,6 +417,7 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
   if(db.prepare('SELECT COUNT(*) AS n FROM quest_chat WHERE owner=? AND created>?').get(i.owner,now()-10000).n>=5)fail(429,'Wait a moment before sending another message.'); // One account quota spans every channel and zone.
   const row=db.prepare('INSERT INTO quest_chat(zone,owner,character_id,name,text,created,emote,x,y) VALUES (?,?,?,?,?,?,?,?,?)').run(area,i.owner,c.id,c.name,text,now(),emote,tile?.x??null,tile?.y??null);
   if(follower)followerChat.enqueue(c,text,row.lastInsertRowid,area,{emote:!!emote}); // Any area speaker may address a nearby companion, hired or waiting at home; emotes ("/me hugs Elowen") get a reaction.
+  if(follower&&tile)ambientLife.hear(c,text,{area,zone:db.prepare('SELECT zone FROM quest_presence WHERE character_id=?').get(c.id)?.zone,x:tile.x,y:tile.y,emote:!!emote,companion:()=>!!db.prepare('SELECT 1 FROM quest_follower_chat_jobs WHERE seq=? LIMIT 1').get(row.lastInsertRowid)}); // Nearby persona NPCs may answer; queued only, never an AI call inside this transaction.
   db.prepare('DELETE FROM quest_chat WHERE zone=? AND seq NOT IN (SELECT seq FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 100)').run(area,area);
   return row.lastInsertRowid;
  }
@@ -407,7 +439,7 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
   const peers=p?measure('snapshot.peers',()=>db.prepare(peerViews?'SELECT p.character_id,p.owner,p.x,p.y,p.facing,p.trail,c.name,c.revision FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT ?':'SELECT p.character_id,p.owner,p.x,p.y,p.facing,p.trail,c.name,c.revision,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>? ORDER BY p.character_id LIMIT ?').all(p.zone,now()-30000,zoneCapacity).filter(r=>enabled(r.owner)).map(r=>{const v=peerView(r);peerEditions.set(r.character_id,v.edition);peerRows.push({id:r.character_id,owner:r.owner,name:r.name,x:r.x,y:r.y}); /* peerRows: the same enabled, recently seen players, reused for hub RP candidates below. */if(v.lookKey)looks[v.lookKey]=v.look;return {id:r.character_id,name:r.name,tag:guildTags.get(r.character_id)??'',gm:staffOwners.has(r.owner),...(supporterActive(r.owner)?{supporter:true}:{}),restricted:restricted.includes(r.owner),avatar:v.avatar,...(v.lookKey?{lookKey:v.lookKey}:{}),x:r.x,y:r.y,facing:r.facing??0,...trailView(r,p.zone,now()),stage:v.stage,fighting:v.fighting,smell:v.smell};})):[]; /* snapshot.peers grows with the crowd. Zone workers leave the saves out of the query and reuse each peer's parsed view until its revision changes (peerView); the coordinator still parses every save. facing lets idle avatars show the direction chosen with Ctrl+arrow. */
   const chatArea=isDungeon(p?.zone)?dive.chatArea(c,p):p?{id:p.zone,name:zone(p.zone).name}:null;
   const audible=row=>row.x===null||row.owner===i.owner||row.owner==='activity:'+i.owner||row.heard===1; // Area speech shows only to characters who were on the speaker's screen when it was said; announcements (no tile) and your own lines always show.
-  const chatRows=(area,channel)=>measure('snapshot.chat',()=>db.prepare('SELECT seq,name,text,emote,x,y,character_id AS characterId,owner,owner LIKE \'activity:%\' AS activity,(SELECT id FROM quest_rp_posts WHERE chat_seq=seq) AS rpId,EXISTS(SELECT 1 FROM quest_chat_heard h WHERE h.seq=quest_chat.seq AND h.character_id=?) AS heard FROM quest_chat WHERE zone=? AND created>? ORDER BY seq DESC LIMIT 100').all(c.id,area,now()-86400000).filter(row=>!restricted.includes(row.owner.replace(/^activity:/,''))&&(channel!=='area'||audible(row))).slice(0,40).reverse().map(({owner,emote,x,y,heard,...row})=>({...row,npc:String(row.characterId??'').startsWith('follower:'),emote:emote===1,channel}))); // snapshot.chat: one row per stream read (area, global, party, guild). RP links come from committed posts, never from player text; emote is a server-set flag; speaker tiles never leave the server.
+  const chatRows=(area,channel)=>measure('snapshot.chat',()=>db.prepare('SELECT seq,name,text,emote,x,y,character_id AS characterId,owner,owner LIKE \'activity:%\' AS activity,(SELECT id FROM quest_rp_posts WHERE chat_seq=seq) AS rpId,EXISTS(SELECT 1 FROM quest_chat_heard h WHERE h.seq=quest_chat.seq AND h.character_id=?) AS heard FROM quest_chat WHERE zone=? AND created>? ORDER BY seq DESC LIMIT 100').all(c.id,area,now()-86400000).filter(row=>!restricted.includes(row.owner.replace(/^activity:/,''))&&(channel!=='area'||audible(row))).slice(0,40).reverse().map(({owner,emote,x,y,heard,...row})=>({...row,npc:/^(follower|npc):/.test(String(row.characterId??'')),emote:emote===1,channel}))); // snapshot.chat: one row per stream read (area, global, party, guild). RP links come from committed posts, never from player text; emote is a server-set flag; speaker tiles never leave the server.
   const chat=chatArea?chatRows(chatArea.id,'area'):[],globalChat=p?chatRows('global:ooc','global'):[]; // The reserved global stream is independent of hub, dungeon room and weekly edition.
   const partyView=parties.snapshot(c,restricted);for(const m of partyView.party?.members??[])if(m.look){m.lookKey=addLook(m.look);delete m.look;} // Party cards reference looks the same way.
   const partyChat=p&&partyView.party?chatRows('party:'+partyView.party.id,'party'):[]; /* Party chat exists only while the character is in a party; leaving it drops the stream from snapshots. */
@@ -480,7 +512,7 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
   const mark=db.prepare('INSERT OR IGNORE INTO quest_chat_heard(seq,character_id) VALUES (?,?)');
   for(const row of rows){
    if(row.x===null)continue; // Announcements, global and party lines have no tile and reach everyone in their stream.
-   const speaker=companion&&row.character_id==='follower:'+companion.npc?companion:String(row.character_id).startsWith('follower:')?db.prepare("SELECT zone FROM quest_follower_hires WHERE npc=? AND status='active'").get(row.character_id.slice(9)):db.prepare('SELECT zone FROM quest_presence WHERE character_id=?').get(row.character_id);if(!speaker)continue; // Never broadcast an idle companion's tiled reply to another zone or edition.
+   const speaker=companion&&row.character_id==='follower:'+companion.npc?companion:String(row.character_id).startsWith('follower:')?db.prepare("SELECT zone FROM quest_follower_hires WHERE npc=? AND status='active'").get(row.character_id.slice(9)):String(row.character_id).startsWith('npc:')?{zone:String(row.character_id).split(':')[1]}:db.prepare('SELECT zone FROM quest_presence WHERE character_id=?').get(row.character_id);if(!speaker)continue; // Never broadcast an idle companion's tiled reply to another zone or edition.
    for(const other of db.prepare('SELECT c.*,p.zone,p.x,p.y FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.zone=? AND p.seen>?').all(speaker.zone,now()-30000))
     if(enabled(other.owner)&&rpArea(other,other)===row.zone&&onScreen(row,other))mark.run(row.seq,other.id); // Same stream (dive floor/edition) and inside the speaker's screen rectangle.
   }
@@ -546,7 +578,7 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
    if(state.flowVersion!==1&&flows?.active(c))fail(409,'Update the game to resume this personal story.','client_update_required');
    if(flows?.blocking(c)&&!['enter','flow_continue','flow_choice','flow_exit','loadout','chat','leave','welcome_done'].includes(input.action)&&!input.action.startsWith('gm_'))fail(409,'Finish the current story page first.'); // welcome_done: closing the welcome tutorial must never be refused, even under a blocking story page.
    if(state.followerVersion!==1&&input.action==='enter'&&(followers.get(c.id)||state.run?.sharedEncounter&&parties.members(c.id).some(v=>followers.get(v.id))))fail(409,'Update the game before resuming a companion adventure.','client_update_required');
-   if(quests&&(Object.keys(live.published().quests).some(id=>!fullDungeonQuestIds.has(id))||Object.keys(live.published().npcs).length)&&state.questVersion!==1)fail(409,'Update the game for online NPCs and quests.','client_update_required'); // Full-route baseline quests must not close legacy routes to older clients; entry to the new routes has its own capability gate.
+   if(quests&&(Object.keys(live.published().quests).some(id=>!fullDungeonQuestIds.has(id))||Object.keys(live.published().npcs).some(id=>!SHIPPED_RESIDENT_IDS.has(id)))&&state.questVersion!==1)fail(409,'Update the game for online NPCs and quests.','client_update_required'); // Full-route baseline quests and the shipped Utopia residents (one room's ambient NPCs) must not close legacy routes to older clients; entry to the new routes has its own capability gate.
    if(live?.published().enabled&&state.contentVersion!==1&&['enter','dive_enter','dive_engage','hub_encounter'].includes(input.action))fail(409,'Update the game to use published world content.','client_update_required');
    if(state.loadout)rpp.attach(c,state.loadout);if(input.loadout)input={...input,loadout:rpp.attach(c,structuredClone(input.loadout))}; // Bind imported abilities and purchased spells to committed entitlements before any combat action.
    if(state.pendingDefeat&&!['enter','chat','defeat_complete'].includes(input.action))fail(409,'Finish the defeat dialogue before continuing.');
@@ -916,5 +948,5 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
   if(hasAbility(JSON.parse(c.state).loadout,READ_DIGNITY_ABILITY))view.dignity_reading=dignityReading(JSON.parse(other.state).loadout?.player_info); // Read the Room (RPP) reveals the other player's Dignity and Shame; nobody else ever receives them.
   return view;
  }
- return {followers,followerChat,read,prepareRead,snapshotOnly,snapshotBadges,invalidateSnapshotCaches,act,inspect,enchantments,loot,alchemyStore,world,quests,announcements,welcome,zoneMusic,guilds,playerStores:()=>playerStores,questGuideGraph:()=>questGuide?.graph()??new Map(),questRead(secret,id,quest){const i=identity(secret),c=character(i.owner,id);return quests.detail(c,JSON.parse(c.state),quest);},setPrivateSprites(value){privateSprites=value;},setTutor(value){tutor=value;for(const base of hubCatalog)zone(base.id);} ,tick(){followers.tick();syncFollowers();followerChat.kick();measure('tick.districts',()=>districts.tick());dive.tick();if(hubEvents)measure('tick.hub_encounters',()=>atomic(()=>hubEvents.tick()));if(quests)measure('tick.quests',()=>atomic(()=>quests.tick()));measure('tick.duels_trades',()=>{atomic(()=>duels.tick());atomic(()=>trades.tick());});measure('tick.guilds',()=>atomic(()=>guilds.tick()));} /* One /gm timing row per ticker, so world.timer time outside the simulation.<route> rows has a name. */,prepare:()=>Promise.all([...engines.values()].map(route=>route.prepare())),close(){flowTests?.close();followerChat.close();for(const route of engines.values())route.close();},completePurchase:purchases.complete}; // One coordinator owns simulation and commits; workers only calculate candidate results.
+ return {followers,followerChat,ambientLife,read,prepareRead,snapshotOnly,snapshotBadges,invalidateSnapshotCaches,act,inspect,enchantments,loot,alchemyStore,world,quests,announcements,welcome,zoneMusic,guilds,playerStores:()=>playerStores,questGuideGraph:()=>questGuide?.graph()??new Map(),questRead(secret,id,quest){const i=identity(secret),c=character(i.owner,id);return quests.detail(c,JSON.parse(c.state),quest);},setPrivateSprites(value){privateSprites=value;},setTutor(value){tutor=value;for(const base of hubCatalog)zone(base.id);} ,tick(){followers.tick();syncFollowers();followerChat.kick();measure('tick.ambient',()=>ambientLife.tick());measure('tick.districts',()=>districts.tick());dive.tick();if(hubEvents)measure('tick.hub_encounters',()=>atomic(()=>hubEvents.tick()));if(quests)measure('tick.quests',()=>atomic(()=>quests.tick()));measure('tick.duels_trades',()=>{atomic(()=>duels.tick());atomic(()=>trades.tick());});measure('tick.guilds',()=>atomic(()=>guilds.tick()));} /* One /gm timing row per ticker, so world.timer time outside the simulation.<route> rows has a name. */,prepare:()=>Promise.all([...engines.values()].map(route=>route.prepare())),close(){flowTests?.close();followerChat.close();ambientLife.close();for(const route of engines.values())route.close();},completePurchase:purchases.complete}; // One coordinator owns simulation and commits; workers only calculate candidate results.
 } // Campaign stats and inventory are client-trusted; arena outcomes and shared-currency awards still belong to this simulation.

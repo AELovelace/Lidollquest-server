@@ -263,7 +263,7 @@ export function createGameMasterPanel(db,{tutor=null,companions=null,walletClien
 
  const actions={
   tutor_settings(input,actor){if(!tutor)fail(409,'The tutor NPC is not available on this server.');const saved=tutor.gmSet(input,actor);record(actor,'tutor_settings','tutor',{enabled:saved.enabled,name:saved.name,greeting:saved.greeting});return saved;}, // Pip on/off, name and greeting (tutor.mjs).
-  ...Object.fromEntries(['companion_settings','companion_lore_save','companion_lore_signoff','companion_lore_delete','companion_memory_wipe','companion_memory_delete','companion_bond_set'].map(name=>[name,(input,actor)=>{
+  ...Object.fromEntries(['companion_settings','companion_lore_save','companion_lore_signoff','companion_lore_delete','companion_memory_wipe','companion_memory_delete','companion_bond_set','ambient_export'].map(name=>[name,(input,actor)=>{
    const store=companions?.();if(!store)fail(409,'Companion memory is not available on this server.');
    const result=store.actions[name](input,actor);record(actor,name,input.character_id??input.npc??'companions',{npc:input.npc??null,id:input.id??input.section?.id??null,values:input.values??null,bond:input.bond??null});return result;}])), // GM Companions tab (companion-admin.mjs); every change is audited.
   welcome_settings(input,actor){const saved=welcomeStore().gmSet(input,actor);record(actor,'welcome_settings','welcome',{enabled:saved.enabled,show_to_existing:saved.show_to_existing,title:saved.title,pages:saved.pages.length});return saved;}, // Welcome tutorial switches, title and pages (welcome.mjs); the audit row keeps the page count, not the prose.
@@ -554,6 +554,11 @@ export function createGameMasterPanel(db,{tutor=null,companions=null,walletClien
     return send(200,reply);
    }
    if(url.pathname==='/gm/whoami'&&req.method==='GET')return send(200,{owner:who,serverTime:now()});
+   if(url.pathname==='/gm/ambient-test'&&req.method==='POST'){ // AI persona preview for a draft GM NPC: awaits the AI outside any database transaction.
+    const store=companions?.();if(!store?.ambientTest)return send(409,{error:'gm_ambient_unavailable'});
+    const input=await body(req,64*1024),result=await store.ambientTest(input);await actor(req); // Recheck a role revoked while the AI was answering.
+    record(who,'ambient_test',String(input?.npc?.id??'npc').slice(0,80),{mode:input?.mode==='gate'?'gate':'line'});return send(200,{ok:true,result});
+   }
    if(url.pathname==='/gm/overview'&&req.method==='GET')return send(200,{...overview(),actor:who});
    if(url.pathname==='/gm/performance'&&req.method==='GET')return send(200,performanceSnapshot()); // Reuses the live role, address, origin and TLS checks above; never exposed by /health.
    if(url.pathname.startsWith('/gm/balance/')&&req.method==='GET'){ // Read-only game-balance statistics (balance-stats.mjs) for the pop-out; same role, address, origin and TLS checks as every route here.
