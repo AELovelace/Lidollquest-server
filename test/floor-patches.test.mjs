@@ -498,3 +498,50 @@ test('palette tiles act like regular tiles: a Wall from another palette is solid
   f.world('world_patch_clear',hall);assert.equal(f.map(hall).floor.paint,undefined,'Clear patch removes them');
  }finally{f.close();}
 });
+
+test('a rebuilt month replays Map Editor edits over its dungeon entrances: a moved Mana Caves door and a deleted Arcanum Tower stay put (prod 2026-10-15)',()=>{
+ const f=fixture();try{
+  const hub='utopia-arcanum',target='dungeon-mana-tunnels',tower='arcanum-tower',coords=p=>({x:p.x,y:p.y});
+  const before=f.map(hub),door=before.floor.doors.find(d=>d.key===target),art=before.floor.fixtures.find(p=>p.id==='entrance-'+target),gone=before.floor.fixtures.find(p=>p.id===tower);
+  assert.ok(door&&art&&gone,'Utopia has a Mana Caves door and the Arcanum Tower building');
+  let to=null; // a legal new spot for the Mana Caves door, away from the deleted tower
+  for(let y=5;y<before.floor.height-3&&!to;y++)for(let x=3;x<before.floor.width-3;x++){
+   if(Math.abs(x-door.x)+Math.abs(y-door.y)<8||Math.abs(x-gone.x)+Math.abs(y-gone.y)<8)continue;
+   const ax=art.x+x-door.x,ay=art.y+y-door.y,others=before.floor.doors.filter(d=>d.key!==target);
+   if(fixtureMoveProblem({...before.floor,portals:others,exits:[]},art,ax,ay))continue;
+   if(before.floor.fixtures.some(p=>p!==art&&ax<p.x+(p.span_w??1)&&ax+(art.span_w??1)>p.x&&ay<p.y+(p.span_h??1)&&ay+(art.span_h??1)>p.y))continue;
+   if(!walkable(before.floor,x,y)||!walkable(before.floor,x,y+1))continue;
+   to={x,y};break;
+  }
+  assert.ok(to,'a safe new entrance position exists');
+  f.patch(hub,[{kind:'exit',op:'move',exit:target,to},{kind:'decoration',op:'remove',match:{id:gone.id,sprite:gone.sprite,x:gone.x,y:gone.y}}]);
+  const check=label=>{const m=f.map(hub);
+   assert.deepEqual(coords(m.floor.portals.find(p=>p.target===target)),to,label+': the Mana Caves door stays where the GM put it');
+   assert.equal(m.floor.fixtures.filter(p=>p.id===art.id).length,1,label+': one Mana Caves building');
+   assert.deepEqual(coords(m.floor.fixtures.find(p=>p.id===art.id)),{x:art.x+to.x-door.x,y:art.y+to.y-door.y},label+': its artwork moved with it');
+   assert.ok(!m.floor.fixtures.some(p=>p.id===tower),label+': the deleted Arcanum Tower stays deleted');};
+  check('after the edit');
+  f.tick();f.restart();check('after a restart');
+  // A new layout key (a month rollover, or a deploy that bumps the district data version) rebuilds the month from the generator.
+  f.db.prepare('DELETE FROM hub_district_editions WHERE zone=?').run(hub);f.restart();check('after the month is rebuilt');
+  f.tick();f.restart();check('after the rebuilt month restarts');
+ }finally{f.close();}
+});
+
+test('scenery a patch stamped and a later op deleted stays deleted through replays and restarts (prod 2026-10-16 Utopia zombies)',()=>{
+ const f=fixture();try{
+  const zone='honeydew-lantern',m=f.map(zone),spot=f.free(m,4),other=f.free({...m,floor:{...m.floor,fixtures:[...(m.floor.fixtures??[]),{x:spot.x,y:spot.y,span_w:6,span_h:6}]}},4);
+  const benches=()=>f.map(zone).floor.fixtures.filter(x=>String(x.id).startsWith('patch-')&&x.sprite==='sprTownEnvBench'&&x.x===spot.x&&x.y===spot.y).length;
+  f.patch(zone,[{kind:'decoration',op:'add',decoration:{sprite:'sprTownEnvBench',x:spot.x,y:spot.y,solid:false}}]);assert.equal(benches(),1,'stamped');
+  const id=f.map(zone).floor.fixtures.find(x=>String(x.id).startsWith('patch-')&&x.x===spot.x&&x.y===spot.y).id;
+  f.patch(zone,[{kind:'decoration',op:'remove',match:{id,sprite:'sprTownEnvBench',x:spot.x,y:spot.y}}]);assert.equal(benches(),0,'deleted');
+  f.patch(zone,[{kind:'decoration',op:'add',decoration:{sprite:'sprTownEnvLamp',x:other.x,y:other.y,solid:false}}]);assert.equal(benches(),0,'an unrelated later edit replays the patch without resurrecting it');
+  f.tick();f.restart();assert.equal(benches(),0,'and so does a restart');
+  const row=f.db.prepare('SELECT e.edition,e.content FROM hub_district_editions e JOIN hub_district_current c ON c.zone=e.zone AND c.edition=e.edition WHERE e.zone=?').get(zone),saved=JSON.parse(row.content);
+  saved.fixtures.push({id,name:'',kind:'scenery',sprite:'sprTownEnvBench',x:spot.x,y:spot.y,span_w:1,span_h:1,solid:false},{id,name:'',kind:'scenery',sprite:'sprTownEnvBench',x:spot.x,y:spot.y,span_w:1,span_h:1,solid:false});
+  saved.patchUndo.fixturesRemoved.push({id,name:'',kind:'scenery',sprite:'sprTownEnvBench',x:spot.x,y:spot.y,span_w:1,span_h:1,solid:false}); // the prod state: zombie copies on the floor and repeated entries in the undo log
+  f.db.prepare('UPDATE hub_district_editions SET content=? WHERE zone=? AND edition=?').run(JSON.stringify(saved),zone,row.edition);
+  f.restart();assert.equal(benches(),0,'a floor an older server corrupted heals on the next boot');
+  f.tick();f.restart();assert.equal(benches(),0,'and stays healed');
+ }finally{f.close();}
+});
