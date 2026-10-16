@@ -29,7 +29,7 @@ test('area chat is one stream per floor heard by whoever was on screen, survives
  const f=fixture();try{
   const a=f.player(),b=f.player('bob');f.as('alice');
   const floor=f.snap(a).zones.find(z=>z.id===DIVE_ZONE),room=floor.rooms[1];
-  const dist2=(p,q)=>(p.x-q.x)**2+(p.y-q.y)**2,reach=f.snap(a).chatReach;assert.deepEqual(reach,{x:15,y:10});
+  const dist2=(p,q)=>(p.x-q.x)**2+(p.y-q.y)**2,reach=f.snap(a).chatReach;assert.deepEqual(reach,{x:20,y:15});
   const offScreen=(p,q)=>Math.abs(p.x-q.x)>reach.x||Math.abs(p.y-q.y)>reach.y;
   const far=floor.rooms.reduce((best,r)=>dist2(r,room)>dist2(best,room)?r:best);assert.ok(offScreen(far,room),'the floor has a room off screen');
   f.as('bob');f.place(b,{x:room.x+2,y:room.y+1});f.as('alice');

@@ -514,8 +514,8 @@ Area speech is heard by whoever was on the speaker's screen when it was said.
 `quest_chat` rows store the speaker's committed tile (`x`, `y`). Inside the same
 command transaction, `stampHearers()` in `server/zones.mjs` writes one
 `quest_chat_heard(seq, character_id)` row for every live character in the same
-stream whose tile is within `chatReach` of the speaker: 15 tiles sideways and 10 up or down
-(the 920x640 px online map at 32 px tiles; env `CHAT_REACH_X` / `CHAT_REACH_Y` or the
+stream whose tile is within `chatReach` of the speaker: 20 tiles sideways and 15 up or down
+(the 1280x960 px online field at 32 px tiles, 40 x 30; env `CHAT_REACH_X` / `CHAT_REACH_Y` or the
 `chatReach:{x,y}` factory option). A reader sees an area line only if they were
 stamped for it, if the row has no tile (`broadcast` announcements) or if their own
 account wrote it. Walking up later never reveals a line you missed, and a line you

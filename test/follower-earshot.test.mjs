@@ -21,7 +21,7 @@ test('real area chat reaches hired and unhired companions, with local replies an
    assert.equal((await command(who,'dive_enter',{zone:'dive-quarters'})).status,200);
   }
   const npc=(await read('bob')).followers.entities.find(n=>n.npc==='merchant_mira'&&n.available);assert.ok(npc,'unhired companions return by default');
-  place('alice',npc.x,npc.y);place('bob',npc.x,npc.y);place('far',npc.x+16,npc.y+11);
+  place('alice',npc.x,npc.y);place('bob',npc.x,npc.y);place('far',npc.x+21,npc.y+16); // one tile past the 20x15 screen reach
   const say=async(who,text,channel='area')=>{const s=await read(who),result=await command(who,'chat',{text,channel,edition:s.dive.edition});assert.equal(result.status,200,JSON.stringify(result.data));await idle();};
   await say('bob','Mira, hello before hiring');assert.equal(calls.length,1,'one companion-graph call per reply');assert.equal(service.zones.followers.get(ids.bob),undefined);
   assert.equal(calls[0].npc_id,'merchant_mira');assert.match(calls[0].lore_version,/^[0-9a-f]{16}$/,'the companion graph gets the lore version it must hold');

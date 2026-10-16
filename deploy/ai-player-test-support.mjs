@@ -23,7 +23,7 @@ export function assertTestHealth(health,overflow='disabled'){
  for(const [name,section] of [['routing',health.classification],['participation',health.participation]]){
   if(!section?.workers?.length||section.healthy_capacity!==section.capacity||section.workers.some(w=>!w.healthy||w.failures))throw Error(name+' workers are unhealthy');
  }
- if(!health.participation.enabled||!health.participation.healthy||health.participation.release!=='lidoll/decider-chat-0-1')throw Error('Decider Chat release is not ready');
+ if(!health.participation.enabled||!health.participation.healthy||!['lidoll/decider-chat-0-1','lidoll/decider-multitask-v2','lidoll/decider-multitask-v3'].includes(health.participation.release))throw Error('Decider Chat release is not ready'); // The merged routing+participation Decider (2026-10-15) is accepted like the dedicated one, matching participation-gate.mjs.
 } // Unknown health fails closed; both hosts must retain the requested mode throughout the test.
 
 export const assertLocalHealth=health=>assertTestHealth(health,'disabled'); // Preserve the local-only guard for existing callers.

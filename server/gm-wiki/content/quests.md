@@ -129,6 +129,8 @@ Targets and repeat policy are pinned to the accepted definition. Later publicati
 
 Players track one quest at a time. The minimap then shows a **gold** marker on the door, gate, pad or wall gap to take toward the objective, and a **blue** marker on the objective itself once they are in the right zone. Blue corners around the whole minimap mean "somewhere in this zone". The guide always follows the **first unfinished objective in the order you wrote them**, even in an "any" stage, so list objectives in the order players should walk them.
 
+Where players see it (since 2026-10-15): the minimap is the **Map** view of the right-hand panel, which they open with the **MAP** button just left of MENU or the **M** key; the markers only show while the Map view is up. The tracked quest's name, objective counters and gold hint sit in the top-right corner of the playing field (hidden during fights). While the Stats view is showing, the gold hint ends in " - [M] map" as a reminder.
+
 To make the markers point well:
 
 - Talk, deliver and NPC turn-ins find the resident fixture or the published NPC's placement. A published NPC with no placement gets no marker.

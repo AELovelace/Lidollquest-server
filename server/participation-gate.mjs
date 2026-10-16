@@ -21,7 +21,7 @@ export function npcParticipationContext(actor,{speaker='Someone',message,kind='c
 
 export function participationSaysJoin(body){
  const knownModel=(body?.model==='lidoll/decider-chat-0-1'&&body?.policy==='participation-sociable-v1-schema_first')
-   ||(body?.model==='lidoll/decider-multitask-v2'&&body?.policy==='routing-participation-multitask-v1'); // Accept each release only with its matching trained policy.
+   ||(['lidoll/decider-multitask-v2','lidoll/decider-multitask-v3'].includes(body?.model)&&body?.policy==='routing-participation-multitask-v1'); // Preserve v2 rollback while accepting v3 only with its trained policy.
  if(!body||!['join','quiet'].includes(body.decision)||typeof body.join!=='boolean'||body.join!==(body.decision==='join')
     ||!Number.isFinite(body.join_probability)||body.join_probability<0||body.join_probability>1
     ||!knownModel)throw Error('Invalid participation response');

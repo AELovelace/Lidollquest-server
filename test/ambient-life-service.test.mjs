@@ -9,7 +9,7 @@ import {UTOPIA_TOWER_ZONE} from '../server/utopia-npcs.mjs';
 
 // AMBIENT_NPC_LIFE_PLAN.md end to end: the shipped Arcanum Tower residents talk in real area chat, only players on screen
 // hear them, the snapshot marks their lines as NPC lines, and a player who names one gets an answer. The AI is a fake pool.
-test('Wren and Felix talk in the Arcanum Tower, Alice hears it and Bob across the room does not; Padma answers her name',async()=>{
+test('Wren and Felix talk in the Arcanum Tower, Alice hears it and Bob outside the tower does not; Padma answers her name',async()=>{
  const dir=mkdtempSync(join(tmpdir(),'ambient-life-')),filename=join(dir,'quest.sqlite');let time=Date.parse('2026-10-14T18:00:00Z'),service,base;
  const tokens={alice:'a'.repeat(43),bob:'b'.repeat(43)},ids={},calls=[];
  const pool={configured:true,async request(path,body){calls.push({path,body});
@@ -29,17 +29,18 @@ test('Wren and Felix talk in the Arcanum Tower, Alice hears it and Bob across th
   for(const who of Object.keys(tokens)){
    ids[who]=(await send(who,{action:'create',name:who==='alice'?'Alice':'Bob',request_id:randomUUID(),controller:who})).data.character.id;
    const lobby=await command(who,'enter',{zone:'utopia-arcanum',quest_version:1,content_version:1,flow_version:1,follower_version:1,loadout:{player_info:{playerHealth:50,playerHealthMax:50},inventory:[]}});
+   if(who==='bob')continue; // Bob waits outside in the plaza: since the 2026-10-15 HUD a 20x15-tile screen covers the whole 20x20 tower, so nobody inside is out of earshot.
    const door=lobby.zones.find(z=>z.id===lobby.zone).portals.find(p=>p.target===UTOPIA_TOWER_ZONE);place(who,door.x,door.y);
    assert.equal((await command(who,'hub_visit',{zone:UTOPIA_TOWER_ZONE})).zone,UTOPIA_TOWER_ZONE);
   }
-  place('alice',12,13);place('bob',18,1); // Alice watches the commons from a step away; Bob is up in the archive, off Wren's screen.
+  place('alice',12,13); // Alice watches the commons from a step away.
   const snap=await read('alice');assert.deepEqual(snap.worldPlacements?.filter(p=>p.kind==='npc').map(p=>p.name).sort(),['Brittany','Felix','Padma','Wren'],'the residents are on the map');
   for(let i=0;i<6&&!service.db.prepare("SELECT 1 FROM quest_chat WHERE character_id LIKE 'npc:%'").get();i++)await tick();
   const rows=service.db.prepare("SELECT * FROM quest_chat WHERE character_id LIKE 'npc:%' ORDER BY seq").all();
   assert.ok(rows.length>=2,'a conversation happened: '+rows.map(r=>r.name+': '+r.text).join(' | '));
   assert.ok(rows.every(r=>r.zone===UTOPIA_TOWER_ZONE&&r.owner==='ambient:'+UTOPIA_TOWER_ZONE));
   const heard=new Set(service.db.prepare('SELECT character_id FROM quest_chat_heard WHERE seq=?').all(rows[0].seq).map(r=>r.character_id));
-  assert.ok(heard.has(ids.alice),'Alice was on screen');assert.ok(!heard.has(ids.bob),'Bob was not');
+  assert.ok(heard.has(ids.alice),'Alice was on screen');assert.ok(!heard.has(ids.bob),'Bob, outside the tower, was not');
   const aliceChat=(await read('alice')).chat,bobChat=(await read('bob')).chat;
   const line=aliceChat.find(m=>m.characterId===rows[0].character_id);assert.ok(line,'Alice sees the line');assert.equal(line.npc,true,'flagged as an NPC line for the bubble');
   assert.ok(!bobChat.some(m=>String(m.characterId).startsWith('npc:')),'Bob never sees what he did not hear');

@@ -47,7 +47,7 @@ import {beginRound,clearEffects,readyTurn,combatAction,awardExperience,combatDat
 import {bindBalance,logBalance,logCommit,logEncounterEnd,balanceNeeds,markBalanceStaff,clientBalanceEvents} from './balance-stats.mjs'; // Balance statistics (balance.sqlite): no-ops on databases without attached stats.
 import {enemyHpFor,defHpDelta,dexStaminaDelta} from './scaling.mjs';
 import {DEFAULT_TUNING} from './loot.mjs';
-const CHAT_REACH_DEFAULT={x:Math.max(1,Number(process.env.CHAT_REACH_X)||15),y:Math.max(1,Number(process.env.CHAT_REACH_Y)||10)}; // Area speech reaches everyone on the speaker's screen: the online map is 920x640 px of 32 px tiles (~28.75 x 20), so 15 tiles sideways and 10 up/down. Env CHAT_REACH_X / CHAT_REACH_Y override it without a code change.
+const CHAT_REACH_DEFAULT={x:Math.max(1,Number(process.env.CHAT_REACH_X)||20),y:Math.max(1,Number(process.env.CHAT_REACH_Y)||15)}; // Area speech reaches everyone on the speaker's screen: the online field is 1280x960 px of 32 px tiles (40 x 30, 2026-10-15 HUD), so 20 tiles sideways and 15 up/down from the speaker. The same rectangle gates RP partners, follower earshot and field magic. Env CHAT_REACH_X / CHAT_REACH_Y override it without a code change.
 const HEARTBEAT_WRITE_INTERVAL=5000; // A heartbeat rewrites quest_presence.seen only when the stored value is at least this old (freshness window is 30 s).
 const CHAT_ECHO_WINDOW=4000; // A repeat of the same line by the same character inside this window is a lag double-send, not new speech.
 const FACING={south:0,north:1,east:2,west:3}; /* Shared with the client's objPlayer.facing encoding (0 S, 1 N, 2 E, 3 W). */

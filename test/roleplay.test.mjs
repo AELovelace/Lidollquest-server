@@ -96,7 +96,7 @@ test('dungeon partner selection uses room and edition boundaries, while partners
  const f=fixture();try{
   f.player('Alice');f.player('Bob');f.act('Alice','dive_enter');let s=f.act('Bob','dive_enter');
   const id=f.act('Alice','rp_post',{text:'We explore together.',partners:[f.ids.Bob]}).receipt.rpId;
-  const alice=f.db.prepare('SELECT x,y FROM quest_presence WHERE character_id=?').get(f.ids.Alice),room=s.zones.find(z=>z.id==='dive-quarters').rooms.find(r=>Math.abs(r.x-alice.x)>15||Math.abs(r.y-alice.y)>10);assert.ok(room,'a room off screen for Alice');f.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(room.x,room.y,f.ids.Bob);
+  const alice=f.db.prepare('SELECT x,y FROM quest_presence WHERE character_id=?').get(f.ids.Alice),room=s.zones.find(z=>z.id==='dive-quarters').rooms.find(r=>Math.abs(r.x-alice.x)>20||Math.abs(r.y-alice.y)>15);assert.ok(room,'a room off screen for Alice');f.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(room.x,room.y,f.ids.Bob);
   assert.equal(f.read('Alice').rp.candidates.length,0);assert.equal(f.act('Bob','rp_read',{rp_id:id}).receipt.rpPost.text,'We explore together.');
   f.advance(11000);assert.throws(()=>f.act('Alice','rp_post',{text:'Different room',partners:[f.ids.Bob]}),/area-chat/);
  }finally{f.close();}
@@ -127,7 +127,7 @@ test('ordinary level changes reset current counters while lifetime word and char
 test('hub RP candidates in the snapshot match the partners rp_post accepts: on screen only, sorted by name',()=>{
  const f=fixture();try{
   for(const who of ['Zed','Alice','Mia','Bea'])f.player(who);
-  f.db.prepare('UPDATE quest_presence SET x=x+40 WHERE character_id=?').run(f.ids.Mia); // Well beyond the 15x10-tile screen reach.
+  f.db.prepare('UPDATE quest_presence SET x=x+40 WHERE character_id=?').run(f.ids.Mia); // Well beyond the 20x15-tile screen reach.
   const listed=f.read('Alice').rp.candidates;
   assert.deepEqual(listed.map(c=>c.name),['Bea','Zed']); // Built from the peer rows (hubRpCandidates): self and off-screen Mia left out, name order kept.
   assert.ok(f.act('Alice','rp_post',{text:'Hello hub',partners:listed.map(c=>c.id)}).receipt.rpId); // The SQL path used by rp_post agrees with the list.

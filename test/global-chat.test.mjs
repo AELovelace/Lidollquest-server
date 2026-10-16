@@ -51,7 +51,7 @@ test('dungeon speech stays on screen while OOC reaches other floors and hubs wit
  const f=fixture();try{
   f.player('Alice','princess-rose');f.player('Bob','princess-rose');f.player('Cara','honeydew-lantern');
   f.act('Alice','dive_enter');const entered=f.act('Bob','dive_enter');
-  const alice=f.db.prepare('SELECT x,y FROM quest_presence WHERE owner=?').get('Alice'),room=entered.zones.find(z=>z.id==='dive-quarters').rooms.find(r=>Math.abs(r.x-alice.x)>15||Math.abs(r.y-alice.y)>10); // A room off Alice's screen.
+  const alice=f.db.prepare('SELECT x,y FROM quest_presence WHERE owner=?').get('Alice'),room=entered.zones.find(z=>z.id==='dive-quarters').rooms.find(r=>Math.abs(r.x-alice.x)>20||Math.abs(r.y-alice.y)>15); // A room off Alice's 20x15 screen reach.
 assert.ok(room,'the floor has a room off screen');
   f.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE character_id=?').run(room.x,room.y,f.read('Bob').character.id);
   f.act('Alice','chat',{text:'At the entrance'});f.act('Alice','chat',{channel:'global',text:'Dungeon OOC'});
@@ -81,15 +81,15 @@ test('area speech is heard by whoever is on screen when it is said, own lines al
  const f=fixture();try{
   f.player('Alice','honeydew-lantern');f.player('Bob','honeydew-lantern');
   const at=(owner,x,y)=>f.db.prepare('UPDATE quest_presence SET x=?,y=? WHERE owner=?').run(x,y,owner); // Presence is the committed tile the server measures from.
-  at('Alice',2,2);at('Bob',17,12); // 15 across and 10 down: the corner of Alice's screen.
-  f.act('Alice','chat',{text:'Edge of the screen'});assert.deepEqual(f.read('Alice').chatReach,{x:15,y:10});
+  at('Alice',2,2);at('Bob',22,17); // 20 across and 15 down: the corner of Alice's screen.
+  f.act('Alice','chat',{text:'Edge of the screen'});assert.deepEqual(f.read('Alice').chatReach,{x:20,y:15});
   assert.equal(f.read('Bob').chat.at(-1).text,'Edge of the screen');
   at('Bob',40,40);assert.equal(f.read('Bob').chat.at(-1).text,'Edge of the screen','a heard line stays after walking away');
   f.act('Alice','chat',{text:'Too far'});
   at('Bob',2,3);assert.deepEqual(f.read('Bob').chat.map(m=>m.text),['Edge of the screen'],'walking over afterwards does not reveal what you missed');
-  at('Bob',18,2);f.act('Alice','chat',{text:'Sixteen across'});assert.ok(!f.read('Bob').chat.some(m=>m.text==='Sixteen across'),'one tile past the screen edge is silent');
-  at('Bob',2,13);f.act('Alice','chat',{text:'Eleven down'});assert.ok(!f.read('Bob').chat.some(m=>m.text==='Eleven down'),'the screen is shorter than it is wide');
-  at('Alice',60,60);assert.equal(f.read('Alice').chat.at(-1).text,'Eleven down','your own lines stay visible wherever you walk');
+  at('Bob',23,2);f.act('Alice','chat',{text:'Twenty-one across'});assert.ok(!f.read('Bob').chat.some(m=>m.text==='Twenty-one across'),'one tile past the screen edge is silent');
+  at('Bob',2,18);f.act('Alice','chat',{text:'Sixteen down'});assert.ok(!f.read('Bob').chat.some(m=>m.text==='Sixteen down'),'the screen is shorter than it is wide');
+  at('Alice',60,60);assert.equal(f.read('Alice').chat.at(-1).text,'Sixteen down','your own lines stay visible wherever you walk');
   f.db.prepare("INSERT INTO quest_chat(zone,owner,character_id,name,text,created) VALUES ('honeydew-lantern','activity:gm','gm','Gamemaster','Everyone hears this',?)").run(Date.parse('2026-09-19T12:00:00Z'));
   at('Bob',1,1);assert.equal(f.read('Bob').chat.at(-1).text,'Everyone hears this','rows without a tile reach the whole room');
   assert.equal(f.read('Bob').chat.at(-1).x,undefined,'speaker tiles never leave the server');

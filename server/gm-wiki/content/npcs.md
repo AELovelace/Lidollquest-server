@@ -127,7 +127,7 @@ when it fits the conversation.
 
 **Talking without the name.**
 - **Follow-ups:** once a companion answers a player, that player's lines count as talking to them for
-  **followup_window_s** (180 s), anywhere within earshot.
+  **followup_window_s** (180 s), anywhere within earshot (the area-chat range: 20 tiles sideways, 15 up or down).
 - **The hirer:** a player's own hired companion listens to them without the name (**hirer_default**).
 - **Classifier check:** when other players are around, a classifier first decides whether answering would be natural
   (**address_classifier**).
@@ -187,6 +187,7 @@ Good to know:
 - If the Decider is down, or the server isn't set to `QUEST_PARTICIPATION_BACKEND=decider`, nothing ambient happens.
 - Ambient lines never use the paid AI. If the panel ever shows a COST ALARM, tell the developers.
 - Persona NPCs may comment on what anyone can see about a player (wet clothes, padding, a smell). It costs no Dignity.
+- Only players on screen hear ambient lines: 20 tiles to either side and 15 up or down (the area-chat range since 2026-10-15). The whole Arcanum Tower fits inside that, so everyone in the tower hears its residents; a player outside does not.
 - Shopkeepers have no persona. With `ambient_beckons` on, they call out to passers-by now and then.
 - Example residents: Padma, Wren, Felix and Brittany in Utopia's Arcanum Tower commons. Open them in the NPC editor to see a finished persona.
 
