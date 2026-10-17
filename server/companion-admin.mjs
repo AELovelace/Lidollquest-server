@@ -7,6 +7,7 @@ import {ADDRESS_DEFAULTS} from './companion-addressing.mjs';
 import {REACTION_DEFAULTS,IDLE_DEFAULTS} from './companion-reactions.mjs';
 import {AMBIENT_DEFAULTS,AMBIENT_BOUNDS} from './ambient-life.mjs';
 import {validateAiPersona} from './quest-content.mjs';
+const SPEAKING_STYLES=['normal','gentle','baby_talk']; // speaking-style.mjs and npc-rag accept exactly these markers.
 
 const fail=(message,status=400)=>{throw Object.assign(Error(message),{status,code:'companion_admin_invalid'});};
 const clean=v=>String(v??'').replace(/[\u0000-\u001f\u007f]+/g,' ').replace(/\s+/g,' ').trim();
@@ -27,7 +28,8 @@ const ID_RE=/^[a-z0-9][a-z0-9_-]{0,63}$/,FLAG_RE=/^[a-z][a-z0-9_:.-]{0,63}$/; //
 export function createCompanionAdmin(db,{memory,followers,ambient=()=>null,now=Date.now,pool=()=>[],loreDrafts=process.env.QUEST_COMPANION_LORE_DRAFTS||'live',onLoreChange=()=>{}}={}){
  db.exec(`CREATE TABLE IF NOT EXISTS quest_companion_settings(key TEXT PRIMARY KEY,value TEXT NOT NULL,updated INTEGER NOT NULL,actor TEXT NOT NULL DEFAULT '');
   CREATE TABLE IF NOT EXISTS quest_companion_lore(npc TEXT NOT NULL,id TEXT NOT NULL,heading TEXT NOT NULL DEFAULT '',text TEXT NOT NULL DEFAULT '',reveal_bond INTEGER NOT NULL DEFAULT 0,
-   reveal_flag TEXT NOT NULL DEFAULT '',draft INTEGER NOT NULL DEFAULT 0,deleted INTEGER NOT NULL DEFAULT 0,updated INTEGER NOT NULL,actor TEXT NOT NULL DEFAULT '',PRIMARY KEY(npc,id));`);
+   reveal_flag TEXT NOT NULL DEFAULT '',draft INTEGER NOT NULL DEFAULT 0,deleted INTEGER NOT NULL DEFAULT 0,updated INTEGER NOT NULL,actor TEXT NOT NULL DEFAULT '',PRIMARY KEY(npc,id));
+  CREATE TABLE IF NOT EXISTS quest_companion_style(npc TEXT PRIMARY KEY,style TEXT NOT NULL,updated INTEGER NOT NULL,actor TEXT NOT NULL DEFAULT '');`); // style '' = persona voice (no preset)
  const defaults={...SLIP_DEFAULTS,...MEMORY_DEFAULTS,...ADDRESS_DEFAULTS,...REACTION_DEFAULTS,...IDLE_DEFAULTS,...AMBIENT_DEFAULTS,situation_enabled:'on',lore_drafts:loreDrafts==='hidden'?'hidden':'live'};
  let cached=null;
  function settings(){ // Every knob, GM values over the shipped defaults.
@@ -47,6 +49,12 @@ export function createCompanionAdmin(db,{memory,followers,ambient=()=>null,now=D
   return out;
  }
 
+ let styles=null; // npc -> '' | normal | gentle | baby_talk (GM dialogue presets); rows are few, so cache them all.
+ function speakingStyle(npc){ // undefined = no GM preset (use the authored one); null = persona voice; else the preset.
+  styles??=Object.fromEntries(db.prepare('SELECT npc,style FROM quest_companion_style').all().map(r=>[r.npc,r.style]));
+  return Object.hasOwn(styles,npc)?(styles[npc]||null):undefined;
+ }
+
  function findCharacters(query){ // By id or exact name (any case); a few matches for the GM to choose from.
   const q=clean(query);if(!q)return [];
   return db.prepare('SELECT id,name,owner FROM quest_characters WHERE id=? OR lower(name)=lower(?) LIMIT 5').all(q,q);
@@ -55,7 +63,9 @@ export function createCompanionAdmin(db,{memory,followers,ambient=()=>null,now=D
  function gmView({character=''}={}){
   const matches=findCharacters(character),chosen=matches.length===1?matches[0]:null;
   return {settings:settings(),defaults,bounds:Object.fromEntries(Object.entries(COMPANION_SETTING_BOUNDS).filter(([key])=>!key.startsWith('ambient_'))),nodes:pool(), // Ambient Life knobs live on their own tab (ambientView).
-   companions:Object.entries(lore()).map(([npc,v])=>({npc,name:v.name,sections:v.online.backstory,drafts:v.online.backstory.filter(s=>s.draft).length})),
+   companions:Object.entries(lore()).map(([npc,v])=>{const gm=speakingStyle(npc),authored=followers.catalog[npc]?.online?.speaking_style??null;
+    return {npc,name:v.name,sections:v.online.backstory,drafts:v.online.backstory.filter(s=>s.draft).length,
+     dialogue_preset:{authored,gm:gm===undefined?'default':(gm??'persona'),effective:gm===undefined?authored:gm}};}),
    matches,character:chosen?{...chosen,...memory.view(chosen.id)}:null};
  }
 
@@ -91,6 +101,13 @@ export function createCompanionAdmin(db,{memory,followers,ambient=()=>null,now=D
   companion_lore_delete(input,actor){const npc=companion(input.npc),s=section(npc,clean(input.id));putLore(npc,{id:s.id},actor,1);onLoreChange();return {npc,id:s.id,deleted:true};},
   companion_memory_wipe(input){const id=clean(input.character_id);if(!db.prepare('SELECT 1 FROM quest_characters WHERE id=?').get(id))fail('Choose a character.');memory.forget(id);return {character_id:id,wiped:true};},
   companion_memory_delete(input){const id=clean(input.id);if(!memory.db.prepare('DELETE FROM memories WHERE id=?').run(id).changes)fail('That memory does not exist.',404);return {id,deleted:true};},
+  companion_style_set(input,actor){ // Dialogue preset: default (authored), persona (no marker), normal, gentle or baby_talk; next reply uses it.
+   const npc=companion(input.npc),style=clean(input.style);
+   if(!['default','persona',...SPEAKING_STYLES].includes(style))fail('Dialogue preset must be default, persona, '+SPEAKING_STYLES.join(', ')+'.');
+   if(style==='default')db.prepare('DELETE FROM quest_companion_style WHERE npc=?').run(npc);
+   else db.prepare('INSERT INTO quest_companion_style(npc,style,updated,actor) VALUES (?,?,?,?) ON CONFLICT(npc) DO UPDATE SET style=excluded.style,updated=excluded.updated,actor=excluded.actor').run(npc,style==='persona'?'':style,now(),actor);
+   styles=null;const gm=speakingStyle(npc);return {npc,style,effective:gm===undefined?(followers.catalog[npc]?.online?.speaking_style??null):gm};
+  },
   companion_bond_set(input){ // For testing secrets: sets the bond outright (the hourly cap still applies to play afterwards).
    const npc=companion(input.npc),id=clean(input.character_id),bond=Number(input.bond);
    if(!db.prepare('SELECT 1 FROM quest_characters WHERE id=?').get(id))fail('Choose a character.');if(!Number.isInteger(bond)||bond<0||bond>100)fail('Bond: a whole number 0-100.');
@@ -98,11 +115,21 @@ export function createCompanionAdmin(db,{memory,followers,ambient=()=>null,now=D
    return {npc,character_id:id,bond};
   },
   ambient_settings(input,actor){const values=input.values??{};for(const key of Object.keys(values))if(!Object.hasOwn(AMBIENT_BOUNDS,key))fail('Not an Ambient Life setting: '+key+'.');return actions.companion_settings(input,actor);}, // Same bounded store as companion tuning, limited to ambient_* keys.
+  resident_style_set(input,actor){ // NPC life dialogue preset for one GM resident; same values as companion_style_set.
+   const life=ambient();if(!life)fail('Ambient life is not running on this server.',409);
+   const id=clean(input.npc),style=clean(input.style),known=life.residents().find(r=>r.id===id);if(!known)fail('Choose an NPC with its AI persona switched on.');
+   if(!['default','persona',...SPEAKING_STYLES].includes(style))fail('Dialogue preset must be default, persona, '+SPEAKING_STYLES.join(', ')+'.');
+   const key='resident:'+id;
+   if(style==='default')db.prepare('DELETE FROM quest_companion_style WHERE npc=?').run(key);
+   else db.prepare('INSERT INTO quest_companion_style(npc,style,updated,actor) VALUES (?,?,?,?) ON CONFLICT(npc) DO UPDATE SET style=excluded.style,updated=excluded.updated,actor=excluded.actor').run(key,style==='persona'?'':style,now(),actor);
+   styles=null;const gm=speakingStyle(key);return {npc:id,style,effective:gm===undefined?known.authored:gm};
+  },
   ambient_export(){const life=ambient();if(!life)fail('Ambient life is not running on this server.',409);const jsonl=life.exportDecisions();return {jsonl,rows:jsonl?jsonl.split(String.fromCharCode(10)).length:0};}, // Scrubbed Decider decisions for training (player names -> Player1..n).
  };
  function ambientView(){ // GM "Ambient Life" tab (GET /gm/ambient): its own knobs, the AI nodes, and the live status, transcript and Decider log.
   const all=settings();
-  return {settings:Object.fromEntries(Object.keys(AMBIENT_BOUNDS).map(k=>[k,all[k]])),defaults:{...AMBIENT_DEFAULTS},bounds:AMBIENT_BOUNDS,nodes:pool(),ambient:ambient()?.view()??null};
+  const residents=(ambient()?.residents?.()??[]).map(r=>{const gm=speakingStyle('resident:'+r.id);return {...r,gm:gm===undefined?'default':(gm??'persona'),effective:gm===undefined?r.authored:gm};});
+  return {settings:Object.fromEntries(Object.keys(AMBIENT_BOUNDS).map(k=>[k,all[k]])),defaults:{...AMBIENT_DEFAULTS},bounds:AMBIENT_BOUNDS,nodes:pool(),ambient:ambient()?.view()??null,residents};
  }
  async function ambientTest(input){ // GM persona editor preview (POST /gm/ambient-test): validated draft persona, one line or one Decider verdict.
   const life=ambient();if(!life)fail('Ambient life is not running on this server.',409);
@@ -110,5 +137,5 @@ export function createCompanionAdmin(db,{memory,followers,ambient=()=>null,now=D
   let persona;try{persona=validateAiPersona(npc.ai_persona??{});}catch(error){fail(error.message);}
   return life.test({id:clean(npc.id).slice(0,64),name:clean(npc.name).slice(0,32),ai_persona:persona},{mode:input.mode==='gate'?'gate':'line',message:clean(input.message).slice(0,500),speaker:clean(input.speaker).slice(0,64)||'Traveller'});
  }
- return {settings,lore,gmView,ambientView,actions,ambientTest,invalidate(){cached=null;}};
+ return {settings,lore,speakingStyle,gmView,ambientView,actions,ambientTest,invalidate(){cached=null;styles=null;}};
 }

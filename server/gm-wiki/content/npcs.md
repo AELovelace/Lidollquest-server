@@ -102,6 +102,13 @@ character grows. All of this is on the **Companions** tab of the GM panel.
 
 **Backstories.** Each companion has a few short sections, like "Raised at the Iron Chapel". The AI uses a section
 when it fits the conversation.
+
+**Dialogue preset.** Under the companion picker in **Backstories**, the **Dialogue preset** list sets how that companion
+talks in every AI reply:
+- **Authored default** uses whatever the desktop editor's Companion tab set (shown in brackets).
+- **Persona voice** uses no preset: the companion talks only from their persona and voice lines.
+- **Normal**, **Gentle** or **Baby talk** use the matching trained style.
+The change takes effect on the companion's next reply, with no export or restart, and is recorded in the audit log.
 - **Reveal bond** keeps a section secret until the character's bond with that companion (0-100) reaches the number.
   **Reveal flag** also requires a story flag.
 - Sections marked **DRAFT** were written by Lumi and still need a GM read-through. Edit the text if needed, then
@@ -174,11 +181,13 @@ An NPC with an AI persona can start short conversations with other persona NPCs 
    - A few **voice lines**.
    - **Chattiness**.
    - **Who they talk to**.
+   - **Speaking style**: the authored dialogue preset (Normal, Gentle, Baby talk, or the persona's own voice).
 3. Click **Test line** to hear how they sound, and **Test gate** to see whether they'd join in on a line. Both use the local AI and post nothing in game.
 4. Tick **AI persona enabled**, publish, and place the NPC anywhere with the placement map.
 5. On the **Ambient Life** tab, set `ambient_enabled` to on in Tuning and save.
 
 The **Ambient Life** tab also shows:
+- a **Dialogue presets** list: one dropdown per NPC with its AI persona on. It overrides the speaking style from the NPC editor right away (no publish needed). **Authored default** goes back to the NPC editor's choice;
 - live conversations, recent lines and the Decider's choices;
 - an **Export decisions** button (player names are replaced with Player1, Player2, ...).
 

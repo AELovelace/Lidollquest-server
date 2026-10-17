@@ -10,7 +10,7 @@ const AREA='utopia-arcanum-tower';
 const persona=(name,extra={})=>({name,ai_persona:{enabled:true,pronouns:'she/her',occupation:name+' job',desires:[name+' wants a quiet evening',name+' wants better supplies'],traits:[],background:'',interests:[name.toLowerCase()+' things'],relationships:[],voice:[],chattiness:50,talks_to:'both',avoid:[],...extra}});
 const NPCS={wren:persona('Wren'),felix:persona('Felix'),padma:persona('Padma'),shy:persona('Shy',{talks_to:'players'}),off:{...persona('Off'),ai_persona:{...persona('Off').ai_persona,enabled:false}}};
 
-function harness({sleep=async()=>{},knobs={},npcs=[{ref:'p-wren',content:'wren',x:3,y:17},{ref:'p-felix',content:'felix',x:6,y:15}],shops=[],players=[{id:'c1',owner:'o1',name:'Dollie',x:5,y:16,area:AREA,state:{}}],decide=()=>'join',chat=null,backend='decider'}={}){
+function harness({sleep=async()=>{},knobs={},npcs=[{ref:'p-wren',content:'wren',x:3,y:17},{ref:'p-felix',content:'felix',x:6,y:15}],shops=[],players=[{id:'c1',owner:'o1',name:'Dollie',x:5,y:16,area:AREA,state:{}}],decide=()=>'join',chat=null,backend='decider',speakingStyle=null}={}){
  const db=new DatabaseSync(':memory:');let time=Date.parse('2026-10-14T18:00:00Z');
  db.exec('CREATE TABLE quest_chat(seq INTEGER PRIMARY KEY AUTOINCREMENT,zone TEXT,owner TEXT,character_id TEXT,name TEXT,text TEXT,created INTEGER,emote INTEGER,x INTEGER,y INTEGER)');
  const calls=[],holds=[],scene={zone:AREA,npcs,shops,players};let stamps=0,said=0;
@@ -21,12 +21,68 @@ function harness({sleep=async()=>{},knobs={},npcs=[{ref:'p-wren',content:'wren',
   return {ok:true,status:200,body:{reply:`${body.npc_name} (${body.kind}) ${++said}`,lane:'local',fallback:false,guard:'passed'}}; // Numbered: residents never repeat a line word for word.
  }};
  const life=createAmbientLife(db,{now:()=>time,roll:()=>0,pool:()=>pool,gateBackend:backend,tuning:()=>({...AMBIENT_DEFAULTS,ambient_enabled:'on',ambient_chime_chance:0,...knobs}),
-  npcs:()=>NPCS,scenes:(only)=>!only||only.includes(AREA)?[scene]:[],stamp:()=>{stamps++;},hold:(id,until)=>holds.push(id),sleep,log:()=>{}});
+  npcs:()=>NPCS,scenes:(only)=>!only||only.includes(AREA)?[scene]:[],stamp:()=>{stamps++;},hold:(id,until)=>holds.push(id),sleep,log:()=>{},speakingStyle});
  const settle=async()=>{for(let i=0;i<60;i++)await new Promise(r=>setImmediate(r));}; // Let every queued AI step finish.
  const lines=()=>db.prepare('SELECT * FROM quest_chat ORDER BY seq').all();
  return {db,life,calls,holds,scene,settle,lines,stamps:()=>stamps,advance:ms=>{time+=ms;},tick:async()=>{life.tick();await settle();}};
 }
 async function opened(h){h.advance(60000);await h.tick();h.advance(60000);await h.tick();} // First tick staggers the roll; the next one may open.
+
+test('later NPC encounters recall each other and carry the selected authored relationship',async()=>{
+ const previous=NPCS.wren.ai_persona.relationships;
+ NPCS.wren.ai_persona.relationships=[{ref:'felix',name:'Felix',note:'Her trusted colleague at the bar.'}];
+ const h=harness({knobs:{ambient_max_responses:2},players:[{id:'c1',name:'Dollie',x:12,y:12,area:AREA,state:{}}]});
+ try{
+  await opened(h);h.advance(400000);await h.tick();
+  const openers=h.calls.filter(c=>c.body.kind==='ambient_open').map(c=>c.body.resident_context);
+  assert.ok(openers.length>=2);assert.equal(openers[0].relationship,'Her trusted colleague at the bar.');
+  assert.deepEqual(openers[0].memories,[]);assert.match(openers[1].memories.join(),/Felix said:/);
+  assert.ok(h.life.view().memory.offered>0,'recall offers are auditable');
+ }finally{h.life.close();h.db.close();NPCS.wren.ai_persona.relationships=previous;}
+});
+
+test('resident player recall is stable across visits and never follows a matching display name to another player',async()=>{
+ const h=harness({knobs:{ambient_chance:0}});
+ try{
+  h.life.hear({id:'c1',name:'Dollie'},'Wren, my favourite drink is mint tea.',{area:AREA,zone:AREA,x:5,y:16});await h.tick();
+  h.advance(70000);await h.tick();
+  h.life.hear({id:'c1',name:'Dollie'},'Wren, what drink do I like?',{area:AREA,zone:AREA,x:5,y:16});await h.tick();
+  assert.match(h.calls.at(-1).body.resident_context.memories.join(),/mint tea/);
+  h.scene.players[0]={...h.scene.players[0],id:'c2'};h.advance(70000);await h.tick();
+  h.life.hear({id:'c2',name:'Dollie'},'Wren, what drink do I like?',{area:AREA,zone:AREA,x:5,y:16});await h.tick();
+  assert.deepEqual(h.calls.at(-1).body.resident_context.memories,[]);
+ }finally{h.life.close();h.db.close();}
+});
+
+test('actual player statements can feed NPC gossip, without turning generated gossip into firsthand NPC memories',async()=>{
+ const knobs={ambient_chance:0,ambient_max_responses:2},h=harness({knobs,npcs:[{ref:'p-wren',content:'wren',x:3,y:17}]});
+ try{
+  h.life.hear({id:'c1',name:'Dollie'},'Wren, my favourite drink is mint tea.',{area:AREA,zone:AREA,x:5,y:16});await h.tick();
+  h.scene.npcs.push({ref:'p-felix',content:'felix',x:6,y:15});h.scene.players[0].x=12;h.scene.players[0].y=12;
+  knobs.ambient_chance=1;h.advance(400000);await opened(h);
+  const opener=h.calls.find(c=>c.body.kind==='ambient_open').body;
+  assert.match(opener.resident_context.gossip.join(),/Dollie said: Wren, my favourite drink is mint tea/);
+  assert.ok(h.calls.filter(c=>c.body.kind==='ambient_reply'&&c.body.npc_name==='Felix').every(c=>!c.body.resident_context.gossip.length),'Felix has not heard this directly from the player');
+  assert.equal(h.life.view().memory.pairs,1,'gossip output was not re-stored as NPC evidence');
+ }finally{h.life.close();h.db.close();}
+});
+
+test('failed lines never store memories and personal recall is dropped when a new listener arrives mid-request',async()=>{
+ const dropped=harness({knobs:{ambient_chance:0},chat:()=>({ok:false,status:429,body:{}})});
+ try{
+  dropped.life.hear({id:'c1',name:'Dollie'},'Wren, my favourite drink is tea.',{area:AREA,zone:AREA,x:5,y:16});await dropped.tick();
+  assert.equal(dropped.life.view().memory.entries,0);
+ }finally{dropped.life.close();dropped.db.close();}
+ let addListener=false,h;
+ h=harness({knobs:{ambient_chance:0},chat:()=>{if(addListener)h.scene.players.push({id:'c2',name:'Bob',x:4,y:16,area:AREA,state:{}});return null;}});
+ try{
+  h.life.hear({id:'c1',name:'Dollie'},'Wren, my favourite drink is tea.',{area:AREA,zone:AREA,x:5,y:16});await h.tick();
+  h.advance(70000);await h.tick();addListener=true;
+  h.life.hear({id:'c1',name:'Dollie'},'Wren, what drink do I like?',{area:AREA,zone:AREA,x:5,y:16});await h.tick();
+  assert.match(h.calls.at(-1).body.resident_context.memories.join(),/favourite drink/);
+  assert.equal(h.lines().length,1,'private recall was generated but never posted to a new audience');
+ }finally{h.life.close();h.db.close();}
+});
 
 test('nothing happens while the switch is off or the gate backend is not the Decider',async()=>{
  for(const opts of [{knobs:{ambient_enabled:'off'}},{backend:'qwen'}]){
@@ -239,4 +295,20 @@ test('resident lines and the GM preview carry the speaker style, not a gate sett
   await h.life.test({...NPCS.felix,id:'felix'},{mode:'line',message:'Hello',speaker:'Dollie'});
   assert.equal(h.calls.at(-1).body.speaking_style,'baby_talk');
  }finally{if(old===undefined)delete NPCS.felix.ai_persona.speaking_style;else NPCS.felix.ai_persona.speaking_style=old;h.life.close();h.db.close();}
+});
+
+
+test('a GM dialogue preset overrides a resident persona style; persona sends no marker',async()=>{
+ const old=NPCS.felix.ai_persona.speaking_style;NPCS.felix.ai_persona.speaking_style='baby_talk';
+ try{
+  for(const [gm,expected] of [['gentle','gentle'],[null,undefined],[undefined,'baby_talk']]){
+   const h=harness({knobs:{ambient_chance:0},speakingStyle:id=>id==='felix'?gm:undefined});
+   try{
+    await h.tick();h.life.hear({id:'c1',name:'Dollie'},'Felix, hello!',{area:AREA,zone:AREA,x:5,y:16});await h.tick();
+    assert.equal(h.calls.find(c=>c.path==='/v1/companion/chat').body.speaking_style,expected,`GM preset ${gm}`);
+    assert.ok(h.life.residents().some(r=>r.id==='felix'&&r.authored==='baby_talk'));
+    assert.ok(!h.life.residents().some(r=>r.id==='off'),'NPCs with the persona switched off are not listed');
+   }finally{h.life.close();h.db.close();}
+  }
+ }finally{if(old===undefined)delete NPCS.felix.ai_persona.speaking_style;else NPCS.felix.ai_persona.speaking_style=old;}
 });

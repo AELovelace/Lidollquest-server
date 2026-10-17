@@ -456,7 +456,7 @@ export function createQuestZones(db,{grant,wallet,adjust,transfer=adjust,enabled
   if(db.prepare('SELECT COUNT(*) AS n FROM quest_chat WHERE owner=? AND created>?').get(i.owner,now()-10000).n>=5)fail(429,'Wait a moment before sending another message.'); // One account quota spans every channel and zone.
   const row=db.prepare('INSERT INTO quest_chat(zone,owner,character_id,name,text,created,emote,x,y) VALUES (?,?,?,?,?,?,?,?,?)').run(area,i.owner,c.id,c.name,text,now(),emote,tile?.x??null,tile?.y??null);
   if(follower)followerChat.enqueue(c,text,row.lastInsertRowid,area,{emote:!!emote}); // Any area speaker may address a nearby companion, hired or waiting at home; emotes ("/me hugs Elowen") get a reaction.
-  if(follower&&tile)ambientLife.hear(c,text,{area,zone:db.prepare('SELECT zone FROM quest_presence WHERE character_id=?').get(c.id)?.zone,x:tile.x,y:tile.y,emote:!!emote,companion:()=>!!db.prepare('SELECT 1 FROM quest_follower_chat_jobs WHERE seq=? LIMIT 1').get(row.lastInsertRowid)}); // Nearby persona NPCs may answer; queued only, never an AI call inside this transaction.
+  if(follower&&tile)ambientLife.hear(c,text,{area,sourceSeq:Number(row.lastInsertRowid),zone:db.prepare('SELECT zone FROM quest_presence WHERE character_id=?').get(c.id)?.zone,x:tile.x,y:tile.y,emote:!!emote,companion:()=>!!db.prepare('SELECT 1 FROM quest_follower_chat_jobs WHERE seq=? LIMIT 1').get(row.lastInsertRowid)}); // Nearby persona NPCs may answer; queued only, never an AI call inside this transaction.
   db.prepare('DELETE FROM quest_chat WHERE zone=? AND seq NOT IN (SELECT seq FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 100)').run(area,area);
   return row.lastInsertRowid;
  }

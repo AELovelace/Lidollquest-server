@@ -4,6 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {mkdtempSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
+import {DatabaseSync} from 'node:sqlite';
 import {createQuestService} from '../server/service.mjs';
 import {UTOPIA_TOWER_ZONE} from '../server/utopia-npcs.mjs';
 
@@ -49,6 +50,13 @@ test('Wren and Felix talk in the Arcanum Tower, Alice hears it and Bob outside t
   await command('alice','chat',{text:'Padma, which diapers are best?'});await tick();
   const answer=service.db.prepare("SELECT * FROM quest_chat WHERE name='Padma' ORDER BY seq DESC").get();
   assert.ok(answer,'Padma answered her name');assert.match(answer.text,/ambient_answer/); // She may have greeted Alice first; the answer is her newest line.
+  const audit=new DatabaseSync(join(dir,'resident-memory.sqlite'),{readOnly:true});try{
+   const remembered=audit.prepare("SELECT * FROM memories WHERE peer_kind='player' AND peer=? AND speaker_kind='player' ORDER BY id DESC LIMIT 1").get(ids.alice);
+   assert.equal(remembered.text,'Padma, which diapers are best?');assert.equal(remembered.gossip,0,'questions and sensitive topics are not gossip');
+   const source=service.db.prepare('SELECT * FROM quest_chat WHERE seq=?').get(remembered.source_seq);
+   assert.equal(source.character_id,ids.alice);assert.equal(source.text,remembered.text,'audit points at the actual player utterance');
+   assert.equal(service.db.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name='memories'").get().n,0,'resident storage is outside the game database');
+  }finally{audit.close();}
   await settle();service.zones.ambientLife.close();await settle(); // No AI step may outlive the service.
  }finally{await new Promise(r=>service.server.close(r));rmSync(dir,{recursive:true,force:true});} // One close: the server's own 'close' event shuts the database.
 });

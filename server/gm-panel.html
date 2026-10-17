@@ -584,6 +584,9 @@ tr.sel td{background:#2c1e3d}
     <h2>Tuning</h2>
     <div id="ambientSettings"></div>
     <div class="row"><button class="go" id="ambientSettingsSave">Save tuning</button><button id="ambientLoad">Refresh</button></div>
+    <h2>Dialogue presets</h2>
+    <p class="note">How each resident talks in every AI line. Takes effect on their next line. Authored default follows the NPC editor's AI persona step.</p>
+    <div id="ambientPresets"></div>
   </section>
   <section class="wide">
     <h2>Live conversations and recent lines</h2>
@@ -1189,13 +1192,13 @@ tr.sel td{background:#2c1e3d}
    input.id="compSet_"+key;input.dataset.key=key;row.appendChild(input);row.appendChild(el("span","note",COMP_HELP[key]||""));box.appendChild(row);
   });
  }
- var AMBIENT_HELP={ambient_enabled:"Master switch for Ambient Life: GM NPCs with an AI persona talk on their own. Needs QUEST_PARTICIPATION_BACKEND=decider on this server.",ambient_chance:"Strike-up chance per check (scaled by the NPC's chattiness: 50 = this value, 100 = double).",ambient_check_s:"Seconds between one NPC's strike-up checks.",ambient_chime_chance:"Chance per conversation that a third persona NPC in earshot is considered for joining in (once).",ambient_talk_range:"Tiles: how close two NPCs, or an NPC and a player, must stand to start talking.",ambient_cooldown_min_s:"Shortest rest (seconds) before an NPC starts another conversation.",ambient_cooldown_max_s:"Longest rest (seconds) before an NPC starts another conversation.",ambient_max_responses:"Lines each NPC may say in one conversation.",ambient_gate_fanout:"How many of the closest NPCs the Decider scores for one line (each costs one gate call).",ambient_calls_per_minute:"Ambient lines per minute, server-wide (separate from the companions' budget).",ambient_gate_calls_per_minute:"Decider calls per minute for ambient life, server-wide.",ambient_line_gap_s:"Seconds between lines in an NPC conversation, so players can read them.",ambient_idle_s:"Seconds a quiet conversation stays open for a player to answer.",ambient_beckons:"Shopkeepers call out to players walking past their shop.",ambient_beckon_chance:"Chance per check that a shopkeeper calls out to a passer-by.",ambient_beckon_range:"Tiles from the shop within which a passer-by can be called.",ambient_beckon_cooldown_s:"Seconds before the same shopkeeper calls the same player again.",ambient_conversations_per_area:"How many NPC conversations one room can hold at the same time (1-4). NPCs already talking are never pulled into a second one."};
+ var AMBIENT_HELP={ambient_memory:"Remember encounters across visits and restarts.",ambient_gossip:"Share eligible player statements with other NPCs, with attribution.",ambient_enabled:"Master switch for Ambient Life: GM NPCs with an AI persona talk on their own. Needs QUEST_PARTICIPATION_BACKEND=decider on this server.",ambient_chance:"Strike-up chance per check (scaled by the NPC's chattiness: 50 = this value, 100 = double).",ambient_check_s:"Seconds between one NPC's strike-up checks.",ambient_chime_chance:"Chance per conversation that a third persona NPC in earshot is considered for joining in (once).",ambient_talk_range:"Tiles: how close two NPCs, or an NPC and a player, must stand to start talking.",ambient_cooldown_min_s:"Shortest rest (seconds) before an NPC starts another conversation.",ambient_cooldown_max_s:"Longest rest (seconds) before an NPC starts another conversation.",ambient_max_responses:"Lines each NPC may say in one conversation.",ambient_gate_fanout:"How many of the closest NPCs the Decider scores for one line (each costs one gate call).",ambient_calls_per_minute:"Ambient lines per minute, server-wide (separate from the companions' budget).",ambient_gate_calls_per_minute:"Decider calls per minute for ambient life, server-wide.",ambient_line_gap_s:"Seconds between lines in an NPC conversation, so players can read them.",ambient_idle_s:"Seconds a quiet conversation stays open for a player to answer.",ambient_beckons:"Shopkeepers call out to players walking past their shop.",ambient_beckon_chance:"Chance per check that a shopkeeper calls out to a passer-by.",ambient_beckon_range:"Tiles from the shop within which a passer-by can be called.",ambient_beckon_cooldown_s:"Seconds before the same shopkeeper calls the same player again.",ambient_conversations_per_area:"How many NPC conversations one room can hold at the same time (1-4). NPCs already talking are never pulled into a second one."};
  var ambientEpoch=0,ambientData=null; // ambientData: the /gm/ambient payload (settings, bounds, nodes, ambient view).
  function loadAmbient(){
   var epoch=++ambientEpoch,session=perfEpoch;
   return api("/gm/ambient").then(function(data){
    if(epoch!==ambientEpoch||session!==perfEpoch||!token)return;
-   ambientData=data;renderAmbientSettings();renderAmbient();
+   ambientData=data;renderAmbientSettings();renderAmbient();renderAmbientPresets();
   }).catch(function(error){say("err",error.message);});
  }
  function renderAmbientSettings(){
@@ -1210,11 +1213,24 @@ tr.sel td{background:#2c1e3d}
    input.id="ambientSet_"+key;input.dataset.key=key;row.appendChild(input);row.appendChild(el("span","note",AMBIENT_HELP[key]||""));box.appendChild(row);
   });
  }
+ function renderAmbientPresets(){
+  var box=$("ambientPresets");clear(box);
+  var list=(ambientData&&ambientData.residents)||[];
+  if(!list.length){box.appendChild(el("p","note","No NPCs have their AI persona switched on."));return;}
+  list.forEach(function(r){
+   var row=el("div","row"),lab=el("label",null,r.name),sel=el("select");sel.id="ambientPreset-"+r.id;lab.htmlFor=sel.id;
+   [["default","Authored default ("+(r.authored||"persona voice")+")"],["persona","Persona voice (no preset)"],["normal","Normal"],["gentle","Gentle"],["baby_talk","Baby talk"]].forEach(function(p){var o=el("option",null,p[1]);o.value=p[0];sel.appendChild(o);});
+   sel.value=r.gm;
+   sel.addEventListener("change",function(){api("/gm/action",{method:"POST",body:{action:"resident_style_set",npc:r.id,style:sel.value}}).then(function(){say("ok","Dialogue preset for "+r.name+": "+sel.options[sel.selectedIndex].text+".");loadAmbient();}).catch(function(error){say("err",error.message);});});
+   row.appendChild(lab);row.appendChild(sel);box.appendChild(row);
+  });
+ }
  function renderAmbient(){
   var a=ambientData.ambient,status=$("ambientStatus"),tbox=$("ambientTranscript"),dbox=$("ambientDecisions");clear(tbox);clear(dbox);
   if(!a){status.textContent="Ambient Life is not running on this server.";return;}
   var gate=a.backend!=="decider"?"Decider not selected (QUEST_PARTICIPATION_BACKEND="+a.backend+"): nothing ambient happens":a.gate_down_for_ms>0?"Decider DOWN, paused for "+Math.ceil(a.gate_down_for_ms/1000)+" s":"Decider healthy";
   status.textContent=(a.enabled?"On":"Off")+" · "+gate+" · budget "+a.budgets.lines+" lines / "+a.budgets.gates+" gate calls left this minute · "+a.stats.lines+" lines said, "+a.stats.busy+" skipped (local AI busy), "+(a.stats.repeats||0)+" dropped as repeats, "+(a.stats.openers_dropped||0)+" openers dropped"+(a.drops&&Object.keys(a.drops).length?" ("+Object.keys(a.drops).map(function(k){return k+" "+a.drops[k];}).join(", ")+")":"")+", "+a.stats.join+" JOIN / "+a.stats.quiet+" QUIET"+(a.cost_alarms?" · COST ALARM: "+a.cost_alarms+" ambient lines came back from the paid AI and were dropped":"");
+  if(a.memory)status.textContent+=" | "+a.memory.entries+" memories / "+a.memory.pairs+" relationships ? "+a.memory.offered+" recall/gossip audit rows ? "+a.memory.pending+" pending writes"; // Resident memory is separate from companion memory.
   a.conversations.forEach(function(c){tbox.appendChild(el("p",null,(c.running?"Talking":"Quiet")+" in "+c.area+": "+c.speakers.join(", ")+" · "+c.lines+" lines · "+c.players+" players · "+c.age_s+" s ago"));});
   a.transcript.forEach(function(t){var p=el("p");p.appendChild(el("strong",null,when(t.at)+" · "+t.area+" · "+t.speaker+": "));p.appendChild(document.createTextNode(t.text));tbox.appendChild(p);});
   if(!a.transcript.length)tbox.appendChild(el("p","note","No ambient lines yet."));
@@ -1257,6 +1273,13 @@ tr.sel td{background:#2c1e3d}
  function renderCompLore(){
   var box=$("compLore"),npc=$("compNpc").value,c=(compData.companions||[]).find(function(x){return x.npc===npc;});clear(box);
   if(!c){box.appendChild(el("p","note","No online companions."));return;}
+  var preset=c.dialogue_preset||{gm:"default",authored:null},prow=el("div","row"),plab=el("label",null,"Dialogue preset"),psel=el("select");
+  psel.id="compPreset";plab.htmlFor="compPreset";
+  [["default","Authored default ("+(preset.authored||"persona voice")+")"],["persona","Persona voice (no preset)"],["normal","Normal"],["gentle","Gentle"],["baby_talk","Baby talk"]].forEach(function(p){var o=el("option",null,p[1]);o.value=p[0];psel.appendChild(o);});
+  psel.value=preset.gm;
+  psel.addEventListener("change",function(){compSend({action:"companion_style_set",npc:npc,style:psel.value},"Dialogue preset for "+c.name+": "+psel.options[psel.selectedIndex].text+".");});
+  prow.appendChild(plab);prow.appendChild(psel);prow.appendChild(el("span","note","How this companion talks in every AI reply. Takes effect on the next reply; Authored default follows the desktop editor."));
+  box.appendChild(prow);
   c.sections.forEach(function(s){box.appendChild(compSectionCard(npc,s,false));});
   box.appendChild(el("h3",null,"Add a section"));box.appendChild(compSectionCard(npc,{reveal:{bond:0}},true));
  }

@@ -10,7 +10,7 @@ import {importLoadout} from '../server/loadout.mjs';
 // moving, outside towns or mid-fight) and banter between two hired companions nearby (two lines, public lore only).
 
 const TOWN='honeydew-lantern';
-function world({hirers=['doll'],npcs=['paladin_aegis'],tuning={}}={}){
+function world({hirers=['doll'],npcs=['paladin_aegis'],tuning={},speakingStyle=null}={}){
  const db=new DatabaseSync(':memory:');let time=Date.parse('2026-10-13T12:00:00Z');
  db.exec(`CREATE TABLE quest_characters(id TEXT PRIMARY KEY,owner TEXT,name TEXT,state TEXT,revision INTEGER DEFAULT 0);
   CREATE TABLE quest_presence(character_id TEXT PRIMARY KEY,owner TEXT,zone TEXT,x INTEGER,y INTEGER,seen INTEGER);
@@ -26,7 +26,7 @@ function world({hirers=['doll'],npcs=['paladin_aegis'],tuning={}}={}){
   return c;
  });
  const calls=[];let n=0;
- const chat=createFollowerChat(db,{followers,now:()=>time,memoryStore:memory,roll:()=>0,audience:()=>0,slipTuning:()=>({reactions_enabled:'off',...tuning}),locate:(c,area)=>followers.chatTargets(c,{area,geometry}),
+ const chat=createFollowerChat(db,{followers,now:()=>time,memoryStore:memory,roll:()=>0,audience:()=>0,speakingStyle,slipTuning:()=>({reactions_enabled:'off',...tuning}),locate:(c,area)=>followers.chatTargets(c,{area,geometry}),
   fetcher:async(url,opts)=>{const path=new URL(url).pathname,body=JSON.parse(opts.body);if(path==='/v1/companion/lore')return Response.json({ok:true});calls.push({path,body});n++;return Response.json({reply:`Line ${n} from ${body.npc_name}.`});}});
  const lines=()=>db.prepare("SELECT name,text FROM quest_chat WHERE character_id LIKE 'follower:%' ORDER BY seq").all().map(r=>r.text);
  const tick=async ms=>{time+=ms;db.prepare('UPDATE quest_presence SET seen=?').run(time);chat.kick();for(let i=0;i<40;i++)await new Promise(r=>setTimeout(r,3));};
@@ -77,4 +77,16 @@ test('idle companion requests carry their selected style without rewriting perso
   const body=w.calls.find(c=>c.body.kind==='musing').body;
   assert.equal(body.speaking_style,'gentle');assert.ok(body.persona);assert.ok(Array.isArray(body.voice));
  }finally{delete w.followers.catalog.paladin_aegis.online.speaking_style;w.close();}
+});
+
+
+test('a GM dialogue preset overrides the authored style; persona sends no marker',async()=>{
+ for(const [gm,expected] of [['baby_talk','baby_talk'],[null,undefined],[undefined,'gentle']]){
+  const w=world({speakingStyle:npc=>npc==='paladin_aegis'?gm:undefined});try{
+   w.followers.catalog.paladin_aegis.online.speaking_style='gentle';
+   await w.tick(1000);for(let i=0;i<20&&!w.lines().length;i++)await w.tick(60000);
+   const body=w.calls.find(c=>c.body.kind==='musing').body;
+   assert.equal(body.speaking_style,expected,`GM preset ${gm}`);
+  }finally{delete w.followers.catalog.paladin_aegis.online.speaking_style;w.close();}
+ }
 });

@@ -88,3 +88,37 @@ test('the GM Companions tab over HTTP: staff only, audited, and a lore edit re-v
   const audit=service.db?.prepare?.("SELECT action FROM gm_audit WHERE action LIKE 'companion_%'").all()??null;if(audit)assert.ok(audit.length>=2,'changes are audited');
  }finally{service.server.closeAllConnections();await new Promise(resolve=>service.server.close(resolve));}
 });
+
+
+test('dialogue presets: default, persona and the three styles; validated and shown in the GM view',()=>{
+ const w=world();try{
+  const a=w.admin.actions,view=()=>w.admin.gmView().companions.find(c=>c.npc==='paladin_aegis').dialogue_preset;
+  assert.equal(w.admin.speakingStyle('paladin_aegis'),undefined);assert.equal(view().gm,'default');
+  assert.deepEqual(a.companion_style_set({npc:'paladin_aegis',style:'baby_talk'},'gm'),{npc:'paladin_aegis',style:'baby_talk',effective:'baby_talk'});
+  assert.equal(w.admin.speakingStyle('paladin_aegis'),'baby_talk');assert.equal(view().gm,'baby_talk');assert.equal(view().effective,'baby_talk');
+  a.companion_style_set({npc:'paladin_aegis',style:'persona'},'gm');assert.equal(w.admin.speakingStyle('paladin_aegis'),null);assert.equal(view().gm,'persona');
+  a.companion_style_set({npc:'paladin_aegis',style:'default'},'gm');assert.equal(w.admin.speakingStyle('paladin_aegis'),undefined);
+  assert.throws(()=>a.companion_style_set({npc:'paladin_aegis',style:'pirate'},'gm'),/Dialogue preset must be/);
+  assert.throws(()=>a.companion_style_set({npc:'nobody',style:'gentle'},'gm'),/Choose a companion/);
+  assert.equal(w.db.prepare('SELECT actor FROM quest_companion_style').all().length,0,'default removes the override row');
+ }finally{w.close();}
+});
+
+
+test('resident dialogue presets need a running ambient life and a resident with its persona on',()=>{
+ const db=new DatabaseSync(':memory:');let time=Date.parse('2026-10-17T12:00:00Z');
+ db.exec('CREATE TABLE quest_characters(id TEXT PRIMARY KEY,owner TEXT,name TEXT,state TEXT,revision INTEGER DEFAULT 0)');
+ const followers=createFollowers(db,{enabled:true,now:()=>time}),memory=createCompanionMemory(db,{now:()=>time,log:()=>{}});
+ const life={residents:()=>[{id:'felix',name:'Felix',authored:'gentle'}],view:()=>null};
+ try{
+  const off=createCompanionAdmin(db,{memory,followers,now:()=>time});
+  assert.throws(()=>off.actions.resident_style_set({npc:'felix',style:'gentle'},'gm'),/not running/);
+  const admin=createCompanionAdmin(db,{memory,followers,now:()=>time,ambient:()=>life});
+  assert.deepEqual(admin.actions.resident_style_set({npc:'felix',style:'baby_talk'},'gm'),{npc:'felix',style:'baby_talk',effective:'baby_talk'});
+  assert.equal(admin.speakingStyle('resident:felix'),'baby_talk');
+  assert.deepEqual(admin.ambientView().residents,[{id:'felix',name:'Felix',authored:'gentle',gm:'baby_talk',effective:'baby_talk'}]);
+  admin.actions.resident_style_set({npc:'felix',style:'default'},'gm');assert.equal(admin.ambientView().residents[0].effective,'gentle');
+  assert.throws(()=>admin.actions.resident_style_set({npc:'wren',style:'gentle'},'gm'),/AI persona switched on/);
+  assert.equal(admin.speakingStyle('felix'),undefined,'resident presets never leak onto a companion id');
+ }finally{memory.close();db.close();}
+});
