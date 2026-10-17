@@ -1,3 +1,4 @@
+import {speakingStyleFields} from './speaking-style.mjs';
 // Ambient NPC life (AMBIENT_NPC_LIFE_PLAN.md): GM NPCs with an enabled ai_persona strike up short conversations with each
 // other or with a passing player, and anyone in earshot can join in. System shopkeepers only beckon players toward their shop.
 //
@@ -75,7 +76,7 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
   for(const p of scene.npcs??[]){
    const def=defs[p.content],persona=def?.ai_persona;if(!def||def.retired||!persona?.enabled)continue; // Only GM NPCs whose persona is switched on.
    out.push({key:'resident:'+p.ref,ref:p.ref,charId:'npc:'+scene.zone+':'+p.ref,npcId:String(p.content).slice(0,64),kind:'npc',zone:scene.zone,x:p.x,y:p.y,name:clean(def.name).slice(0,32)||'Resident',
-    persona:personaText(def.name,persona,{names}),voice:(persona.voice??[]).slice(0,5),profile:participationProfile(persona),
+    persona:personaText(def.name,persona,{names}),voice:(persona.voice??[]).slice(0,5),...speakingStyleFields(persona.speaking_style),profile:participationProfile(persona),
     topics:[...(persona.interests??[]),...(persona.desires??[]),...(persona.relationships??[]).map(r=>clean((names[r.ref]??r.name)+': '+r.note))].map(t=>clean(t).slice(0,160)).filter(Boolean),talksTo:persona.talks_to??'both',chattiness:Number(persona.chattiness??50)});
   }
   for(const s of scene.shops??[]){ // A shopkeeper only calls out to players; it has no persona beyond its shop.
@@ -112,7 +113,7 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
  async function line(actor,extra,convo=null){ // -> text or '' (skipped); never throws for an AI failure
   if(!lineBudget.spend())return '';
   const said=(recentSaid.get(actor.key)??[]).slice(-8); // Lines from earlier conversations: shown as "never say again" and checked below.
-  const body={npc_id:actor.npcId,npc_name:actor.name,persona:actor.persona.slice(0,1500),voice:actor.voice.map(v=>clean(v).slice(0,200)),said,message:'(ambient)',...extra};
+  const body={npc_id:actor.npcId,npc_name:actor.name,persona:actor.persona.slice(0,1500),...speakingStyleFields(actor.speaking_style),voice:actor.voice.map(v=>clean(v).slice(0,200)),said,message:'(ambient)',...extra};
   let res;try{res=await pool().request('/v1/companion/chat',body,{timeoutMs:20000,signal:stop.signal,busyStatuses:[429]});}catch(error){stats.ai_failures++;warn('line',error);return '';}
   if(res.status===429){lineBudget.refund();stats.busy++;return '';} // local_busy: the local slots belong to players right now; no charge, no line.
   if(!res.ok||res.body?.fallback){stats.ai_failures++;warn('line','AI answered '+res.status);return '';}
@@ -301,13 +302,13 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
  }
  async function test(def,{mode='line',message='',speaker='Traveller'}={}){ // GM persona editor: one line or one Decider verdict for a draft NPC; no budgets, still local only.
   const ai=pool();if(!ai)return {ok:false,status:0,error:'No AI nodes are configured on this server.'};
-  const persona=def.ai_persona??{},actor={name:clean(def.name).slice(0,32)||'NPC',npcId:String(def.id||'gm_test').slice(0,64),persona:personaText(def.name,persona),voice:(persona.voice??[]).slice(0,5),profile:participationProfile(persona)};
+  const persona=def.ai_persona??{},actor={name:clean(def.name).slice(0,32)||'NPC',npcId:String(def.id||'gm_test').slice(0,64),persona:personaText(def.name,persona),voice:(persona.voice??[]).slice(0,5),...speakingStyleFields(persona.speaking_style),profile:participationProfile(persona)};
   if(mode==='gate'){
    const body=npcParticipationContext(actor,{speaker,message:message||'Hello there!',nearbyNames:[speaker]});
    const res=await ai.request('/v1/participation/decide',body,{timeoutMs:12000,signal:stop.signal});if(!res.ok)return {ok:false,status:res.status};
    participationSaysJoin(res.body);return {ok:true,decision:res.body.decision,join_probability:res.body.join_probability,candidate:body.candidate};
   }
-  const res=await ai.request('/v1/companion/chat',{npc_id:actor.npcId,npc_name:actor.name,persona:actor.persona.slice(0,1500),voice:actor.voice.map(v=>clean(v).slice(0,200)),message:message||'(ambient)',
+  const res=await ai.request('/v1/companion/chat',{npc_id:actor.npcId,npc_name:actor.name,persona:actor.persona.slice(0,1500),...speakingStyleFields(actor.speaking_style),voice:actor.voice.map(v=>clean(v).slice(0,200)),message:message||'(ambient)',
    kind:message?'ambient_answer':'ambient_greet',player_name:clean(speaker).slice(0,64)||'Traveller'},{timeoutMs:20000,signal:stop.signal}); // A resident kind: npc-rag never bills it.
   return {ok:res.ok,status:res.status,text:clean(res.body?.reply),lane:res.body?.lane??null,persona:actor.persona};
  }

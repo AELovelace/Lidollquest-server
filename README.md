@@ -2355,3 +2355,7 @@ be left. Run `node --test test/flow-exit.test.mjs`.
 - **Panel.** `/gm` has a **Pop out Balance Metrics** button (`/gm/balance`). It has date, grouping, character and staff filters; Overview, Combat, Needs and Economy tabs of tiles and charts (each with its exact data and a CSV button); a Records tab; and an Export tab that downloads every matching event as CSV or JSON.
 - **Endpoints** (gamemaster only, read-only): `GET /gm/balance/summary`, `/gm/balance/events` (`before` cursor, `limit` up to 1000), `/gm/balance/filters`. Query: `from`, `to` (epoch ms), `interval` (`day`, `week`, `month`), `character`, `staff=1`, `kind` (comma-separated).
 - **Tests.** `node --test test/balance-stats.test.mjs`.
+
+## NPC written speaking styles
+
+NPC AI personas may set `speaking_style` to `normal`, `gentle` or `baby_talk` in the web editor. Online companion exports use the same optional key under `online`. Companion chat, reactions, idle lines, ambient replies and GM previews forward it to npc-rag. The direct-model fallback serializes the same compact JSON marker. Leaving the selector blank preserves existing persona behavior. Deploy the corresponding npc-rag API support and a model trained on the compact selector before relying on tone consistency.

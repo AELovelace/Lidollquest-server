@@ -36,6 +36,7 @@ export function validateAiPersona(v){ // AMBIENT_NPC_LIFE_PLAN.md: Doll's charac
   relationships:list(v.relationships??[],8).map(r=>({ref:r?.ref?id(r.ref):'',name:text(r?.name??'',64).trim(),note:text(r?.note??'',200).trim()})).filter(r=>r.ref||r.name), // ref: another GM NPC id; blank for system NPCs (Prudence).
   voice:words(v.voice,5,200),chattiness:num(v.chattiness??50,0,100),talks_to:choose(v.talks_to??'both',['npcs','players','both']),
   avoid:words(v.avoid,6,120),draft:v.draft===true}; // draft: Lumi wrote the voice lines; a GM should read them.
+ if(v.speaking_style!=null&&v.speaking_style!=='')out.speaking_style=choose(v.speaking_style,['normal','gentle','baby_talk']); // Optional: preserve older definitions and hashes.
  if(out.enabled&&!out.occupation)fail('Give the AI persona an occupation before enabling it.');
  return out;
 }

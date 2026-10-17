@@ -63,6 +63,8 @@ function npcPersona(panel,s){
  personaList(panel,'Interests the Decider weighs (short topics)',p,'interests',4,kind);
  const npcs=authorRows('npc').filter(r=>r.id!==d.id);
  personaPairs(panel,'Relationships (an NPC name or id links to that NPC)',p,'relationships',8,kind,(name,note)=>{const hit=npcs.find(r=>r.id===name||(r.published??r.draft)?.name===name);return {ref:hit?.id??'',name:hit?((hit.published??hit.draft).name):name,note};},r=>r.name+(r.note?' - '+r.note:''));
+ const style=worldSelect(panel,'Speaking style',[{id:'',name:'Use persona voice'},{id:'normal',name:'Normal'},{id:'gentle',name:'Gentle'},{id:'baby_talk',name:'Baby talk'}],p.speaking_style??'');
+ style.onchange=()=>{if(style.value)p.speaking_style=style.value;else delete p.speaking_style;authorChanged(kind);}; // Clearing the selector restores persona-only speech.
  personaList(panel,'Voice lines (examples of how they talk)',p,'voice',5,kind);
  authorInput(panel,'Voice lines are drafts (a GM should read them)',p,'draft',kind,'checkbox');
  authorInput(panel,'Chattiness 0-100',p,'chattiness',kind,'number');

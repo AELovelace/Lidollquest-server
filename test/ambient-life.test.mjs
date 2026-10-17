@@ -227,3 +227,16 @@ test('a player naming an NPC interrupts only that NPC conversation; the other on
  assert.ok(kinds.some(k=>/^(Wren|Felix):ambient_reply/.test(k)),'the Wren/Felix conversation kept going: '+kinds.join(' '));
  delete NPCS.brit;
 });
+
+
+test('resident lines and the GM preview carry the speaker style, not a gate setting',async()=>{
+ const old=NPCS.felix.ai_persona.speaking_style;NPCS.felix.ai_persona.speaking_style='baby_talk';
+ const h=harness({knobs:{ambient_chance:0}});
+ try{
+  await h.tick();h.life.hear({id:'c1',name:'Dollie'},'Felix, hello!',{area:AREA,zone:AREA,x:5,y:16});await h.tick();
+  const body=h.calls.find(c=>c.path==='/v1/companion/chat').body;
+  assert.equal(body.speaking_style,'baby_talk');assert.deepEqual(body.voice,[]);
+  await h.life.test({...NPCS.felix,id:'felix'},{mode:'line',message:'Hello',speaker:'Dollie'});
+  assert.equal(h.calls.at(-1).body.speaking_style,'baby_talk');
+ }finally{if(old===undefined)delete NPCS.felix.ai_persona.speaking_style;else NPCS.felix.ai_persona.speaking_style=old;h.life.close();h.db.close();}
+});

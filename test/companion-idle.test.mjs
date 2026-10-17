@@ -68,3 +68,13 @@ test('two hired companions near each other trade exactly two lines, without any 
   for(let i=0;i<4;i++)await w.tick(60000);assert.equal(w.lines().length,2,'no loop: the pair waits 5-7 minutes');
  }finally{w.close();}
 });
+
+
+test('idle companion requests carry their selected style without rewriting personality',async()=>{
+ const w=world();try{
+  w.followers.catalog.paladin_aegis.online.speaking_style='gentle';
+  await w.tick(1000);for(let i=0;i<20&&!w.lines().length;i++)await w.tick(60000);
+  const body=w.calls.find(c=>c.body.kind==='musing').body;
+  assert.equal(body.speaking_style,'gentle');assert.ok(body.persona);assert.ok(Array.isArray(body.voice));
+ }finally{delete w.followers.catalog.paladin_aegis.online.speaking_style;w.close();}
+});
