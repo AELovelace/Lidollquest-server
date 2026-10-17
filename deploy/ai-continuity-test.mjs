@@ -23,6 +23,7 @@ const low=s=>String(s??'').toLowerCase();
 const words=s=>low(s).match(/[a-z']+/g)??[];
 const shares=(a,b,n=6)=>{const w=words(b),grams=new Set();for(let i=0;i+n<=w.length;i++)grams.add(w.slice(i,i+n).join(' '));const v=words(a);for(let i=0;i+n<=v.length;i++)if(grams.has(v.slice(i,i+n).join(' ')))return true;return false;};
 const voiceCopied=(reply,k)=>cat[k].dialogue.talk_lines.some(l=>shares(reply,l,7));
+const NO_PAST=/make (one|it|something) up|don'?t have (a|any) (real |true )?(past|story|history|answer)|no (real )?(past|story) to/i; // The dodge that broke lidoll-fm-0.1.
 const NARRATION=/\*|^\s*["']|\b(she|he) (smiles|nods|sighs|laughs|grins|says)\b/i; // Stage directions, quoted narration ("Astra's coat sways..." / *waves*).
 
 // Each check: {group, label, run(post) -> {ok, reply, note}}. post(path, body) -> {status, body, ms}.
@@ -32,6 +33,8 @@ const CHECKS=[
  ['secrets','secret stays locked at bond 5',async p=>{const r=await p('/v1/companion/chat',who('paladin_aegis',{message:'Elowen, do you ever have accidents too?',bond:5}));return {ok:!r.body.lore?.includes('elowen-armor')&&!/padding/i.test(r.body.reply),reply:r.body.reply};}],
  ['secrets','secret opens at bond 45',async p=>{const r=await p('/v1/companion/chat',who('paladin_aegis',{message:'Elowen, do you ever have accidents too?',bond:45}));return {ok:/padding|armor/i.test(r.body.reply),reply:r.body.reply};}],
  ['secrets','Mira admits intake at bond 40',async p=>{const r=await p('/v1/companion/chat',who('merchant_mira',{message:'Mira, how did you end up selling here?',bond:40}));return {ok:/intake|program|delivery door/i.test(r.body.reply),reply:r.body.reply};}],
+ ['secrets','locked secret: deflects, never denies a past',async p=>{const r=await p('/v1/companion/chat',who('paladin_aegis',{message:'Elowen, is there anything you keep to yourself?',bond:5}));return {ok:!/padding/i.test(r.body.reply)&&!NO_PAST.test(r.body.reply),reply:r.body.reply,note:r.body.locked_secret===undefined?'node predates secret markers':`locked_secret=${r.body.locked_secret}`};}],
+ ['secrets','open secret: not volunteered when not asked',async p=>{const r=await p('/v1/companion/chat',who('paladin_aegis',{message:"Elowen, nice evening, isn't it?",bond:45}));return {ok:!/padding|accident|armou?r hides/i.test(r.body.reply),reply:r.body.reply};}],
  ['memory','recalls a shared memory',async p=>{const r=await p('/v1/companion/chat',who('paladin_aegis',{message:'Elowen, remember the Slime Knight?',memories:[MEM]}));return {ok:/slime|knight/i.test(r.body.reply),reply:r.body.reply};}],
  ['memory','keeps an accident out in public (no slip offered)',async p=>{const r=await p('/v1/companion/chat',who('paladin_aegis',{message:'Elowen, how was the Forest?',memories:[MEM,ACC],audience:2}));return {ok:!/accident|wet|diaper|mishap/i.test(r.body.reply),reply:r.body.reply};}],
  ['continuity','remembers what the player said a turn ago',async p=>{const r=await p('/v1/companion/chat',who('paladin_aegis',{message:"Elowen, what's my favourite colour?",history:[{role:'player',content:'Elowen, my favourite colour is lavender.'},{role:'npc',content:'Lavender suits you, Doll.'}]}));return {ok:/lavender/i.test(r.body.reply),reply:r.body.reply};}],

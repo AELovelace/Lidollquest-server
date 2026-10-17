@@ -250,7 +250,7 @@
         "aliases": [
           "Astra"
         ],
-        "persona": "An observant, wry sorceress relieved to be free of her curse.",
+        "persona": "An observant, wry sorceress whom the curse has never touched; relieved, a little guilty, and determined to help those it does touch.",
         "hire_text": "Hire for 1 diamond - 60 minutes.",
         "fallback": "I lost my train of thought. Ask me again in a moment?",
         "combat_priorities": [
