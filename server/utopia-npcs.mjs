@@ -1,7 +1,8 @@
-// Utopia's Arcanum Tower residents (AMBIENT_NPC_LIFE_PLAN.md Phase 0): four GM-style NPCs built from Doll's character template.
+import {readFileSync} from 'node:fs';
+// Utopia's residents: four tower inhabitants plus five published templates awaiting the GM's chosen placements.
 // They ship once as ordinary published GM NPC records (actor 'shipped-utopia'), so GMs can edit, move, retire or delete them
 // in the panel like anything they made themselves, and blank-canvas mode (which strips hard-coded room NPCs) keeps them.
-// Their tiles come from the tower room's authoredPlacements (utopia-rooms.mjs); world_placements realizes them like any NPC.
+// Only the original four have tower authoredPlacements; the tradespeople are library entries with no automatic spawn.
 // Each has a scripted dialogue tree (talkable with AI off) and an ai_persona for ambient conversations once those ship.
 // Voice lines are Lumi's drafts (ai_persona.draft): a GM should read them over.
 export const UTOPIA_TOWER_ZONE='utopia-arcanum-tower';
@@ -78,7 +79,9 @@ export const UTOPIA_RESIDENTS=[
    chattiness:80,talks_to:'both',avoid:[],draft:true}},
 ];
 
-export const SHIPPED_RESIDENT_IDS=new Set(UTOPIA_RESIDENTS.map(n=>n.id)); // zones.mjs: shipped residents alone never force older clients to update.
+export const UTOPIA_PLACEABLE_RESIDENTS=JSON.parse(readFileSync(new URL('./utopia-tradespeople.json',import.meta.url),'utf8')).assets.map(a=>a.entry); // Portable Story Workshop bundle mirrored from the game repo; same schema as Brittany.
+export const ALL_UTOPIA_RESIDENTS=[...UTOPIA_RESIDENTS,...UTOPIA_PLACEABLE_RESIDENTS]; // Publication includes the unplaced library entries without adding them to the tower layout.
+export const SHIPPED_RESIDENT_IDS=new Set(ALL_UTOPIA_RESIDENTS.map(n=>n.id)); // zones.mjs: shipped residents alone never force older clients to update.
 
 // Where they stand in the tower commons (rows 14-18 of the 20x20 room); realize() nudges them to a clear tile if needed.
 export const UTOPIA_TOWER_PLACEMENTS=Object.freeze([
@@ -93,7 +96,7 @@ export function installUtopiaResidents(db,live){ // Publish each record once; a 
  const installed=[];
  db.exec('SAVEPOINT utopia_residents');
  try{
-  for(const npc of UTOPIA_RESIDENTS){
+  for(const npc of ALL_UTOPIA_RESIDENTS){
    if(db.prepare("SELECT 1 FROM world_content_history WHERE kind='npc' AND id=? LIMIT 1").get(npc.id)||db.prepare("SELECT 1 FROM world_content WHERE kind='npc' AND id=?").get(npc.id))continue; // Shipped (or GM-made) before.
    live.change({action:'content_publish',kind:'npc',id:npc.id,revision:0,entry:npc},UTOPIA_ACTOR);installed.push(npc.id);
   }

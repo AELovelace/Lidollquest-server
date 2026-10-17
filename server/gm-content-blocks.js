@@ -128,6 +128,18 @@ function stageMusicProperties(host,stage){ // While this stage is current, the l
  button(host,'+ Stage music',()=>{checkpoint();stage.music??=[];stage.music.push({zone:'*',track:'',battle:'',boss:'',volume:100});changed();properties();});
  el('p','Overrides zone music for this player only, while this stage is current. An exact zone beats "Any zone"; if two quests overlap, the stage entered most recently wins. Story Workshop scene music and stings still play over it.',host).className='hint';
 }
+async function openAiLife(a){
+ const popup=window.open('about:blank','_blank');if(!popup)throw Error('Allow popups to open the AI Life editor.');popup.opener=null;
+ const before=JSON.stringify(a.entry);
+ try{const saved=await action('content_save',{kind:'npc',id:a.id,revision:a.revision,entry:copy(a.entry)});a.revision=saved.revision;if(JSON.stringify(a.entry)===before)a.entry=copy(saved.draft);const rows=cat.records.npcs,index=rows.findIndex(r=>r.id===saved.id);if(index<0)rows.push(saved);else rows[index]=saved;rebaseContentHistory([a]);changed();properties();library();popup.location.href='/gm/ai-life-editor?npc='+encodeURIComponent(a.id);say('NPC draft saved. AI Life opened with character, relationships, voice and routines. Reload its saved record here after editing there.');}
+ catch(e){popup.close();throw e;}
+} // Save only this NPC before handing it off; unrelated flow and bundle edits stay in the workshop.
+async function reloadAiLifeNpc(a){
+ const baseline=cat.records.npcs.find(r=>r.id===a.id);if(JSON.stringify(a.entry)!==JSON.stringify(baseline?.draft)&&!confirm('Discard unsaved changes to this NPC and load its saved record? Other bundle edits stay open.'))return;
+ const before=JSON.stringify(a.entry),rows=(await api('/gm/content')).npcs,saved=rows.find(r=>r.id===a.id);if(!saved)throw Error('This NPC no longer exists in the saved library.');if(JSON.stringify(a.entry)!==before)throw Error('This NPC was edited while loading. Reload again when ready.');
+ checkpoint();a.entry=copy(saved.draft);a.revision=saved.revision;const index=cat.records.npcs.findIndex(r=>r.id===a.id);if(index<0)cat.records.npcs.push(saved);else cat.records.npcs[index]=saved;rebaseContentHistory([a]);changed();properties();library();say('Loaded the saved NPC, including AI Life edits. Other bundle assets are unchanged.');
+} // Bring edits back from AI Life without forcing authors to discard an unrelated story or asset draft.
+function aiLifeLaunchCard(host,a){const box=el('fieldset',undefined,host);el('legend','AI Life',box);const p=a.entry.ai_persona;el('p',(p?.enabled?'AI conversations enabled':'AI conversations off')+(p?.occupation?' · '+p.occupation:'')+'. Character, relationships, voice testing and placed routines have their own full-size editor.',box).className='hint';button(box,'Save NPC draft & open AI Life',()=>openAiLife(a));button(box,'Reload saved NPC',()=>reloadAiLifeNpc(a));}
 function contentProperties(){
  if(contentAsset()?.kind==='sheet')return sheetProperties();
  const a=contentAsset(),d=a.entry,host=$('properties'),g=contentGraph(),n=g.nodes.find(n=>selected.has(n.id))??g.nodes[0];host.replaceChildren();
@@ -147,9 +159,11 @@ function contentProperties(){
     const box=el('fieldset',undefined,host);el('legend','Claim rewards',box);field(box,'Where',d.turn_in,'mode','text',[{id:'npc',name:'Return to NPC'},{id:'journal',name:'From journal'}]);contentSelect(box,'Turn-in NPC',d.turn_in,'npc',referenceOptions('npcs'));continue;
    }
    if(key==='repeat'&&a.kind==='quest'){field(host,'Repeat policy',d,key,'text',['once','daily','weekly','cooldown']).addEventListener('change',properties);continue;}
+   if(a.kind==='npc'&&key==='ai_persona'&&!cat.publicEditor)continue; // The offline bundle editor retains its portable persona fields.
    form(host,{get [key](){return d[key];},set [key](v){d[key]=v;}});
   }
   if(a.kind==='npc'){
+   if(!cat.publicEditor)aiLifeLaunchCard(host,a);
    const direction={get facing(){return d.facing??d.look?.facing??0;},set facing(value){d.facing=value;}};
    field(host,'Default facing',direction,'facing','number',[{id:0,name:'Down (south)'},{id:1,name:'Up (north)'},{id:2,name:'Right (east)'},{id:3,name:'Left (west)'}]);
    el('p','Stationary NPCs keep this direction. Wandering NPCs turn as they move.',host).className='hint';

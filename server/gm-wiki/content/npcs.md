@@ -200,3 +200,19 @@ Good to know:
 - Shopkeepers have no persona. With `ambient_beckons` on, they call out to passers-by now and then.
 - Example residents: Padma, Wren, Felix and Brittany in Utopia's Arcanum Tower commons. Open them in the NPC editor to see a finished persona.
 
+
+## Placeable Utopia tradespeople
+
+Quill (`utopia_quill`, butcher), Rowan (`utopia_rowan`, baker), Sera (`utopia_sera`, candlestick maker), Poppy (`utopia_poppy`, blacksmith) and Hazel (`utopia_hazel`, herbalist) use the same AI-persona and scripted-dialogue setup as Brittany. Updated servers publish them into the NPC library once, preserving later GM edits and retirement. They have no default placements: choose their locations in Map & placements.
+
+For an existing server, import the game repo's `datafiles/generation/utopia_tradespeople.lidollquest.json` in Story Workshop, review the five records, publish the asset bundle, then place them. Importing alone does not publish. No story flow, quest, shop inventory or routine is created. Their existing sprites are placeholders; artwork can be changed in the NPC editor. Each has a greeting, four topics and four draft AI voice examples. Hazel references the existing Padma NPC as her mommy. Enable Ambient Life for generated conversations; scripted topics remain usable with AI off.
+
+## AI Life editor
+
+Open **AI Life Editor** from the GM toolbar or Story Workshop. It has a searchable resident library and four full-size workspaces: Character, Relationships, Voice & test, and Routines. From a Story Workshop NPC, **Save NPC draft & open AI Life** saves just that NPC before opening the editor. Reload its saved record if you return to an older editing tab.
+
+**Save profile draft** stores changes for review; **Publish profile** applies the shared definition. Scripted dialogue, artwork and quest links remain intact. Relationship selectors preserve stable NPC references. Test line and participation evaluate the unsaved persona through local AI without publishing or posting in-game chat. Runtime memories remain separate; inspect them in Companion & AI Life Audit.
+
+In **Routines**, select a zone and a persistent copy of this NPC. Schedules support game or UTC time, days, priority, travel, home, wait, stay and patrol blocks. Use the map/time preview and portable import/export controls. **Save routine** applies immediately to that copy; it is separate from profile publication. Other copies can have different schedules. **Use Brittany schedule template** copies her schedule onto the selected copy, so review its destinations before saving. NPC templates need a published definition and a persistent Map Editor placement first.
+
+Unsaved profile and routine edits survive tab switches and are protected when changing resident or reloading. Revision conflicts keep your profile edits visible and stop overwrites; **Download profile backup** exports a Story Workshop bundle before you reload. Shared clock and zone lighting settings affect the world/zone, while preview time affects only the editor.

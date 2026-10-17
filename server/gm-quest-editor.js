@@ -1,6 +1,6 @@
 // Both editors share the existing authenticated panel helpers; text is always rendered as textContent.
 const authorEditors={npc:null,quest:null},authorSearch={npc:'',quest:''};
-const authorSteps={npc:['Basics','Artwork','Dialogue','Quest links','AI persona','Review'],quest:['Basics','Stages and objectives','Placements','Rewards','Review']};
+const authorSteps={npc:['Basics','Artwork','Dialogue','Quest links','AI Life','Review'],quest:['Basics','Stages and objectives','Placements','Rewards','Review']};
 const authorRows=kind=>contentData?.[kind==='npc'?'npcs':'quests']??[];
 function authorChanged(kind){const s=authorEditors[kind];s.dirty=true;sessionStorage.setItem('gm-'+kind+'-draft',JSON.stringify(s));const status=$(kind+'SaveState');if(status)status.textContent='Unsaved changes';}
 function authorInput(parent,label,object,key,kind,type='text'){const input=worldField(parent,label,object[key],type);input.oninput=()=>{object[key]=type==='checkbox'?input.checked:type==='number'?Number(input.value):input.value;authorChanged(kind);};return input;}
@@ -52,30 +52,12 @@ function personaPairs(panel,label,p,key,max,kind,toRow,fromRow){
  return input;
 }
 function npcPersona(panel,s){
- const d=s.d,kind='npc';d.ai_persona??={enabled:false,pronouns:'',occupation:'',desires:[],traits:[],background:'',interests:[],relationships:[],voice:[],chattiness:50,talks_to:'both',avoid:[],draft:false};const p=d.ai_persona;
- panel.appendChild(el('p',null,'An AI persona lets this NPC start short conversations with nearby persona NPCs and players, and answer when spoken to. The Ambient Life switch on the Companions tab must also be on. Lines always come from the local AI, never the paid one.'));
- authorInput(panel,'AI persona enabled',p,'enabled',kind,'checkbox');
- authorInput(panel,'Pronouns (she/her, he/him, they/them)',p,'pronouns',kind);
- authorInput(panel,'Occupation (also the role the Decider sees)',p,'occupation',kind);
- personaList(panel,'Desires',p,'desires',6,kind);
- personaPairs(panel,'Personality traits',p,'traits',6,kind,(name,note)=>({name,note}),t=>t.name+(t.note?' - '+t.note:''));
- authorInput(panel,'Background',p,'background',kind,'textarea');
- personaList(panel,'Interests the Decider weighs (short topics)',p,'interests',4,kind);
- const npcs=authorRows('npc').filter(r=>r.id!==d.id);
- personaPairs(panel,'Relationships (an NPC name or id links to that NPC)',p,'relationships',8,kind,(name,note)=>{const hit=npcs.find(r=>r.id===name||(r.published??r.draft)?.name===name);return {ref:hit?.id??'',name:hit?((hit.published??hit.draft).name):name,note};},r=>r.name+(r.note?' - '+r.note:''));
- const style=worldSelect(panel,'Speaking style',[{id:'',name:'Use persona voice'},{id:'normal',name:'Normal'},{id:'gentle',name:'Gentle'},{id:'baby_talk',name:'Baby talk'}],p.speaking_style??'');
- style.onchange=()=>{if(style.value)p.speaking_style=style.value;else delete p.speaking_style;authorChanged(kind);}; // Clearing the selector restores persona-only speech.
- personaList(panel,'Voice lines (examples of how they talk)',p,'voice',5,kind);
- authorInput(panel,'Voice lines are drafts (a GM should read them)',p,'draft',kind,'checkbox');
- authorInput(panel,'Chattiness 0-100',p,'chattiness',kind,'number');
- const talks=worldSelect(panel,'Talks to',[{id:'both',name:'Other NPCs and players'},{id:'npcs',name:'Other NPCs only'},{id:'players',name:'Players only'}],p.talks_to??'both');talks.onchange=()=>{p.talks_to=talks.value;authorChanged(kind);};
- personaList(panel,'Never brings up',p,'avoid',6,kind);
- const test=el('fieldset');test.appendChild(el('legend',null,'Try the persona (uses the local AI; nothing is posted in game)'));panel.appendChild(test);
- const speaker=worldField(test,'Speaker name','Traveller'),message=worldField(test,'Something said to them (blank: they start talking)',''),out=el('p','note','');test.appendChild(out);
- const run=async mode=>{out.textContent='Asking the AI...';const r=await api('/gm/ambient-test',{method:'POST',body:{npc:d,mode,message:message.value,speaker:speaker.value}});const x=r.result;
-  out.textContent=!x.ok?'The AI did not answer ('+x.status+(x.error?': '+x.error:'')+').':mode==='gate'?x.decision.toUpperCase()+' (join probability '+Number(x.join_probability).toFixed(2)+', role "'+x.candidate.role+'")':d.name+': '+x.text+(x.lane==='cloud'?' [COST ALARM: paid AI]':'');};
- worldButton('Test line',()=>run('line'),test);worldButton('Test gate (would they join in?)',()=>run('gate'),test);
-}
+ panel.appendChild(el('p',null,'Character profiles, relationships, voice tests and placed routines now have their own AI Life editor. Saving here keeps artwork and dialogue in the same NPC record.'));
+ worldButton('Save NPC draft & open AI Life',async()=>{
+  const popup=window.open('about:blank','_blank');if(!popup)throw Error('Allow popups to open the AI Life editor.');popup.opener=null;
+  try{const saved=await saveAuthor('npc');popup.location.href='/gm/ai-life-editor?npc='+encodeURIComponent(saved.id);}catch(e){popup.close();throw e;}
+ },panel);
+} // The old wizard hands off its saved draft without publishing or changing any placement.
 function npcDialogue(panel,s){
  panel.appendChild(el('p',null,'Edit dialogue pages, player choices and greeting reactions as connected blocks.'));
  worldButton('Edit NPC blocks',()=>openAuthorBlocks('npc'),panel);
