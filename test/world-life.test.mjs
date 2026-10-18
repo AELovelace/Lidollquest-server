@@ -7,6 +7,7 @@ import {join} from 'node:path';
 import {createWorldLife,nightAmount,tileLight} from '../server/world-life.mjs';
 import {activeRoutine,normalizeRoutine,createNpcRoutines,BRITTANY_ROUTINE} from '../server/npc-routines.mjs';
 import {createQuestService} from '../server/service.mjs';
+import {moveDelays} from '../server/crawl.mjs';
 
 test('shared game clock preserves time across speed changes, pauses and reloads; real routines remain UTC',()=>{
  const db=new DatabaseSync(':memory:');let time=Date.parse('2026-10-15T00:00:00Z');try{let life=createWorldLife(db,{now:()=>time});assert.equal(life.clock().minute,480);time+=60000;assert.equal(life.clock().minute,504);life.setClock({revision:0,dayMinutes:120,paused:false});time+=60000;assert.equal(life.clock().minute,516);life.setClock({revision:1,dayMinutes:120,paused:true});time+=3600000;life=createWorldLife(db,{now:()=>time});assert.equal(life.clock().minute,516);assert.throws(()=>life.setClock({revision:0,dayMinutes:60}),/changed/);assert.throws(()=>life.setClock({revision:2,dayMinutes:0}),/between/);
@@ -34,8 +35,35 @@ test('watched journeys walk one tile per slot and blocked destinations never tel
  }finally{f.db.close();}
 });
 
+test('routine movement follows live player walking speed without early steps or visible catch-up bursts',()=>{
+ const f=travelFixture();let delay=moveDelays().walk;f.base.walkDelay=()=>delay;
+ try{f.maps.a.players=[{online:true}];const x=()=>f.routine.get('resident1').state.x;
+  assert.equal(delay,187.5);f.advance(delay-1);assert.equal(x(),3);f.advance(1);assert.equal(x(),4);
+  f.advance(delay);assert.equal(x(),5);delay=moveDelays({move_delay_ms:400}).walk;
+  f.advance(delay-1);assert.equal(x(),5);f.advance(1);assert.equal(x(),6,'live tuning changes affect an existing routine without resaving');
+  f.advance(60000);assert.equal(x(),7,'a watched NPC takes one tile after a long stall');f.advance(0);assert.equal(f.routine.get('resident1').state.zone,'a','extra ticks cannot spend old movement debt');
+  const view=f.routine.project('a',[])[0];assert.ok(view.trail.length<=48);assert.equal(view.trail.at(-3),7);assert.equal(view.trail.at(-2),4);
+ }finally{f.db.close();}
+});
+
+test('50 ms coordinator ticks preserve fractional walking intervals and timestamp every tile',()=>{
+ const f=travelFixture();try{const floor=f.maps.a.floor;floor.width=80;floor.walls=Array.from({length:9},(_,y)=>Array.from({length:80},(_,x)=>x===0||x===79||y===0||y===8?1:0));floor.portals[0].x=77;f.maps.a.players=[{online:true}];
+  for(let i=0;i<80;i++)f.advance(50);
+  const state=f.routine.get('resident1').state;assert.equal(state.x,3+Math.floor(4000/moveDelays().walk),'elapsed remainders prevent rounding each step up to 200 ms');
+  const points=JSON.parse(state.trail).s;assert.equal(points.length,16);for(let i=1;i<points.length;i++){assert.equal(points[i][0]-points[i-1][0],1);assert.equal(points[i][2]-points[i-1][2],moveDelays().walk);}
+ }finally{f.db.close();}
+});
+
+test('the service moves routine NPCs before its one-second world timer',async()=>{
+ let time=10000;const s=createQuestService({now:()=>time,log:()=>{}});
+ try{const id='utopia-tower-brittany',world=s.zones.world;world.act({action:'world_routine_save',zone:'utopia-arcanum-tower',placement:id,revision:0,routine:BRITTANY_ROUTINE});const before=world.routines.get(id).state;time+=200;
+  await new Promise(resolve=>setTimeout(resolve,130)); // Real timer integration: only the new movement ticker should have fired.
+  const after=world.routines.get(id).state;assert.equal(Math.abs(after.x-before.x)+Math.abs(after.y-before.y),1);assert.ok(world.routines.project(after.zone,[])[0].trail);
+ }finally{s.server.emit('close');}
+});
+
 test('ambient chatter has a bounded departure grace while direct dialogue remains a hold',()=>{
- const f=travelFixture();try{f.hold('ambient');f.advance(2000);assert.equal(f.routine.get('resident1').state.status,'talking');f.advance(28000);assert.equal(f.routine.get('resident1').state.status,'talking');f.advance(4000);assert.equal(f.routine.get('resident1').state.status,'travelling');const before=f.routine.get('resident1').state;f.hold('direct');f.advance(60000);const after=f.routine.get('resident1').state;assert.deepEqual([after.zone,after.x,after.y],[before.zone,before.x,before.y]);assert.equal(after.status,'talking');}finally{f.db.close();}
+ const f=travelFixture();try{f.hold('ambient');f.advance(2000);assert.equal(f.routine.get('resident1').state.status,'talking');f.advance(28000);assert.equal(f.routine.get('resident1').state.status,'talking');f.advance(4000);assert.notEqual(f.routine.get('resident1').state.status,'talking');assert.notEqual(f.routine.get('resident1').state.x,3);const before=f.routine.get('resident1').state;f.hold('direct');f.advance(60000);const after=f.routine.get('resident1').state;assert.deepEqual([after.zone,after.x,after.y],[before.zone,before.x,before.y]);assert.equal(after.status,'talking');}finally{f.db.close();}
 });
 
 test('automatic lamp sources remain separate from portable custom sources and no-floor zones are safe',()=>{

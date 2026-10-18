@@ -52,4 +52,4 @@ export function trailView(row,zone,at){ // Snapshot peer fields {trailAt, trail:
  const first=Math.max(0,s.findIndex(q=>q[2]>=at-TRAIL_WINDOW)-1); // Keep one older step as the anchor the first recent step walked from.
  return {trailAt:last[2],trail:s.slice(first).flatMap(q=>[q[0],q[1],last[2]-q[2]])}; // Flat and relative keeps it ~3 small numbers per step on the wire.
 }
-export function movementDelay(loadout,tuning=null){const d=moveDelays(tuning);return isCrawling(loadout)&&!loadoutCrawlFree(loadout)?d.crawl:d.walk;} // Milliseconds the server demands between online steps. Shared NPC clocks stay unchanged; only the crawler is slowed.
+export function movementDelay(loadout,tuning=null){const d=moveDelays(tuning);return isCrawling(loadout)&&!loadoutCrawlFree(loadout)?d.crawl:d.walk;} // Milliseconds the server demands between online steps. A player crawling does not slow routine residents, which use the normal walk interval.

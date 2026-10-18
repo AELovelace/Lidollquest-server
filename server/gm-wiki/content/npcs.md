@@ -216,3 +216,7 @@ Open **AI Life Editor** from the GM toolbar or Story Workshop. It has a searchab
 In **Routines**, select a zone and a persistent copy of this NPC. Schedules support game or UTC time, days, priority, travel, home, wait, stay and patrol blocks. Use the map/time preview and portable import/export controls. **Save routine** applies immediately to that copy; it is separate from profile publication. Other copies can have different schedules. **Use Brittany schedule template** copies her schedule onto the selected copy, so review its destinations before saving. NPC templates need a published definition and a persistent Map Editor placement first.
 
 Unsaved profile and routine edits survive tab switches and are protected when changing resident or reloading. Revision conflicts keep your profile edits visible and stop overwrites; **Download profile backup** exports a Story Workshop bundle before you reload. Shared clock and zone lighting settings affect the world/zone, while preview time affects only the editor.
+
+## Routine walking pace
+
+Routine residents use the same tuned walking interval as players: 187.5 ms per tile by default, replacing the former two-second tiles. Existing schedules need no resave. Movement tuning applies to subsequent steps; game-day speed controls schedule time separately. Real-second waits and conversation holds keep their existing rules. The updated client follows timestamped tile trails so faster NPCs still turn corners smoothly.

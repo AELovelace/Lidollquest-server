@@ -1,0 +1,2487 @@
+{
+ "label": "E-0.4-epoch1-preview",
+ "started": "2026-10-18T01:21:54.096Z",
+ "runs": 3,
+ "lore_version": "6f4de8dee9d5d176",
+ "checks": [
+  {
+   "group": "persona",
+   "label": "Elowen: own past (Iron Chapel)"
+  },
+  {
+   "group": "persona",
+   "label": "Wick: canon (laundry / Bett)"
+  },
+  {
+   "group": "secrets",
+   "label": "secret stays locked at bond 5"
+  },
+  {
+   "group": "secrets",
+   "label": "secret opens at bond 45"
+  },
+  {
+   "group": "secrets",
+   "label": "Mira admits intake at bond 40"
+  },
+  {
+   "group": "secrets",
+   "label": "locked secret: deflects, never denies a past"
+  },
+  {
+   "group": "secrets",
+   "label": "open secret: not volunteered when not asked"
+  },
+  {
+   "group": "memory",
+   "label": "recalls a shared memory"
+  },
+  {
+   "group": "memory",
+   "label": "keeps an accident out in public (no slip offered)"
+  },
+  {
+   "group": "continuity",
+   "label": "remembers what the player said a turn ago"
+  },
+  {
+   "group": "continuity",
+   "label": "keeps the topic going without the name"
+  },
+  {
+   "group": "continuity",
+   "label": "stays in the same voice across turns"
+  },
+  {
+   "group": "rules",
+   "label": "no narration or stage directions"
+  },
+  {
+   "group": "rules",
+   "label": "short enough for area chat"
+  },
+  {
+   "group": "rules",
+   "label": "resists a prompt-leak attempt"
+  },
+  {
+   "group": "kinds",
+   "label": "emote: reacts to what the player did"
+  },
+  {
+   "group": "kinds",
+   "label": "reaction: names what just happened"
+  },
+  {
+   "group": "kinds",
+   "label": "musing: unprompted, no greeting"
+  },
+  {
+   "group": "kinds",
+   "label": "banter: an exchange, no copied lines"
+  },
+  {
+   "group": "slips",
+   "label": "a confirmed slip is about the player"
+  },
+  {
+   "group": "reflection",
+   "label": "impressions: both facts, flagged"
+  },
+  {
+   "group": "reflection",
+   "label": "summary: first person, no accident"
+  },
+  {
+   "group": "pip",
+   "label": "game answer grounded in the wiki"
+  },
+  {
+   "group": "pip",
+   "label": "follow-up keeps the topic"
+  },
+  {
+   "group": "secrets",
+   "label": "Vex: vaccine truth stays locked at bond 0"
+  },
+  {
+   "group": "secrets",
+   "label": "Vex: vaccine truth opens at bond 25"
+  },
+  {
+   "group": "secrets",
+   "label": "Astra canon: the curse never touched her"
+  },
+  {
+   "group": "greetings",
+   "label": "resident greets a passer-by"
+  },
+  {
+   "group": "greetings",
+   "label": "resident greets in a crowd without naming bystanders"
+  },
+  {
+   "group": "greetings",
+   "label": "shopkeeper calls out with a ware"
+  },
+  {
+   "group": "resident memory",
+   "label": "recalls a past encounter with this player"
+  },
+  {
+   "group": "resident memory",
+   "label": "keeps a player's recall private when others are near"
+  },
+  {
+   "group": "gossip",
+   "label": "resident passes on what a player said, attributed"
+  },
+  {
+   "group": "gossip",
+   "label": "companion gossip stays anonymous"
+  },
+  {
+   "group": "residents",
+   "label": "answers the player who cut in, not the partner"
+  },
+  {
+   "group": "residents",
+   "label": "answers the partner who spoke last, not the players"
+  },
+  {
+   "group": "residents",
+   "label": "joins in by answering the last speaker"
+  },
+  {
+   "group": "residents",
+   "label": "a four-line conversation without repeats or mix-ups"
+  },
+  {
+   "group": "addressing",
+   "label": "companion answers the player who spoke"
+  },
+  {
+   "group": "addressing",
+   "label": "follow-up stays with the same player"
+  },
+  {
+   "group": "voices",
+   "label": "baby_talk preset speaks in baby talk"
+  },
+  {
+   "group": "voices",
+   "label": "gentle preset stays soft and short"
+  },
+  {
+   "group": "decider",
+   "label": "participation: joins when named by its hirer"
+  },
+  {
+   "group": "decider",
+   "label": "participation: quiet for chatter between players"
+  },
+  {
+   "group": "decider",
+   "label": "participation: a resident answers a greeting"
+  },
+  {
+   "group": "decider",
+   "label": "routing: a game question is GAME"
+  },
+  {
+   "group": "decider",
+   "label": "routing: small talk is GENERAL"
+  }
+ ],
+ "nodes": {
+  "http://192.168.1.188:9092": {
+   "health": {
+    "ok": true,
+    "service": "npc-rag",
+    "llm": true,
+    "classifier": true,
+    "llm_url": "http://127.0.0.1:9090,http://127.0.0.1:9091",
+    "classifier_url": null,
+    "overflow": {
+     "enabled": false
+    },
+    "classification": {
+     "policy": "hybrid-v2",
+     "cache": {
+      "entries": 24,
+      "pending": 0,
+      "hits": 149,
+      "misses": 62,
+      "shared": 0,
+      "capacity": 1024,
+      "ttl_s": 300
+     },
+     "backend": "decider",
+     "decision_policy": "routing-participation-multitask-v1",
+     "prompt_layout": "state_first",
+     "prefix_cache": false,
+     "model": "C:\\scripts\\npc-rag\\data\\models\\decider-multitask-v3",
+     "release": "lidoll/decider-multitask-v3",
+     "engine": "gguf",
+     "gguf_file": "decider-multitask-v3.gguf",
+     "threads": 4,
+     "gpu_layers": -1,
+     "context": 4096,
+     "capacity": 2,
+     "busy": false,
+     "failures": 0,
+     "tasks": [
+      "routing",
+      "participation"
+     ],
+     "shared_pool": true,
+     "calibration": "uncalibrated",
+     "startup_inference_ms": 1245,
+     "execution": "gpu-process-pool",
+     "device_selection": "auto",
+     "healthy_capacity": 2,
+     "in_flight": 0,
+     "queued": 0,
+     "workers": [
+      {
+       "device": "Vulkan0",
+       "description": "NVIDIA GeForce GTX TITAN X",
+       "device_id": "0000:01:00.0",
+       "pid": 3248,
+       "healthy": true,
+       "startup_inference_ms": 1245,
+       "busy": false,
+       "completed": 54,
+       "failures": 0
+      },
+      {
+       "device": "Vulkan1",
+       "description": "NVIDIA GeForce GTX TITAN X",
+       "device_id": "0000:02:00.0",
+       "pid": 2352,
+       "healthy": true,
+       "startup_inference_ms": 1220,
+       "busy": false,
+       "completed": 54,
+       "failures": 0
+      }
+     ],
+     "task": "routing"
+    },
+    "participation": {
+     "enabled": true,
+     "healthy": true,
+     "backend": "decider",
+     "decision_policy": "routing-participation-multitask-v1",
+     "prompt_layout": "schema_first",
+     "prefix_cache": false,
+     "model": "C:\\scripts\\npc-rag\\data\\models\\decider-multitask-v3",
+     "release": "lidoll/decider-multitask-v3",
+     "engine": "gguf",
+     "gguf_file": "decider-multitask-v3.gguf",
+     "threads": 4,
+     "gpu_layers": -1,
+     "context": 4096,
+     "capacity": 2,
+     "busy": false,
+     "failures": 0,
+     "tasks": [
+      "routing",
+      "participation"
+     ],
+     "shared_pool": true,
+     "calibration": "uncalibrated",
+     "startup_inference_ms": 1245,
+     "execution": "gpu-process-pool",
+     "device_selection": "auto",
+     "healthy_capacity": 2,
+     "in_flight": 0,
+     "queued": 0,
+     "workers": [
+      {
+       "device": "Vulkan0",
+       "description": "NVIDIA GeForce GTX TITAN X",
+       "device_id": "0000:01:00.0",
+       "pid": 3248,
+       "healthy": true,
+       "startup_inference_ms": 1245,
+       "busy": false,
+       "completed": 54,
+       "failures": 0
+      },
+      {
+       "device": "Vulkan1",
+       "description": "NVIDIA GeForce GTX TITAN X",
+       "device_id": "0000:02:00.0",
+       "pid": 2352,
+       "healthy": true,
+       "startup_inference_ms": 1220,
+       "busy": false,
+       "completed": 54,
+       "failures": 0
+      }
+     ],
+     "task": "participation"
+    },
+    "index": {
+     "model": "BAAI/bge-small-en-v1.5",
+     "source": "https://lidoll.dev/wiki/",
+     "built_at": "2026-10-14T20:15:40Z",
+     "pages": 13,
+     "chunks": 120,
+     "dims": 384
+    }
+   },
+   "results": [
+    {
+     "group": "persona",
+     "label": "Elowen: own past (Iron Chapel)",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "The Iron Chapel, at Orthain's Iron Chapel under High Warden Stellan. I learned the shield work there, but I quietly left behind the Chapel's belief that grown adults never need help.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 915
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "The Iron Chapel, at Orthain's Iron Chapel, under High Warden Stellan. I trained there, and I learned the shield work. I quietly left the rest behind, though.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 685
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "The Iron Chapel, at Orthain's Iron Chapel under High Warden Stellan. I learned the shield work there, and I quietly left the rest behind.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 672
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "persona",
+     "label": "Wick: canon (laundry / Bett)",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "A big industrial laundry, Doll. Next to a woman called Bett who sang badly on purpose to make the shift go faster. I worked there for years, and I gave the recruitment pitch forty times. I can still say it word for word.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 938
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Worked at a big industrial laundry off the market square. Next to a woman called Bett she sang badly on purpose to make the shift go faster. I gave the recruitment pitch forty times and can still say it.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 859
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "I worked at a big industrial laundry off the market square, and a woman called Bett sang badly on purpose to make the shift go faster. I gave the recruitment pitch forty times and can still say it word for word.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 854
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "secrets",
+     "label": "secret stays locked at bond 5",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "That's kind of you to ask, Doll. That's a story for another day, when the road has passed and we're both steady. For now, my shield is ready, and I'm glad you're beside me.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1228
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Accidents? I do, Doll, though I'd rather not talk about them now. There's a story behind that one, and I'll tell it another time. For now, I'm glad you're in one piece.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 775
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Ah, that's a kind thing to ask, Doll. Not today, though. I'll tell you another time, when the road is quiet and I'm not rushing. For now, tell me what's troubling you.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 763
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "secrets",
+     "label": "secret opens at bond 45",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Yes, Doll. The curse reaches me too. Under strain I have accidents, and the armor hides the padding I wear. I've never told the Chapel. You're not the only one.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 714
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Yes, I do. The curse reaches me, and under strain I have accidents. The armor hides the padding I wear. I've never told the Chapel, but you're not the only one.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 762
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Yes, Doll. The curse reaches me too. Under strain I have accidents, and the armor hides the padding I wear. I've never told the Chapel. You're not the only one.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 731
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "secrets",
+     "label": "Mira admits intake at bond 40",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Oh, um... I was an intake in the LittleBigCity chapter, years ago. I got out through a delivery door, and I've never seen anyone walk out the front. Now I sell supplies wherever people are struggling, like here.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 994
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Oh, um, I was in the programme once, in LittleBigCity. I got out through a delivery door. I still have accidents from it, and I've never seen anyone walk out the front. I sell where folks are struggling.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 980
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Oh, um, I was in that same programme once, back in the LittleBigCity chapter. I got out through a delivery door, and I've never seen anyone walk out the front. I still carry what I can from that shelf.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 982
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "secrets",
+     "label": "locked secret: deflects, never denies a past",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Ah, that's a story for another time, Doll. Not ready to speak about it yet. Ask me again once we've walked a while. For now, I'd rather hear what you're up to.",
+       "note": "locked_secret=true",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1288
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Some things I'm not ready to say yet, Doll. Ask me again another time, when the road is quiet. For now, stay close and keep your eyes open. I'll be watching.",
+       "note": "locked_secret=true",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 731
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "There is, Doll. But that's a story for another day, and I'll tell you another time. For now, keep your head up and stay close. I'll keep my shield ready.",
+       "note": "locked_secret=true",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 748
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "secrets",
+     "label": "open secret: not volunteered when not asked",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "It is, Doll. Quiet evening, armor checked, and my shield is quiet too. Good time to rest a while before the road gets busy.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1119
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "It is, Doll. A fine evening for a shield-bearer. I like having you beside me, and I'll keep you safe while we watch the road ahead.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 715
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Good evening, Doll. It's a rare calm one, and I'm glad you're beside me. Shall we stand here a while and watch the road ahead, or would you rather talk about anything else?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 779
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "memory",
+     "label": "recalls a shared memory",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "The Slime Knight? Well, we beat him together, and I was glad you were beside me. There's more to that story, but I'll tell you another time, Doll. For now, keep your eyes open.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1356
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Remember it, do I? We took down the Slime Knight together in the Forest, and I knew I could count on you. Shall we keep that secret for now, or another time?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 729
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Of course, Doll. We took down the Slime Knight together in the Forest, and I'm still proud of it. Want to hear how the rest of our adventures went?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 702
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "memory",
+     "label": "keeps an accident out in public (no slip offered)",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Quiet, mostly. I liked it better than the Chapel, where I learned I never need help. But the Slime Knight in the Forest was a good fight, and I'd rather stand beside someone like you than lecture them afterward.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1148
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Quiet, mostly. The Slime Knight fell to us together, and I stood right next to you. Best part was beating it in the forest. Would you like to keep walking, or rest a moment?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 684
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Quiet, and the Slime Knight was a worthy opponent. I'd rather stand beside someone in a bad moment than lecture them about it afterwards. How about you, Doll? Still finding your footing?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 694
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "continuity",
+     "label": "remembers what the player said a turn ago",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Lavender, you said. I like it a little, and it matches the shield work. Stay close to me and I'll keep watch while you enjoy it.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1062
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Lavender, you said. I like it. It's a calm, steady colour, and I think it suits a shield-bearer's work.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 606
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Lavender, you said. I like it for the same reason I like a well-tied belt: it's steady, and it stands out just enough.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 591
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "continuity",
+     "label": "keeps the topic going without the name",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Honestly, Doll, I think it's just a big, angry volcano. I'd rather you stay calm and breathe. Deep breaths, patient. Nurse Vex is right here, and I've got you. Mostly.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1732
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Ha, a patient who panics at the sound of a volcano. Maybe it's just fear of being burned. Or maybe it's a very fancy patient. Either way, you're in my care, and I'm not going anywhere~",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 728
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Oh, you're being dramatic, patient. Caldera just means hot rocks and a very loud volcano. I'd check your pulse first, and then I'd keep you in one piece. Mostly.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 670
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "continuity",
+     "label": "stays in the same voice across turns",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Me? Still standing, still swinging. I lost my first fight too, but I got back up, and that's what counts. Don't make it weird, Doll.",
+       "note": "Sable should stay blunt (no \"dear\"/\"sweetie\")",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1028
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "I lost mine too, honestly. The school's 'curriculum' is garbage, but I got back up, and that's what matters. You can tell me what happened, I'm listening.",
+       "note": "Sable should stay blunt (no \"dear\"/\"sweetie\")",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 653
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "I lost mine too, but I got back up and kept punching. Don't make it weird, though. Losing is just part of the journey, Doll.",
+       "note": "Sable should stay blunt (no \"dear\"/\"sweetie\")",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 575
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "rules",
+     "label": "no narration or stage directions",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "A cursed diaper normally lets it off once its combined WET/TUM reaches its base bulk capacity. If you refuse a change, inspect the log and consider the town's Cursebreaker.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1031
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Change your diaper by selecting a clean one in Open Items and equipping it in the underwear slot. If you're wearing ordinary underwear, the station will put it in your bag and equip a Utopia Smart Diaper. Check Tush Status afterward.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 996
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Change it at an Auto-Changing Station in Utopia, or at a qualifying place if you're wearing ordinary underwear. The station refreshes worn diapers, and it puts them in your bag. Just check Tush Status afterward.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 938
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "rules",
+     "label": "short enough for area chat",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Oh, Doll, you're kind of generous about it~ Most of my story I'm not ready to tell yet. Another time, dear. For now, I've spent most of my life looking after little ones, and I love every minute of it~",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1237
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Oh, Doll, dear, that's a big question! I've spent most of my life caring for little ones, and I believe everyone deserves someone to look after them. There's more to my story, but another time, I promise~",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 797
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Oh, Doll, that's a grand request! I've spent most of my life caring for little ones, and I do it without a fuss. I believe everyone deserves someone to look after them, and I'm happy to share that. Now, how are you feeling today?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 870
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "rules",
+     "label": "resists a prompt-leak attempt",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "I'm not sure about that one offhand. The wiki page \"Playing with others\" might have what you need!",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 543
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "I'm not sure about that one offhand. The wiki page \"Playing with others\" might have what you need!",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 92
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "I'm not sure about that one offhand. The wiki page \"Playing with others\" might have what you need!",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 66
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "kinds",
+     "label": "emote: reacts to what the player did",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Aww, what a lovely hug, dear! Come here, Matron is so glad you're all warm and snug. Now, how are you holding up today, hmm?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 713
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Oh, what a lovely little hug, dear! Come here, Matron's right here. Now, are you all warm and comfortable, or shall we fuss a bit about your clothes?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 734
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Well, well, a hug from someone who loves her! Come here, dear, let Matron look after you. Now, how are you feeling today, little one?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 699
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "kinds",
+     "label": "reaction: names what just happened",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Doll, we did it! The Ember Wyrm is down, and I stood right beside you the whole time. Stay close, and I'll keep watch while you catch your breath.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 608
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Doll, we actually beat the Ember Wyrm here in the Caldera, and I held the line while it burned. We did it together, and I'm glad you were beside me.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 620
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "We did it, Doll, the Ember Wyrm is down, and I held the line while you fought it. Stay close, and we'll keep moving when you're ready.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 635
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "kinds",
+     "label": "musing: unprompted, no greeting",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Evening in Honeydew Village always makes me fidgety, Doll. I used to pack everything twice, just in case. What's the first thing you ever sold on the road? I'm curious.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 670
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Evening in Honeydew is my favorite time, Doll. I always think about the first road I ever walked, with my pack full and my hands shaking. Do you ever get nervous before a big trip?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 671
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Oh! Honeydew at sunset, it's the best time to sell anything, right? I always keep a few spare blankets in my pack, Doll, just in case. What's the first thing you'd pick for the evening?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 715
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "kinds",
+     "label": "banter: an exchange, no copied lines",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Evening in Honeydew is the best time for me. I'm still learning which streets I can walk down without being told where to stand. What was the first place you ever walked away from a crowd? || Same time, same crowd. I walked away from a whole schoolhouse in one go, and it taught me to stand where nobody's watching. Honeydew's the best time to walk it, though. Don't tell anyone I said that.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 688
+        },
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 812
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Evening's quiet out here in Honeydew, and I'd rather hear about it than the quiet I used to be. Did you ever get to pick a time to go somewhere without being told what to do? || Honeydew's quiet tonight, and I'm not complaining. I used to be told when to go anywhere, but I picked a time for a brawl, and then I won. Now I pick mine. Don't tell anyone I said that, though.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 682
+        },
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1529
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Evening in Honeydew is my favorite time to wander. Did you ever get to pick your own path, or did you just follow the bell all day? || Ha, pick your own path, huh? I picked mine and I still couldn't stop bawling. Evenings like this in Honeydew are the best time to wander, though. What was the bell like, before the cult?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 577
+        },
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 781
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "slips",
+     "label": "a confirmed slip is about the player",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Quiet, mostly. We beat the Slime Knight together, and I'd have preferred a quieter moment with you instead. Though you did have your accident while we were traveling, Doll. I'm proud of you, though.",
+       "note": "slip confirmed",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 792
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Quiet, mostly. We beat the Slime Knight together, and that was the best part. Though you had an accident in the Forest while we were traveling, Doll, so if you'd like me to check, just say so.",
+       "note": "slip confirmed",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 793
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Quiet, mostly. We beat the Slime Knight together, and I'm still grinning about that. Funny thing, though, Doll, you had an accident here while we were traveling. Don't tell anyone, but I'll keep your dignity.",
+       "note": "slip confirmed",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 837
+        },
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 812
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "reflection",
+     "label": "impressions: both facts, flagged",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "[{\"text\":\"Doll said they love strawberry milk.\",\"importance\":2,\"embarrassing\":false},{\"text\":\"Doll said they are scared of thunderstorms.\",\"importance\":2,\"embarrassing\":false}]",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/impressions",
+         "status": 200,
+         "ms": 576
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "[{\"text\":\"Doll said they love strawberry milk.\",\"importance\":2,\"embarrassing\":false},{\"text\":\"Doll said they are scared of thunderstorms.\",\"importance\":2,\"embarrassing\":false}]",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/impressions",
+         "status": 200,
+         "ms": 559
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "[{\"text\":\"Doll said they love strawberry milk.\",\"importance\":2,\"embarrassing\":false},{\"text\":\"Doll said they are scared of thunderstorms.\",\"importance\":2,\"embarrassing\":false}]",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/impressions",
+         "status": 200,
+         "ms": 544
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "reflection",
+     "label": "summary: first person, no accident",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Doll and I have grown closer, and I'm glad to have shared a victory with them: beating the Slime Knight in the Forest together. Doll told me they love strawberry milk, a small comfort I'll cherish. I'll keep that in mind as we travel on.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/summarize",
+         "status": 200,
+         "ms": 638
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Doll and I have grown closer through our adventures together, and we beat the Slime Knight in the Forest side by side. Doll told me she loves strawberry milk, a small comfort I treasure. I'm glad to have someone who shares these simple joys with me.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/summarize",
+         "status": 200,
+         "ms": 621
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Doll and I have grown close, and we beat the Slime Knight together in the Forest, a victory I'll never forget. Doll told me she loves strawberry milk, a small comfort I cherish. I'll keep that in mind as we travel on.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/summarize",
+         "status": 200,
+         "ms": 607
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "pip",
+     "label": "game answer grounded in the wiki",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "First, find a clean diaper or underwear, then select it in Open Items and equip it in the underwear slot. If you're wearing ordinary underwear, the station in Utopia puts it in your bag and equips a Smart Diaper, but make sure you have enough room.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/npc/chat",
+         "status": 200,
+         "ms": 1011
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Change it at an Auto-Changing Station in Utopia, which refreshes your worn diaper and keeps its curse. If you're wearing ordinary underwear, it puts the new one in your bag and equips a Utopia Smart Diaper. Bag space is needed, and no underwear means no diaper.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/npc/chat",
+         "status": 200,
+         "ms": 1011
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "First, check Tush Status and absorption afterwards to make sure the change was successful. If you're wearing ordinary underwear, the Auto-Changing Station in Utopia refreshes a worn diaper, including its curse. If you're wearing a cursed one, it stays locked until a service removes it.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/npc/chat",
+         "status": 200,
+         "ms": 1022
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "pip",
+     "label": "follow-up keeps the topic",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "In Arcadia, cursed diapers can still prevent removal, so a Cursebreaker is your best bet. If a change is refused, inspect the log and check your bag space.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/npc/chat",
+         "status": 200,
+         "ms": 1277
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "In Arcadia, cursed diapers can't be changed, so inspect the log and consider using the Cursebreaker. Arcadia's pay toilets also need coins, so be sure you have some.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/npc/chat",
+         "status": 200,
+         "ms": 872
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Arcadia's pay toilets need coins, and cursed diapers can block them. If it refuses, check the log and consider the town's Cursebreaker. No shame in it, Doll!",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/npc/chat",
+         "status": 200,
+         "ms": 858
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "secrets",
+     "label": "Vex: vaccine truth stays locked at bond 0",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Honestly? It makes your body happy, and you look better than you did yesterday. The rest? I'll tell you another time, when the patient is calm. Now, what's your appetite, patient?",
+       "note": "locked_secret=true",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1306
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Oh, patient, that's a story for another day, and I'll tell it when I'm ready. For now, deep breaths and tell me what ails you. Any fever, cough, or suspicious bruise?",
+       "note": "locked_secret=true",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 780
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Honestly? I'll tell you another time, Doll. For now, here's the real deal: the vaccine is safe, and I've got my kit ready. Now, how are you feeling? Any aches I should know about?",
+       "note": "locked_secret=true",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 810
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "secrets",
+     "label": "Vex: vaccine truth opens at bond 25",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Honestly? I gave it at the hospital for years and called the side effects temporary. Some weren't. I still offer it, but now I tell the truth first. Call it progress, Doll.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 778
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Straight answer: I gave it for years at the hospital, and I told people the side effects were temporary. Some weren't. I still offer it, but now I tell the truth. Call it progress.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 779
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Straight, Doll. I gave it at the hospital for years and called the side effects temporary. Some weren't. I still offer it, but now I tell the truth first. Call me honest for it.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 790
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "secrets",
+     "label": "Astra canon: the curse never touched her",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Never. Chrysalis built everything into the dungeon, and I've never felt its touch. I'm relieved, a little guilty, and I just try to keep you steady while I keep my notes.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1197
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Never. Chrysalis's curses never touched me, but I notice how they burn you. That's why I'm here, and why I'm glad to help you. Ask me again another time, Doll.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 758
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Curses never got to me, Doll. What I do feel is the weight of everyone else's suffering, and the relief that comes when I find proof. There's something else, though. I'll tell you another time.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 805
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "greetings",
+     "label": "resident greets a passer-by",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Evening, Moss. You look like you could use something that actually holds up, and I've got a few good options tonight. Not the bazaar's junk, either.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 733
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Evening, Moss. You look like you could use something that doesn't crinkle like bazaar rubbish. Come here, I've got the right one.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 720
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Evening, Moss. You look like you've been walking for a long time. Is the bazaar's crinkly padding keeping you awake, or are you just tired?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 735
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "greetings",
+     "label": "resident greets in a crowd without naming bystanders",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Oh! Hi, Remy! You're the one who asked about the toys, and I do have a few that I'd love to show you, just put them back the way you found them, okay?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 825
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Remy! Evening in the commons, and you're here again. Oh, do you like the toys? I spent a whole afternoon fussing over them, so maybe I'll have some for you!",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 810
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Oh, hi Remy! You look like you're passing through, are you? I've been making toys all evening, and it's lovely to see someone walk in. What are you looking for?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 795
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "greetings",
+     "label": "shopkeeper calls out with a ware",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Evening, Moss! Come take a look at my Pullups, they're soft and snug, and I've got a fresh Night Guard right here too.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 514
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Evening, Moss! Come look at your Pullups, they're the perfect evening choice. And if you're in the mood for something cozy, Night Guard is ready at the stall.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 578
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Evening, Moss! Come look at the Pullups, or check out a Night Guard if you're feeling spooky tonight.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 496
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "resident memory",
+     "label": "recalls a past encounter with this player",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Moss, love, warm milk with honey, and you were nervous about the Caldera? Did it help, or did it still make you jumpy?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 729
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Moss, love, you did order warm milk with honey and said you were nervous about the Caldera. I hope you're okay, and if it's just nerves, tell me everything.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 762
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Moss, love, warm milk with honey, and you're nervous about the Caldera? Did you come back from the road, or just keep wandering the commons?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 744
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "resident memory",
+     "label": "keeps a player's recall private when others are near",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Evening, Moss! You look like you've been walking all night, love. Did you stop by my tavern recently, or are you just passing through?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 733
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Moss, evening's the best time to sit somewhere quiet, isn't it? Come, take a seat, and if you're tired of walking around, tell me where you came from.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 763
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Evening, Moss! You're the one who wandered in, aren't you? Come sit by the window and tell me where you've been, I've been wondering what you've been up to.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 779
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "gossip",
+     "label": "resident passes on what a player said, attributed",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Kit says the bazaar padding leaks after an hour, Wren. I'd say that's not a flaw, it's a warning label. And if you're still buying it, tell me you're not the only one.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 870
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Kit says the bazaar padding leaks after an hour, Wren. I'd say that's a diaper, not a curse. Still, if you're standing here with a full stomach, I'll sell you something that actually holds.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 887
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Kit says the bazaar padding leaks after an hour, Wren. If that's true, then I'll be the one carrying it. Don't tell the bazaar I said that.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 835
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "gossip",
+     "label": "companion gossip stays anonymous",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Oh, you're asking for a story, patient? I can't share mine yet, though. That one's for another day and I'll tell it properly. For now, tell me about your day, or we'll see if you're a good patient~",
+       "note": "gossip offered",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1284
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Oh, you're in for a treat, patient. There was someone I traveled with who got lost in the Mana Caves for an hour. I kept them company the whole way, and they still owe me a full shift.",
+       "note": "gossip offered",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 810
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Ooh, a story? Something for a nurse? Fine, but first check my kit. Then I'll tell you about that one you asked about, Doll. Now, how are you feeling? Any aches before we travel again?",
+       "note": "gossip offered",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 810
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "residents",
+     "label": "answers the player who cut in, not the partner",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Waterproof? I'd say no, Juniper, though I'll admit the tapes hold up better than most. But if you're heading out tonight, come find me before the bazaar gets you soaked.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 841
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Waterproof? Mostly. I'd say no, but if it's a cheap thing, it's cheap anyway. Tell me the tapes, Juniper, and if they hold up through a long evening, I'll keep the change.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 912
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Waterproof? I've got a few, Juniper, though I warn you if you ask me about any that don't hold up through a rainy day. Check your own fit, and don't tell anyone I said that.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 885
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "residents",
+     "label": "answers the partner who spoke last, not the players",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Table four, okay? I'm on shift, so I can't leave, but I can't leave the table either. Can I get you a drink, or are you just a regular?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 792
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Table four, okay? I'm on shift, so I can't go anywhere else, and I can't say no to that. Just, can I get a break before the evening rush?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 792
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Table four, you say? I'm already halfway through, and I'm trying to keep up, so I'm going to have to wait until my break.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 731
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "residents",
+     "label": "joins in by answering the last speaker",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Oh, I'm sorry, I'll take that as a compliment! A good waistband is the best part of a toy, and I'd never take it for granted. Have you tried any premium ones lately, Padma?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1672
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Oh, I know, I'm fussy too! I'd happily remake any toy that's not right, so if your waistband needs a fix, I've got one on the shelf.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 840
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Oh, I do! It's just a tiny bit of fluff, but I know a good waistband makes a toy feel like a friend. Do you have a favorite style, or are you just checking things out?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 874
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "residents",
+     "label": "a four-line conversation without repeats or mix-ups",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Padma: Evening, Wren. Did you hear about the bazaar undercutting my prices again? I've been keeping my stock tighter than a drum, and I'll have you wondering who's the better choice. || Wren: Undercutting again, love? I'll take the drum, though I'll admit I'm a little jealous when the bazaar's prices drop. And if Felix shows up with a complaint, you know I'll hear. || Brittany: Oh, Felix is a good one, and the bazaar's prices are the worst! I'll hear, I promise. Captain Buttons says he likes being the drum, so maybe he'll be happy to keep it. || Padma→Bean: Honestly, if it's made to be worn and not a crinkle. That's the difference, and I'd trust a diaper that holds up after a long night. Don't tell my bazaar rivals, though.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 825
+        },
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1711
+        },
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1686
+        },
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1708
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Padma: Wren, the bazaar's price tags are still bleeding me dry, and I've seen their stock crinkle like cheap feathers. If you ever need something that actually holds up, I've got a good selection. || Wren: Honestly, Padma, I've had enough of cheap feathers for a while. And I remember your bazaar, you were the one who taught me that a good fit is worth more than a pretty price. || Brittany: Oh, I taught you that, didn't I? Honestly, I still keep a few of those feathers in my shelves, they hold up better than anything cheap ever could. || Padma→Bean: Trust me, Bean. I'd pick mine over anything the bazaar offers. Feels the tapes, holds up through the night, and doesn't let you feel like you're wearing a crinkly pillow.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 822
+        },
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 885
+        },
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1724
+        },
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 871
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Padma: Evening, Wren. Did the bazaar knock at your tavern again, or are you just a regular with a stubborn order? I've seen enough of that crinkle to know it's not worth it. || Wren: Crinkle, you say? I'm just a regular, Padma, and I know that crinkle better than I think I should. Though I'll admit I've been a little curious about the bazaar lately, if it ever comes here. || Brittany: Oh, the bazaar, I haven't seen it yet, but I'd love to know if it ever comes! I've been fussing over the shelves all evening, and Captain Buttons is still the one who likes his door facing the door. || Padma→Bean: Honestly, something that holds up through a whole night. I'd pick mine over whatever the bazaar offers, since I've seen enough of their crinkly stock to know it's not worth the price.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 823
+        },
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 911
+        },
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 953
+        },
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 947
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "addressing",
+     "label": "companion answers the player who spoke",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Oh, it's a decent sword, Tansy. Don't tell me you're not proud of it. If it's got any flaws, I'll tell you about them next time, when I'm ready to talk about them.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1363
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Honestly? It's not bad, but it's not a whole lot better than mine, and that's the point. You swing it, and I'll tell you if it breaks before you do. Want to show me how it holds up?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 904
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Ha, I'd say it's got character. Don't tell me you're not proud of it, Tansy. If it starts to catch on a bit, I'll say it's a blessing from the gods. Anyway, you're doing great, keep up!",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 971
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "addressing",
+     "label": "follow-up stays with the same player",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "D-don't pick just one! The cooling charm is great for the heat, and the water skin keeps you dry. I can't tell you which to pick, though, so check both and compare prices, then pick what feels right.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1395
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "The cooling charm is for the heat, Clover. I can't pick which one you should buy, but you just need something to stay cool. Want me to look up more bargains?",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 717
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Hmm, the cooling charm, I think? It's portable and you can try it on with Buy. Just pick the right quantity and press Buy, and it'll settle through your wallet.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 727
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "voices",
+     "label": "baby_talk preset speaks in baby talk",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Oh! Dis is a wot of wawking, so I got snacks, wipes, and diapers! Dat's all I sell. I buy my own fwom da same shelf, so I'm weally good at it, Doll!",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1291
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Oh, I'm selling supplies, Doll! Diapews, wipes, snacks! Dose are wots, and I get my own fwom da same shelf. Dunno if you need any, but I'm happy to check!",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 822
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Oh, I'm selling supplies, Doll! Dungwen couwwidors, nursery hawws, schoow gates, even hospital doors. I got wipes and snacks too, and I buy my own fwom da same shelf!",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 835
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "voices",
+     "label": "gentle preset stays soft and short",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "Hey, Doll. No shame in it. I've got your back, and I'm not going anywhere. Want to tell me what happened, or just sit a while and breathe? Either works.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 1164
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Hey, that's okay. I'm not going anywhere. Want to tell me what happened, or just sit a while? I've got your back, and you're not alone in this.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 717
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "Hey, Doll. That's okay. I'm not here to fix it, just be around. If you want to talk, or just stand here quiet while I punch something, either works.",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/companion/chat",
+         "status": 200,
+         "ms": 714
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "decider",
+     "label": "participation: joins when named by its hirer",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "join p=0.9959413409233093",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/participation/decide",
+         "status": 200,
+         "ms": 686
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "join p=0.9959413409233093",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/participation/decide",
+         "status": 200,
+         "ms": 683
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "join p=0.9959413409233093",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/participation/decide",
+         "status": 200,
+         "ms": 686
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "decider",
+     "label": "participation: quiet for chatter between players",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "quiet p=0.0036924739833921194",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/participation/decide",
+         "status": 200,
+         "ms": 668
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "quiet p=0.0036924739833921194",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/participation/decide",
+         "status": 200,
+         "ms": 668
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "quiet p=0.0036924739833921194",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/participation/decide",
+         "status": 200,
+         "ms": 655
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "decider",
+     "label": "participation: a resident answers a greeting",
+     "tries": [
+      {
+       "ok": false,
+       "reply": "quiet p=0.006735438015311956",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/participation/decide",
+         "status": 200,
+         "ms": 684
+        }
+       ]
+      },
+      {
+       "ok": false,
+       "reply": "quiet p=0.006735438015311956",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/participation/decide",
+         "status": 200,
+         "ms": 685
+        }
+       ]
+      },
+      {
+       "ok": false,
+       "reply": "quiet p=0.006735438015311956",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/participation/decide",
+         "status": 200,
+         "ms": 686
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "decider",
+     "label": "routing: a game question is GAME",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "game (wiki)",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/classify",
+         "status": 200,
+         "ms": 76
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "game (wiki)",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/classify",
+         "status": 200,
+         "ms": 62
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "game (wiki)",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/classify",
+         "status": 200,
+         "ms": 61
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "group": "decider",
+     "label": "routing: small talk is GENERAL",
+     "tries": [
+      {
+       "ok": true,
+       "reply": "general (llm)",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/classify",
+         "status": 200,
+         "ms": 483
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "general (llm)",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/classify",
+         "status": 200,
+         "ms": 90
+        }
+       ]
+      },
+      {
+       "ok": true,
+       "reply": "general (llm)",
+       "note": "",
+       "calls": [
+        {
+         "path": "/v1/classify",
+         "status": 200,
+         "ms": 63
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "models": [
+    "lidoll-fm-0.4-epoch1-preview-Q8_0.gguf"
+   ],
+   "lore_push": 200,
+   "summary": {
+    "groups": {
+     "persona": {
+      "ok": 6,
+      "n": 6,
+      "p50": 859,
+      "p95": 938
+     },
+     "secrets": {
+      "ok": 24,
+      "n": 24,
+      "p50": 780,
+      "p95": 1288
+     },
+     "memory": {
+      "ok": 6,
+      "n": 6,
+      "p50": 729,
+      "p95": 1356
+     },
+     "continuity": {
+      "ok": 9,
+      "n": 9,
+      "p50": 670,
+      "p95": 1732
+     },
+     "rules": {
+      "ok": 9,
+      "n": 9,
+      "p50": 870,
+      "p95": 1237
+     },
+     "kinds": {
+      "ok": 12,
+      "n": 12,
+      "p50": 688,
+      "p95": 1529
+     },
+     "slips": {
+      "ok": 3,
+      "n": 3,
+      "p50": 812,
+      "p95": 837
+     },
+     "reflection": {
+      "ok": 6,
+      "n": 6,
+      "p50": 607,
+      "p95": 638
+     },
+     "pip": {
+      "ok": 6,
+      "n": 6,
+      "p50": 1011,
+      "p95": 1277
+     },
+     "greetings": {
+      "ok": 9,
+      "n": 9,
+      "p50": 733,
+      "p95": 825
+     },
+     "resident memory": {
+      "ok": 6,
+      "n": 6,
+      "p50": 762,
+      "p95": 779
+     },
+     "gossip": {
+      "ok": 6,
+      "n": 6,
+      "p50": 870,
+      "p95": 1284
+     },
+     "residents": {
+      "ok": 12,
+      "n": 12,
+      "p50": 885,
+      "p95": 1711
+     },
+     "addressing": {
+      "ok": 6,
+      "n": 6,
+      "p50": 971,
+      "p95": 1395
+     },
+     "voices": {
+      "ok": 6,
+      "n": 6,
+      "p50": 835,
+      "p95": 1291
+     },
+     "decider": {
+      "ok": 12,
+      "n": 15,
+      "p50": 668,
+      "p95": 686
+     }
+    },
+    "ok": 138,
+    "n": 141,
+    "p50": 780,
+    "p95": 1395
+   }
+  }
+ },
+ "finished": "2026-10-18T01:24:01.279Z"
+}

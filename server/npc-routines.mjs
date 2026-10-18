@@ -1,3 +1,4 @@
+import {moveDelays,extendTrail,trailView} from './crawl.mjs'; // Residents share the player's tuned walking interval and bounded, timestamped tile trail.
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'npc_routine_conflict'});};
 const key=p=>p.x+','+p.y;
 const cardinal=[[0,1],[-1,0],[1,0],[0,-1]];
@@ -19,7 +20,7 @@ export function normalizeRoutine(raw,catalog){
   return {id,name:String(r.name??'Schedule').slice(0,80),clock:r.clock,from,to,priority:int(r.priority??0,0,100,'priority'),days:[...new Set(r.days.map(d=>int(d,0,6,'weekday')))],blocks};});
  return {version:1,name:String(raw.name??'Routine').slice(0,80),enabled:raw.enabled!==false,entries};
 }
-export function createNpcRoutines(db,{now,base,clock,published,readOnly=false,held=()=>false}={}){
+export function createNpcRoutines(db,{now,base,clock,published,readOnly=false,held=()=>false,walkDelay=()=>base.walkDelay?.()??moveDelays().walk}={}){
  db.exec('CREATE TABLE IF NOT EXISTS world_npc_routines(id TEXT PRIMARY KEY,revision INTEGER NOT NULL,body TEXT NOT NULL,state TEXT NOT NULL,updated INTEGER NOT NULL)');
  const allQuery=db.prepare('SELECT * FROM world_npc_routines ORDER BY id'),oneQuery=db.prepare('SELECT * FROM world_npc_routines WHERE id=?');
  const unpack=r=>r?{...r,body:JSON.parse(r.body),state:JSON.parse(r.state)}:null,all=()=>allQuery.all().map(unpack),get=id=>unpack(oneQuery.get(id));
@@ -37,16 +38,17 @@ export function createNpcRoutines(db,{now,base,clock,published,readOnly=false,he
   const state=old?.state??{...body.home,facing:0,step:now(),status:'home'};state.active=null;state.block=0;delete state.until;delete state.patrol;state.status=body.enabled?'scheduled':'disabled';
   db.prepare('INSERT INTO world_npc_routines VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET revision=excluded.revision,body=excluded.body,state=excluded.state,updated=excluded.updated').run(placement.id,(old?.revision??0)+1,JSON.stringify(body),JSON.stringify(state),now());return get(placement.id);
  }
- function project(zone,placements){const records=all(),ids=new Set(records.filter(enabled).map(r=>r.id)),out=placements.filter(p=>!ids.has(p.id));for(const r of records)if(enabled(r)&&r.state.zone===zone){const n=published()[r.body.content];out.push({id:r.id,zone,kind:'npc',content:r.body.content,name:n.name,sprite:n.sprite,lifetime:'persistent',x:r.state.x,y:r.state.y,home:r.body.home,facing:r.state.facing??0,walking:r.state.walking===true,routine:{name:r.body.name,status:r.state.status,activity:r.state.activity,destination:r.state.destination},routineManaged:true});}return out;} // Exactly one current-zone projection; authored home definitions never respawn a traveller.
+ function project(zone,placements){const records=all(),ids=new Set(records.filter(enabled).map(r=>r.id)),out=placements.filter(p=>!ids.has(p.id));for(const r of records)if(enabled(r)&&r.state.zone===zone){const n=published()[r.body.content];out.push({id:r.id,zone,kind:'npc',content:r.body.content,name:n.name,sprite:n.sprite,lifetime:'persistent',x:r.state.x,y:r.state.y,home:r.body.home,facing:r.state.facing??0,walking:r.state.walking===true,...trailView(r.state,zone,now()),routine:{name:r.body.name,status:r.state.status,activity:r.state.activity,destination:r.state.destination},routineManaged:true});}return out;} // Exactly one current-zone projection; authored home definitions never respawn a traveller.
  function tick(){if(readOnly)return;const time=now(),gameMs=clock().gameMs,records=all().filter(enabled),maps=new Map(),map=id=>{if(!maps.has(id))maps.set(id,readMap(id));return maps.get(id);};let budget=400;
-  for(const r of records){if(budget<=0)break;const s=r.state;if(time-(s.step??0)<2000)continue;const e=activeRoutine(r.body.entries,gameMs,time),active=e?.id??'@home',blocks=e?.blocks??[{kind:'home'},{kind:'stay'}];
+  const requested=Number(walkDelay()),delay=Number.isFinite(requested)&&requested>0?Math.max(50,requested):moveDelays().walk;
+  for(const r of records){if(budget<=0)break;const s=r.state,elapsed=time-(s.step??time);if(elapsed<delay)continue;const e=activeRoutine(r.body.entries,gameMs,time),active=e?.id??'@home',blocks=e?.blocks??[{kind:'home'},{kind:'stay'}];
    const holding=held(r.id,time);if(holding==='ambient')s.holdSince??=time;else delete s.holdSince; // Ambient small talk may delay departure for at most thirty real seconds.
    if(holding&&(holding!=='ambient'||time-s.holdSince<30000)){s.step=time;s.walking=false;s.status='talking';}else{
     if(s.active!==active){s.active=active;s.block=0;delete s.until;delete s.patrol;}s.activity=e?.name??'Home';
     let current;try{current=map(s.zone);}catch{s.status='zone unavailable';s.step=time;current=null;}
     if(current?.floor){const repaired=nearest(current.floor,s);if(!repaired){s.status='no safe tile';s.step=time;}else{
      Object.assign(s,repaired);s.edition=current.edition;
-     const watched=(current.players??[]).some(p=>p.online),steps=watched?1:Math.min(120,Math.max(1,Math.floor((time-(s.step??time))/2000)));let advance=steps;
+     const watched=(current.players??[]).some(p=>p.online),steps=watched?1:Math.min(120,Math.max(1,Math.floor(elapsed/delay))),stepAt=time-elapsed%delay;let advance=steps;
      while(advance-->0&&budget-->0){const b=blocks[s.block];if(!b||b.kind==='stay'){s.status=b?'staying':'finished';s.walking=false;break;}if(b.kind==='wait'){s.until??=(s.step??time)+b.seconds*1000;if(time<s.until){s.status='waiting';s.walking=false;break;}delete s.until;s.block++;continue;}
       const d=b.kind==='home'?r.body.home:b.kind==='patrol'?b.points[(s.patrol??0)%b.points.length]:b.destination;s.destination=d.zone;s.walking=true;
       let m;try{m=map(s.zone);}catch{s.status='zone unavailable';s.walking=false;break;}const f=m.floor;if(!f){s.status='zone unavailable';s.walking=false;break;}let goal,hop=null;
@@ -55,8 +57,8 @@ export function createNpcRoutines(db,{now,base,clock,published,readOnly=false,he
       if(s.x===goal.x&&s.y===goal.y){if(hop){let next;try{next=map(hop.to);}catch{next=null;}const back=next&&links(next).find(l=>l.target===s.zone),arrival=next?.floor&&nearest(next.floor,next.floor.entries?.[s.zone]??back??next.floor.entrance??next.floor.spawn,3);if(!arrival){s.status='arrival blocked';s.walking=false;break;}if(records.some(o=>o.id!==r.id&&o.state.zone===hop.to&&o.state.x===arrival.x&&o.state.y===arrival.y)){s.status='arrival occupied';break;}Object.assign(s,arrival,{zone:hop.to,edition:next.edition,status:'travelling'});if((next.players??[]).some(p=>p.online))break;continue;}
        if(b.kind==='patrol'){s.patrol=(s.patrol??0)+1;if(s.patrol>=b.points.length*b.loops){delete s.patrol;s.block++;}}else s.block++;continue;
       }
-      const blocked=new Set(records.filter(o=>o.id!==r.id&&o.state.zone===s.zone&&!o.state.walking).map(o=>key(o.state))),walk=path(f,s,goal,blocked);if(!walk?.length){s.status='path blocked';s.walking=false;break;}const p=walk[0];s.facing=p.x!==s.x?(p.x>s.x?2:3):(p.y>s.y?0:1);s.x=p.x;s.y=p.y;s.status='travelling';
-     }s.step=time;
+      const blocked=new Set(records.filter(o=>o.id!==r.id&&o.state.zone===s.zone&&!o.state.walking).map(o=>key(o.state))),walk=path(f,s,goal,blocked);if(!walk?.length){s.status='path blocked';s.walking=false;break;}const p=walk[0],at=stepAt-advance*delay;s.trail=extendTrail({...s,moved:at-delay},[{...p,t:at}]);s.facing=p.x!==s.x?(p.x>s.x?2:3):(p.y>s.y?0:1);s.x=p.x;s.y=p.y;s.status='travelling';
+     }s.step=stepAt; // Retain fractional time so a 50 ms coordinator tick does not round 187.5 ms walking up to 200 ms. Watched rooms never bank a catch-up burst.
     }}
    }
    db.prepare('UPDATE world_npc_routines SET state=?,updated=? WHERE id=?').run(JSON.stringify(s),time,r.id);
