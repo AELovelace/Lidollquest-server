@@ -210,6 +210,7 @@ The **AI Tester** tab checks the AI servers and lets you ask them things the way
 - which student model it runs and how many copies are alive;
 - its reply slots;
 - how the game currently sees it (healthy or down, how busy, how fast).
+- each graphics card's temperature (and hotspot on AMD cards), video memory used and how busy it is, plus the machine's RAM.
 
 Open **Full /health** for everything the server reported. Keys and passwords are never shown.
 

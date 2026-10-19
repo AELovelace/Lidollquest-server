@@ -1204,6 +1204,9 @@ tr.sel td{background:#2c1e3d}
   if(b.capacity&&b.capacity.slots)parts.push(b.capacity.slots+" reply slots");
   if(b.overflow&&b.overflow.enabled)parts.push("overflow on");
   if(b.participation&&b.participation.enabled)parts.push("participation "+(b.participation.healthy?"OK":"DOWN"));
+  var hw=b.hardware||{};
+  (hw.gpus||[]).forEach(function(g){parts.push("GPU"+g.index+" "+(g.temp_c!=null?Math.round(g.temp_c)+"°C":"?")+(g.hotspot_c!=null?"/"+Math.round(g.hotspot_c)+"°C hotspot":"")+(g.vram_used_mb!=null?" "+(g.vram_used_mb/1024).toFixed(1)+"/"+(g.vram_total_mb/1024).toFixed(1)+" GB":"")+(g.busy_pct!=null?" "+g.busy_pct+"% busy":""));}); // npc-rag hardware block (2026-10-19).
+  if(hw.ram)parts.push("RAM "+hw.ram.used_gb+"/"+hw.ram.total_gb+" GB");
   return parts.join(" · ")+" · "+h.ms+" ms";
  }
  function aitShowFields(){ // Only the boxes the chosen test uses.
