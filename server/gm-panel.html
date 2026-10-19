@@ -141,6 +141,7 @@ tr.sel td{background:#2c1e3d}
   <button type="button" role="tab" id="tab-tutor" aria-controls="panel-tutor" aria-selected="false" tabindex="-1">Tutor NPC</button>
   <button type="button" role="tab" id="tab-companions" aria-controls="panel-companions" aria-selected="false" tabindex="-1">Companions</button>
   <button type="button" role="tab" id="tab-ambient" aria-controls="panel-ambient" aria-selected="false" tabindex="-1">Ambient Life</button>
+  <button type="button" role="tab" id="tab-aitester" aria-controls="panel-aitester" aria-selected="false" tabindex="-1">AI Tester</button>
   <button type="button" role="tab" id="tab-welcome" aria-controls="panel-welcome" aria-selected="false" tabindex="-1">Welcome</button>
   <button type="button" role="tab" id="tab-music" aria-controls="panel-music" aria-selected="false" tabindex="-1">Music</button>
   <button type="button" role="tab" id="tab-guilds" aria-controls="panel-guilds" aria-selected="false" tabindex="-1">Guilds</button>
@@ -594,6 +595,32 @@ tr.sel td{background:#2c1e3d}
     <h2>Recent Decider decisions</h2>
     <div id="ambientDecisions" class="log"></div>
     <div class="row"><button id="ambientExport">Export decisions for training (player names scrubbed)</button></div>
+  </section>
+</div>
+<div class="tab-panel" id="panel-aitester" role="tabpanel" aria-labelledby="tab-aitester" tabindex="0" hidden>
+  <section class="wide">
+    <h2>AI servers</h2>
+    <p class="note">Every AI node's own health report (npc-rag /health), beside how the game's pool sees it. Nodes running the student fleet keep their model copies private; their reply slots come from the node itself.</p>
+    <div class="row"><button id="aitLoad">Refresh</button><span id="aitStatus" role="status"></span></div>
+    <div id="aitNodes" class="log"></div>
+    <h2>Send a test</h2>
+    <p class="note">Builds the same request the live game sends (persona, voice lines, your speaking-style preset and the current backstories), then sends it to the node you pick. Nothing is saved to any character, memory or bond. Tests use the same AI slots as players, so keep them few on a busy night.</p>
+    <div class="row"><label for="aitNode">Node</label><select id="aitNode"></select><label for="aitRoute">Test</label><select id="aitRoute">
+      <option value="chat">Companion reply</option><option value="impressions">Impressions (what they would remember)</option><option value="summarize">Memory summary</option><option value="gate">Join or stay quiet (Decider)</option><option value="pip">Pip (tutor)</option></select></div>
+    <div class="row" data-ait="chat impressions summarize gate"><label for="aitNpc">Companion</label><select id="aitNpc"></select><span id="aitStyle" class="note"></span></div>
+    <div class="row"><label for="aitPlayer">Player name</label><input id="aitPlayer" maxlength="64" value="Tester" style="width:160px"></div>
+    <div class="row" data-ait="chat impressions gate pip"><label for="aitMessage">Message</label><textarea id="aitMessage" class="grow" rows="2" maxlength="500" placeholder="What the player says"></textarea></div>
+    <div class="row" data-ait="impressions"><label for="aitReply">Their reply</label><input id="aitReply" class="grow" maxlength="600" placeholder="The companion's answer to remember facts from"></div>
+    <div class="row" data-ait="chat"><label for="aitKind">Kind</label><select id="aitKind"><option value="chat">chat</option><option value="emote">emote</option></select><label for="aitBond">Bond</label><input id="aitBond" type="number" min="0" max="100" value="0" style="width:70px"><label for="aitAudience">Others nearby</label><input id="aitAudience" type="number" min="0" max="50" value="0" style="width:70px"><label for="aitFlags">Story flags</label><input id="aitFlags" class="grow" maxlength="800" placeholder="comma separated, e.g. vex_vaccine_told"></div>
+    <div class="row" data-ait="gate"><label><input id="aitConversation" type="checkbox"> Already talking with them</label><label><input id="aitHired" type="checkbox"> Speaker hired them</label></div>
+    <div class="row" data-ait="chat gate pip"><label for="aitHistory">Earlier lines</label><textarea id="aitHistory" class="grow" rows="3" placeholder="One per line, oldest first: Tester: hi there / Vex: hello again"></textarea></div>
+    <div class="row" data-ait="chat summarize"><label for="aitMemories">Memories</label><textarea id="aitMemories" class="grow" rows="3" placeholder="One memory per line, e.g. Tester likes the rose garden"></textarea></div>
+    <div class="row" data-ait="chat summarize"><label for="aitSummary">Summary</label><textarea id="aitSummary" class="grow" rows="2" maxlength="1200" placeholder="What they already know about this player (optional)"></textarea></div>
+    <div class="row" data-ait="chat"><label for="aitSituation">Situation</label><textarea id="aitSituation" class="grow" rows="2" placeholder="Short facts, one per line, e.g. badly hurt / soaked diaper"></textarea></div>
+    <div id="aitBackstory" class="log" data-ait="chat"></div>
+    <div class="row"><button class="go" id="aitSend">Send</button><button id="aitSendAll">Send to every node</button><button id="aitClear">Clear results</button></div>
+    <h2>Results</h2>
+    <div id="aitResults" class="log"><p class="note">No tests yet.</p></div>
   </section>
 </div>
 <div class="tab-panel" id="panel-companions" role="tabpanel" aria-labelledby="tab-companions" tabindex="0" hidden>
@@ -1165,6 +1192,93 @@ tr.sel td{background:#2c1e3d}
   $("tutorSave").disabled=true;
   api("/gm/action",{method:"POST",body:body}).then(function(response){say("ok","Tutor saved: "+(response.result.enabled?"on":"off")+", named "+response.result.name+".");loadTutor();}).catch(function(error){say("err",error.message);}).finally(function(){$("tutorSave").disabled=false;});
  });
+
+ var aitEpoch=0,aitData=null; // aitData: the /gm/ai-tester payload (nodes, pool, companions, lore).
+ function aitHealthLine(h){ // One readable line from a node's /health body.
+  var b=h.body||{},f=b.student_fleet||{},parts=[];
+  if(h.error)return "unreachable: "+h.error;
+  parts.push(b.ok?"index OK":"no index");
+  parts.push(b.llm?"model OK":"model DOWN");
+  if(b.classifier!==undefined)parts.push(b.classifier?"Decider OK":"Decider DOWN");
+  if(f.enabled){var alive=(f.copies||[]).filter(function(c){return c.alive;}).length;parts.push("student "+(f.model||"?")+", "+alive+"/"+(f.copies||[]).length+" copies alive");}
+  if(b.capacity&&b.capacity.slots)parts.push(b.capacity.slots+" reply slots");
+  if(b.overflow&&b.overflow.enabled)parts.push("overflow on");
+  if(b.participation&&b.participation.enabled)parts.push("participation "+(b.participation.healthy?"OK":"DOWN"));
+  return parts.join(" · ")+" · "+h.ms+" ms";
+ }
+ function aitShowFields(){ // Only the boxes the chosen test uses.
+  var route=$("aitRoute").value;
+  Array.prototype.forEach.call(document.querySelectorAll("#panel-aitester [data-ait]"),function(n){n.hidden=n.getAttribute("data-ait").split(" ").indexOf(route)<0;});
+  aitShowNpc();
+ }
+ function aitShowNpc(){ // Speaking style and backstory gates of the chosen companion (so you know which questions touch a secret).
+  var c=((aitData&&aitData.companions)||[]).filter(function(x){return x.id===$("aitNpc").value;})[0];
+  $("aitStyle").textContent=c?"style: "+(c.style||"persona voice"):"";
+  clear($("aitBackstory"));
+  if(!c)return;
+  $("aitBackstory").appendChild(el("p","note","Backstory"+(aitData.lore?" (lore "+aitData.lore.version+")":"")+": a section opens at its bond or flag."));
+  c.backstory.forEach(function(s){$("aitBackstory").appendChild(el("p",null,s.heading+" · bond "+s.reveal_bond+(s.reveal_flag?" or flag "+s.reveal_flag:"")+(s.draft?" · draft":"")));});
+ }
+ function loadAiTester(){
+  var epoch=++aitEpoch,session=perfEpoch;
+  $("aitStatus").textContent="Checking every node…";
+  return api("/gm/ai-tester").then(function(data){
+   if(epoch!==aitEpoch||session!==perfEpoch||!token)return;
+   aitData=data;
+   $("aitStatus").textContent=data.configured?(data.nodes.length+" node(s) · "+data.inFlight+" of "+data.maxInFlight+" tests running"):"No AI nodes are configured on this server (NPC_RAG_NODES).";
+   clear($("aitNodes"));
+   (data.nodes||[]).forEach(function(h){
+    var p=(data.pool||[]).filter(function(x){return x.host===h.host;})[0]||{},box=el("div"),line=el("p");
+    line.appendChild(el("strong",null,h.host+" · "+(p.healthy===false?"DOWN in the pool":"healthy in the pool")));
+    line.appendChild(document.createTextNode(" · "+aitHealthLine(h)+(p.slots?" · pool: "+p.inFlight+"/"+p.slots+" busy, ~"+p.latencyMs+" ms":"")+(p.lastError?" · last error: "+p.lastError:"")));
+    box.appendChild(line);
+    var d=el("details");d.appendChild(el("summary",null,"Full /health"));d.appendChild(el("pre",null,JSON.stringify(h.body||{error:h.error},null,1)));box.appendChild(d);
+    $("aitNodes").appendChild(box);
+   });
+   if(!(data.nodes||[]).length)$("aitNodes").appendChild(el("p","note","No AI servers configured."));
+   var node=$("aitNode").value,npc=$("aitNpc").value;
+   clear($("aitNode"));
+   var pick=el("option",null,"Pool's pick (least busy)");pick.value="";$("aitNode").appendChild(pick);
+   (data.nodes||[]).forEach(function(h){var o=el("option",null,h.host);o.value=h.host;$("aitNode").appendChild(o);});
+   $("aitNode").value=node;
+   if($("aitNode").selectedIndex<0)$("aitNode").value="";
+   clear($("aitNpc"));
+   (data.companions||[]).forEach(function(c){var o=el("option",null,c.name);o.value=c.id;$("aitNpc").appendChild(o);});
+   if(npc)$("aitNpc").value=npc;
+   aitShowFields();
+  }).catch(function(error){$("aitStatus").textContent="";say("err",error.message);});
+ }
+ function aitInput(node){ // The form as /gm/ai-test expects it.
+  return {node:node,route:$("aitRoute").value,npc:$("aitNpc").value,player:$("aitPlayer").value,message:$("aitMessage").value,reply:$("aitReply").value,
+   kind:$("aitKind").value,bond:Number($("aitBond").value),audience:Number($("aitAudience").value),flags:$("aitFlags").value,history:$("aitHistory").value,
+   memories:$("aitMemories").value,summary:$("aitSummary").value,situation:$("aitSituation").value,conversation:$("aitConversation").checked,hired:$("aitHired").checked};
+ }
+ function aitShow(r){ // Newest result first.
+  var box=el("div"),head=el("p"),results=$("aitResults"),res=r.response||{};
+  if(results.firstChild&&results.firstChild.className==="note")clear(results);
+  head.appendChild(el("strong",null,when(Date.now())+" · "+r.route+" · "+(r.node||"no node")+" · "+(r.status||"failed")+" · "+r.ms+" ms"+(r.lorePushed?" · lore pushed first":"")));
+  box.appendChild(head);
+  if(r.error)box.appendChild(el("p","err",r.error));
+  if(r.reply)box.appendChild(el("p",null,"Reply: "+r.reply));
+  if(r.route==="impressions"&&r.response)box.appendChild(el("p",null,"Facts: "+JSON.stringify(res.facts||[])));
+  if(r.route==="summarize"&&r.response)box.appendChild(el("p",null,"Summary: "+(res.summary||"")));
+  if(r.route==="gate"&&r.response)box.appendChild(el("p",null,"Decision: "+(res.decision||"?")+(typeof res.join_probability==="number"?" ("+Math.round(res.join_probability*100)+"% join)":"")));
+  if(r.route==="chat"&&r.response)box.appendChild(el("p","note","category "+(res.category||"?")+" · guard "+(res.guard||"?")+" · lane "+(res.lane||"?")+(res.fallback?" · FALLBACK LINE":"")));
+  if((r.checks||[]).length)box.appendChild(el("p","err","Quick checks: "+r.checks.join(", ")+". Read the reply: these are keyword hints only."));
+  var d=el("details");d.appendChild(el("summary",null,"Request and response"));d.appendChild(el("pre",null,"Request:\n"+JSON.stringify(r.request,null,1)+"\n\nResponse:\n"+JSON.stringify(r.response,null,1)));box.appendChild(d);
+  results.insertBefore(box,results.firstChild);
+ }
+ function aitSend(nodes){ // One test per node, one after another (so a slow node never hides the others' timing).
+  $("aitSend").disabled=true;$("aitSendAll").disabled=true;
+  var chain=Promise.resolve();
+  nodes.forEach(function(node){chain=chain.then(function(){return api("/gm/ai-test",{method:"POST",body:aitInput(node)}).then(function(response){aitShow(response.result);});});});
+  chain.catch(function(error){say("err",error.message);}).finally(function(){$("aitSend").disabled=false;$("aitSendAll").disabled=false;});
+ }
+ $("tab-aitester").addEventListener("click",loadAiTester);$("aitLoad").addEventListener("click",loadAiTester);
+ $("aitRoute").addEventListener("change",aitShowFields);$("aitNpc").addEventListener("change",aitShowNpc);
+ $("aitSend").addEventListener("click",function(){aitSend([$("aitNode").value]);});
+ $("aitSendAll").addEventListener("click",function(){aitSend(((aitData&&aitData.nodes)||[]).map(function(h){return h.host;}));});
+ $("aitClear").addEventListener("click",function(){clear($("aitResults"));$("aitResults").appendChild(el("p","note","No tests yet."));});
 
 /* COMPANIONS_WIDGET */
  var compEpoch=0,compData=null; // compData: the /gm/companions payload (settings, bounds, nodes, companions, character).

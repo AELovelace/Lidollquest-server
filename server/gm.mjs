@@ -84,7 +84,7 @@ export function buildAllowList(text){ // Comma-separated addresses and CIDR bloc
  return list;
 } // Rejected loudly at construction so a typo cannot silently admit the whole network.
 
-export function createGameMasterPanel(db,{tutor=null,companions=null,walletClient,announcements=null,welcome=null,zoneMusic=null,guilds=null,playerStores=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,balance=null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,traps=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn,helpOptions={}}={}){
+export function createGameMasterPanel(db,{tutor=null,companions=null,aiTester=()=>null,walletClient,announcements=null,welcome=null,zoneMusic=null,guilds=null,playerStores=null,live=null,artJobs=null,world=()=>null,performanceSnapshot=()=>null,balance=null,enchantments=null,enchantmentTable=null,loot=null,lootTable=null,alchemy=null,alchemyTable=null,traps=null,lootItems=null,lootBases=null,allow='',trustProxy='',requireTls=false,enabled=true,now=Date.now,log=console.warn,helpOptions={}}={}){
  const mapRenderer=createMapRenderer({tiles:tileArtwork,compiled:compiledArtwork,avatars:avatarCatalog,asset:key=>live?.asset(key)}); // Decodes each sprite once; caches the last few rendered pictures per zone revision.
  const worldPainter=createWorldPainter(); // Whole-world poster (GET /gm/world.png), painted on a worker thread one request at a time.
  function worldPicture(scale,layers){ // Gathers every overworld, dungeon and hub view plus the exit graph; the worker lays them out and paints them.
@@ -578,6 +578,12 @@ export function createGameMasterPanel(db,{tutor=null,companions=null,walletClien
     const store=companions?.();if(!store?.ambientTest)return send(409,{error:'gm_ambient_unavailable'});
     const input=await body(req,64*1024),result=await store.ambientTest(input);await actor(req); // Recheck a role revoked while the AI was answering.
     record(who,'ambient_test',String(input?.npc?.id??'npc').slice(0,80),{mode:input?.mode==='gate'?'gate':'line'});return send(200,{ok:true,result});
+   }
+   if(url.pathname==='/gm/ai-tester'&&req.method==='GET'){const t=aiTester();return send(200,t?await t.view():{configured:false,nodes:[],pool:[],companions:[],routes:[]});} // AI Tester tab: every node's /health and the form's companions.
+   if(url.pathname==='/gm/ai-test'&&req.method==='POST'){ // One test query to a chosen AI node; awaits the AI outside any database transaction.
+    const t=aiTester();if(!t)return send(409,{error:'gm_ai_tester_unavailable'});
+    const input=await body(req,64*1024),result=await t.run(input);await actor(req); // Recheck a role revoked while the AI was answering.
+    record(who,'ai_test',String(input?.route??'chat').slice(0,20),{npc:String(input?.npc??'').slice(0,64),node:String(result.node??'').slice(0,80),status:result.status,ms:result.ms});return send(200,{ok:true,result});
    }
    if(url.pathname==='/gm/overview'&&req.method==='GET')return send(200,{...overview(),actor:who});
    if(url.pathname==='/gm/performance'&&req.method==='GET')return send(200,performanceSnapshot()); // Reuses the live role, address, origin and TLS checks above; never exposed by /health.

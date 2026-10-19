@@ -1,11 +1,12 @@
 // AI node pool: Pip (tutor.mjs) and the companions (follower-chat.mjs) share every configured AI server.
-// A node is one machine running npc-rag (9092) beside Sakura's main model (9090) and classifier (9091).
+// A node is one machine running npc-rag (9092), and the game server only ever talks to npc-rag (2026-10-19): the model copies
+// behind it (Sakura's 9090/9091 on old nodes, the student fleet on 127.0.0.1:9100+) are npc-rag's business.
 //   NPC_RAG_NODES=http://47.51.162.106:9092,http://192.168.1.188:9092        (npc-rag on each node)
-//   NPC_RAG_NODE_MODELS=<llm>|<classifier>,<llm>|<classifier>                  (optional, same order; default: same host :9090|:9091)
+// parseNodes() still fills in model URLs (default same host :9090|:9091, or NPC_RAG_NODE_MODELS) for the deploy/ load tools only.
 // Each request goes to the healthy node with the lowest (in flight + 1) / slots x latency. A timeout, network error or 5xx
 // marks that node down for DOWN_MS and the request moves to the next node once. With every node down the least recently
 // failed one is still tried, so the game never goes quiet just because a probe was unlucky.
-const DEFAULT_SLOTS=4;        // llama.cpp --parallel; replaced by /props total_slots once a probe reaches the model.
+const DEFAULT_SLOTS=4;        // Until npc-rag's /health reports capacity.slots (older npc-rag never does: it keeps this guess).
 const DOWN_MS=30000;          // A failed node sits out this long (or until a health probe says it is back).
 const HEALTH_MS=30000;        // tick() probes every node's /health at most this often.
 const START_LATENCY=1500;     // ms; a fresh node's guess until real replies are measured.
@@ -30,8 +31,8 @@ export function createAiPool({nodes=[],key='',fetcher=globalThis.fetch,now=Date.
  const controllers=new Set();let lastProbe=-Infinity,closed=false;
  const healthy=(n,t=now())=>n.downUntil<=t;
  const score=n=>(n.inFlight+1)/n.slots*n.latency; // Lower is better: a free fast node beats a busy slow one.
- function order(){ // Healthy nodes best-first, then down nodes by who failed longest ago.
-  const t=now();return [...pool.filter(n=>healthy(n,t)).sort((a,b)=>score(a)-score(b)),...pool.filter(n=>!healthy(n,t)).sort((a,b)=>a.downUntil-b.downUntil)];
+ function order(only=()=>true){ // Healthy nodes best-first, then down nodes by who failed longest ago; `only` narrows the candidates.
+  const t=now(),list=pool.filter(only);return [...list.filter(n=>healthy(n,t)).sort((a,b)=>score(a)-score(b)),...list.filter(n=>!healthy(n,t)).sort((a,b)=>a.downUntil-b.downUntil)];
  }
  function down(n,error){n.downUntil=now()+downMs;n.failures++;n.lastError=String(error?.message??error).slice(0,200);} // Sits out; a probe or a later success brings it back.
  function up(n,ms){if(ms!=null)n.latency=n.latency*(1-ALPHA)+ms*ALPHA;n.downUntil=0;n.failures=0;n.lastError='';n.lastOk=now();}
@@ -48,11 +49,12 @@ export function createAiPool({nodes=[],key='',fetcher=globalThis.fetch,now=Date.
   }finally{clearTimeout(timer);signal?.removeEventListener('abort',onAbort);controllers.delete(controller);n.inFlight--;}
  }
 
- async function run(urlOf,body,{attempts=2,auth=false,busyStatuses=[],...opts}={}){ // busyStatuses: answers that mean "full right now" (ambient 429 local_busy): try the next node, never mark this one down. // Try the best node, then the next one once; 4xx answers go straight back to the caller.
+ async function run(urlOf,body,{attempts=2,auth=false,busyStatuses=[],only,...opts}={}){ // busyStatuses: answers that mean "full right now" (ambient 429 local_busy): try the next node, never mark this one down. // Try the best node, then the next one once; 4xx answers go straight back to the caller.
   if(closed)throw Error('AI pool closed');
   const headers=auth&&key?{'X-Api-Key':key,Authorization:'Bearer '+key}:{}; // npc-rag accepts either header; model servers get no key.
   let last=null;
-  const tries=order().slice(0,Math.max(1,attempts));
+  const tries=order(only).slice(0,Math.max(1,attempts));
+  if(!tries.length)throw Object.assign(Error('no AI node matches this request'),{url:''}); // `only` ruled every node out (the GM AI Tester names one).
   for(const [i,n] of tries.entries()){
    const url=urlOf(n);
    try{
@@ -69,15 +71,15 @@ export function createAiPool({nodes=[],key='',fetcher=globalThis.fetch,now=Date.
   throw last??Object.assign(Error('no AI nodes configured'),{url:''});
  }
 
- async function probe(){ // Health of every node: npc-rag /health (with model reachability) and llama.cpp /props for the slot count.
+ async function probe(){ // Health of every node: npc-rag /health (with model reachability) and its reported reply slots.
   lastProbe=now();
   await Promise.all(pool.map(async n=>{
    try{
     const res=await call(n,n.base+'/health',null,{method:'GET',timeoutMs:5000});
     const ok=res.ok&&res.body?.ok!==false&&res.body?.llm!==false; // npc-rag up but its main model unreachable = only fallback lines: count it as down.
     if(ok){if(!healthy(n))log?.('ai_node_recovered',n.host);up(n,null);}else down(n,Error('health check failed'+(res.body?.llm===false?': model unreachable':' ('+res.status+')')));
+    const reported=Number(res.body?.capacity?.slots);if(ok&&reported>=1)n.slots=Math.min(64,Math.floor(reported)); // npc-rag counts its own copies' slots; the game never asks llama.cpp.
    }catch(error){down(n,error);}
-   try{const props=await call(n,n.llm+'/props',null,{method:'GET',timeoutMs:5000});const slots=Number(props.body?.total_slots);if(props.ok&&slots>=1)n.slots=Math.min(64,Math.floor(slots));}catch{} // Optional: keep the old slot count if the model port is closed to us.
   }));
  }
 
@@ -85,10 +87,14 @@ export function createAiPool({nodes=[],key='',fetcher=globalThis.fetch,now=Date.
   configured:pool.length>0,
   hosts:()=>pool.map(n=>n.host),
   request:(path,body,opts={})=>run(n=>n.base+path,body,{...opts,auth:true}),          // npc-rag endpoints (/v1/npc/chat, ...).
-  model:(kind,path,body,opts={})=>run(n=>n[kind]+path,body,opts),                     // Direct model calls: kind = 'llm' or 'classifier'.
   async broadcast(path,body,opts={}){ // The same npc-rag call on every node (companion lore pushes); never throws, reports each node.
    if(closed)return [];const headers=key?{'X-Api-Key':key,Authorization:'Bearer '+key}:{};
    return Promise.all(pool.map(async n=>{try{const res=await call(n,n.base+path,body,{...opts,headers});if(res.status>=500)down(n,Error('AI answered '+res.status));return {node:n.host,status:res.status,ok:res.ok};}catch(error){if(!opts.signal?.aborted)down(n,error);return {node:n.host,status:0,ok:false,error:String(error?.message??error).slice(0,200)};}}));
+  },
+  async health(){ // Every node's full npc-rag /health for the GM AI Tester (no key needed; anything credential-like is dropped).
+   const scrub=v=>Array.isArray(v)?v.map(scrub):v&&typeof v==='object'?Object.fromEntries(Object.entries(v).filter(([k])=>!/key|token|secret|password|auth/i.test(k)).map(([k,x])=>[k,scrub(x)])):v;
+   return Promise.all(pool.map(async n=>{try{const res=await call(n,n.base+'/health',null,{method:'GET',timeoutMs:5000});return {host:n.host,status:res.status,ms:res.ms,body:scrub(res.body)};}
+    catch(error){return {host:n.host,status:0,ms:null,error:String(error?.message??error).slice(0,200)};}})); // Never marks a node down: probe() owns that.
   },
   tick(){if(!closed&&pool.length&&now()-lastProbe>=healthMs)return probe().catch(()=>{});return Promise.resolve();}, // Called from the service timers; cheap when not due.
   probe,

@@ -63,19 +63,20 @@ function world(){
  return {db,followers,geometry,doll,now:()=>time,advance:n=>{time+=n;db.prepare('UPDATE quest_presence SET seen=?').run(time);}};
 }
 
-test('through the chat queue: a reply opens a 3-minute conversation; unclear lines ask the classifier; emotes become actions',async()=>{
+test('through the chat queue: a reply opens a 3-minute conversation; unclear lines ask the Decider on npc-rag; emotes become actions',async()=>{
  const w=world();let listeners=0,gateAnswer='YES';const calls=[];
  const chat=createFollowerChat(w.db,{followers:w.followers,now:w.now,audience:()=>listeners,roll:()=>1,locate:(c,area)=>w.followers.chatTargets(c,{area,geometry:w.geometry}),
   fetcher:async(url,opts)=>{const path=new URL(url).pathname,body=JSON.parse(opts.body);calls.push({path,body});
-   if(path==='/v1/chat/completions')return Response.json({choices:[{message:{content:gateAnswer}}]});
+   if(path==='/v1/participation/decide'){const join=gateAnswer==='YES';return Response.json({model:'lidoll/decider-multitask-v3',policy:'routing-participation-multitask-v1',decision:join?'join':'quiet',join,join_probability:join?.9:.1});}
    return Response.json({reply:'Of course, Doll.'});}});
  const say=async(text,seq,o={})=>{chat.enqueue(w.doll,text,seq,'room',o);chat.kick();for(let i=0;i<100&&!chat.idle();i++)await new Promise(r=>setTimeout(r,5));};
  const replies=()=>w.db.prepare("SELECT COUNT(*) n FROM quest_chat WHERE character_id LIKE 'follower:%'").get().n;
  try{
   await say('Elowen, how are you?',1);assert.equal(replies(),1);
-  w.advance(5000);listeners=2;await say('glad to hear it',2); // Follow-up with others around: classifier says yes.
-  assert.equal(replies(),2);assert.match(calls.find(c=>c.path==='/v1/chat/completions').body.messages[0].content,/natural for Dame Elowen to answer/);
-  w.advance(5000);gateAnswer='NO';await say('anyway, where is everyone',3); // The classifier says no: quietly skipped.
+  w.advance(5000);listeners=2;await say('glad to hear it',2); // Follow-up with others around: the Decider says join.
+  assert.equal(replies(),2);assert.equal(calls.find(c=>c.path==='/v1/participation/decide').body.candidate.name,'Dame Elowen');
+  assert.ok(!calls.some(c=>c.path==='/v1/chat/completions'),'no direct classifier call (9091) since 2026-10-19');
+  w.advance(5000);gateAnswer='NO';await say('anyway, where is everyone',3); // The Decider says quiet: quietly skipped.
   assert.equal(replies(),2);
   w.advance(200000);gateAnswer='YES';listeners=0;await say('still there?',4); // Over 3 minutes later, but she's the hirer's companion and they're alone.
   assert.equal(replies(),3);

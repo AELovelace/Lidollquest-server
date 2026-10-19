@@ -24,7 +24,7 @@ test('nodes come from a comma list; model URLs default to the same machine and c
  assert.equal(createAiPool({nodes:[]}).configured,false);
 });
 
-test('requests go to the least busy node and carry the npc-rag key; model calls carry none',async()=>{
+test('requests go to the least busy node and carry the npc-rag key; the pool has no direct model calls',async()=>{
  const gate=deferred();
  const h=harness(url=>url.startsWith(A)?gate.promise.then(()=>Response.json({reply:'a'})):Response.json({reply:'b'}));
  const first=h.pool.request('/v1/npc/chat',{message:'hi'}); // Both idle and equal: A (first listed) wins the tie.
@@ -33,14 +33,14 @@ test('requests go to the least busy node and carry the npc-rag key; model calls 
  assert.equal(second.node,'192.168.1.188:9092');assert.equal(second.body.reply,'b');
  gate.resolve();assert.equal((await first).body.reply,'a');
  assert.equal(h.calls[0].init.headers['X-Api-Key'],'k'.repeat(32));assert.equal(h.calls[0].init.headers.Authorization,'Bearer '+'k'.repeat(32));
- await h.pool.model('classifier','/v1/chat/completions',{});
- assert.match(h.calls.at(-1).url,/:9091\/v1\/chat\/completions$/);assert.equal(h.calls.at(-1).init.headers['X-Api-Key'],undefined,'model servers never see the key');
+ assert.equal(h.pool.model,undefined,'npc-rag (9092) is the only AI door (2026-10-19)');
+ assert.ok(h.calls.every(c=>new URL(c.url).port==='9092'),'never a model port');
 });
 
 test('a refused or 5xx node fails over once, sits out, and a health probe brings it back',async()=>{
  let aDown=true;
  const h=harness(url=>{
-  if(url.startsWith('http://47.51.162.106')){if(aDown)throw refused(url);return url.endsWith('/props')?Response.json({total_slots:8}):Response.json({ok:true,llm:true,reply:'a'});}
+  if(url.startsWith('http://47.51.162.106')){if(aDown)throw refused(url);return Response.json({ok:true,llm:true,capacity:{slots:8},reply:'a'});}
   return Response.json({ok:true,llm:true,reply:'b'});
  });
  const res=await h.pool.request('/v1/npc/chat',{});
@@ -48,7 +48,7 @@ test('a refused or 5xx node fails over once, sits out, and a health probe brings
  const view=h.pool.view().find(n=>n.host==='47.51.162.106:9092');assert.equal(view.healthy,false);assert.match(view.lastError,/fetch failed/);
  h.calls.length=0;await h.pool.request('/v1/npc/chat',{});assert.deepEqual(h.hosts(),['192.168.1.188:9092'],'a down node is skipped while healthy ones remain');
  aDown=false;await h.pool.probe();
- const back=h.pool.view().find(n=>n.host==='47.51.162.106:9092');assert.equal(back.healthy,true);assert.equal(back.slots,8,'slot count read from llama.cpp /props');
+ const back=h.pool.view().find(n=>n.host==='47.51.162.106:9092');assert.equal(back.healthy,true);assert.equal(back.slots,8,'slot count read from npc-rag /health');
  const five=harness(url=>url.startsWith(A)?new Response('{}',{status:503}):Response.json({reply:'b'}));
  assert.equal((await five.pool.request('/x',{})).body.reply,'b','5xx moves on too');
 });
@@ -84,6 +84,13 @@ test('health probes: npc-rag up but its model down counts as down; tick() probes
  assert.equal(a.healthy,false);assert.match(a.lastError,/model unreachable/);assert.equal(b.healthy,true);
  const n=h.calls.length;await h.pool.tick();assert.equal(h.calls.length,n,'not due yet');
  h.advance(30000);await h.pool.tick();assert.ok(h.calls.length>n,'due again');
+});
+
+test('slots come only from npc-rag /health: older npc-rag keeps the default, and llama.cpp is never asked (2026-10-19)',async()=>{
+ const h=harness(url=>url.endsWith('/health')?Response.json(url.startsWith(A)?{ok:true,llm:true,capacity:{slots:16}}:{ok:true,llm:true}):Response.json({total_slots:6}));
+ await h.pool.probe();const [a,b]=h.pool.view();
+ assert.equal(a.slots,16,'slot count read from npc-rag');assert.equal(b.slots,4,'no capacity reported: the default guess stays');
+ assert.ok(h.calls.every(c=>c.url.endsWith(':9092/health')),'only /health on 9092');
 });
 
 test('timeouts fail over, oversized replies are refused, and close() aborts in-flight calls',async()=>{

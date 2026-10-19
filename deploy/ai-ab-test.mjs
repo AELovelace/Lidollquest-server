@@ -39,7 +39,8 @@ async function record(){
   const post=async(path,body)=>{const t=Date.now();try{const r=await fetch(base+path,{method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.timeout(90000)});return {status:r.status,body:await r.json().catch(()=>({})),ms:Date.now()-t};}catch(error){return {status:0,body:{error:String(error.message)},ms:Date.now()-t};}};
   const node={health:null,results:[]};out.nodes[base]=node;
   try{const h=await fetch(base+'/health',{headers,signal:AbortSignal.timeout(15000)});node.health=scrub(await h.json());}catch(error){node.health={error:String(error.message)};} // Which models answered: kept with the results.
-  try{const u=new URL(base);u.port=arg('model-port','9090');const m=await (await fetch(u.origin+'/v1/models',{signal:AbortSignal.timeout(8000)})).json();node.models=(m.models??m.data??[]).map(x=>x.name??x.id).filter(Boolean);}catch{node.models=[];} // llama.cpp's loaded GGUF (the student), e.g. lidoll-fm-0.2-Q8_0.gguf.
+  const fleet=node.health?.student_fleet;node.models=fleet?.enabled&&fleet.file?[fleet.file]:[]; // npc-rag's own student fleet names its GGUF in /health (the llama.cpp copies stay on 127.0.0.1).
+  if(!node.models.length)try{const u=new URL(base);u.port=arg('model-port','9090');const m=await (await fetch(u.origin+'/v1/models',{signal:AbortSignal.timeout(8000)})).json();node.models=(m.models??m.data??[]).map(x=>x.name??x.id).filter(Boolean);}catch{node.models=[];} // Older nodes: ask llama.cpp's port for its loaded GGUF, e.g. lidoll-fm-0.2-Q8_0.gguf.
   console.log(`\n${base}: student ${node.models.join(', ')||'unknown (set --model-port)'}`);
   if(!flag('no-lore-push')){const pushed=await post('/v1/companion/lore',lore);node.lore_push=pushed.status;if(pushed.status!==200)console.warn(`${base}: lore push answered ${pushed.status}${pushed.status===401?' (pass --key-file)':''}`);}
   console.log(`\n### ${base}  (${runs} runs per check, ${checks.length} checks)`);

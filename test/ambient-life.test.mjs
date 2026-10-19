@@ -84,8 +84,9 @@ test('failed lines never store memories and personal recall is dropped when a ne
  }finally{h.life.close();h.db.close();}
 });
 
-test('nothing happens while the switch is off or the gate backend is not the Decider',async()=>{
- for(const opts of [{knobs:{ambient_enabled:'off'}},{backend:'qwen'}]){
+test('nothing happens while the switch is off; the retired qwen backend counts as the Decider (2026-10-19)',async()=>{
+ assert.equal(harness({backend:'qwen'}).life.view().backend,'decider','QUEST_PARTICIPATION_BACKEND=qwen no longer turns ambient life off');
+ for(const opts of [{knobs:{ambient_enabled:'off'}}]){
   const h=harness(opts);await opened(h);h.life.hear({id:'c1',name:'Dollie'},'Wren, hello!',{area:AREA,zone:AREA,x:5,y:16});await h.tick();
   assert.equal(h.calls.length,0,JSON.stringify(opts));assert.equal(h.lines().length,0);
  }

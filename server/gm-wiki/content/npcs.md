@@ -193,13 +193,50 @@ The **Ambient Life** tab also shows:
 
 Good to know:
 - Each NPC says at most `ambient_max_responses` (default 5) lines per conversation. The Decider usually ends things sooner.
-- If the Decider is down, or the server isn't set to `QUEST_PARTICIPATION_BACKEND=decider`, nothing ambient happens.
+- If the Decider is down, nothing ambient happens. (The old `QUEST_PARTICIPATION_BACKEND=qwen` setting no longer switches it off: since 2026-10-19 the Decider is the only gate.)
 - Ambient lines never use the paid AI. If the panel ever shows a COST ALARM, tell the developers.
 - Persona NPCs may comment on what anyone can see about a player (wet clothes, padding, a smell). It costs no Dignity.
 - Only players on screen hear ambient lines: 20 tiles to either side and 15 up or down (the area-chat range since 2026-10-15). The whole Arcanum Tower fits inside that, so everyone in the tower hears its residents; a player outside does not.
 - Shopkeepers have no persona. With `ambient_beckons` on, they call out to passers-by now and then.
 - Example residents: Padma, Wren, Felix and Brittany in Utopia's Arcanum Tower commons. Open them in the NPC editor to see a finished persona.
 
+
+## Test the AI servers (AI Tester tab)
+
+The **AI Tester** tab checks the AI servers and lets you ask them things the way the game does.
+
+**AI servers.** One line per server, from that server's own health report:
+- whether its wiki index, main model and Decider are up;
+- which student model it runs and how many copies are alive;
+- its reply slots;
+- how the game currently sees it (healthy or down, how busy, how fast).
+
+Open **Full /health** for everything the server reported. Keys and passwords are never shown.
+
+**Send a test.**
+1. Pick a **Node**, or leave **Pool's pick** to let the game choose as it would for a player.
+2. Pick a **Test**:
+   - **Companion reply**: what a companion would say.
+   - **Impressions**: which facts they would remember from one exchange.
+   - **Memory summary**: how they fold memories into what they know about a player.
+   - **Join or stay quiet**: whether the Decider would let them speak up.
+   - **Pip**: the tutor.
+3. Pick the companion, type the player's name and message, and fill in whatever the test needs: bond, story flags, earlier lines (one per line, `Name: words`), memories, a summary, situation facts.
+4. Click **Send**, or **Send to every node** to compare servers with the same question.
+
+What it's for:
+- **Testing secrets:** the backstory list under the form shows the bond or flag that opens each section. Try a question below and above that bond.
+- **Exact live requests:** the request is built exactly like a live one, with the companion's persona and voice lines, your Dialogue preset and the current backstories (drafts too, if they are live). If the server doesn't have the latest backstories yet, the tab sends them first, like the game does.
+
+Each result shows:
+- the reply, with the server, the time it took, and the reply's category and guard;
+- **Quick checks**: a few keyword hints, such as a leaked prompt marker, talking about being an AI, or over 240 characters. They are hints only, so read the reply;
+- **Request and response**, the exact JSON both ways.
+
+Good to know:
+- Tests never change a character, a memory or a bond.
+- Tests share the AI with players, so at most three run at once.
+- Each test is recorded in the audit log as `ai_test`.
 
 ## Placeable Utopia tradespeople
 

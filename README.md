@@ -2143,9 +2143,18 @@ write Pip's reply.
   (`server/ai-pool.mjs`).
   - **Routing:** each request goes to the healthy node with the lowest `(in flight + 1) / slots x latency`. A timeout,
     network error or 5xx fails over to the next node once and benches the failed node for 30 s.
-  - **Health:** `/health` is probed every 30 s on the tutor timer. A node whose model is unreachable counts as down,
-    and the slot count comes from llama.cpp `/props`.
-  - **Model URLs:** `NPC_RAG_NODE_MODELS` (optional, `<llm>|<classifier>` per node) overrides each node's 9090/9091.
+  - **Health:** `/health` is probed every 30 s on the tutor timer. A node whose model is unreachable counts as down.
+    The slot count comes from npc-rag's `/health` `capacity.slots` (2026-10-19), or from llama.cpp `/props` on older npc-rag.
+  - **npc-rag only (2026-10-19):** the game server never calls a model port (9090/9091). The pool has no `model()`
+    method, and slot counts come only from npc-rag's `/health` `capacity.slots` (older npc-rag keeps the default 4).
+    The companion gate is always the Decider on npc-rag (`/v1/participation/decide`). `QUEST_PARTICIPATION_BACKEND=qwen` is
+    retired: it is logged once and treated as `decider`, for companions and ambient life alike. `NPC_RAG_NODE_MODELS`,
+    `QUEST_FOLLOWER_CLASSIFIER_URL` and `QUEST_FOLLOWER_LLM_URL` are ignored by the server; the deploy/ load tools still read
+    `--models`. Student-fleet / Ubuntu 26.04 nodes keep their llama.cpp copies on 127.0.0.1:9100+, and 9091 is npc-rag's
+    control page there.
+  - **GM AI Tester (2026-10-19):** a /gm tab (`server/ai-tester.mjs`, `GET /gm/ai-tester`, `POST /gm/ai-test`). It shows every node's full `/health` (`pool.health()`, credential-like keys dropped) beside the pool's view. It also sends one test query to a chosen node, or the pool's pick. The routes are companion chat, impressions, summarize, Pip and the participation gate.
+    - Companion requests are built by follower-chat's `companionBody()`: the same persona, voice, GM style and lore version as live play. A 409 pushes the lore and retries.
+    - A chosen node gets no failover. At most 3 tests run at once. Nothing is stored, and each test is logged as the GM action `ai_test`.
   - **Pip's memory:** Pip sends her last 3 exchanges (30 min) as `history`, so follow-ups work on any node.
   - **Visibility:** the /gm Tutor tab lists every node with its health, load, latency and last error.
 - **Configuration without NPC_RAG_NODES:** `NPC_RAG_URL` overrides `QUEST_FOLLOWER_AGENT_URL`, then defaults to `http://192.168.1.188:9092`.
@@ -2174,7 +2183,7 @@ Seven globally exclusive companions can be hired for one diamond per real-time h
 
 Any nearby player can address a companion by name or alias in ordinary Area chat, whether unhired or hired by someone else. Hearing uses the same zone, edition and screen bounds as player Area chat. Other channels and emotes do not trigger AI. Pending jobs recheck the speaker's location and companion's hire context before and after the request; each NPC shares one pending slot and a ten-second cooldown across speakers. History is isolated per speaker and hire/idle context. The startup queue upgrade discards old pending jobs rather than exposing the former hirer's context. Validation includes `test/follower-earshot.test.mjs` and compiled two-client browser checks with stubbed AI.
 
-Export server/followers-data.json from the game registry with python/export_online_followers.py. Classifier requests use 192.168.1.188:9091, casual character replies use :9090, and grounded game answers use npc-rag at :9092. Configure QUEST_FOLLOWER_CLASSIFIER_URL, QUEST_FOLLOWER_LLM_URL, QUEST_FOLLOWER_AGENT_URL and optional QUEST_FOLLOWER_AGENT_KEY on the server only. With NPC_RAG_NODES set, all three hops use the shared AI pool instead (see Tutor NPC above): least busy node first, one failover per hop, then the direct persona model, then the authored fallback line. Grounded answers send the companion's own persona and the classifier verdict to npc-rag, so companions never answer in Pip's voice and npc-rag skips a second classification.
+Export server/followers-data.json from the game registry with python/export_online_followers.py. Since 2026-10-19 every AI request goes to npc-rag at :9092 (no direct classifier or model calls). Configure QUEST_FOLLOWER_AGENT_URL and optional QUEST_FOLLOWER_AGENT_KEY on the server only. With NPC_RAG_NODES set, all three hops use the shared AI pool instead (see Tutor NPC above): least busy node first, one failover per hop, then the direct persona model, then the authored fallback line. Grounded answers send the companion's own persona and the classifier verdict to npc-rag, so companions never answer in Pip's voice and npc-rag skips a second classification.
 
 **Companion graph (2026-10-12).** Each companion reply is now **one** pool call to npc-rag's `/v1/companion/chat`
 (a LangGraph pipeline; see the npc-rag README).
@@ -2184,8 +2193,8 @@ Export server/followers-data.json from the game registry with python/export_onli
   `companions.json`; validated by `python/companion_backstory.py`). `companionLore()` hashes them into a version.
 - **Lore pushes:** a node that answers **409** gets the lore pushed to every node (`pool.broadcast`), then the call
   is retried once.
-- **Fallbacks:** a node answering **404** (older npc-rag) uses the previous classifier + `/v1/npc/chat` chain. If
-  every node fails, the persona model answers directly, then the authored fallback line.
+- **Fallbacks:** a node answering **404** (older npc-rag) uses npc-rag's `/v1/npc/chat`, which classifies the line
+  itself. If every npc-rag hop fails, the companion's authored fallback line answers (no direct model call since 2026-10-19).
 - **Drafts:** `QUEST_COMPANION_LORE_DRAFTS=hidden` keeps sections marked `draft:true` off the AI nodes.
 
 Tests: `test/followers.test.mjs` (graph call, 409 lore push, 503 fallback, older-node chain) and

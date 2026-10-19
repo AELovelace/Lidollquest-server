@@ -10,7 +10,7 @@ import {createResidentMemory} from './resident-memory.mjs';
 //   player  a player's area line near persona NPCs: a name goes straight to that NPC, otherwise the Decider picks at most one
 //   lines   npc-rag /v1/companion/chat ambient_* / shop_beckon kinds: LOCAL ONLY (npc-rag PAID_KINDS cost guard); a 429
 //           "local_busy" means the local slots are kept for players, so the line is skipped and its budget token refunded
-//   down    any Decider failure, or QUEST_PARTICIPATION_BACKEND other than 'decider': nothing ambient happens (Doll's call)
+//   down    any Decider failure: nothing ambient happens (Doll's call). QUEST_PARTICIPATION_BACKEND=qwen is retired and counts as decider (2026-10-19).
 //
 // Conversations live in memory (they are seconds long); lines are ordinary quest_chat rows at the NPC's tile, heard through
 // stampHearers like every area line. character_id 'npc:<zone>:<placement or shop:fixture>', owner 'ambient:<area>'.
@@ -51,7 +51,7 @@ const nameIn=(text,name)=>{const first=clean(name).split(' ')[0];if(first.length
 
 // scenes(zoneIds|null, {beckons}) -> [{zone, npcs:[{ref,content,x,y}], shops:[{ref,name,x,y,wares}], players:[{id,owner,name,x,y,area,state}]}]
 // is supplied by zones.mjs: realized world placements, hub shop fixtures and present players of the zones that matter.
-export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll=Math.random,pool=()=>null,gateBackend=process.env.QUEST_PARTICIPATION_BACKEND||'qwen',
+export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll=Math.random,pool=()=>null,gateBackend=process.env.QUEST_PARTICIPATION_BACKEND||'decider',
  tuning=()=>({}),npcs=()=>({}),scenes=()=>[],stamp=()=>{},hold=()=>{},onScreen=(a,b)=>near(a,b,15),sleep=defaultSleep,log=console.warn,speakingStyle=null,memoryFile=':memory:'}={}){ // speakingStyle(npcId): the GM dialogue preset over the persona's own
  let closed=false,lastTick=-Infinity,gateDownUntil=0,alarms=0;
  const memory=createResidentMemory(db,{file:memoryFile,now,log}),memorySession=randomUUID(); // Stable placement IDs persist; session IDs keep old encounters distinct after a restart.
@@ -69,6 +69,7 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
  const warned=new Map();
  function warn(what,error){const t=now();if(t-(warned.get(what)??-Infinity)<60000)return;warned.set(what,t);log('ambient_'+what+'_failed',String(error?.message??error).slice(0,200));} // One line per kind per minute.
  const knobs=()=>{const out={...AMBIENT_DEFAULTS},raw=tuning()??{};for(const key of Object.keys(AMBIENT_DEFAULTS))if(raw[key]!==undefined)out[key]=raw[key];return out;};
+ if(gateBackend==='qwen')gateBackend='decider'; // Retired value: the Decider on npc-rag is the only gate now.
  const on=k=>!closed&&k.ambient_enabled==='on'&&gateBackend==='decider'&&!!pool()&&now()>=gateDownUntil; // Every condition for any ambient line.
  function bucket(key){let tokens=null,at=0;return {spend(n=1){const cap=Math.max(0,Number(knobs()[key])||0),t=now();if(tokens===null){tokens=cap;at=t;}tokens=Math.min(cap,tokens+cap*(t-at)/60000);at=t;if(tokens<n)return false;tokens-=n;return true;},refund(n=1){tokens=(tokens??0)+n;},view(){return Math.floor(tokens??Number(knobs()[key])??0);}};} // Refills continuously up to one minute's worth.
  const lineBudget=bucket('ambient_calls_per_minute'),gateBudget=bucket('ambient_gate_calls_per_minute');
