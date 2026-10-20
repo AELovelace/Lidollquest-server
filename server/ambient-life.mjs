@@ -25,6 +25,7 @@ export const AMBIENT_DEFAULTS=Object.freeze({ // GM Companions tab knobs (compan
  ambient_cooldown_min_s:180,ambient_cooldown_max_s:360,ambient_max_responses:5,ambient_gate_fanout:3,
  ambient_calls_per_minute:20,ambient_gate_calls_per_minute:60,ambient_line_gap_s:4,ambient_idle_s:60,
  ambient_beckons:'off',ambient_beckon_chance:0.2,ambient_beckon_range:5,ambient_beckon_cooldown_s:300,ambient_conversations_per_area:4,
+ ambient_pass_chance:0.5,ambient_pass_range:3, // 2026-10-20: two persona NPCs whose paths cross may stop and chat (rolled once per meeting).
 });
 export const AMBIENT_BOUNDS=Object.freeze({ // [min,max] numbers or allowed values, merged into COMPANION_SETTING_BOUNDS.
  ambient_memory:['on','off'],ambient_gossip:['on','off'],
@@ -32,8 +33,12 @@ export const AMBIENT_BOUNDS=Object.freeze({ // [min,max] numbers or allowed valu
  ambient_cooldown_min_s:[30,7200],ambient_cooldown_max_s:[30,7200],ambient_max_responses:[1,10],ambient_gate_fanout:[1,8],
  ambient_calls_per_minute:[0,600],ambient_gate_calls_per_minute:[0,600],ambient_line_gap_s:[1,30],ambient_idle_s:[15,600],
  ambient_beckons:['on','off'],ambient_beckon_chance:[0,1],ambient_beckon_range:[2,10],ambient_beckon_cooldown_s:[30,7200],ambient_conversations_per_area:[1,4],
+ ambient_pass_chance:[0,1],ambient_pass_range:[1,8],
 });
 const TICK_MS=5000;        // Strike-ups and beckons are considered at most this often; heard player lines every tick.
+const PASS_MS=1000;        // Passing NPCs are looked for this often (walkers cross a few tiles a second).
+const LINGER_MS=3000;      // After a conversation the speakers stand a beat, then walk on (the hold used to run out a minute later).
+const STALE_MS=3000;       // A last-seen position older than this is not used to sweep a path (a walker who was out of view).
 const GATE_DOWN_MS=60000;  // A failed Decider call pauses all ambient life this long.
 const HEARD_MAX_AGE=15000; // A queued player line older than this is no longer worth answering.
 const RING=200;            // Decision log and transcript sizes (GM panel, training export).
@@ -41,6 +46,11 @@ const RING=200;            // Decision log and transcript sizes (GM panel, train
 const clean=s=>String(s??'').replace(/[\u0000-\u001f\u007f]+/g,' ').replace(/\s+/g,' ').trim(); // One printable line.
 const near=(a,b,r)=>Math.abs(a.x-b.x)<=r&&Math.abs(a.y-b.y)<=r; // Square talk range, in tiles.
 const dist=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
+export function closestApproach(a0,a1,b0,b1){ // Smallest square (Chebyshev) gap between two walkers moving in straight lines from *0 to *1 at once.
+ const px=b0.x-a0.x,qx=(b1.x-b0.x)-(a1.x-a0.x),py=b0.y-a0.y,qy=(b1.y-b0.y)-(a1.y-a0.y),gap=f=>Math.max(Math.abs(px+qx*f),Math.abs(py+qy*f));
+ const at=[0,1];for(const [p,q] of [[px,qx],[py,qy],[px-py,qx-qy],[px+py,qx+qy]])if(q){const f=-p/q;if(f>0&&f<1)at.push(f);} // The smallest gap sits where one axis or the two axes' difference crosses zero.
+ return Math.min(...at.map(gap)); // Exact; two NPCs who stepped through each other between checks still count as having met.
+}
 const defaultSleep=ms=>new Promise(r=>{const t=setTimeout(r,ms);t.unref?.();}); // Never holds the process open.
 const grams=(text,n=5)=>{const w=String(text).toLowerCase().match(/[a-z']+/g)??[],out=new Set();for(let i=0;i+n<=w.length;i++)out.add(w.slice(i,i+n).join(' '));return out;}; // Word 5-grams for the repeat check.
 const repeats=(text,said)=>{const mine=grams(text,7);return said.some(old=>clean(old).toLowerCase()===clean(text).toLowerCase()||[...grams(old,7)].some(g=>mine.has(g)));}; /* 7 words in a row or the same line: 5-word runs matched everyday phrases and silenced openers (2026-10-15). */ // Live 2026-10-14: Wren said one line three times.
@@ -53,7 +63,8 @@ const nameIn=(text,name)=>{const first=clean(name).split(' ')[0];if(first.length
 // is supplied by zones.mjs: realized world placements, hub shop fixtures and present players of the zones that matter.
 export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll=Math.random,pool=()=>null,gateBackend=process.env.QUEST_PARTICIPATION_BACKEND||'decider',
  tuning=()=>({}),npcs=()=>({}),scenes=()=>[],stamp=()=>{},hold=()=>{},onScreen=(a,b)=>near(a,b,15),sleep=defaultSleep,log=console.warn,speakingStyle=null,memoryFile=':memory:'}={}){ // speakingStyle(npcId): the GM dialogue preset over the persona's own
- let closed=false,lastTick=-Infinity,gateDownUntil=0,alarms=0;
+ let closed=false,lastTick=-Infinity,lastPass=-Infinity,gateDownUntil=0,alarms=0;
+ const lastPos=new Map(),meeting=new Map(); // lastPos: actor key -> {x,y,at}; meeting: zone -> pair keys within pass range at the last check.
  const memory=createResidentMemory(db,{file:memoryFile,now,log}),memorySession=randomUUID(); // Stable placement IDs persist; session IDs keep old encounters distinct after a restart.
  const stop=new AbortController();
  const convos=new Map();       // conversation id -> {id,zone,area,actors:Map,responses:Map,lines,players:Set,target,chimed,running,lastAt}; up to ambient_conversations_per_area per room
@@ -88,7 +99,7 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
    const def=defs[p.content],persona=def?.ai_persona;if(!def||def.retired||!persona?.enabled)continue; // Only GM NPCs whose persona is switched on.
    out.push({key:'resident:'+p.ref,ref:p.ref,charId:'npc:'+scene.zone+':'+p.ref,npcId:String(p.content).slice(0,64),kind:'npc',zone:scene.zone,x:p.x,y:p.y,name:clean(def.name).slice(0,32)||'Resident',
     persona:personaText(def.name,persona,{names}),relationships:persona.relationships??[],voice:(persona.voice??[]).slice(0,5),...speakingStyleFields(styleOf(p.content,persona)),profile:participationProfile(persona),
-    topics:[...(persona.interests??[]),...(persona.desires??[]),...(persona.relationships??[]).map(r=>clean((names[r.ref]??r.name)+': '+r.note))].map(t=>clean(t).slice(0,160)).filter(Boolean),talksTo:persona.talks_to??'both',chattiness:Number(persona.chattiness??50)});
+    walking:!!p.walking,topics:[...(persona.interests??[]),...(persona.desires??[]),...(persona.relationships??[]).map(r=>clean((names[r.ref]??r.name)+': '+r.note))].map(t=>clean(t).slice(0,160)).filter(Boolean),talksTo:persona.talks_to??'both',chattiness:Number(persona.chattiness??50)});
   }
   for(const s of scene.shops??[]){ // A shopkeeper only calls out to players; it has no persona beyond its shop.
    const wares=(s.wares??[]).map(w=>clean(w)).filter(Boolean).slice(0,6),name=clean(s.name).slice(0,32)||'Shopkeeper';
@@ -172,13 +183,13 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
   }catch(error){db.exec('ROLLBACK');throw error;}
   memory.drain(); // Only after chat commits: move its durable events to the separate resident-memory database.
   convo.actors.set(actor.key,actor);convo.responses.set(actor.key,(convo.responses.get(actor.key)??0)+1);convo.lines.push({speaker:actor.name,text,key:actor.key});convo.lastAt=now();stats.lines++;
-  if(actor.kind==='npc')hold(actor.ref,now()+Number(knobs().ambient_idle_s)*1000); // Wanderers and routed NPCs stand still while they talk.
+  if(actor.kind==='npc'){const other=[...(convo?.actors?.values()??[])].find(x=>x.key!==actor.key&&x.kind==='npc');holdFor(convo,actor,now()+Number(knobs().ambient_idle_s)*1000,player??other);} // Wanderers and routed NPCs stand still while they talk, facing who they talk to.
   push(transcript,{at:now(),zone:convo.zone,area:convo.area,speaker:actor.name,text});
   const mine=recentSaid.get(actor.key)??[];mine.push(text);if(mine.length>12)mine.shift();recentSaid.set(actor.key,mine);
   return true;
  }
  const capped=(convo,a,k)=>(convo.responses.get(a.key)??0)>=Number(k.ambient_max_responses); // Doll: 5 responses per NPC per conversation.
- const newConvo=(zone,area)=>{const c={id:zone+'#'+(++convoSeq),zone,area,actors:new Map(),responses:new Map(),lines:[],players:new Set(),playerNames:new Set(),target:null,chimed:false,running:true,lastAt:now()};convos.set(c.id,c);return c;};
+ const newConvo=(zone,area)=>{const c={id:zone+'#'+(++convoSeq),zone,area,held:new Set(),pair:null,actors:new Map(),responses:new Map(),lines:[],players:new Set(),playerNames:new Set(),target:null,chimed:false,running:true,lastAt:now()};convos.set(c.id,c);return c;};
  const inRoom=area=>[...convos.values()].filter(c=>c.area===area);
  const live=c=>c.running||busy.has(c.id); // A conversation still taking its turns.
  const engaged=()=>new Set([...convos.values()].filter(live).flatMap(c=>[...c.actors.keys()])); // NPCs already talking: never pulled into a second conversation.
@@ -194,6 +205,7 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
  function present(convo){ // Refresh the participants from the live scene; false once the conversation can't go on.
   const scene=sceneFor(convo.zone);if(!scene)return null;const live=new Map(actorsOf(scene).map(a=>[a.key,a]));
   for(const key of convo.actors.keys()){const a=live.get(key);if(!a)return null;convo.actors.set(key,a);} // A retired, moved-away or switched-off NPC ends it.
+  if(convo.pair){const [p,q]=convo.pair.map(key=>convo.actors.get(key)),k=knobs(),reach=Math.max(Number(k.ambient_talk_range),Number(k.ambient_pass_range))+3;if(p&&q&&!near(p,q,reach))return null;} // The two who started it drifted apart (a hold ran out): stop.
   const anyone=[...convo.actors.values()].some(a=>hearers(scene,a,convo.area).length);return anyone?scene:null; // Nobody left to hear it: stop spending.
  }
 
@@ -201,7 +213,7 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
  async function converse(convo,a,b,scene,k){
   convo.actors.set(b.key,b); // B is part of it from the start: present() watches it and the Decider knows it was spoken to.
   const opener=await line(a,{kind:'ambient_open',partner:partnerOf(b),situation:place(scene),topic:topicFor(a)},convo,b);if(!opener){retrySoon(a,b);return;} // Nothing was said: try again soon with a fresh topic.
-  if(!post(a,opener,convo))return;hold(b.ref,now()+Number(k.ambient_idle_s)*1000);
+  if(!post(a,opener,convo))return;holdFor(convo,b,now()+Number(k.ambient_idle_s)*1000,a);
   let speaker=a,listener=b;
   for(;;){
    await sleep(Number(k.ambient_line_gap_s)*1000*(0.7+0.6*roll()));
@@ -279,9 +291,23 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
  }
 
  // ── The ticker (zones.tick, every second) ──
+ function holdFor(convo,actor,until,face=null){ // Stand still (and turn to face whoever they are talking to) until `until`.
+  if(actor?.kind!=='npc')return;convo?.held.add(actor.ref);hold(actor.ref,until,face&&Number.isFinite(face.x)&&Number.isFinite(face.y)?{x:face.x,y:face.y}:null);
+ }
+ function release(convo){ // The conversation is over: its speakers walk on after a short beat, unless another conversation still holds them.
+  const others=[...convos.values()].filter(c=>c!==convo&&live(c));
+  for(const ref of convo.held)if(!others.some(c=>c.held.has(ref)))hold(ref,now()+LINGER_MS);
+ }
+ function begin(scene,a,pick,k,t,area){ // Start a conversation (pick.b another NPC, or pick.p a player): both stop and face each other at once.
+  const until=t+pause(k,'ambient_cooldown_min_s','ambient_cooldown_max_s'),stay=t+Number(k.ambient_idle_s)*1000;
+  cooldown.set(a.key,until);if(pick.b)cooldown.set(pick.b.key,until);
+  const convo=newConvo(scene.zone,area);holdFor(convo,a,stay,pick.b??pick.p);
+  if(pick.b){holdFor(convo,pick.b,stay,a);convo.actors.set(pick.b.key,pick.b);convo.pair=[a.key,pick.b.key];} // Both are engaged from this moment.
+  run(convo.id,()=>pick.b?converse(convo,a,pick.b,scene,k):greet(convo,a,pick.p,scene,k));
+ }
  function run(key,work){ // key: a conversation id (its turns, one at a time) or 'heard:<area>' (a room's player lines, in order). A Decider failure pauses everything.
   busy.add(key);
-  void work().catch(error=>{if(closed)return;if(error?.gateDown)gateDown(error);else warn('step',error);}).finally(()=>{busy.delete(key);const c=convos.get(key);if(c)c.running=false;});
+  void work().catch(error=>{if(closed)return;if(error?.gateDown)gateDown(error);else warn('step',error);}).finally(()=>{busy.delete(key);const c=convos.get(key);if(c){c.running=false;release(c);}});
  }
  function tick(){
   if(closed)return;memory.drain(); // Retry committed memory/deletion events even when Ambient Life is switched off.
@@ -293,9 +319,26 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
    heard.splice(i,1);run('heard:'+h.area,()=>answer(h,k));
   }
   for(const [id,c] of convos)if(!live(c)&&t-c.lastAt>Number(k.ambient_idle_s)*1000)convos.delete(id); // Finished and quiet: forget it.
-  if(t-lastTick<TICK_MS)return;lastTick=t;
+  const passDue=Number(k.ambient_pass_chance)>0&&t-lastPass>=PASS_MS,due=t-lastTick>=TICK_MS;if(!due&&!passDue)return;
   let list=[];try{list=scenes(null,{beckons:k.ambient_beckons==='on'});}catch(error){warn('scene',error);return;}
-  for(const scene of list)startIn(scene,k,t);
+  if(passDue){lastPass=t;for(const scene of list)passes(scene,k,t);} // Walkers who just met: checked every second.
+  if(due){lastTick=t;for(const scene of list)startIn(scene,k,t);}
+ }
+ function passes(scene,k,t){ // Two persona NPCs whose paths just came within ambient_pass_range (at least one walking) may stop and chat.
+  const walkers=actorsOf(scene).filter(a=>a.kind==='npc'&&a.talksTo!=='players'),range=Number(k.ambient_pass_range),talking=engaged();
+  const before=new Map(walkers.map(a=>{const p=lastPos.get(a.key);return [a.key,p&&t-p.at<=STALE_MS?p:a];}));for(const a of walkers)lastPos.set(a.key,{x:a.x,y:a.y,at:t});
+  const was=meeting.get(scene.zone)??new Set(),now2=new Set(),free=a=>(cooldown.get(a.key)??0)<=t&&!talking.has(a.key);let started=false;
+  for(let i=0;i<walkers.length;i++)for(let j=i+1;j<walkers.length;j++){
+   const a=walkers[i],b=walkers[j],key=a.key<b.key?a.key+'|'+b.key:b.key+'|'+a.key;
+   if(closestApproach(before.get(a.key),a,before.get(b.key),b)>range)continue;now2.add(key);
+   if(started||was.has(key)||(!a.walking&&!b.walking)||!free(a)||!free(b))continue; // Once per meeting; two NPCs standing together are startIn's business.
+   const listeners=(scene.players??[]).filter(p=>onScreen(a,p)||onScreen(b,p));if(!listeners.length)continue; // Nobody would see it.
+   const area=listeners[0].area;if(inRoom(area).filter(live).length>=Number(k.ambient_conversations_per_area))continue;
+   if(roll()>=Math.min(1,Number(k.ambient_pass_chance)*Math.max(a.chattiness,b.chattiness)/50))continue; // The chattier of the two decides how likely a hello is.
+   const [first,second]=roll()<0.5?[a,b]:[b,a];stats.passing=(stats.passing??0)+1;begin(scene,first,{b:second},k,t,area);started=true; // One new conversation per zone per check.
+  }
+  meeting.set(scene.zone,now2);
+  for(const [key,p] of lastPos)if(t-p.at>60000)lastPos.delete(key); // Walkers who left every watched zone.
  }
  function startIn(scene,k,t){
   const actors=actorsOf(scene);if(!actors.length)return;
@@ -319,10 +362,7 @@ export function createAmbientLife(db,{now=Date.now,gameMinute=()=>undefined,roll
    const playerTargets=a.talksTo==='npcs'?[]:listeners.filter(p=>p.area===area&&near(a,p,range)&&!p.state?.run);
    const targets=[...npcTargets.map(b=>({b})),...playerTargets.map(p=>({p}))];if(!targets.length)continue;
    if(roll()>=Math.min(1,Number(k.ambient_chance)*a.chattiness/50))continue; // The strike-up check.
-   const pick=targets[Math.floor(roll()*targets.length)],until=t+pause(k,'ambient_cooldown_min_s','ambient_cooldown_max_s');
-   cooldown.set(a.key,until);if(pick.b)cooldown.set(pick.b.key,until);
-   const convo=newConvo(scene.zone,area);hold(a.ref,t+Number(k.ambient_idle_s)*1000);if(pick.b)convo.actors.set(pick.b.key,pick.b); // Both are engaged from this moment.
-   run(convo.id,()=>pick.b?converse(convo,a,pick.b,scene,k):greet(convo,a,pick.p,scene,k));
+   begin(scene,a,targets[Math.floor(roll()*targets.length)],k,t,area); // Both stop and face each other at once.
    return; // One new conversation per zone per tick.
   }
  }

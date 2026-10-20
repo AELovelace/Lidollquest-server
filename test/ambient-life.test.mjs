@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {createAmbientLife,AMBIENT_DEFAULTS} from '../server/ambient-life.mjs';
+import {createAmbientLife,AMBIENT_DEFAULTS,closestApproach} from '../server/ambient-life.mjs';
+import {facingToward} from '../server/npc-routines.mjs';
 import {npcParticipationContext} from '../server/participation-gate.mjs';
 
 // AMBIENT_NPC_LIFE_PLAN.md: persona NPCs open conversations on a roll, Decider Chat keeps them going, 5 responses each,
@@ -13,7 +14,7 @@ const NPCS={wren:persona('Wren'),felix:persona('Felix'),padma:persona('Padma'),s
 function harness({sleep=async()=>{},knobs={},npcs=[{ref:'p-wren',content:'wren',x:3,y:17},{ref:'p-felix',content:'felix',x:6,y:15}],shops=[],players=[{id:'c1',owner:'o1',name:'Dollie',x:5,y:16,area:AREA,state:{}}],decide=()=>'join',chat=null,backend='decider',speakingStyle=null}={}){
  const db=new DatabaseSync(':memory:');let time=Date.parse('2026-10-14T18:00:00Z');
  db.exec('CREATE TABLE quest_chat(seq INTEGER PRIMARY KEY AUTOINCREMENT,zone TEXT,owner TEXT,character_id TEXT,name TEXT,text TEXT,created INTEGER,emote INTEGER,x INTEGER,y INTEGER)');
- const calls=[],holds=[],scene={zone:AREA,npcs,shops,players};let stamps=0,said=0;
+ const calls=[],holds=[],holdLog=[],scene={zone:AREA,npcs,shops,players};let stamps=0,said=0;
  const pool={configured:true,async request(path,body){
   calls.push({path,body});
   if(path==='/v1/participation/decide'){const d=decide(body);if(typeof d==='number')return {ok:false,status:d,body:{}};return {ok:true,status:200,body:{decision:d,join:d==='join',join_probability:d==='join'?0.9:0.1,policy:'participation-sociable-v1-schema_first',model:'lidoll/decider-chat-0-1'}};}
@@ -21,10 +22,10 @@ function harness({sleep=async()=>{},knobs={},npcs=[{ref:'p-wren',content:'wren',
   return {ok:true,status:200,body:{reply:`${body.npc_name} (${body.kind}) ${++said}`,lane:'local',fallback:false,guard:'passed'}}; // Numbered: residents never repeat a line word for word.
  }};
  const life=createAmbientLife(db,{now:()=>time,roll:()=>0,pool:()=>pool,gateBackend:backend,tuning:()=>({...AMBIENT_DEFAULTS,ambient_enabled:'on',ambient_chime_chance:0,...knobs}),
-  npcs:()=>NPCS,scenes:(only)=>!only||only.includes(AREA)?[scene]:[],stamp:()=>{stamps++;},hold:(id,until)=>holds.push(id),sleep,log:()=>{},speakingStyle});
+  npcs:()=>NPCS,scenes:(only)=>!only||only.includes(AREA)?[scene]:[],stamp:()=>{stamps++;},hold:(id,until,face)=>{holds.push(id);holdLog.push({id,until,face,at:time});},sleep,log:()=>{},speakingStyle});
  const settle=async()=>{for(let i=0;i<60;i++)await new Promise(r=>setImmediate(r));}; // Let every queued AI step finish.
  const lines=()=>db.prepare('SELECT * FROM quest_chat ORDER BY seq').all();
- return {db,life,calls,holds,scene,settle,lines,stamps:()=>stamps,advance:ms=>{time+=ms;},tick:async()=>{life.tick();await settle();}};
+ return {db,life,calls,holds,holdLog,scene,settle,lines,stamps:()=>stamps,now:()=>time,advance:ms=>{time+=ms;},tick:async()=>{life.tick();await settle();}};
 }
 async function opened(h){h.advance(60000);await h.tick();h.advance(60000);await h.tick();} // First tick staggers the roll; the next one may open.
 
@@ -312,4 +313,28 @@ test('a GM dialogue preset overrides a resident persona style; persona sends no 
    }finally{h.life.close();h.db.close();}
   }
  }finally{if(old===undefined)delete NPCS.felix.ai_persona.speaking_style;else NPCS.felix.ai_persona.speaking_style=old;}
+});
+
+test('walkers who pass each other stop, face each other, chat once per meeting, then walk on (2026-10-20)',async()=>{
+ const h=harness({knobs:{ambient_chance:0,ambient_pass_chance:1,ambient_max_responses:1}, // Only the passing trigger can open a conversation here.
+  npcs:[{ref:'p-wren',content:'wren',x:3,y:17,walking:true},{ref:'p-felix',content:'felix',x:12,y:17,walking:true}],players:[{id:'c1',owner:'o1',name:'Dollie',x:7,y:12,area:AREA,state:{}}]});
+ await h.tick();assert.equal(h.calls.length,0,'nine tiles apart: no meeting yet');
+ h.scene.npcs[0].x=8;h.scene.npcs[1].x=7;h.advance(1000);await h.tick(); // They walked through each other between two checks.
+ assert.equal(h.calls.filter(c=>c.body.kind==='ambient_open').length,1,'crossing paths starts one conversation');
+ const first=new Map();for(const e of h.holdLog)if(!first.has(e.id))first.set(e.id,e);
+ assert.deepEqual([...first.keys()].sort(),['p-felix','p-wren'],'both stop at once, not only the opener');
+ assert.deepEqual(first.get('p-wren').face,{x:7,y:17});assert.deepEqual(first.get('p-felix').face,{x:8,y:17},'each turns toward the other');
+ const released=h.holdLog.filter(e=>e.until-e.at===3000).map(e=>e.id).sort();
+ assert.deepEqual(released,['p-felix','p-wren'],'when it ends they stand a 3 s beat, then walk on');
+ assert.equal(h.life.view().stats.passing,1);
+ h.advance(1000);await h.tick();h.advance(1000);await h.tick();
+ assert.equal(h.calls.filter(c=>c.body.kind==='ambient_open').length,1,'staying side by side is the same meeting: no second roll');
+});
+
+test('two NPCs already standing together are not a passing meeting; facing and path helpers',async()=>{
+ const h=harness({knobs:{ambient_chance:0,ambient_pass_chance:1},npcs:[{ref:'p-wren',content:'wren',x:6,y:17},{ref:'p-felix',content:'felix',x:7,y:17}],players:[{id:'c1',owner:'o1',name:'Dollie',x:7,y:12,area:AREA,state:{}}]});
+ await h.tick();h.advance(1000);await h.tick();assert.equal(h.calls.length,0,'nobody walked: strike-ups stay with ambient_chance');
+ assert.equal(closestApproach({x:3,y:17},{x:8,y:17},{x:12,y:17},{x:7,y:17}),0,'swept paths that cross meet at 0');
+ assert.equal(closestApproach({x:0,y:0},{x:1,y:0},{x:0,y:9},{x:1,y:9}),9,'parallel walkers stay apart');
+ assert.deepEqual([facingToward({x:5,y:5},{x:9,y:6}),facingToward({x:5,y:5},{x:1,y:5}),facingToward({x:5,y:5},{x:5,y:9}),facingToward({x:5,y:5},{x:5,y:1}),facingToward({x:5,y:5},{x:5,y:5})],[2,3,0,1,null]);
 });

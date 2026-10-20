@@ -64,9 +64,9 @@ test('the Map Editor pop-out is served with the panel hardening and its spliced 
  const staff='s'.repeat(43),service=createQuestService({log:()=>{},walletClient:{authenticate:async token=>({owner:'staff',gamemaster:token===staff,client:'lidollquest',coins:0,scope:'social:read'})}});await new Promise(resolve=>service.server.listen(0,'127.0.0.1',resolve));const base='http://127.0.0.1:'+service.server.address().port;
  try{
   const response=await fetch(base+'/gm/map-editor');assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/^text\/html/);assert.equal(response.headers.get('x-frame-options'),'DENY');assert.match(response.headers.get('content-security-policy'),/default-src 'none'/);
-  const page=await response.text();assert.match(page,/<title>LiDollQuest Map Editor<\/title>/);assert.match(page,/id="palette"/);assert.doesNotMatch(page,/\/\* (TILE_PAINTER|MAP_EDITOR|MUSIC_WIDGET|SPRITE_LAB) \*\//,'every splice filled');
-  const scripts=[...page.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]);assert.equal(scripts.length,4);
-  assert.match(scripts[2],/async function spriteLabComposite\(/,'the shared Sprite Lab renderer is spliced in, so NPC looks draw in the editor');assert.match(scripts[3],/function fitLook\(/);
+  const page=await response.text();assert.match(page,/<title>LiDollQuest Map Editor<\/title>/);assert.match(page,/id="palette"/);assert.doesNotMatch(page,/\/\* (TILE_PAINTER|MAP_EDITOR|PLACE_EDITOR|MUSIC_WIDGET|SPRITE_LAB) \*\//,'every splice filled');
+  const scripts=[...page.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]);assert.equal(scripts.length,5);
+  assert.match(scripts[2],/async function spriteLabComposite\(/,'the shared Sprite Lab renderer is spliced in, so NPC looks draw in the editor');assert.match(scripts[4],/function fitLook\(/);
   assert.match(scripts[1],/function musicWidget\(/,'the shared Zone music widget is spliced in');assert.match(page,/id="zoneMusic"/);
   assert.doesNotMatch(scripts[0],/^export /m,'the painter is spliced without module exports');assert.match(scripts[0],/function tileAt\(/);
   for(const script of scripts){new Function(script);assert.doesNotMatch(script,/\/\/.*(const|let|var)\s+\w+\s*=/,'a line comment would swallow code on the same line');}

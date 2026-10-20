@@ -62,8 +62,8 @@ test('the service moves routine NPCs before its one-second world timer',async()=
  }finally{s.server.emit('close');}
 });
 
-test('ambient chatter has a bounded departure grace while direct dialogue remains a hold',()=>{
- const f=travelFixture();try{f.hold('ambient');f.advance(2000);assert.equal(f.routine.get('resident1').state.status,'talking');f.advance(28000);assert.equal(f.routine.get('resident1').state.status,'talking');f.advance(4000);assert.notEqual(f.routine.get('resident1').state.status,'talking');assert.notEqual(f.routine.get('resident1').state.x,3);const before=f.routine.get('resident1').state;f.hold('direct');f.advance(60000);const after=f.routine.get('resident1').state;assert.deepEqual([after.zone,after.x,after.y],[before.zone,before.x,before.y]);assert.equal(after.status,'talking');}finally{f.db.close();}
+test('ambient chatter has a bounded departure grace (90 s since 2026-10-20, so a stop-and-chat can finish) while direct dialogue remains a hold',()=>{
+ const f=travelFixture();try{f.hold('ambient');f.advance(2000);assert.equal(f.routine.get('resident1').state.status,'talking');f.advance(86000);assert.equal(f.routine.get('resident1').state.status,'talking');f.advance(4000);assert.notEqual(f.routine.get('resident1').state.status,'talking');assert.notEqual(f.routine.get('resident1').state.x,3);const before=f.routine.get('resident1').state;f.hold('direct');f.advance(60000);const after=f.routine.get('resident1').state;assert.deepEqual([after.zone,after.x,after.y],[before.zone,before.x,before.y]);assert.equal(after.status,'talking');}finally{f.db.close();}
 });
 
 test('automatic lamp sources remain separate from portable custom sources and no-floor zones are safe',()=>{

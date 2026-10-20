@@ -192,6 +192,12 @@ The **Ambient Life** tab also shows:
 - an **Export decisions** button (player names are replaced with Player1, Player2, ...).
 
 Good to know:
+- **Stop and chat (2026-10-20).** When two persona NPCs walk past each other, they may stop, turn to face each other and have a short conversation, then carry on along their route or routine.
+  - `ambient_pass_chance` (default 0.5): how likely a hello is, rolled once per meeting and scaled by the chattier one's chattiness. 0 turns it off.
+  - `ambient_pass_range` (default 3 tiles): how close their paths must come. It still counts if they stepped through each other between checks.
+  - It needs someone on screen to see it, and it respects cooldowns, the per-room conversation limit and the ambient call budget.
+  - NPCs standing still next to each other still strike up conversations the usual way (`ambient_chance`).
+- **Any NPC conversation now stops both speakers at once,** and they face each other (or the player they're talking to). When it ends, they stand for about 3 seconds and walk on.
 - Each NPC says at most `ambient_max_responses` (default 5) lines per conversation. The Decider usually ends things sooner.
 - If the Decider is down, nothing ambient happens. (The old `QUEST_PARTICIPATION_BACKEND=qwen` setting no longer switches it off: since 2026-10-19 the Decider is the only gate.)
 - Ambient lines never use the paid AI. If the panel ever shows a COST ALARM, tell the developers.

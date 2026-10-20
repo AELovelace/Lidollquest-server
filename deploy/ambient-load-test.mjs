@@ -12,6 +12,10 @@
 //
 // Usage: node deploy/ambient-load-test.mjs [nodeUrl ...]   (key: NPC_RAG_KEY env, else C:/Scripts/npc-rag/.env NPC_API_KEY)
 //   STAGES=1,2,4,8,12,16 STAGE_S=40 MAX_LINES=6 node deploy/ambient-load-test.mjs http://47.51.162.106:9092
+// Game-like pacing (2026-10-19): RATES=30,60,120 makes each stage a fixed NPC line rate per minute (what the game's
+// ambient_calls_per_minute allows) instead of "as fast as possible"; a refused (429) line still uses its turn, as in game.
+// LINE_GAP_S=4 waits between lines like ambient_line_gap_s; CONCURRENCY (default 32) is how many conversations may be open.
+//   RATES=30,60,120,180,240 STAGE_S=120 LINE_GAP_S=4 node deploy/ambient-load-test.mjs http://47.51.162.106:9092
 import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import {UTOPIA_RESIDENTS} from '../server/utopia-npcs.mjs';
 import {personaText,participationProfile} from '../server/ambient-persona.mjs';
@@ -22,6 +26,14 @@ if(!key){console.error('Set NPC_RAG_KEY (the npc-rag API key).');process.exit(1)
 const nodes=process.argv.slice(2).length?process.argv.slice(2):['http://47.51.162.106:9092','http://192.168.1.188:9092'];
 const STAGES=(process.env.STAGES||'1,2,4,8,12,16').split(',').map(Number).filter(n=>n>0);
 const STAGE_S=Number(process.env.STAGE_S||40),MAX_LINES=Number(process.env.MAX_LINES||6);
+const RATES=(process.env.RATES||'').split(',').map(Number).filter(n=>n>0); // NPC lines per minute per stage; empty = the concurrency ramp above.
+const LINE_GAP_S=Number(process.env.LINE_GAP_S||0),CONCURRENCY=Number(process.env.CONCURRENCY||32);
+let lineEveryMs=0,nextLineAt=0; // Pacer: one line attempt every lineEveryMs across all conversations (0 = unpaced).
+async function pace(){ // Waits for this line's turn, like the game's per-minute ambient call budget.
+ if(!lineEveryMs)return;
+ const t=performance.now(),at=Math.max(t,nextLineAt);nextLineAt=at+lineEveryMs;
+ if(at>t)await new Promise(r=>setTimeout(r,at-t));
+}
 
 const names=Object.fromEntries(UTOPIA_RESIDENTS.map(n=>[n.id,n.name]));
 const actors=UTOPIA_RESIDENTS.map(n=>({id:n.id,name:n.name,persona:personaText(n.name,n.ai_persona,{names}),voice:n.ai_persona.voice,profile:participationProfile(n.ai_persona),
@@ -41,6 +53,7 @@ async function conversation(node,s,stopAt,said){ // One resident conversation, l
  const [a,b]=[pick(actors),pick(actors)].sort(()=>Math.random()-.5);if(a.id===b.id)return;
  s.convos++;const thread=[];let speaker=a,listener=b;
  const line=async(actor,partner,kind)=>{
+  await pace();if(performance.now()>=stopAt)return ''; // Game-like budget; a line whose turn falls after the stage is not sent.
   const r=await post(node,'/v1/companion/chat',{npc_id:actor.id,npc_name:actor.name,persona:actor.persona,voice:actor.voice,message:'(ambient)',kind,situation,
    partner:{name:partner.name,persona:partner.persona.slice(0,600),line:thread.at(-1)?.text??''},thread:thread.slice(-8),topic:kind==='ambient_open'?pick(actor.topics):'',said:(said.get(actor.id)??[]).slice(-8)},25000);
   s.lines++;s.lineMs.push(r.ms);
@@ -57,31 +70,34 @@ async function conversation(node,s,stopAt,said){ // One resident conversation, l
   let join=false;try{if(g.status===200)join=participationSaysJoin(g.body);else s.gateFail++;}catch{s.gateFail++;}
   if(!join){if(g.status===200)return;return;} // QUIET ends it; a gate failure ends it too (ambient life pauses).
   s.gateJoin++;
+  if(LINE_GAP_S)await new Promise(r=>setTimeout(r,LINE_GAP_S*1000)); // The game waits ambient_line_gap_s between lines.
   if(!await line(listener,speaker,'ambient_reply'))return;
   [speaker,listener]=[listener,speaker];
  }
 }
 const pct=(a,p)=>{if(!a.length)return 0;const s=[...a].sort((x,y)=>x-y);return Math.round(s[Math.min(s.length-1,Math.floor(p*s.length))]);};
 
-async function stage(node,concurrency,baseCloud){
+async function stage(node,concurrency,baseCloud,rate=0){
+ lineEveryMs=rate?60000/rate:0;nextLineAt=0;
  const s=newStats(),said=new Map(),stopAt=performance.now()+STAGE_S*1000;let abort='',maxLocal=0,maxCloud=0;
  const watcher=(async()=>{while(performance.now()<stopAt&&!abort){const h=await health(node);if(h){maxLocal=Math.max(maxLocal,h.local_in_flight??0);maxCloud=Math.max(maxCloud,h.cloud_in_flight??0);if((h.cloud_in_flight??0)>baseCloud)abort='players were pushed onto the paid cloud lane';}await new Promise(r=>setTimeout(r,2000));}})();
  const worker=async()=>{while(performance.now()<stopAt&&!abort){await conversation(node,s,stopAt,said);if(s.cloud)abort='an ambient line came back from the cloud';}};
  await Promise.all(Array.from({length:concurrency},worker));abort||=s.errors+s.gateFail>0.2*Math.max(1,s.lines+s.gates)?'error rate above 20%':'';await watcher;
  const mins=STAGE_S/60;
- return {concurrency,abort,convos:s.convos,linesPerMin:Math.round(s.linesOk/mins),attemptsPerMin:Math.round(s.lines/mins),gatesPerMin:Math.round(s.gates/mins),
+ return {concurrency,rate,abort,convos:s.convos,linesPerMin:Math.round(s.linesOk/mins),attemptsPerMin:Math.round(s.lines/mins),gatesPerMin:Math.round(s.gates/mins),
   okRate:s.lines?Math.round(100*s.linesOk/s.lines):0,busy429:s.busy429,dropped:s.dropped,errors:s.errors,gateFail:s.gateFail,cloud:s.cloud,
   lineP50:pct(s.lineMs,.5),lineP95:pct(s.lineMs,.95),gateP50:pct(s.gateMs,.5),gateP95:pct(s.gateMs,.95),maxLocalInFlight:maxLocal,maxCloudInFlight:maxCloud};
 }
 
-const report={started:new Date().toISOString(),stages:STAGES,stageSeconds:STAGE_S,maxLines:MAX_LINES,nodes:{}};
+const report={started:new Date().toISOString(),stages:STAGES,rates:RATES,lineGapS:LINE_GAP_S,stageSeconds:STAGE_S,maxLines:MAX_LINES,nodes:{}};
+const plan=RATES.length?RATES.map(rate=>({c:CONCURRENCY,rate})):STAGES.map(c=>({c,rate:0})); // Paced stages, or the concurrency ramp.
 for(const node of nodes){
  const rest=await health(node);if(!rest){console.log(node,'unreachable; skipped');continue;}
  const baseCloud=rest.cloud_in_flight??0;console.log(`\n=== ${node} (local capacity ${rest.local_capacity}, cloud in flight at rest ${baseCloud})`);
  report.nodes[node]=[];
- for(const c of STAGES){
-  const r=await stage(node,c,baseCloud);report.nodes[node].push(r);
-  console.log(`c=${String(c).padStart(2)} lines/min ${String(r.linesPerMin).padStart(4)} (tried ${r.attemptsPerMin}) ok ${r.okRate}% · 429 ${r.busy429} · drops ${JSON.stringify(r.dropped)} · err ${r.errors}/${r.gateFail} · line p50/p95 ${r.lineP50}/${r.lineP95} ms · gate p50/p95 ${r.gateP50}/${r.gateP95} ms · local≤${r.maxLocalInFlight} cloud≤${r.maxCloudInFlight}${r.abort?' · STOPPED: '+r.abort:''}`);
+ for(const {c,rate} of plan){
+  const r=await stage(node,c,baseCloud,rate);report.nodes[node].push(r);
+  console.log(`${rate?'rate '+String(rate).padStart(3)+'/min ':''}c=${String(c).padStart(2)} lines/min ${String(r.linesPerMin).padStart(4)} (tried ${r.attemptsPerMin}) ok ${r.okRate}% · 429 ${r.busy429} · drops ${JSON.stringify(r.dropped)} · err ${r.errors}/${r.gateFail} · line p50/p95 ${r.lineP50}/${r.lineP95} ms · gate p50/p95 ${r.gateP50}/${r.gateP95} ms · local≤${r.maxLocalInFlight} cloud≤${r.maxCloudInFlight}${r.abort?' · STOPPED: '+r.abort:''}`);
   if(r.abort)break;
   await new Promise(res=>setTimeout(res,5000)); // Let the node settle between stages.
  }

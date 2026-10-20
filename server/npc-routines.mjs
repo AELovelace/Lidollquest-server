@@ -20,7 +20,11 @@ export function normalizeRoutine(raw,catalog){
   return {id,name:String(r.name??'Schedule').slice(0,80),clock:r.clock,from,to,priority:int(r.priority??0,0,100,'priority'),days:[...new Set(r.days.map(d=>int(d,0,6,'weekday')))],blocks};});
  return {version:1,name:String(raw.name??'Routine').slice(0,80),enabled:raw.enabled!==false,entries};
 }
-export function createNpcRoutines(db,{now,base,clock,published,readOnly=false,held=()=>false,walkDelay=()=>base.walkDelay?.()??moveDelays().walk}={}){
+export function facingToward(from,to){ // 0 down (+y), 1 up (-y), 2 right (+x), 3 left (-x); null when on the same tile.
+ const dx=to.x-from.x,dy=to.y-from.y;if(!dx&&!dy)return null;return Math.abs(dx)>=Math.abs(dy)?(dx>0?2:3):(dy>0?0:1);
+}
+const AMBIENT_HOLD_MAX_MS=90000; // 2026-10-20: a stop-and-chat lasts about a minute; it was 30 s, so residents walked off mid-conversation.
+export function createNpcRoutines(db,{now,base,clock,published,readOnly=false,held=()=>false,facing=()=>null,walkDelay=()=>base.walkDelay?.()??moveDelays().walk}={}){
  db.exec('CREATE TABLE IF NOT EXISTS world_npc_routines(id TEXT PRIMARY KEY,revision INTEGER NOT NULL,body TEXT NOT NULL,state TEXT NOT NULL,updated INTEGER NOT NULL)');
  const allQuery=db.prepare('SELECT * FROM world_npc_routines ORDER BY id'),oneQuery=db.prepare('SELECT * FROM world_npc_routines WHERE id=?');
  const unpack=r=>r?{...r,body:JSON.parse(r.body),state:JSON.parse(r.state)}:null,all=()=>allQuery.all().map(unpack),get=id=>unpack(oneQuery.get(id));
@@ -30,7 +34,7 @@ export function createNpcRoutines(db,{now,base,clock,published,readOnly=false,he
  function nearest(f,p,limit=5){if(!p)return null;for(let d=0;d<=limit;d++)for(let y=p.y-d;y<=p.y+d;y++)for(let x=p.x-d;x<=p.x+d;x++)if(Math.abs(x-p.x)+Math.abs(y-p.y)===d&&open(f,x,y))return {x,y};return null;}
  function links(map){return [...(map.floor?.doors??[]),...(map.floor?.portals??[]),...(map.floor?.exits??[])].map(d=>({...d,target:d.target??d.zone})).filter(d=>d.target&&d.target!==map.id);}
  function route(from,to,maps){const known=new Set(base.catalog().map(z=>z.id)),queue=[from],seen=new Map([[from,null]]);for(let i=0;i<queue.length&&i<128;i++){const id=queue[i];if(id===to){const path=[];for(let at=id;seen.get(at);at=seen.get(at).from)path.unshift(seen.get(at));return path;}let m;try{m=maps(id);}catch{continue;}for(const exit of links(m)){if(!known.has(exit.target)||seen.has(exit.target))continue;seen.set(exit.target,{from:id,to:exit.target,key:exit.key??null,exit});queue.push(exit.target);}}return null;} // Follow actual current portals, never the editor's list of merely permitted future connections.
- function destination(d,m){const f=m.floor;if(!f)return null;let p=d;if(d.anchor){p=d.anchor==='arrival'?(f.entrance??f.spawn):(f.fixtures??[]).find(v=>v.id===d.anchor)??links(m).find(v=>v.key===d.anchor);if(!p)return null;p={x:p.x+(d.dx??0),y:p.y+(d.dy??0)};}return nearest(f,p,3);}
+ function destination(d,m){const f=m.floor;if(!f)return null;let p=d;if(d.anchor){p=d.anchor==='arrival'?(f.entrance??f.spawn):(f.placeAnchors??[]).find(v=>v.id===d.anchor)??(f.fixtures??[]).find(v=>v.id===d.anchor)??links(m).find(v=>v.key===d.anchor);if(!p)return null;p={x:p.x+(d.dx??0),y:p.y+(d.dy??0)};}return nearest(f,p,3);}
  function path(f,from,to,blocked=new Set()){if(!to)return null;if(from.x===to.x&&from.y===to.y)return [];const queue=[from],prev=new Map([[key(from),null]]);for(let i=0;i<queue.length;i++){const p=queue[i];for(const [dx,dy] of cardinal){const q={x:p.x+dx,y:p.y+dy},k=key(q);if(prev.has(k)||!open(f,q.x,q.y)||blocked.has(k))continue;prev.set(k,p);if(q.x===to.x&&q.y===to.y){const out=[q];for(let v=p;v!==from;v=prev.get(key(v)))out.unshift(v);return out;}queue.push(q);}}return null;}
  function save(input,placement){if(readOnly)fail('Snapshot workers cannot edit routines.');const old=get(placement.id);if((input.revision??0)!==(old?.revision??0))fail('This routine changed. Refresh before saving.');if(placement.kind!=='npc'||placement.lifetime==='temporary')fail('Choose a persistent GM NPC placement.');const body={...normalizeRoutine(input.routine,base.catalog()),content:placement.content,home:old?.body.home??{zone:placement.zone,x:placement.home?.x??placement.x,y:placement.home?.y??placement.y}};
   const maps=new Map(),map=id=>{if(!maps.has(id))maps.set(id,readMap(id));return maps.get(id);};
@@ -42,8 +46,8 @@ export function createNpcRoutines(db,{now,base,clock,published,readOnly=false,he
  function tick(){if(readOnly)return;const time=now(),gameMs=clock().gameMs,records=all().filter(enabled),maps=new Map(),map=id=>{if(!maps.has(id))maps.set(id,readMap(id));return maps.get(id);};let budget=400;
   const requested=Number(walkDelay()),delay=Number.isFinite(requested)&&requested>0?Math.max(50,requested):moveDelays().walk;
   for(const r of records){if(budget<=0)break;const s=r.state,elapsed=time-(s.step??time);if(elapsed<delay)continue;const e=activeRoutine(r.body.entries,gameMs,time),active=e?.id??'@home',blocks=e?.blocks??[{kind:'home'},{kind:'stay'}];
-   const holding=held(r.id,time);if(holding==='ambient')s.holdSince??=time;else delete s.holdSince; // Ambient small talk may delay departure for at most thirty real seconds.
-   if(holding&&(holding!=='ambient'||time-s.holdSince<30000)){s.step=time;s.walking=false;s.status='talking';}else{
+   const holding=held(r.id,time);if(holding==='ambient')s.holdSince??=time;else delete s.holdSince; // Ambient small talk may delay departure for at most AMBIENT_HOLD_MAX_MS.
+   if(holding&&(holding!=='ambient'||time-s.holdSince<AMBIENT_HOLD_MAX_MS)){s.step=time;s.walking=false;s.status='talking';const f=holding==='ambient'?facing(r.id):null,d=f&&facingToward(s,f);if(d!=null)s.facing=d;}else{
     if(s.active!==active){s.active=active;s.block=0;delete s.until;delete s.patrol;}s.activity=e?.name??'Home';
     let current;try{current=map(s.zone);}catch{s.status='zone unavailable';s.step=time;current=null;}
     if(current?.floor){const repaired=nearest(current.floor,s);if(!repaired){s.status='no safe tile';s.step=time;}else{
@@ -54,7 +58,7 @@ export function createNpcRoutines(db,{now,base,clock,published,readOnly=false,he
       let m;try{m=map(s.zone);}catch{s.status='zone unavailable';s.walking=false;break;}const f=m.floor;if(!f){s.status='zone unavailable';s.walking=false;break;}let goal,hop=null;
       if(s.zone===d.zone)goal=destination(d,m);else{const journey=route(s.zone,d.zone,map);hop=journey?.[0];goal=hop?nearest(f,hop.exit,2):null;}
       if(!goal){s.status='destination blocked';s.walking=false;break;}
-      if(s.x===goal.x&&s.y===goal.y){if(hop){let next;try{next=map(hop.to);}catch{next=null;}const back=next&&links(next).find(l=>l.target===s.zone),arrival=next?.floor&&nearest(next.floor,next.floor.entries?.[s.zone]??back??next.floor.entrance??next.floor.spawn,3);if(!arrival){s.status='arrival blocked';s.walking=false;break;}if(records.some(o=>o.id!==r.id&&o.state.zone===hop.to&&o.state.x===arrival.x&&o.state.y===arrival.y)){s.status='arrival occupied';break;}Object.assign(s,arrival,{zone:hop.to,edition:next.edition,status:'travelling'});if((next.players??[]).some(p=>p.online))break;continue;}
+      if(s.x===goal.x&&s.y===goal.y){if(hop){let next;try{next=map(hop.to);}catch{next=null;}const back=next&&links(next).find(l=>l.target===s.zone),arrival=next?.floor&&nearest(next.floor,hop.exit.arrival??next.floor.entries?.[s.zone]??back??next.floor.entrance??next.floor.spawn,3);if(!arrival){s.status='arrival blocked';s.walking=false;break;}if(records.some(o=>o.id!==r.id&&o.state.zone===hop.to&&o.state.x===arrival.x&&o.state.y===arrival.y)){s.status='arrival occupied';break;}Object.assign(s,arrival,{zone:hop.to,edition:next.edition,status:'travelling'});if((next.players??[]).some(p=>p.online))break;continue;}
        if(b.kind==='patrol'){s.patrol=(s.patrol??0)+1;if(s.patrol>=b.points.length*b.loops){delete s.patrol;s.block++;}}else s.block++;continue;
       }
       const blocked=new Set(records.filter(o=>o.id!==r.id&&o.state.zone===s.zone&&!o.state.walking).map(o=>key(o.state))),walk=path(f,s,goal,blocked);if(!walk?.length){s.status='path blocked';s.walking=false;break;}const p=walk[0],at=stepAt-advance*delay;s.trail=extendTrail({...s,moved:at-delay},[{...p,t:at}]);s.facing=p.x!==s.x?(p.x>s.x?2:3):(p.y>s.y?0:1);s.x=p.x;s.y=p.y;s.status='travelling';

@@ -8,6 +8,18 @@ Content becomes discoverable when it is placed in the world. Story Workshop uses
 
 ## Open the map
 
+### Create a town place
+
+Open **Map Editor → Town places → Add place** to create an interior building, walk-in building or outdoor POI. Pick a clear town parcel; **Preview town draft** shows its footprint and entrance approach. Open an interior with **Edit draft**, paint/furnish it, and stage published NPC/content definitions. **Apply** saves privately. **Publish place** makes the validated place and initial placements live together.
+
+Use **Add room / floor** and **Add paired door** for upstairs rooms. Every room needs one default return leading home; arrival tiles must sit outside door contact areas. **Advanced properties** edits the complete authoring definition. Move the facade through its parcel coordinates so its entrance moves with it. Protected buildings, services, occupants, existing entrances and overlapping parcels cause publication errors instead of being silently displaced.
+
+Named anchors are routine destinations `place:<place-id>:<anchor-id>` and quest location targets `place-<place-id>-<anchor-id>`. Republishing preserves existing resident identities. Music, lighting and routines use their existing live editors. Parcel terrain is edited in the place draft; exterior furniture uses the live map tools after publication.
+
+**Export bundle** saves a version 1 portable draft. Import it under a new ID, review dependencies and parcel coordinates, then publish. The desktop **Town Places** tab can open/save the same bundle. **Retire place** refuses while occupants or references remain. If town regeneration cannot keep every parcel reachable, the previous edition remains active and `district.conflict` explains the failure.
+
+For a Utopia pilot, use a 20×20 shop plus upstairs room, a garden POI, and a walk-in workshop. Keep Tower and Brittany unchanged as controls. Test keyboard/E/click entry, upstairs Return, exact town arrival, NPC routines, reconnect, staging regeneration and two-player visibility before deployment. The game repository's `TESTING_GUIDE.md` contains the complete Utopia acceptance matrix.
+
 Top-level towns have no stairs back to the title screen. The old destinationless lobby marker (including Utopia's extra stairs) is removed automatically by updated server/client builds; it was outside the editor's editable doors. Keep your existing map: no regeneration is needed. Real building returns and dungeon portals remain; use the game's Escape menu to leave online.
 
 Choose **Zone map & placements**, select an existing zone, and wait for its map. The dialog shows the map edition and current status. From a selected block, **Show on map** highlights matching content in the map view; choose the relevant zone if it is not the one already shown.

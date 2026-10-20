@@ -15,9 +15,10 @@ const fail=(status,message,code='gm_tool_rejected')=>{throw Object.assign(Error(
 export const GM_ACTIONS=Object.freeze(['gm_catalog','gm_warp_zone','gm_warp_player','gm_summon','gm_zone_reload','gm_quest_start','gm_quest_advance','gm_quest_complete','gm_quest_reset','gm_chat_delete','gm_chat_clear','gm_combat_tune','gm_announce','gm_announce_end','gm_faith_set','gm_god_mode']);
 export const COMBAT_KEYS=Object.freeze(['row_swap_costs_turn','row_back_damage_taken','row_back_melee_dealt','row_front_target_weight','reach_damage_mult','move_delay_ms','crawl_move_delay_ms','move_burst_steps','daily_coin_cap','diamond_roll_floor','quest_guide']); // What the in-game Combat page may retune; bounds come from loot-store.mjs. // Every command the in-game panel can send.
 
-export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new Map(),quests=null,live=null,audit=()=>{},loot=null,announcements=null}={}){
+export function createGmTools(db,{now=Date.now,zone,roomRegistry=null,blocked,isDungeon,dives=new Map(),quests=null,live=null,audit=()=>{},loot=null,announcements=null}={}){
  const requireGm=i=>{if(i?.gamemaster!==true)fail(409,'GM tools need the gamemaster role on your LiDollID account.','gm_not_gamemaster');}; // 409 keeps an ordinary player's session alive if a stale client ever shows the panel.
- const zoneName=id=>zoneInfo.get(id)?.name??id; // Unknown ids still read sensibly if a new room ships before the catalogue is updated.
+ const info=id=>roomRegistry?.get(id)?.customPlace?{...roomRegistry.get(id),kind:'hub',warp:true}:zoneInfo.get(id); // New interiors appear without restarting GM tools.
+ const zoneName=id=>info(id)?.name??id; // Unknown ids still read sensibly if a new room ships before the catalogue is updated.
  const fresh=characterId=>db.prepare('SELECT p.*,c.name,c.owner AS char_owner,c.state,c.revision FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.character_id=? AND p.seen>?').get(characterId,now()-ONLINE_WINDOW); // A live presence row plus its character.
 
  function movable(state,who,fromDive=false){ // Relocating mid-fight would strand that fight's own bookkeeping.
@@ -44,16 +45,16 @@ export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new 
 
  const diveOpen=id=>dives.has(id)&&dives.get(id).available(); // A Dive is a destination once this week's shared floor exists.
  function warpable(id){ // Hub lobbies, their annex rooms and any Dive with a floor ready this week.
-  const info=zoneInfo.get(String(id??''));
-  if(!info)fail(400,'Choose a destination room.','gm_unknown_zone');
-  if(dives.has(info.id)){if(!diveOpen(info.id))fail(409,info.name+' has no floor ready right now.','gm_zone_not_warpable');return null;} // null means "a Dive": its engine places the GM.
-  if(!info.warp)fail(409,'That area is not a place you can stand in.','gm_zone_not_warpable'); // Global chat is listed for moderation only.
-  return zone(info.id); // Resolve monthly district layouts so the spawn matches what visitors actually see.
+  const target=info(String(id??''));
+  if(!target)fail(400,'Choose a destination room.','gm_unknown_zone');
+  if(dives.has(target.id)){if(!diveOpen(target.id))fail(409,target.name+' has no floor ready right now.','gm_zone_not_warpable');return null;} // null means "a Dive": its engine places the GM.
+  if(!target.warp)fail(409,'That area is not a place you can stand in.','gm_zone_not_warpable'); // Global chat is listed for moderation only.
+  return zone(target.id); // Resolve monthly district layouts so the spawn matches what visitors actually see.
  }
  function homeHub(state,p){ // The campaign hub the GM is visiting from: used as a Dive's origin and its way back.
   if(state.dive?.hubOrigin??state.dive?.origin)return state.dive.hubOrigin??state.dive.origin;
   if(hubCatalog.some(h=>h.id===p.zone))return p.zone;
-  return hubRooms.find(r=>r.id===p.zone)?.parent??null;
+  return (roomRegistry?.get(p.zone)??hubRooms.find(r=>r.id===p.zone))?.parent??null;
  }
  function diveVisit(id,prefer){ // Build the origin/return fields a portal entry would have produced for this Dive.
   const hubs=hubCatalog.filter(h=>routePortals(h).some(v=>v.target===id)).map(h=>h.id); // Every hub with a portal or garden gate to this route.
@@ -77,7 +78,7 @@ export function createGmTools(db,{now=Date.now,zone,blocked,isDungeon,dives=new 
  function catalog(i,c){ // Everything the panel lists, built fresh on request instead of riding along in every snapshot.
   const players=db.prepare('SELECT p.character_id,p.zone,p.x,p.y,c.name,c.state FROM quest_presence p JOIN quest_characters c ON c.id=p.character_id WHERE p.seen>? ORDER BY c.name,p.character_id LIMIT 200').all(now()-ONLINE_WINDOW)
    .map(r=>{const s=JSON.parse(r.state);return {id:r.character_id,name:r.name,zone:r.zone,zoneName:zoneName(r.zone),x:r.x,y:r.y,self:r.character_id===c.id,dive:isDungeon(r.zone),fighting:Boolean(s.run)};}); // Only names and positions: no account ids, inventory or credentials.
-  const zones=gmZones.filter(z=>z.warp||diveOpen(z.id)).map(z=>({id:z.id,name:z.name,kind:z.kind})); // Warpable rooms and live Dives, in the web panel's order.
+  const zones=[...gmZones,...(roomRegistry?.custom()??[]).map(z=>({id:z.id,name:z.name,kind:'hub',warp:true}))].filter(z=>z.warp||diveOpen(z.id)).map(z=>({id:z.id,name:z.name,kind:z.kind})); // Warpable rooms and live Dives, in the web panel's order.
   const here=fresh(c.id),area=here?chatAreaOf(c,here):null; // The GM's own area, resolved from their committed presence rather than anything the client sent.
   const chat=area?db.prepare("SELECT seq,name,text,owner LIKE 'activity:%' AS activity FROM quest_chat WHERE zone=? ORDER BY seq DESC LIMIT 24").all(area).reverse().map(r=>({seq:r.seq,name:r.name,text:r.text,activity:r.activity===1})):[]; // Every recent line in the area, ignoring the radius, so moderation sees what any player here could have seen.
   const tuning=currentTuning(),combat=Object.fromEntries(COMBAT_KEYS.map(key=>[key,tuning[key]])); // Current live values for the Combat page.

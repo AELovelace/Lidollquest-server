@@ -440,3 +440,21 @@ test('quest stage music overrides the zone for this player while the stage is cu
   assert.throws(()=>f.publish('quest',quest({id:'second_quest',stages:[{id:'start',name:'Explore',objectives:[{id:'wait',type:'timer',count:10}],next:'complete',music:[{zone:'*',track:'nope'}]}]})),/Field music/,'stage music only names real songs');
  }finally{f.close();}
 });
+
+test('a routed NPC held by a conversation stops, turns to face its partner, and walks on when released (2026-10-20)',()=>{const f=fixture();try{
+ f.publish('npc',npc);const map=place(f,'npc',npc.id),placed=map.placements[0],home=placed.home,zone=map.id,start=Date.parse('2026-09-19T12:00:00Z');
+ let time=0;const slot=(ms=2000)=>{time+=ms;f.advance(ms);f.db.prepare('UPDATE quest_presence SET zone=?,seen=? WHERE character_id=?').run(zone,start+time,f.c.id);f.api.tick();};
+ const where=()=>JSON.parse(f.db.prepare('SELECT body FROM world_placement_maps WHERE zone=? AND edition=?').get(zone,map.edition).body)[0];
+ const save=routes=>f.api.world.act({action:'world_route_content',zone,edition:map.edition,placement:placed.id,routes});
+ const usable=(x,y)=>{try{save([{points:[{x,y}]}]);return true;}catch(e){if(!/reachable tile/.test(e.message))throw e;return false;}},far=(p,q)=>Math.abs(p.x-q.x)+Math.abs(p.y-q.y);
+ const spots=[];for(let dy=-5;dy<=5;dy++)for(let dx=-5;dx<=5;dx++){const p={x:home.x+dx,y:home.y+dy};if(far(p,home)>=2&&usable(p.x,p.y))spots.push(p);}
+ const a=spots[0],b=spots.find(p=>far(p,a)>=3);save([{mode:'pingpong',points:[a,b]}]);
+ for(let n=0;n<3;n++)slot();
+ const at=where(),partner={x:at.x,y:at.y-3}; // The partner stands above: facing 1 (up).
+ f.api.quests.placements.hold(placed.id,start+time+600000,partner);slot();
+ const held=where();assert.deepEqual({x:held.x,y:held.y},{x:at.x,y:at.y},'held: no step');assert.equal(held.walking,false);assert.equal(held.facing,1,'turned to face the partner');
+ assert.equal(f.api.read('',f.c.id).worldPlacements.find(p=>p.id===placed.id).facing,1,'players see it turn');
+ slot();assert.deepEqual({x:where().x,y:where().y},{x:at.x,y:at.y},'still talking');
+ f.api.quests.placements.hold(placed.id,0);let moved=false;for(let n=0;n<4&&!moved;n++){slot();moved=where().x!==at.x||where().y!==at.y;}
+ assert.ok(moved,'released: it walks its route again');
+}finally{f.close();}});

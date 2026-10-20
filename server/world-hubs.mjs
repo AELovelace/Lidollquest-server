@@ -6,12 +6,12 @@ import {pathTo,walkable} from './dive-generation.mjs';
 const fail=message=>{throw Object.assign(Error(message),{status:409,code:'hub_encounter_conflict'});};
 export function createHubEncounters(db,{now,roll,parties,live,definition,ids,adjust}){
  db.exec('CREATE TABLE IF NOT EXISTS world_hub_maps(zone TEXT PRIMARY KEY,edition TEXT NOT NULL,content TEXT NOT NULL,updated INTEGER NOT NULL)');
- const engines=new Map();
+ const engines=new Map(),known=()=>typeof ids==='function'?ids():ids; // Published rooms can appear after startup.
  function engine(zone){
-  if(!ids.includes(zone))fail('Unknown hub.');if(engines.has(zone))return engines.get(zone);
+  if(!known().includes(zone))fail('Unknown hub.');if(engines.has(zone))return engines.get(zone);
   const route='hub-event:'+zone,data={config:{route,zone_id:zone,boss_id:'none',enemy_respawn_seconds:600,boss_respawn_seconds:600,theme:definition(zone).theme},enemies:live.published().monsters};
   function record(){const z=definition(zone),old=db.prepare('SELECT * FROM world_hub_maps WHERE zone=?').get(zone),floor=old?JSON.parse(old.content):{enemies:[]};
-   Object.assign(floor,{width:z.width??20,height:z.height??12,walls:z.walls,props:z.props,entrance:z.spawn??{x:10,y:9},fixtures:z.fixtures??[],rooms:z.rooms??[],portals:z.portals??[],exits:z.exit?[z.exit]:[],authoredPlacements:z.authoredPlacements});const edition=z.district?.layoutKey?'hub-'+zone+':'+z.district.layoutKey:old?.edition??'hub-'+zone;floor.managedOccupancy=live.placementPositions?.(zone,edition)??[];return {edition,floor,updated:old?.updated??0};
+   Object.assign(floor,{width:z.width??20,height:z.height??12,walls:z.walls,props:z.props,entrance:z.spawn??{x:10,y:9},fixtures:z.fixtures??[],rooms:z.rooms??[],placeAnchors:z.placeAnchors??[],places:z.places??[],portals:z.portals??[],exits:z.exit?[z.exit]:[],authoredPlacements:z.authoredPlacements});const edition=z.district?.layoutKey?'hub-'+zone+':'+z.district.layoutKey:old?.edition??'hub-'+zone;floor.managedOccupancy=live.placementPositions?.(zone,edition)??[];return {edition,floor,updated:old?.updated??0};
   }
   function saveFloor(r){db.prepare('INSERT INTO world_hub_maps VALUES (?,?,?,?) ON CONFLICT(zone) DO UPDATE SET edition=excluded.edition,content=excluded.content,updated=excluded.updated').run(zone,r.edition,JSON.stringify(r.floor),now());}
   function saveCharacter(c,s){c.revision++;s.loadoutRevision=c.revision;c.state=JSON.stringify(s);db.prepare('UPDATE quest_characters SET revision=?,state=? WHERE id=?').run(c.revision,c.state,c.id);}
@@ -65,7 +65,7 @@ export function createHubEncounters(db,{now,roll,parties,live,definition,ids,adj
  }
  const idleUntil=new Map(); // zone -> when an empty hub gets its next catch-up tick.
  return {engine,tick(){const occupiedZones=new Set(db.prepare('SELECT DISTINCT zone FROM quest_presence WHERE seen>?').all(now()-30000).map(row=>row.zone)); // One presence query per tick answers "is anyone here?" for every hub, instead of one query per room (a flat ~4 ms per tick with nobody online).
-  for(const row of db.prepare('SELECT zone FROM world_hub_maps').all()){if(!ids.includes(row.zone))continue; // Skip maps saved for rooms a later deployment retired, so boot never crash-loops on old DM monsters.
+  for(const row of db.prepare('SELECT zone FROM world_hub_maps').all()){if(!known().includes(row.zone))continue; // Skip maps saved for rooms a later deployment retired, so boot never crash-loops on old DM monsters.
   const occupied=occupiedZones.has(row.zone);
   if(!occupied&&now()<(idleUntil.get(row.zone)??0))continue; // Nobody online here: rebuilding the room and its monsters every second changes nothing anyone can see.
   if(!occupied)idleUntil.set(row.zone,now()+15000); // Empty hubs still tick every 15 s, so respawns, retired monsters and offline defeat recoveries catch up.
