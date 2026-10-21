@@ -16,6 +16,8 @@ Use **Add room / floor** and **Add paired door** for upstairs rooms. Every room 
 
 Named anchors are routine destinations `place:<place-id>:<anchor-id>` and quest location targets `place-<place-id>-<anchor-id>`. Republishing preserves existing resident identities. Music, lighting and routines use their existing live editors. Parcel terrain is edited in the place draft; exterior furniture uses the live map tools after publication.
 
+GM scenery may share wall tiles, matching the existing scenery stamp tool. Place publication and regeneration preserve both layers and still check the scenery's full solid footprint for blocked paths and doors. Props must fit inside the map; service furniture still requires open terrain. A genuine overlap error identifies the sprite, footprint origin and blocked tile so you can move the object or clear the wall without clearing the whole patch layer.
+
 **Export bundle** saves a version 1 portable draft. Import it under a new ID, review dependencies and parcel coordinates, then publish. The desktop **Town Places** tab can open/save the same bundle. **Retire place** refuses while occupants or references remain. If town regeneration cannot keep every parcel reachable, the previous edition remains active and `district.conflict` explains the failure.
 
 For a Utopia pilot, use a 20×20 shop plus upstairs room, a garden POI, and a walk-in workshop. Keep Tower and Brittany unchanged as controls. Test keyboard/E/click entry, upstairs Return, exact town arrival, NPC routines, reconnect, staging regeneration and two-player visibility before deployment. The game repository's `TESTING_GUIDE.md` contains the complete Utopia acceptance matrix.

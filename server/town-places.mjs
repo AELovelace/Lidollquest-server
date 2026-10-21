@@ -63,7 +63,7 @@ export function createTownPlaces(db,{hubs,shippedRooms,roots=hubs,now=Date.now,r
    tilesets:{wall:'tileLBCInterior',floor:'tileLBCInterior',decor:'tileLBCInterior'},fixtures:[],authored:true};
   out.authoring={id:raw.id,name:out.name,width,height,spawn:{...out.spawn},exit:{side:gap.side,offset},walls:structuredClone(out.walls),floors:structuredClone(out.floors),wallTiles:structuredClone(out.wallTiles),decorTiles:structuredClone(out.decorTiles),...(raw.ops?{ops:structuredClone(raw.ops)}:{})};
   if(raw.ops?.length){const scratch=new DatabaseSync(':memory:');try{const patches=createFloorPatches(scratch);patches.act({action:'world_patch_apply',patch_revision:0,ops:raw.ops},{zone:id,floor:out,kind:'hub',openings:[exit],doors:[],actor:'draft',commit:()=>{}});}finally{scratch.close();}const moved=applyFixtureMoves(out,raw.ops);if(moved.patchSkipped?.length)fail(moved.patchSkipped[0].reason);out.fixtures=moved.fixtures;delete out.patchRevision;delete out.patchUndo;delete out.patchSkipped;}
-  try{validateCourtyard(out,[]);}catch(error){fail('Room '+raw.id+': '+error.message);}
+  try{validateCourtyard(out,[],{allowPatchedSceneryWalls:true});}catch(error){fail('Room '+raw.id+': '+error.message);} // Drafts use the same scenery rules as published maps, including wall-mounted art.
   return out; // Compile the private grids and furnishing strokes into the same floor format used by live rooms.
  }
  function compactRoom(r){

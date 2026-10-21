@@ -4,6 +4,8 @@ import {DatabaseSync} from 'node:sqlite';
 import {createTownPlaces,PLACE_LIMITS} from '../server/town-places.mjs';
 import {hubCatalog,hubRooms} from '../server/hubs.mjs';
 import {decoratePlaceZone,validatePlaceZone} from '../server/town-place-layout.mjs';
+import {createFloorPatches} from '../server/floor-patches.mjs';
+import {validateCourtyard} from '../server/hub-garden.mjs';
 
 const entry=(name='Bakery')=>({name,home:'utopia-arcanum',rooms:[{id:'shop',name:'Bakery shop',width:12,height:10}]});
 const roomId='utopia-arcanum-place-bakery-shop';
@@ -110,6 +112,37 @@ test('POIs and walk-in parcels keep authored terrain and reject overlapping rese
   assert.equal(floor.walls[10][15],0,'preview does not mutate the generated town');
   assert.throws(()=>decoratePlaceZone(floor,[poi,{...poi,id:'overlap'}]),/overlap/);
   assert.throws(()=>decoratePlaceZone({...floor,fixtures:[{id:'arcanum-tower',kind:'scenery',sprite:'sprUtopiaTower',x:4,y:4,span_w:3,span_h:3}]},[poi]),/protected/);
+ }finally{db.close();}
+});
+
+test('place validation accepts GM scenery on walls without weakening bounds or access checks',()=>{
+ const db=new DatabaseSync(':memory:');
+ try{
+  const patches=createFloorPatches(db),floor={id:'utopia-arcanum',name:'Utopia',width:14,height:14,spawn:{x:1,y:1},exit:{x:1,y:1},fixtures:[],walls:Array.from({length:14},(_,y)=>Array.from({length:14},(_,x)=>x===0||y===0||x===13||y===13?1:0))};
+  floor.walls[5][5]=1;
+  patches.act({action:'world_patch_apply',patch_revision:0,ops:[{id:'532fa432-375b-4e83-8c67-d9506c0e4cbd',kind:'decoration',decoration:{sprite:'sprUtopiaTower',x:5,y:5,span_w:2,span_h:2,solid:true}}]},{zone:floor.id,floor,kind:'hub',actor:'test',commit:()=>{}}); // The existing editor legitimately accepts this wall/scenery arrangement.
+  const before=structuredClone(floor);
+  assert.doesNotThrow(()=>validatePlaceZone(floor));
+  assert.deepEqual(floor,before,'validation preserves saved scenery and collision');
+  assert.throws(()=>validateCourtyard(floor,[]),/overlaps a wall/,'shipped courtyard validation remains strict');
+  const fixture=floor.fixtures[0];
+  assert.throws(()=>validatePlaceZone({...floor,fixtures:[{...fixture,x:12}]}),/boundary/);
+  assert.throws(()=>validatePlaceZone({...floor,fixtures:[{...fixture,kind:'toilet'}]}),/overlaps a wall/,'services must remain on open terrain');
+  assert.throws(()=>validatePlaceZone({...floor,fixtures:[{...fixture,id:'generated-prop'}]}),/overlaps a wall/);
+  assert.throws(()=>validatePlaceZone(floor,[{x:5,y:5,name:'Test door'}]),/opening.*not reachable/);
+  const split=structuredClone(floor);for(let y=1;y<13;y++)split.walls[y][7]=1;split.walls[6][7]=0;
+  split.fixtures=[{...fixture,x:7,y:6,span_w:1}];
+  assert.throws(()=>validatePlaceZone(split),/unreachable/,'wall-mounted scenery still contributes its full solid footprint');
+  assert.doesNotThrow(()=>validatePlaceZone({...floor,fixtures:[{...fixture,solid:false}]}),'non-solid wall artwork follows the same placement rule');
+ }finally{db.close();}
+});
+
+test('interior wall artwork survives draft painting, compaction and publication',()=>{
+ const {db,places}=setup();
+ try{
+  save(places);
+  places.act({action:'world_place_patch',id:'bakery',room:'shop',revision:1,ops:[{kind:'cells',cells:[{x:5,y:5,wall:1}]},{id:'wall-art',kind:'decoration',decoration:{sprite:'sprUtopiaTower',x:5,y:5,solid:false}}]},'test');
+  publish(places,2);assert.equal(places.get(roomId).walls[5][5],1);assert.equal(places.get(roomId).fixtures[0].id,'patch-wall-art');
  }finally{db.close();}
 });
 

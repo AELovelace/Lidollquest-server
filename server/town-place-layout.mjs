@@ -47,5 +47,5 @@ export function validatePlaceZone(f,existingDoors=[]){
  const portals=f.placePortals??[],doors=[...existingDoors,...portals,...(f.exit?[f.exit]:[])];
  for(const p of portals)if(f.walls?.[p.y]?.[p.x]!==0)fail('Door '+p.connection+' is on a blocked tile in '+f.name+'.');
  for(const parcel of f.places??[])for(const d of existingDoors)if(contains({x:parcel.x,y:parcel.y,w:parcel.w,h:parcel.h+2},d))fail(parcel.name+': parcel overlaps an existing entrance.');
- try{validateCourtyard({...f,exit:f.exit??f.spawn,fixtures:f.fixtures.map(v=>({span_w:1,span_h:1,...v}))},doors);}catch(error){fail(f.name+': '+error.message);}
+ try{validateCourtyard({...f,exit:f.exit??f.spawn,fixtures:f.fixtures.map(v=>({span_w:1,span_h:1,...v}))},doors,{allowPatchedSceneryWalls:true});}catch(error){fail(f.name+': '+error.message);} // Existing GM scenery may overlap terrain; bounds, solid footprints and all routes are still checked.
 } // A rejected regeneration retains the old edition instead of stranding an interior.

@@ -33,6 +33,15 @@ test('Utopia building draft, paired stairs, normal travel, parcel regeneration a
   let parcel=null;
   for(let y=3;y<floor.height-7&&!parcel;y++)for(let x=3;x<floor.width-5&&!parcel;x++)try{const candidate={...entry,exterior:{x,y,w:3,h:3}},p=service.zones.world.places.normalize('bakery',candidate);validatePlaceZone(decoratePlaceZone(floor,[p]),floor.portals??[]);parcel=candidate.exterior;}catch{}
   assert.ok(parcel,'Utopia has a valid parcel');entry.exterior=parcel;
+  let wallArt=null;
+  for(let y=2;y<floor.height-2&&!wallArt;y++)for(let x=2;x<floor.width-2&&!wallArt;x++){
+   if(x>=parcel.x-2&&x<=parcel.x+parcel.w+2&&y>=parcel.y-2&&y<=parcel.y+parcel.h+4)continue;
+   if(Math.abs(x-floor.spawn.x)+Math.abs(y-floor.spawn.y)<3||(floor.portals??[]).some(p=>Math.abs(x-p.x)+Math.abs(y-p.y)<3))continue;
+   if(floor.walls[y][x]||floor.fixtures.some(f=>x>=f.x-1&&x<f.x+(f.span_w??1)+1&&y>=f.y-1&&y<f.y+(f.span_h??1)+1))continue;
+   const candidate=structuredClone(floor);candidate.walls[y][x]=1;try{validatePlaceZone(candidate,candidate.portals??[]);wallArt={x,y};}catch{}
+  }
+  assert.ok(wallArt,'a reachable Utopia tile is available for pre-existing wall art');
+  await gm({action:'world_patch_apply',zone:'utopia-arcanum',edition:town.edition,revision:town.revision,patch_revision:town.patch.revision,ops:[{kind:'cells',cells:[{...wallArt,wall:1}]},{id:'wall-art',kind:'decoration',decoration:{...wallArt,sprite:'sprUtopiaTower',solid:true}}]}); // Existing GM scenery on walls must not prevent publishing an unrelated building.
   await http('/gm/places',null,ordinary,403);
   await http('/gm/action',{request_id:randomUUID(),action:'world_place_save',id:'bakery',revision:0,entry},ordinary,403);
   assert.equal(service.zones.world.places.list().length,0);
@@ -49,6 +58,7 @@ test('Utopia building draft, paired stairs, normal travel, parcel regeneration a
   await gm({action:'world_place_stage',id:'bakery',room:'shop',revision:2,placement:{id:'resident',zone:'shop',kind:'npc',content:npc,name:'Test resident',x:3,y:3}});
   assert.equal(service.db.prepare("SELECT COUNT(*) n FROM world_placements WHERE id='town-bakery-resident'").get().n,0);
   await gm({action:'world_place_publish',id:'bakery',revision:3});
+  const townWithArt=await http('/gm/map?zone=utopia-arcanum&paint=1');assert.ok(townWithArt.floor.fixtures.some(f=>f.id==='patch-wall-art'));assert.equal(townWithArt.floor.walls[wallArt.y][wallArt.x],1,'publication preserves both layers of the existing artwork');
   assert.equal(service.db.prepare("SELECT COUNT(*) n FROM world_placements WHERE id='town-bakery-resident'").get().n,1,'publication creates the staged resident exactly once');
   await gm({action:'world_place_publish',id:'bakery',revision:4});
   assert.equal(service.db.prepare("SELECT COUNT(*) n FROM world_placements WHERE id='town-bakery-resident'").get().n,1);

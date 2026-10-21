@@ -80,9 +80,14 @@ export function roseCourtyard(decorations){ // Build the lobby geometry once at 
  const garden={width:GARDEN_SIZE,height:GARDEN_SIZE,spawn:{...GARDEN_SPAWN},exit:{...GARDEN_EXIT},walls,floors,wallTiles,treeTiles,tilesets:{wall:'tilePrincessQuarters',floor:'tileTown',trees:'tileTown'},fixtures,courtyard:true};
  validateCourtyard(garden,GARDEN_PORTALS);return garden;
 }
-export function validateCourtyard(g,portals){ // Refuse to boot with a garden whose props seal a path, an opening or the spawn.
+export function validateCourtyard(g,portals,{allowPatchedSceneryWalls=false}={}){ // Shipped gardens stay strict; editable places can retain the scenery/wall combinations accepted by Map Editor.
  const solid=(x,y)=>g.walls[y][x]===1||g.fixtures.some(f=>f.solid!==false&&x>=f.x&&y>=f.y&&x<f.x+f.span_w&&y<f.y+f.span_h);
- for(const f of g.fixtures)if(f.x<1||f.y<1||f.x+f.span_w>g.width-1||f.y+f.span_h>g.height-1||[...Array(f.span_h).keys()].some(dy=>[...Array(f.span_w).keys()].some(dx=>g.walls[f.y+dy][f.x+dx])))throw Error('Courtyard prop '+f.id+' overlaps a wall or the boundary');
+ for(const f of g.fixtures){
+  const label='Courtyard prop '+f.id+(f.name||f.sprite?' ('+(f.name||f.sprite)+')':'')+' at '+f.x+','+f.y;
+  if(f.x<1||f.y<1||f.x+f.span_w>g.width-1||f.y+f.span_h>g.height-1)throw Error(label+' overlaps a wall or the boundary: move or resize its '+f.span_w+'x'+f.span_h+' footprint inside the map.');
+  const wallScenery=allowPatchedSceneryWalls&&f.kind==='scenery'&&String(f.id??'').startsWith('patch-'); // Only GM scenery may share terrain collision; service fixtures still require open floor.
+  if(!wallScenery)for(let dy=0;dy<f.span_h;dy++)for(let dx=0;dx<f.span_w;dx++)if(g.walls[f.y+dy][f.x+dx])throw Error(label+' overlaps a wall at '+(f.x+dx)+','+(f.y+dy)+': move the prop or clear that wall tile.');
+ } // Keep every fixture in the flood fill below; accepting overlapping art never removes its collision.
  const seen=new Set(),queue=[g.spawn];if(solid(g.spawn.x,g.spawn.y))throw Error('Courtyard spawn is blocked');
  for(let n=0;n<queue.length;n++){const {x,y}=queue[n],key=x+','+y;if(x<0||y<0||x>=g.width||y>=g.height||seen.has(key)||solid(x,y))continue;seen.add(key);queue.push({x:x+1,y},{x:x-1,y},{x,y:y+1},{x,y:y-1});}
  for(let y=0;y<g.height;y++)for(let x=0;x<g.width;x++)if(!solid(x,y)&&!seen.has(x+','+y))throw Error(`Courtyard tile ${x},${y} is unreachable from the spawn`);
